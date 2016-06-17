@@ -1,0 +1,1 @@
+package autospotting_test
