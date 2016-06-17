@@ -1,0 +1,119 @@
+{
+"AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling",
+  "Outputs": {
+    "LambdaSnsTopicArn": {
+      "Value": { "Ref": "LambdaTopic" }
+    }
+  },
+  "Parameters": {
+    "LambdaHandlerFunction": {
+      "Default": "index.handler",
+      "Description": "Handler function for Lambda",
+      "Type": "String"
+    },
+    "LambdaS3Bucket": {
+      "Default": "cloudprowess",
+      "Description": "S3 bucket that contains the function",
+      "Type": "String"
+    },
+    "LambdaZipPath": {
+      "Default": "dv/lambda.zip",
+      "Description": "Path to the Lambda function zip file inside the S3 bucket",
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "LambdaCall": {
+      "DependsOn": [
+        "LambdaTopic",
+        "LambdaPolicy",
+        "LambdaFunction",
+        "LambdaExecutionRole"
+      ],
+      "Properties": {
+        "SNSTopic": { "Ref": "LambdaTopic" },
+        "ServiceToken": { "Fn::GetAtt": [ "LambdaFunction", "Arn" ] }
+      },
+      "Type": "Custom::StackChangeLambdaCall",
+      "Version": "1.0"
+    },
+    "LambdaExecutionRole": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [ "lambda.amazonaws.com" ]
+              }
+            }
+          ]
+        },
+        "Path": "/lambda/"
+      },
+      "Type": "AWS::IAM::Role"
+    },
+    "LambdaFunction": {
+      "Properties": {
+        "Code": {
+          "S3Bucket": { "Ref": "LambdaS3Bucket" },
+          "S3Key": { "Ref": "LambdaZipPath" }
+        },
+        "Description": "Implements SPOT instance automation",
+        "Handler": { "Ref": "LambdaHandlerFunction" },
+        "MemorySize": "128",
+        "Role": { "Fn::GetAtt": [ "LambdaExecutionRole", "Arn" ] },
+        "Runtime": "nodejs4.3",
+        "Timeout": "300"
+      },
+      "Type": "AWS::Lambda::Function"
+    },
+    "LambdaPolicy": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "autoscaling:DescribeAutoScalingGroups",
+                "autoscaling:DescribeLaunchConfigurations",
+                "autoscaling:AttachInstances",
+                "autoscaling:DetachInstances",
+                "ec2:CreateTags",
+                "ec2:DescribeInstances",
+                "ec2:DescribeRegions",
+                "ec2:DescribeSpotInstanceRequests",
+                "ec2:DescribeSpotPriceHistory",
+                "ec2:RequestSpotInstances",
+                "ec2:TerminateInstances",
+                "lambda:AddPermission",
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "sns:Subscribe"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+            }
+          ]
+        },
+        "PolicyName": "LambdaPolicy",
+        "Roles": [ { "Ref": "LambdaExecutionRole" } ]
+      },
+      "Type": "AWS::IAM::Policy"
+    },
+    "LambdaTopic": {
+      "Properties": {
+        "DisplayName": "SNS topic for SPOT EC2 instance automation",
+        "Subscription": [
+          {
+            "Endpoint": { "Fn::GetAtt": [ "LambdaFunction", "Arn" ] },
+            "Protocol": "lambda"
+          }
+        ]
+      },
+      "Type": "AWS::SNS::Topic"
+    }
+  }
+}
