@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"bitbucket.org/cloudprowess/autospotting/agent/autospotting"
+	"bitbucket.org/mcristi/autospotting/agent/autospotting"
 	"github.com/droundy/goopt"
 )
 

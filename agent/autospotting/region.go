@@ -1,7 +1,6 @@
 package autospotting
 
 import (
-	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -37,22 +36,22 @@ type prices struct {
 type spotPriceMap map[string]float64
 
 func (r *region) processRegion(instData *jsonInstances) {
-	fmt.Println("Creating connections to the required AWS services in", r.name)
+	logger.Println("Creating connections to the required AWS services in", r.name)
 	r.services.connect(r.name)
 	// only process the regions where we have AutoScaling groups set to be handled
 
-	fmt.Println("Scanning for enabled AutoScaling groups in ", r.name)
+	logger.Println("Scanning for enabled AutoScaling groups in ", r.name)
 	r.scanEnabledAutoScalingGroups()
 
 	// only process further the region if there are any enabled autoscaling groups within it
 	if r.hasEnabledAutoScalingGroups() {
-		fmt.Println("Scanning instances in", r.name)
+		logger.Println("Scanning instances in", r.name)
 		r.scanInstances()
 
-		fmt.Println("Scanning full instance information in", r.name)
+		logger.Println("Scanning full instance information in", r.name)
 		r.determineInstanceInformation(instData)
 
-		fmt.Println("Processing enabled AutoScaling groups in", r.name)
+		logger.Println("Processing enabled AutoScaling groups in", r.name)
 		r.processEnabledAutoScalingGroups()
 	}
 }
@@ -86,14 +85,15 @@ func (r *region) determineInstanceInformation(instData *jsonInstances) {
 	}
 	// this is safe to do once outside of the loop because the call will only return entries
 	// about the available instance types, so no invalid instance types would be returned
-	r.requestSpotPrices()
-
-	// fmt.Printf("%#v\n", r.instanceData)
+	if err := r.requestSpotPrices(); err != nil {
+		logger.Println(err.Error())
+	}
+	// logger.Printf("%#v\n", r.instanceData)
 }
 
 func (r *region) requestSpotPrices() error {
 
-	fmt.Println(r.name, "Requesting spot prices")
+	logger.Println(r.name, "Requesting spot prices")
 	ec2Conn := r.services.ec2
 	params := &ec2.DescribeSpotPriceHistoryInput{
 		ProductDescriptions: []*string{
@@ -106,13 +106,13 @@ func (r *region) requestSpotPrices() error {
 	resp, err := ec2Conn.DescribeSpotPriceHistory(params)
 
 	if err != nil {
-		fmt.Println(r.name, "Failed requesting spot prices:", err.Error())
+		logger.Println(r.name, "Failed requesting spot prices:", err.Error())
 		return err
 	}
 
 	spotPrices := resp.SpotPriceHistory
 
-	// fmt.Println("Spot Price list in ", r.name, ":\n", spotPrices)
+	// logger.Println("Spot Price list in ", r.name, ":\n", spotPrices)
 
 	for _, priceInfo := range spotPrices {
 
@@ -137,7 +137,7 @@ func (r *region) scanEnabledAutoScalingGroups() {
 	resp, err := svc.DescribeAutoScalingGroups(nil)
 
 	if err != nil {
-		fmt.Println("scanEnabledAutoScalingGroups:", err.Error())
+		logger.Println("scanEnabledAutoScalingGroups:", err.Error())
 		return
 	}
 
@@ -183,11 +183,11 @@ func (r *region) findSpotInstanceRequests(forAsgName string) []*ec2.SpotInstance
 	resp, err := svc.DescribeSpotInstanceRequests(params)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		return nil
 	}
 
-	fmt.Println("Spot instance requests created for ", forAsgName, "\n", resp.SpotInstanceRequests)
+	logger.Println("Spot instance request created for", forAsgName)
 	return resp.SpotInstanceRequests
 
 }
@@ -207,7 +207,7 @@ func (r *region) scanInstances() {
 	}
 	resp, err := svc.DescribeInstances(params)
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		return
 	}
 
@@ -220,7 +220,7 @@ func (r *region) scanInstances() {
 		}
 	}
 
-	fmt.Println(r.instances)
+	// logger.Println(r.instances)
 }
 
 func (r *region) tagInstance(instanceID string, tags []*ec2.Tag) {
@@ -235,10 +235,10 @@ func (r *region) tagInstance(instanceID string, tags []*ec2.Tag) {
 	if err != nil {
 		// Print the error, cast err to awserr.Error to get the Code and
 		// Message from an error.
-		fmt.Println(r.name, "Failed to create tags for the spot instance request:", err.Error())
+		logger.Println(r.name, "Failed to create tags for the spot instance request:", err.Error())
 		return
 	}
 
 	// Pretty-print the response data.
-	fmt.Println(resp)
+	logger.Println(resp)
 }

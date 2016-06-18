@@ -3,8 +3,6 @@
 package autospotting
 
 import (
-	"fmt"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -24,6 +22,8 @@ type connections struct {
 func getRegions() ([]string, error) {
 	var output []string
 
+	// turns out to be faster when running locally, to be changed back to the
+	// snippet below for production usage
 	currentRegion := "us-east-1"
 
 	// m := ec2metadata.New(session.New())
@@ -31,17 +31,21 @@ func getRegions() ([]string, error) {
 	// 	currentRegion, _ = m.Region()
 	// }
 
-	svc := ec2.New(session.New(&aws.Config{Region: aws.String(currentRegion)}))
+	svc := ec2.New(
+		session.New(
+			&aws.Config{
+				Region: aws.String(currentRegion),
+			}))
 
 	resp, err := svc.DescribeRegions(&ec2.DescribeRegionsInput{})
 
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		return nil, err
 	}
 
 	for _, r := range resp.Regions {
-		fmt.Println("Adding region", *r.RegionName)
+		logger.Println("Adding region", *r.RegionName)
 		output = append(output, *r.RegionName)
 	}
 	return output, nil
@@ -49,11 +53,14 @@ func getRegions() ([]string, error) {
 
 func (c *connections) connect(region string) {
 
-	fmt.Println("Creating Service connections in", region)
+	logger.Println("Creating Service connections in", region)
 
 	// concurrently connect to all the services we need
 
-	c.session = session.New(&aws.Config{Region: aws.String(region)})
+	c.session = session.New(
+		&aws.Config{
+			Region: aws.String(region)},
+	)
 
 	asConn := make(chan *autoscaling.AutoScaling)
 	ec2Conn := make(chan *ec2.EC2)
@@ -70,5 +77,5 @@ func (c *connections) connect(region string) {
 	c.lambda = <-lambdaConn
 	c.sns = <-snsConn
 
-	fmt.Println("Created service connections in", region)
+	logger.Println("Created service connections in", region)
 }

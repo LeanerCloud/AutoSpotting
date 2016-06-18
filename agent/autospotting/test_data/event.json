@@ -1,0 +1,22 @@
+{
+    "Records": [
+        {
+            "EventSource": "aws:sns",
+            "EventVersion": "1.0",
+            "EventSubscriptionArn": "arn:aws:sns:us-east-1:540659244915:cron-lambda-CronLambdaTopic-PFBT7NHMUY20:936af8f6-0025-4895-a921-b24fdfc49401",
+            "Sns": {
+                "Type": "Notification",
+                "MessageId": "f4ad973a-c2d3-573a-a5e5-d8e4420a4aa1",
+                "TopicArn": "arn:aws:sns:us-east-1:540659244915:cron-lambda-CronLambdaTopic-PFBT7NHMUY20",
+                "Subject": null,
+                "Message": "{\"version\":\"0\",\"id\":\"289f3813-74d1-4367-af2f-7c8de8d5bfe3\",\"detail-type\":\"Scheduled Event\",\"source\":\"aws.events\",\"account\":\"540659244915\",\"time\":\"2016-06-17T22:49:35Z\",\"region\":\"us-east-1\",\"resources\":[\"arn:aws:events:us-east-1:540659244915:rule/cron-every-5min\"],\"detail\":{}}",
+                "Timestamp": "2016-06-17T22:50:01.611Z",
+                "SignatureVersion": "1",
+                "Signature": "O5p67xxZkSTVUNN+0I/VzeA0Lr3Z3MYDk7TQnmhnqWewH1+WFdcINSVxJTlWy9iZEaeuO4RtNdw3WQ7E9+cz5MygVHwaFK7/e2SXaNyE6JP2dXYUPfS5lgqPZPNAg3bLU+CBjOjxUcXycm+O+Bb5lOyyvjjprm8NU/KrY/McWHs0Pzm54p3u5MXBe0gXRva/p8clNffrd3Ar35zgerc1XpDgDByUeSqApIM2sq1MlZ8PVMg7fcbfUjJyeMSsNcKef5cqEQc2CBkz0ExBnJLxFCha5XXGgBWs2ZeEgr8mvuU40y1JgnnALl9ZZhcFARQrNOe38gzM8w6bUiPVwJGTgQ==",
+                "SigningCertUrl": "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-bb750dd426d95ee9390147a5624348ee.pem",
+                "UnsubscribeUrl": "https://sns.us-east-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-1:540659244915:cron-lambda-CronLambdaTopic-PFBT7NHMUY20:936af8f6-0025-4895-a921-b24fdfc49401",
+                "MessageAttributes": {}
+            }
+        }
+    ]
+}

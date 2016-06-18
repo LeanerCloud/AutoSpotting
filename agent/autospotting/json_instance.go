@@ -2,7 +2,6 @@ package autospotting
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 )
@@ -23,7 +22,7 @@ type jsonInstance struct {
 	Pricing            map[string]regionPrices `json:"pricing"`
 	VPC                struct {
 		IPsPerENI int `json:"ips_per_eni"`
-		Max_enis  int `json:"max_enis"`
+		MaxENIs   int `json:"max_enis"`
 	} `json:"vpc"`
 	Arch                     []string `json:"arch"`
 	LinuxVirtualizationTypes []string `json:"linux_virtualization_types"`
@@ -60,7 +59,7 @@ func (i *jsonInstances) loadFromURL(url string) error {
 
 	response, err := http.Get(url)
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		return err
 	}
 
@@ -68,14 +67,14 @@ func (i *jsonInstances) loadFromURL(url string) error {
 
 	contents, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		return err
 	}
 
-	fmt.Println(string(contents))
+	// logger.Println(string(contents))
 	err = json.Unmarshal(contents, &i)
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 
 		return err
 	}

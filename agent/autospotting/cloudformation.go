@@ -2,7 +2,6 @@ package autospotting
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -35,8 +34,8 @@ type cloudFormationCustomResourceResponse struct {
 func (cfn *cloudFormation) processStackUpdate(e eventData, c contextData, cronTopic string) {
 	status := "SUCCESS"
 
-	fmt.Println("Processing CloudFormation operation", e.RequestType)
-	fmt.Println("Event: %v, Context: %v", e, c)
+	logger.Println("Processing CloudFormation operation", e.RequestType)
+	logger.Println("Event: %v, Context: %v", e, c)
 
 	// only handle the creation of the stack, all other operations are NOOPs
 	if e.RequestType == "Create" {
@@ -45,7 +44,7 @@ func (cfn *cloudFormation) processStackUpdate(e eventData, c contextData, cronTo
 		err := cfn.connectLambdaToTopic(e.ServiceToken, cronTopic)
 
 		if err != nil {
-			fmt.Println(err.Error())
+			logger.Println(err.Error())
 			status = "FAILURE"
 		}
 	}
@@ -55,22 +54,22 @@ func (cfn *cloudFormation) processStackUpdate(e eventData, c contextData, cronTo
 }
 
 func (cfn *cloudFormation) connectLambdaToTopic(lambdaFunc string, topicARN string) error {
-	fmt.Printf("Connecting lambda %v to topic %v\n", lambdaFunc, topicARN)
+	logger.Printf("Connecting lambda %v to topic %v\n", lambdaFunc, topicARN)
 	err := cfn.addLambdaInvokePermission(lambdaFunc, topicARN)
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 	}
 
 	err = cfn.subscribeLambdaToTopic(lambdaFunc, topicARN)
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 	}
 
 	return err
 }
 func (cfn *cloudFormation) addLambdaInvokePermission(lambdaFunc string, topicARN string) error {
 
-	fmt.Print("Adding invoke permissions for lambda %v to topic %v\n", lambdaFunc, topicARN)
+	logger.Print("Adding invoke permissions for lambda %v to topic %v\n", lambdaFunc, topicARN)
 
 	// re-implements this kind of command using API calls:
 	// aws lambda add-permission --function-name lambda-LambdaFunction-1KVSRHYIWUSBO
@@ -80,7 +79,7 @@ func (cfn *cloudFormation) addLambdaInvokePermission(lambdaFunc string, topicARN
 	svc := cfn.AWSConnections.lambda
 
 	statementID := strconv.Itoa(int(time.Now().UnixNano()))
-	fmt.Println("Adding invoke permission: ", lambdaFunc, topicARN)
+	logger.Println("Adding invoke permission: ", lambdaFunc, topicARN)
 
 	params := &lambda.AddPermissionInput{
 		Action:       aws.String("lambda:invokeFunction"), // Required
@@ -97,26 +96,26 @@ func (cfn *cloudFormation) addLambdaInvokePermission(lambdaFunc string, topicARN
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {
 			// Generic AWS error with Code, Message, and original error (if any)
-			fmt.Println(awsErr.Code(), awsErr.Message(), awsErr.OrigErr())
+			logger.Println(awsErr.Code(), awsErr.Message(), awsErr.OrigErr())
 			if reqErr, ok := err.(awserr.RequestFailure); ok {
 				// A service error occurred
-				fmt.Println(reqErr.Code(), reqErr.Message(), reqErr.StatusCode(), reqErr.RequestID())
+				logger.Println(reqErr.Code(), reqErr.Message(), reqErr.StatusCode(), reqErr.RequestID())
 			}
 		} else {
 			// This case should never be hit, the SDK should always return an
 			// error which satisfies the awserr.Error interface.
-			fmt.Println(err.Error())
+			logger.Println(err.Error())
 		}
 	}
 
 	// Pretty-print the response data.
-	fmt.Println(awsutil.StringValue(resp))
+	logger.Println(awsutil.StringValue(resp))
 	return err
 }
 
 func (cfn *cloudFormation) subscribeLambdaToTopic(lambdaFunc string, topicARN string) error {
 
-	fmt.Println("Subscribing lambda", lambdaFunc, "to topic: ", topicARN)
+	logger.Println("Subscribing lambda", lambdaFunc, "to topic: ", topicARN)
 
 	svc := cfn.AWSConnections.sns
 
@@ -131,20 +130,20 @@ func (cfn *cloudFormation) subscribeLambdaToTopic(lambdaFunc string, topicARN st
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {
 			// Generic AWS error with Code, Message, and original error (if any)
-			fmt.Println(awsErr.Code(), awsErr.Message(), awsErr.OrigErr())
+			logger.Println(awsErr.Code(), awsErr.Message(), awsErr.OrigErr())
 			if reqErr, ok := err.(awserr.RequestFailure); ok {
 				// A service error occurred
-				fmt.Println(reqErr.Code(), reqErr.Message(), reqErr.StatusCode(), reqErr.RequestID())
+				logger.Println(reqErr.Code(), reqErr.Message(), reqErr.StatusCode(), reqErr.RequestID())
 			}
 		} else {
 			// This case should never be hit, the SDK should always return an
 			// error which satisfies the awserr.Error interface.
-			fmt.Println(err.Error())
+			logger.Println(err.Error())
 		}
 	}
 
 	// Pretty-print the response data.
-	fmt.Println(awsutil.StringValue(resp))
+	logger.Println(awsutil.StringValue(resp))
 
 	return err
 }
@@ -162,19 +161,19 @@ func (cfn *cloudFormation) provideCustomResourceResponse(e eventData, c contextD
 
 	jsonStr, _ := json.Marshal(r)
 
-	fmt.Println("Response payload:", string(jsonStr))
+	logger.Println("Response payload:", string(jsonStr))
 
 	// prepare an HTTP request
 	req, err := http.NewRequest("PUT", e.ResponseURL, strings.NewReader(string(jsonStr)))
 
 	if err != nil {
-		fmt.Println("Failed to create PUT request", err.Error())
+		logger.Println("Failed to create PUT request", err.Error())
 	}
 
 	// prepare the S3 upload URL
 	URL, err := url.Parse(e.ResponseURL)
 	if err != nil {
-		fmt.Println(err)
+		logger.Println(err)
 	}
 
 	// tweak the URL decoding of the URL path
@@ -189,13 +188,13 @@ func (cfn *cloudFormation) provideCustomResourceResponse(e eventData, c contextD
 	resp, err := client.Do(req)
 
 	if err != nil {
-		fmt.Println("Failed to set CloudFormation state", err.Error())
+		logger.Println("Failed to set CloudFormation state", err.Error())
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
+	logger.Println("response Status:", resp.Status)
+	logger.Println("response Headers:", resp.Header)
 	body, _ := ioutil.ReadAll(resp.Body)
-	fmt.Println("response Body:", string(body))
+	logger.Println("response Body:", string(body))
 
 }

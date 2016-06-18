@@ -2,7 +2,6 @@ package autospotting
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 )
@@ -100,27 +99,29 @@ type snsNotification struct {
 // with compatible and cheaper spot instances.
 func (e *LambdaEventFromFiles) HandleEvent(cronTopic, instancesURL string) {
 
+	initLogger()
+
 	e.readEventData()
 
-	fmt.Println("Event: ", e.event)
+	// logger.Println("Event: ", e.event)
 	if e.event.RequestType == "" && e.event.Records[0].SNS.Message != "" {
-		fmt.Println("Detected execution triggered by an SNS Topic Notification")
+		logger.Println("Detected execution triggered by an SNS Topic Notification")
 
 		var ir instanceReplacement
 
 		// TODO: we could cache this data locally for a while, like for a few days
 		var jsonInst jsonInstances
 
-		fmt.Println("Loading on-demand instance pricing information")
+		logger.Println("Loading on-demand instance pricing information")
 		jsonInst.loadFromURL(instancesURL)
 
-		fmt.Println(jsonInst)
+		//logger.Println(jsonInst)
 
 		ir.processAllRegions(&jsonInst)
 
 	} else {
-		fmt.Println("Detected a CloudFormation operation:", e.event.RequestType)
-		fmt.Println(e.context)
+		logger.Println("Detected a CloudFormation operation:", e.event.RequestType)
+		logger.Println(e.context)
 		var cfn cloudFormation
 		cfn.processStackUpdate(e.event, e.context, cronTopic)
 
@@ -132,45 +133,45 @@ func (e *LambdaEventFromFiles) readEventData() {
 	eventFileContent, err := ioutil.ReadFile(e.EventFile)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		os.Exit(1)
 	}
 
 	contextFileContent, err := ioutil.ReadFile(e.ContextFile)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		os.Exit(1)
 	}
 
 	err = e.decodeEventData(eventFileContent, contextFileContent)
 
 	if err != nil {
-		fmt.Println("Couldn't decode input data: ", err.Error())
+		logger.Println("Couldn't decode input data: ", err.Error())
 		os.Exit(1)
 	}
 }
 
 func (e *LambdaEventFromFiles) decodeEventData(eventJSON, contextJSON []byte) error {
 
-	fmt.Println("Got event: ", string(eventJSON))
-	fmt.Println("Got context: ", string(contextJSON))
+	logger.Println("Got event: ", string(eventJSON))
+	logger.Println("Got context: ", string(contextJSON))
 
 	err := json.Unmarshal(eventJSON, &e.event)
 
-	fmt.Println(e.event)
+	// logger.Println(e.event)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		return err
 	}
 
 	err = json.Unmarshal(contextJSON, &e.context)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		return err
 	}
-	fmt.Println(e.context)
+	// logger.Println(e.context)
 	return nil
 }

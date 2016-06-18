@@ -1,2 +1,3 @@
-
 ---
+LambdaHandlerFunction: index.handler
+LambdaS3Bucket: cloudprowess
