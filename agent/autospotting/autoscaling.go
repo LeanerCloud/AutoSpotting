@@ -31,35 +31,27 @@ func (a *autoScalingGroup) create(region *region, asg *autoscaling.Group) {
 
 func (a *autoScalingGroup) process() {
 
-	fmt.Println("Finding spot instance requests created for", a.name)
+	logger.Println("Finding spot instance requests created for", a.name)
 	a.spotInstanceRequests = a.region.findSpotInstanceRequests(a.name)
 
 	spotInstanceID, waitForNextRun := a.havingReadyToAttachSpotInstance()
 
 	if waitForNextRun == true {
-		fmt.Println("Waiting for next run, spot instances are still in grace period for", a.name)
+		logger.Println("Waiting for next run while processing ", a.name)
 		return
 	}
 
 	if spotInstanceID != nil {
-		fmt.Println("Replacing on-demand instance", *spotInstanceID, "from", a.name)
+		logger.Println(a.region, "Attaching spot instance", *spotInstanceID, "to", a.name)
 
 		a.replaceOnDemandInstanceWithSpot(*spotInstanceID)
 	} else {
-		var azToLaunchSpotIn *string
-
-		if a.hasEqualAvailibilityZones() {
-			fmt.Println(a.region.name, a.name, "AZs are equal in size")
-
-			azToLaunchSpotIn = a.biggestOnDemandAvailablityZone()
-		} else {
-			azToLaunchSpotIn = a.smallestAvailablityZone()
-		}
+		azToLaunchSpotIn := a.biggestOnDemandAvailablityZone()
 
 		if azToLaunchSpotIn == nil {
-			fmt.Println(a.region.name, a.name, "No AZ can be used for launching new instances, nothing to do here...")
+			logger.Println(a.region.name, a.name, "No AZ can be used for launching new instances, nothing to do here...")
 		} else {
-			fmt.Println(a.region.name, a.name, "Would launch a spot instance in ", *azToLaunchSpotIn)
+			logger.Println(a.region.name, a.name, "Would launch a spot instance in ", *azToLaunchSpotIn)
 		}
 		a.launchCheapestSpotInstance(azToLaunchSpotIn)
 	}
@@ -69,8 +61,6 @@ func (a *autoScalingGroup) filterInstanceTags() []*ec2.Tag {
 	var filteredTags []*ec2.Tag
 
 	tags := a.getInstanceTags()
-
-	fmt.Println("Unfiltered tags:", tags)
 	// filtering reserved tags, which start with the "aws:" prefix
 	for _, tag := range tags {
 		if !strings.HasPrefix(*tag.Key, "aws:") {
@@ -78,7 +68,6 @@ func (a *autoScalingGroup) filterInstanceTags() []*ec2.Tag {
 		}
 	}
 
-	fmt.Println("Filtered tags:", filteredTags)
 	return filteredTags
 }
 
@@ -86,14 +75,11 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(spotInstanceID string
 
 	a.region.tagInstance(spotInstanceID, a.filterInstanceTags())
 
-	biggestAZ := a.biggestAvailablityZone()
-	biggestODAZ := a.biggestOnDemandAvailablityZone()
-
 	asg := a.asgRawData
 
 	minSize, desiredCapacity, maxSize := *asg.MinSize, *asg.DesiredCapacity, *asg.MaxSize
 
-	// temporarily increase AutoScaling group in case it's fixed
+	// temporarily increase AutoScaling group in case it's of fixed size
 	if minSize == maxSize {
 		a.setAutoScalingMaxSize(maxSize + 1)
 		defer a.setAutoScalingMaxSize(maxSize)
@@ -106,14 +92,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(spotInstanceID string
 		defer a.attachSpotInstance(spotInstanceID)
 	}
 
-	// when all availability zones are equal, terminate an on-demand instance from where we have the most of them
-	// otherwise terminate one from the biggest availability zone
-	// TODO: make sure we actually have instances there
-	if a.hasEqualAvailibilityZones() {
-		a.detachAndTerminateOnDemandInstance(*biggestODAZ)
-	} else {
-		a.detachAndTerminateOnDemandInstance(*biggestAZ)
-	}
+	a.detachAndTerminateOnDemandInstance()
 
 }
 
@@ -153,28 +132,39 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 
 	var activeSpotInstanceRequest *ec2.SpotInstanceRequest
 
+	// if there are on-demand instances but no spot instance requests yet,
+	// then we can launch a new spot instance
 	if len(a.spotInstanceRequests) == 0 {
-		fmt.Println("No spot bids were found")
-		return nil, true
+		logger.Println(a.name, "no spot bids were found")
+		if a.findOndemandInstance() != nil {
+			logger.Println(a.name, "on-demand instances were found, proceeding to launch a replacement spot instance")
+			return nil, false
+		} else {
+			logger.Println(a.name, "no on-demand instances were found, nothing else to do")
+			return nil, true
+
+		}
+	} else {
+		logger.Println("spot bids were found, continuing")
 	}
 
 	for _, req := range a.spotInstanceRequests {
 		if *req.State == "open" || *req.State == "failed" {
-			fmt.Println("Open or failed bids found, waiting for the next run...")
+			logger.Println(a.name, "Open or failed bids found, waiting for the next run...")
 			return nil, true
 		}
 
 		if *req.State == "active" && *req.Status.Code == "fulfilled" {
 			if a.hasInstance(*req.InstanceId) {
-				fmt.Println("Active bid was found, with instance already attached to the ASG, skipping...")
+				logger.Println(a.name, "Active bid was found, with instance already attached to the ASG, skipping...")
 				continue
 			} else {
 				if *a.region.instances[*req.InstanceId].State.Name == "running" {
-					fmt.Println("Active bid was found, with running instances not yet attached to the ASG", *req.InstanceId)
+					logger.Println(a.name, "Active bid was found, with running instances not yet attached to the ASG", *req.InstanceId)
 					activeSpotInstanceRequest = req
 					break
 				} else {
-					fmt.Println("Active bid was found, with non-running instances")
+					logger.Println(a.name, "Active bid was found, with non-running instances")
 					continue
 				}
 			}
@@ -183,20 +173,20 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 
 	// in this case we can launch a new spot instance if we can
 	if activeSpotInstanceRequest == nil {
-		fmt.Println("No active unfulfilled bid was found")
+		logger.Println(a.name, "No active unfulfilled bid was found")
 		return nil, false
 	}
 
-	// Show information about the current spot instance
+	// Show information about the found unattached spot instance
 	spotInstanceID := activeSpotInstanceRequest.InstanceId
-	fmt.Println("Considering ", *spotInstanceID, "for attaching to", a.name)
+	logger.Println("Considering ", *spotInstanceID, "for attaching to", a.name)
 
 	instData := a.region.instances[*spotInstanceID]
 
 	// check if the spot instance is out of the grace period, so
 	// in that case we can replace an on-demand instance with it
 	if *instData.State.Name == "running" && (time.Now().Unix()-instData.LaunchTime.Unix()) < *a.asgRawData.HealthCheckGracePeriod {
-		fmt.Println("The new spot instance", *spotInstanceID, "is still in the grace period,  waiting for the next run...")
+		logger.Println("The new spot instance", *spotInstanceID, "is still in the grace period,  waiting for the next run...")
 		return nil, true
 	}
 	return spotInstanceID, false
@@ -237,7 +227,8 @@ func (a *autoScalingGroup) hasEqualAvailibilityZones() bool {
 	}
 
 	result := (min == max)
-	fmt.Println("Checking if all AZs of ", a.name, " are equal in size: ", result)
+	logger.Println(a.name, "Checking if all AZs of are equal in size: ", strconv.FormatBool(result))
+
 	return result
 }
 
@@ -249,7 +240,7 @@ func (a *autoScalingGroup) smallestAvailablityZone() *string {
 	var smallestAZ string
 	min := math.MaxInt32
 
-	fmt.Println(a.region.name, "Getting smallest AZ in", a.name)
+	logger.Println(a.region.name, "Getting smallest AZ in", a.name)
 	for _, az := range a.asgRawData.AvailabilityZones {
 		azInstanceCount[*az] = 0
 	}
@@ -258,20 +249,18 @@ func (a *autoScalingGroup) smallestAvailablityZone() *string {
 		azInstanceCount[*instance.AvailabilityZone]++
 	}
 
-	fmt.Println(azInstanceCount)
-
 	for k, v := range azInstanceCount {
 		if v <= min {
 			smallestAZ, min = k, v
 		}
 	}
-	fmt.Println("Smallest AZ is ", smallestAZ)
+	logger.Println("Smallest AZ is ", smallestAZ)
 	return &smallestAZ
 }
 
 // returns the AZ with the highest total number of instances
 func (a *autoScalingGroup) biggestAvailablityZone() *string {
-	fmt.Println(a.region.name, "Getting biggest AZ in", a.name)
+	logger.Println(a.region.name, "Getting biggest AZ in", a.name)
 	var azInstanceCount = make(map[string]int)
 	var biggestAZ *string
 	max := 0
@@ -286,7 +275,7 @@ func (a *autoScalingGroup) biggestAvailablityZone() *string {
 		}
 	}
 
-	fmt.Println("Biggest AZ is ", *biggestAZ)
+	logger.Println("Biggest AZ is ", *biggestAZ)
 	return biggestAZ
 }
 
@@ -294,7 +283,7 @@ func (a *autoScalingGroup) biggestAvailablityZone() *string {
 // this is useful for terminating on-demand instances from it in case
 // all the AZs are equal and we would otherwise brask the balance between them
 func (a *autoScalingGroup) biggestOnDemandAvailablityZone() *string {
-	fmt.Println(a.region.name, "Getting biggest OnDemand AZ from ", a.name)
+	logger.Println(a.region.name, "Getting biggest OnDemand AZ from ", a.name)
 
 	var azInstanceCount = make(map[string]int)
 	var biggestAZ *string
@@ -313,7 +302,7 @@ func (a *autoScalingGroup) biggestOnDemandAvailablityZone() *string {
 		}
 	}
 	if biggestAZ != nil {
-		fmt.Println("Biggest OnDemand AZ is ", *biggestAZ)
+		logger.Println("Biggest OnDemand AZ is ", *biggestAZ)
 	}
 	return biggestAZ
 }
@@ -321,24 +310,24 @@ func (a *autoScalingGroup) biggestOnDemandAvailablityZone() *string {
 func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 
 	if azToLaunchIn == nil {
-		fmt.Println("No AZ can be used to launch instances, nothing to do here...")
+		logger.Println("No AZ can be used to launch instances, nothing to do here...")
 		return
 	}
 
-	fmt.Println("Trying to launch spot instance in", *azToLaunchIn, "\nfirst finding an on-demand instance to use as a template")
+	logger.Println("Trying to launch spot instance in", *azToLaunchIn, "\nfirst finding an on-demand instance to use as a template")
 
 	baseInstance := a.findOndemandInstance()
 
 	if baseInstance == nil {
-		fmt.Println("Found no on-demand instances, nothing to do here...")
+		logger.Println("Found no on-demand instances, nothing to do here...")
 		return
 	}
-	fmt.Println("Found on-demand instance", *baseInstance.InstanceId)
+	logger.Println("Found on-demand instance", *baseInstance.InstanceId)
 
 	newInstanceType := a.getCheapestCompatibleSpotInstanceType(*azToLaunchIn, baseInstance)
 
 	if newInstanceType == nil {
-		fmt.Println("No cheaper compatible instance type was found, nothing to do here...")
+		logger.Println("No cheaper compatible instance type was found, nothing to do here...")
 		return
 	}
 
@@ -346,7 +335,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 
 	currentSpotPrice := a.region.instanceData[*newInstanceType].pricing.spot[*azToLaunchIn]
 
-	fmt.Println("Searching for best spot instance in ", *azToLaunchIn,
+	logger.Println("Searching for best spot instance in ", *azToLaunchIn,
 		"\nreplacing on-demand", *baseInstance.InstanceType, "instances",
 		"with the ondemand price", baseOnDemandPrice,
 		"\nLaunching best compatible instance:", *newInstanceType,
@@ -357,7 +346,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 		*newInstanceType,
 		*azToLaunchIn)
 
-	fmt.Println("Bidding for spot instance for ", a.name)
+	logger.Println("Bidding for spot instance for ", a.name)
 	a.bidForSpotInstance(spotLS, baseOnDemandPrice)
 }
 
@@ -372,12 +361,12 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) {
 	if err != nil {
 		// Print the error, cast err to awserr.Error to get the Code and
 		// Message from an error.
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		return
 	}
 
 	// Pretty-print the response data.
-	fmt.Println(resp)
+	logger.Println(resp)
 }
 
 func (a *autoScalingGroup) bidForSpotInstance(ls *ec2.RequestSpotLaunchSpecification, price float64) {
@@ -391,12 +380,12 @@ func (a *autoScalingGroup) bidForSpotInstance(ls *ec2.RequestSpotLaunchSpecifica
 	})
 
 	if err != nil {
-		fmt.Println("Failed to create spot instance request for ", a.name, err.Error())
+		logger.Println("Failed to create spot instance request for ", a.name, err.Error())
 		return
 	}
 
 	// Pretty-print the response data.
-	fmt.Println(resp)
+	logger.Println(resp)
 
 	a.tagSpotInstanceRequest(*resp.SpotInstanceRequests[0].SpotInstanceRequestId)
 }
@@ -417,12 +406,12 @@ func (a *autoScalingGroup) tagSpotInstanceRequest(requestID string) {
 	if err != nil {
 		// Print the error, cast err to awserr.Error to get the Code and
 		// Message from an error.
-		fmt.Println("Failed to create tags for the spot instance request", err.Error())
+		logger.Println("Failed to create tags for the spot instance request", err.Error())
 		return
 	}
 
 	// Pretty-print the response data.
-	fmt.Println(resp)
+	logger.Println(resp)
 }
 
 func (a *autoScalingGroup) getLaunchConfiguration() *autoscaling.LaunchConfiguration {
@@ -437,7 +426,7 @@ func (a *autoScalingGroup) getLaunchConfiguration() *autoscaling.LaunchConfigura
 	resp, err := svc.DescribeLaunchConfigurations(params)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		return nil
 	}
 
@@ -449,8 +438,6 @@ func convertLaunchConfigurationToSpotSpecification(lc *autoscaling.LaunchConfigu
 	az string) *ec2.RequestSpotLaunchSpecification {
 
 	var spotLS ec2.RequestSpotLaunchSpecification
-
-	fmt.Println("Launch configuration to convert", lc)
 
 	// convert attributes
 	spotLS.BlockDeviceMappings = copyBlockDeviceMappings(lc.BlockDeviceMappings)
@@ -508,12 +495,6 @@ func convertLaunchConfigurationToSpotSpecification(lc *autoscaling.LaunchConfigu
 	spotLS.UserData = lc.UserData
 	spotLS.Placement = &ec2.SpotPlacement{AvailabilityZone: &az}
 
-	fmt.Println(spotLS)
-
-	//lc.InstanceType = instanceType
-
-	fmt.Println("Launch configuration", lc, "\n\nconverted to spot configuration", spotLS)
-
 	return &spotLS
 
 }
@@ -541,8 +522,6 @@ func copyBlockDeviceMappings(lcBDMs []*autoscaling.BlockDeviceMapping) []*ec2.Bl
 
 		ec2BDM.VirtualName = lcBDM.VirtualName
 
-		fmt.Println("LCBDM:", lcBDM, "\n", "EC2BDM", ec2BDM, "\n appending to list")
-
 		ec2BDMlist = append(ec2BDMlist, &ec2BDM)
 
 	}
@@ -563,64 +542,62 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string) {
 	resp, err := svc.AttachInstances(&params)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		// Pretty-print the response data.
-		fmt.Println(resp)
+		logger.Println(resp)
 	}
 
 }
 
-// Terminates an on-demand instance from the given availability zone,
+// Terminates an on-demand instance from the group,
 // but only after it was detached from the autoscaling group
-func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(az string) {
+func (a *autoScalingGroup) detachAndTerminateOnDemandInstance() {
+
 	for _, inst := range a.asgRawData.Instances {
-		if *inst.AvailabilityZone == az {
 
-			instDetails := a.region.instances[*inst.InstanceId]
+		instDetails := a.region.instances[*inst.InstanceId]
 
-			// skip spot instances
-			if instDetails.InstanceLifecycle != nil && *instDetails.InstanceLifecycle == "spot" {
-				continue
-			}
-
-			detachParams := autoscaling.DetachInstancesInput{
-				AutoScalingGroupName: aws.String(a.name),
-				InstanceIds: []*string{
-					inst.InstanceId,
-				},
-				ShouldDecrementDesiredCapacity: aws.Bool(true),
-			}
-
-			asSvc := a.region.services.autoScaling
-			asResp, err := asSvc.DetachInstances(&detachParams)
-			fmt.Println(asResp)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-
-			ec2Svc := a.region.services.ec2
-
-			termParams := ec2.TerminateInstancesInput{
-				InstanceIds: []*string{
-					inst.InstanceId,
-				},
-			}
-
-			ec2Resp, err := ec2Svc.TerminateInstances(&termParams)
-			fmt.Println(ec2Resp)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-			return // we can exit after terminating a single instance from that AZ
+		// skip spot instances
+		if instDetails.InstanceLifecycle != nil && *instDetails.InstanceLifecycle == "spot" {
+			continue
 		}
 
+		detachParams := autoscaling.DetachInstancesInput{
+			AutoScalingGroupName: aws.String(a.name),
+			InstanceIds: []*string{
+				inst.InstanceId,
+			},
+			ShouldDecrementDesiredCapacity: aws.Bool(true),
+		}
+
+		asSvc := a.region.services.autoScaling
+		asResp, err := asSvc.DetachInstances(&detachParams)
+		logger.Println(asResp)
+		if err != nil {
+			logger.Println(err.Error())
+		}
+
+		ec2Svc := a.region.services.ec2
+
+		termParams := ec2.TerminateInstancesInput{
+			InstanceIds: []*string{
+				inst.InstanceId,
+			},
+		}
+
+		ec2Resp, err := ec2Svc.TerminateInstances(&termParams)
+		logger.Println(ec2Resp)
+		if err != nil {
+			logger.Println(err.Error())
+		}
+		return // we can exit after terminating a single instance from that AZ
 	}
 
 }
 
 func (a *autoScalingGroup) getCheapestCompatibleSpotInstanceType(availabilityZone string, baseInstance *ec2.Instance) *string {
 
-	fmt.Println("Getting cheapest spot instance compatible to ",
+	logger.Println("Getting cheapest spot instance compatible to ",
 		*baseInstance.InstanceId, " of type", *baseInstance.InstanceType)
 
 	filteredInstances := a.getCompatibleSpotInstanceTypes(availabilityZone, baseInstance)
@@ -637,9 +614,9 @@ func (a *autoScalingGroup) getCheapestCompatibleSpotInstanceType(availabilityZon
 	}
 
 	if chosenInstanceType != nil {
-		fmt.Println("Chose cheapest instance type", *chosenInstanceType)
+		logger.Println("Chose cheapest instance type", *chosenInstanceType)
 	} else {
-		fmt.Println("Couldn't find any cheaper spot instance type")
+		logger.Println("Couldn't find any cheaper spot instance type")
 
 	}
 
@@ -649,76 +626,76 @@ func (a *autoScalingGroup) getCheapestCompatibleSpotInstanceType(availabilityZon
 
 func (a *autoScalingGroup) getCompatibleSpotInstanceTypes(availabilityZone string, baseInstance *ec2.Instance) []string {
 
-	fmt.Println("Getting spot instances compatible to ",
+	logger.Println("Getting spot instances compatible to ",
 		*baseInstance.InstanceId, " of type", *baseInstance.InstanceType)
 
 	var filteredInstanceTypes []string
 
 	refInstance := a.region.instanceData[*baseInstance.InstanceType]
-	fmt.Println("Using this data as reference", refInstance)
+	logger.Println("Using this data as reference", refInstance)
 
 	//filtering compatible instance types
 	for _, inst := range a.region.instanceData {
 
-		fmt.Println("\nComparing ", inst, " with ", refInstance)
+		logger.Println("\nComparing ", inst, " with ", refInstance)
 
 		spotPriceNewInstance := inst.pricing.spot[availabilityZone]
 		onDemandPriceExistingInstance := refInstance.pricing.onDemand
 
 		if spotPriceNewInstance == 0 {
-			fmt.Println("Missing spot pricing information, skipping", inst.instanceType)
+			logger.Println("Missing spot pricing information, skipping", inst.instanceType)
 			continue
 		}
 
 		if spotPriceNewInstance <= onDemandPriceExistingInstance {
-			fmt.Println("pricing compatible, continuing evaluation: ", inst.pricing.spot[availabilityZone], "<=", refInstance.pricing.onDemand)
+			logger.Println("pricing compatible, continuing evaluation: ", inst.pricing.spot[availabilityZone], "<=", refInstance.pricing.onDemand)
 		} else {
-			fmt.Println("pricing excessive, skipping", inst.instanceType)
+			logger.Println("pricing excessive, skipping", inst.instanceType)
 			continue
 		}
 
 		if inst.vCPU >= refInstance.vCPU {
-			fmt.Println("CPU compatible, continuing evaluation")
+			logger.Println("CPU compatible, continuing evaluation")
 		} else {
-			fmt.Println("CPU incompatible, skipping ", inst.instanceType)
+			logger.Println("CPU incompatible, skipping ", inst.instanceType)
 			continue
 		}
 
 		if inst.memory >= refInstance.memory {
-			fmt.Println("memory compatible, continuing evaluation")
+			logger.Println("memory compatible, continuing evaluation")
 		} else {
-			fmt.Println("memory incompatible, skipping", inst.instanceType)
+			logger.Println("memory incompatible, skipping", inst.instanceType)
 			continue
 		}
 
 		if compatibleVirtualization(*baseInstance.VirtualizationType, inst.virtualizationTypes) {
-			fmt.Println("virtualization compatible, continuing evaluation")
+			logger.Println("virtualization compatible, continuing evaluation")
 		} else {
-			fmt.Println("virtualization incompatible, skipping", inst.instanceType)
+			logger.Println("virtualization incompatible, skipping", inst.instanceType)
 			continue
 		}
 
 		if !a.alreadyRunningSpotInstance(inst.instanceType, availabilityZone) {
-			fmt.Println("no already-running spot instances, adding for comparison ", inst.instanceType)
+			logger.Println("no already-running spot instances, adding for comparison ", inst.instanceType)
 			filteredInstanceTypes = append(filteredInstanceTypes, inst.instanceType)
 		} else {
-			fmt.Println("\nInstances ", inst, " and ", refInstance, " are not compatible")
+			logger.Println("\nInstances ", inst, " and ", refInstance, " are not compatible")
 
 		}
 
 	}
-	fmt.Printf("\n Found following compatible instances: %#v\n", filteredInstanceTypes)
+	logger.Printf("\n Found following compatible instances: %#v\n", filteredInstanceTypes)
 	return filteredInstanceTypes
 
 }
 
 func compatibleVirtualization(virtualizationType string, availableVirtualizationTypes []string) bool {
-	fmt.Println("Available: ", availableVirtualizationTypes, "Tested: ", virtualizationType)
+	logger.Println("Available: ", availableVirtualizationTypes, "Tested: ", virtualizationType)
 
 	for _, avt := range availableVirtualizationTypes {
 		if (avt == "PV") && (virtualizationType == "paravirtual") ||
 			(avt == "HVM") && (virtualizationType == "hvm") {
-			fmt.Println("Compatible")
+			logger.Println("Compatible")
 			return true
 		}
 	}
@@ -727,17 +704,17 @@ func compatibleVirtualization(virtualizationType string, availableVirtualization
 
 func (a *autoScalingGroup) alreadyRunningSpotInstance(instanceType, availabilityZone string) bool {
 
-	fmt.Println("Checking if not already running spot instances of type ",
+	logger.Println("Checking if not already running spot instances of type ",
 		instanceType, " in AZ ", availabilityZone)
 	for _, instDetails := range a.region.instances {
 		if *instDetails.InstanceType == instanceType &&
 			*instDetails.Placement.AvailabilityZone == availabilityZone &&
 			instDetails.InstanceLifecycle != nil &&
 			*instDetails.InstanceLifecycle == "spot" {
-			fmt.Println("Found running spot instance ", *instDetails.InstanceId, "of the same type:", instanceType)
+			logger.Println("Found running spot instance ", *instDetails.InstanceId, "of the same type:", instanceType)
 			return true
 		}
 	}
-	fmt.Println("Found no spot instance of the type:", instanceType)
+	logger.Println("Found no spot instance of the type:", instanceType)
 	return false
 }

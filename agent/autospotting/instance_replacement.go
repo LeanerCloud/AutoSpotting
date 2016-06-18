@@ -1,9 +1,6 @@
 package autospotting
 
-import (
-	"fmt"
-	"sync"
-)
+import "sync"
 
 type instanceReplacement struct {
 	wg sync.WaitGroup
@@ -43,7 +40,7 @@ func (i *instanceReplacement) processAllRegions(instData *jsonInstances) {
 	regions, err := getRegions()
 
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Println(err.Error())
 		return
 	}
 	for _, r := range regions {
