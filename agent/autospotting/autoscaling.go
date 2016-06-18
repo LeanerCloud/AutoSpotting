@@ -118,8 +118,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 }
 
 func (a *autoScalingGroup) getInstanceTags() []*ec2.Tag {
-	instance := a.findOndemandInstanceDetails()
-	if instance != nil {
+	if instance := a.findOndemandInstanceDetails(); instance != nil {
 		return instance.Tags
 	}
 	return nil
