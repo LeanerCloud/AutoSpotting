@@ -4,24 +4,23 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
+	"github.com/aws/aws-sdk-go/aws/session"
 )
 
-// LambdaEventFromFiles is a data structure that once fully populated
-// stores the input data coming from the user.
-//
-// The program assumes the existence of two files somewhere in
-// the filesystem.
-//
-// They need to be passed as command line arguments, and
-// The main function will populate EventFile and ContextFile
-// after parsing the command line arguments.
-//
-// Later they are parsed into the eventData and contextData
-// data structures, which are used as the only user-provided
-// input to the program. All the rest is scanned from various
-// AWS API calls, or from other sources.
+// LambdaEventFromFiles is a data structure that once fully populated stores the
+// input data coming from the user. The program assumes the existence of two
+// files somewhere in the filesystem. They need to be passed as command line
+// arguments, and The main function will populate EventFile and ContextFile
+// after parsing the command line arguments. Later they are parsed into the
+// eventData and contextData data structures, which are used as the only user-
+// provided input to the program. All the rest is scanned from various AWS API
+// calls, or from other sources.
 type LambdaEventFromFiles struct {
-	EventFile   string
+	// text file containing a JSON data structure, used for ingesting the event
+	EventFile string
+	// text file containing a JSON data structure , used for ingesting the context
 	ContextFile string
 	event       eventData
 	context     contextData
@@ -29,10 +28,11 @@ type LambdaEventFromFiles struct {
 	contextJSON []byte
 }
 
-// This is a data structure we use for parsing the JSON we get in the event variable passed while running the lambda function.
-// most fields are for the CloudFormation stack operations, which call the
-// lambda function directly, except for the last one (Records), which is
-// only used when calling the lambda function through SNS
+// This is a data structure we use for parsing the JSON we get in the event
+// variable passed while running the lambda function. Most fields are for the
+// CloudFormation stack operations, which call the lambda function directly,
+// except for the last one (Records), which is only used when calling the lambda
+// function through SNS
 type eventData struct {
 	RequestType        string
 	ServiceToken       string
@@ -68,7 +68,8 @@ type resourceProperties struct {
 	InstanceGraceTime int `json:",string"`
 }
 
-// This data structure is populated if the lambda function is called using the SNS topic
+// This data structure is populated if the lambda function is called using the
+// SNS topic
 type snsEvent struct {
 	EventSource          string          `json:"EventSource"`
 	EventVersion         string          `json:"EventVersion"`
@@ -82,7 +83,9 @@ type snsNotification struct {
 	TopicARN         string `json:"TopicArn"`
 	Subject          string `json:"Subject"`
 
-	// The message field often contains JSON content which then needs to be parsed and decoded further
+	// The message field often contains JSON content which then needs to be parsed
+	// and decoded further
+
 	Message string `json:"Message"`
 
 	Timestamp        string `json:"Timestamp"`
@@ -92,11 +95,11 @@ type snsNotification struct {
 	UnsubscribeURL   string `json:"UnsubscribeUrl"`
 }
 
-// HandleEvent is reading the event information and once it is parsed,
-// it takes action by either running the CloudFormation handler,
-// or start processing all AWS regions looking for AutoScaling groups
-// enabled and taking action by replacing more pricy on-demand instances
-// with compatible and cheaper spot instances.
+// HandleEvent is reading the event information and once it is parsed, it takes
+// action by either running the CloudFormation handler, or start processing all
+// AWS regions looking for AutoScaling groups enabled and taking action by
+// replacing more pricy on-demand instances with compatible and cheaper spot
+// instances.
 func (e *LambdaEventFromFiles) HandleEvent(cronTopic, instancesURL string) {
 
 	initLogger()
@@ -121,8 +124,21 @@ func (e *LambdaEventFromFiles) HandleEvent(cronTopic, instancesURL string) {
 
 	} else {
 		logger.Println("Detected a CloudFormation operation:", e.event.RequestType)
-		logger.Println(e.context)
+
 		var cfn cloudFormation
+
+		// get current region so we can connect to it, defaulting to "us-east-1"
+		// in case of failure
+		currentRegion := "us-east-1"
+		m := ec2metadata.New(session.New())
+		if m.Available() {
+			currentRegion, _ = m.Region()
+		}
+
+		cfn.AWSConnections.connect(currentRegion)
+
+		logger.Println(e.context)
+
 		cfn.processStackUpdate(e.event, e.context, cronTopic)
 
 	}
@@ -152,14 +168,15 @@ func (e *LambdaEventFromFiles) readEventData() {
 	}
 }
 
-func (e *LambdaEventFromFiles) decodeEventData(eventJSON, contextJSON []byte) error {
+func (e *LambdaEventFromFiles) decodeEventData(
+	eventJSON, contextJSON []byte) error {
 
 	logger.Println("Got event: ", string(eventJSON))
 	logger.Println("Got context: ", string(contextJSON))
 
 	err := json.Unmarshal(eventJSON, &e.event)
 
-	// logger.Println(e.event)
+	logger.Println(e.event)
 
 	if err != nil {
 		logger.Println(err.Error())
@@ -172,6 +189,6 @@ func (e *LambdaEventFromFiles) decodeEventData(eventJSON, contextJSON []byte) er
 		logger.Println(err.Error())
 		return err
 	}
-	// logger.Println(e.context)
+	logger.Println(e.context)
 	return nil
 }

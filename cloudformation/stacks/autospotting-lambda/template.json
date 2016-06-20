@@ -8,7 +8,7 @@
   },
   "Parameters": {
     "LambdaHandlerFunction": {
-      "Default": "index.handler",
+      "Default": "wrapper.lambda_handler",
       "Description": "Handler function for Lambda",
       "Type": "String"
     },
@@ -65,7 +65,7 @@
         "Handler": { "Ref": "LambdaHandlerFunction" },
         "MemorySize": "128",
         "Role": { "Fn::GetAtt": [ "LambdaExecutionRole", "Arn" ] },
-        "Runtime": "nodejs4.3",
+        "Runtime": "python2.7",
         "Timeout": "300"
       },
       "Type": "AWS::Lambda::Function"
