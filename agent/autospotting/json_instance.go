@@ -6,9 +6,7 @@ import (
 	"net/http"
 )
 
-//-------------------------------------------------------------------------------------------------
-
-/** AWS Instances JSON Structure Definitions */
+// AWS Instances JSON Structure Definitions
 
 type jsonInstance struct {
 	Family             string                  `json:"family"`
@@ -20,35 +18,47 @@ type jsonInstance struct {
 	EBSThroughput      float32                 `json:"ebs_throughput"`
 	PrettyName         string                  `json:"pretty_name"`
 	Pricing            map[string]regionPrices `json:"pricing"`
-	VPC                struct {
+
+	VPC struct {
 		IPsPerENI int `json:"ips_per_eni"`
 		MaxENIs   int `json:"max_enis"`
 	} `json:"vpc"`
+
 	Arch                     []string `json:"arch"`
 	LinuxVirtualizationTypes []string `json:"linux_virtualization_types"`
 	EBSOptimized             bool     `json:"ebs_optimized"`
-	Storage                  struct {
+
+	Storage struct {
 		SSD     bool    `json:"ssd"`
 		Devices int     `json:"devices"`
 		Size    float32 `json:"size"`
 	} `json:"storage"`
+
 	MaxBandwidth float32 `json:"max_bandwidth"`
 	InstanceType string  `json:"instance_type"`
-	//ECU             float32 `json:"ECU"` // ignored, unreliable: usually a number, but can also be the string "variable"
+
+	// ECU is ignored because it's useless and also unreliable when parsing the
+	// data structure: usually it's a number, but it can also be the string
+	// "variable"
+	// ECU float32 `json:"ECU"`
+
 	Memory          float32 `json:"memory"`
 	EBSMaxBandwidth float32 `json:"ebs_max_bandwidth"`
 }
 
 type regionPrices struct {
 	Linux struct {
-		// this may contain string encoded numbers or "N/A" in some regions for regionally unsupported instance types.
-		// It needs special parsing later
+		// this may contain string encoded numbers or "N/A" in some regions for
+		// regionally unsupported instance types. It needs special parsing later
 		OnDemand string `json:"ondemand"`
-		// Reserved interface{} `json:"reserved"` //ignored for now
+		// ignored for now, not really useful
+		// Reserved interface{} `json:"reserved"`
 	} `json:"linux"`
-	// Mswinsqlweb interface{}  `json:"mswinSQLWeb"` //ignored for now
-	// Mswinsql    interface{}  `json:"mswinSQL"`    //ignored for now
-	// Mswin       interface{}  `json:"mswin"`       //ignored for now
+
+	// ignored for now, not useful
+	// Mswinsqlweb interface{}  `json:"mswinSQLWeb"`
+	// Mswinsql    interface{}  `json:"mswinSQL"`
+	// Mswin       interface{}  `json:"mswin"`
 }
 
 //-------------------------------------------------------------------------------------------------

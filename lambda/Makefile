@@ -5,7 +5,7 @@ all: build install
 
 build:
 	rm -f lambda.zip
-	zip -j lambda *.js
+	zip -j lambda *.py
 
 install:
 	mv lambda.zip ../build/s3/agent/dv/

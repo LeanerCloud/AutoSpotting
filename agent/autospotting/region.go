@@ -169,7 +169,9 @@ func (r *region) processEnabledAutoScalingGroups() {
 	r.wg.Wait()
 }
 
-func (r *region) findSpotInstanceRequests(forAsgName string) []*ec2.SpotInstanceRequest {
+func (r *region) findSpotInstanceRequests(
+	forAsgName string) []*ec2.SpotInstanceRequest {
+
 	svc := r.services.ec2
 
 	params := &ec2.DescribeSpotInstanceRequestsInput{
@@ -205,6 +207,7 @@ func (r *region) scanInstances() {
 			},
 		},
 	}
+
 	resp, err := svc.DescribeInstances(params)
 	if err != nil {
 		logger.Println(err.Error())
@@ -212,7 +215,10 @@ func (r *region) scanInstances() {
 	}
 
 	r.instances = make(map[string]*ec2.Instance)
-	if len(resp.Reservations) > 0 && resp.Reservations[0].Instances != nil {
+
+	if len(resp.Reservations) > 0 &&
+		resp.Reservations[0].Instances != nil {
+
 		for _, res := range resp.Reservations {
 			for _, inst := range res.Instances {
 				r.instances[*inst.InstanceId] = inst
@@ -235,7 +241,8 @@ func (r *region) tagInstance(instanceID string, tags []*ec2.Tag) {
 	if err != nil {
 		// Print the error, cast err to awserr.Error to get the Code and
 		// Message from an error.
-		logger.Println(r.name, "Failed to create tags for the spot instance request:", err.Error())
+		logger.Println(r.name,
+			"Failed to create tags for the spot instance request:", err.Error())
 		return
 	}
 

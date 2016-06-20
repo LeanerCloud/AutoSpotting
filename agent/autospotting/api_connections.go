@@ -1,4 +1,5 @@
-// This stores a bunch of sessions to various AWS APIs, in order to avoid re-connecting to them over and over again.
+// This stores a bunch of sessions to various AWS APIs, in order to avoid
+// connecting to them over and over again.
 
 package autospotting
 
@@ -22,8 +23,8 @@ type connections struct {
 func getRegions() ([]string, error) {
 	var output []string
 
-	// turns out to be faster when running locally, to be changed back to the
-	// snippet below for production usage
+	// this turns out to be much faster when running locally, to be changed back
+	// to the snippet below for production usage
 	currentRegion := "us-east-1"
 
 	// m := ec2metadata.New(session.New())

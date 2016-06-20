@@ -1,1 +1,1 @@
-package autospotting_test
+package autospotting

@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/awsutil"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/sns"
@@ -20,22 +20,27 @@ type cloudFormation struct {
 	AWSConnections connections
 }
 
-// This data structure is used in order to generate a response to the CloudFormation operation,
-// because CloudFormation always blocks waiting for such a response from the custom resource.
+// This data structure is used in order to generate a response to the
+// CloudFormation operation, because CloudFormation always blocks waiting for
+// such a response from the custom resource.
 type cloudFormationCustomResourceResponse struct {
-	status             string
-	physicalResourceID string
-	stackID            string
-	requestID          string
-	logicalResourceID  string
-	data               map[string]interface{}
+	Status             string
+	PhysicalResourceID string
+	StackID            string
+	RequestID          string
+	LogicalResourceID  string
+	Data               map[string]interface{}
 }
 
-func (cfn *cloudFormation) processStackUpdate(e eventData, c contextData, cronTopic string) {
+func (cfn *cloudFormation) processStackUpdate(
+	e eventData,
+	c contextData,
+	cronTopic string) {
+
 	status := "SUCCESS"
 
 	logger.Println("Processing CloudFormation operation", e.RequestType)
-	logger.Println("Event: %v, Context: %v", e, c)
+	logger.Printf("Event: %v, Context: %v\n", e, c)
 
 	// only handle the creation of the stack, all other operations are NOOPs
 	if e.RequestType == "Create" {
@@ -53,59 +58,53 @@ func (cfn *cloudFormation) processStackUpdate(e eventData, c contextData, cronTo
 
 }
 
-func (cfn *cloudFormation) connectLambdaToTopic(lambdaFunc string, topicARN string) error {
+func (cfn *cloudFormation) connectLambdaToTopic(
+	lambdaFunc string, topicARN string) error {
+
+	var err error
+
 	logger.Printf("Connecting lambda %v to topic %v\n", lambdaFunc, topicARN)
-	err := cfn.addLambdaInvokePermission(lambdaFunc, topicARN)
-	if err != nil {
+
+	if err = cfn.addLambdaInvokePermission(lambdaFunc, topicARN); err != nil {
 		logger.Println(err.Error())
 	}
 
-	err = cfn.subscribeLambdaToTopic(lambdaFunc, topicARN)
-	if err != nil {
+	if err = cfn.subscribeLambdaToTopic(lambdaFunc, topicARN); err != nil {
 		logger.Println(err.Error())
 	}
 
 	return err
 }
-func (cfn *cloudFormation) addLambdaInvokePermission(lambdaFunc string, topicARN string) error {
 
-	logger.Print("Adding invoke permissions for lambda %v to topic %v\n", lambdaFunc, topicARN)
+func (cfn *cloudFormation) addLambdaInvokePermission(lambdaFunc string,
+	topicARN string) error {
 
-	// re-implements this kind of command using API calls:
-	// aws lambda add-permission --function-name lambda-LambdaFunction-1KVSRHYIWUSBO
-	// --action 'lambda:invokeFunction' --principal sns.amazonaws.com
-	// --statement-id 2 --source-arn arn:aws:sns:eu-west-1:540659244915:Notifications-EU
+	logger.Printf("Adding invoke permissions for lambda %v to topic %v\n",
+		lambdaFunc, topicARN)
 
 	svc := cfn.AWSConnections.lambda
 
 	statementID := strconv.Itoa(int(time.Now().UnixNano()))
+
 	logger.Println("Adding invoke permission: ", lambdaFunc, topicARN)
 
-	params := &lambda.AddPermissionInput{
-		Action:       aws.String("lambda:invokeFunction"), // Required
-		FunctionName: aws.String(lambdaFunc),              // Required
-		Principal:    aws.String("sns.amazonaws.com"),     // Required
-		StatementId:  aws.String(statementID),             // Required
+	params := lambda.AddPermissionInput{
+		Action:       aws.String("lambda:invokeFunction"),
+		FunctionName: aws.String(lambdaFunc),
+		Principal:    aws.String("sns.amazonaws.com"),
+		StatementId:  aws.String(statementID),
 		SourceArn:    aws.String(topicARN),
 	}
 
-	_ = "breakpoint"
+	fmt.Printf("Function: '%s', statement: '%s', topic: '%s'",
+		lambdaFunc, statementID, topicARN)
 
-	resp, err := svc.AddPermission(params)
+	fmt.Printf("Params: '%s'", svc)
+
+	resp, err := svc.AddPermission(&params)
 
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok {
-			// Generic AWS error with Code, Message, and original error (if any)
-			logger.Println(awsErr.Code(), awsErr.Message(), awsErr.OrigErr())
-			if reqErr, ok := err.(awserr.RequestFailure); ok {
-				// A service error occurred
-				logger.Println(reqErr.Code(), reqErr.Message(), reqErr.StatusCode(), reqErr.RequestID())
-			}
-		} else {
-			// This case should never be hit, the SDK should always return an
-			// error which satisfies the awserr.Error interface.
-			logger.Println(err.Error())
-		}
+		logger.Println(err.Error())
 	}
 
 	// Pretty-print the response data.
@@ -113,7 +112,8 @@ func (cfn *cloudFormation) addLambdaInvokePermission(lambdaFunc string, topicARN
 	return err
 }
 
-func (cfn *cloudFormation) subscribeLambdaToTopic(lambdaFunc string, topicARN string) error {
+func (cfn *cloudFormation) subscribeLambdaToTopic(
+	lambdaFunc string, topicARN string) error {
 
 	logger.Println("Subscribing lambda", lambdaFunc, "to topic: ", topicARN)
 
@@ -128,18 +128,7 @@ func (cfn *cloudFormation) subscribeLambdaToTopic(lambdaFunc string, topicARN st
 	resp, err := svc.Subscribe(params)
 
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok {
-			// Generic AWS error with Code, Message, and original error (if any)
-			logger.Println(awsErr.Code(), awsErr.Message(), awsErr.OrigErr())
-			if reqErr, ok := err.(awserr.RequestFailure); ok {
-				// A service error occurred
-				logger.Println(reqErr.Code(), reqErr.Message(), reqErr.StatusCode(), reqErr.RequestID())
-			}
-		} else {
-			// This case should never be hit, the SDK should always return an
-			// error which satisfies the awserr.Error interface.
-			logger.Println(err.Error())
-		}
+		logger.Println(err.Error())
 	}
 
 	// Pretty-print the response data.
@@ -148,23 +137,31 @@ func (cfn *cloudFormation) subscribeLambdaToTopic(lambdaFunc string, topicARN st
 	return err
 }
 
-func (cfn *cloudFormation) provideCustomResourceResponse(e eventData, c contextData, status string) {
+func (cfn *cloudFormation) provideCustomResourceResponse(
+	e eventData, c contextData, status string) {
 
 	// create response data
 	var r cloudFormationCustomResourceResponse
-	r.status = status
-	r.physicalResourceID = c.LogStreamName
-	r.stackID = e.StackID
-	r.requestID = e.RequestID
-	r.logicalResourceID = e.LogicalResourceID
-	r.data = map[string]interface{}{"foo": "bar"}
+	r.Status = status
+	r.PhysicalResourceID = c.LogStreamName
+	r.StackID = e.StackID
+	r.RequestID = e.RequestID
+	r.LogicalResourceID = e.LogicalResourceID
+	r.Data = map[string]interface{}{"foo": "bar"}
 
-	jsonStr, _ := json.Marshal(r)
+	logger.Println(r)
+
+	jsonStr, err := json.Marshal(r)
+
+	if err != nil {
+		logger.Println("Failed to marshal PUT response", err.Error())
+	}
 
 	logger.Println("Response payload:", string(jsonStr))
 
 	// prepare an HTTP request
-	req, err := http.NewRequest("PUT", e.ResponseURL, strings.NewReader(string(jsonStr)))
+	req, err := http.NewRequest("PUT", e.ResponseURL,
+		strings.NewReader(string(jsonStr)))
 
 	if err != nil {
 		logger.Println("Failed to create PUT request", err.Error())
@@ -183,13 +180,14 @@ func (cfn *cloudFormation) provideCustomResourceResponse(e eventData, c contextD
 	// set some headers
 	req.Header.Set("content-length", strconv.Itoa(len(jsonStr)))
 
-	// fire the actual PUT request
+	// perform the actual PUT request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 
 	if err != nil {
 		logger.Println("Failed to set CloudFormation state", err.Error())
 	}
+
 	defer resp.Body.Close()
 
 	logger.Println("response Status:", resp.Status)

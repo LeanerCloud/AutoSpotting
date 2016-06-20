@@ -1,3 +1,3 @@
 ---
-LambdaHandlerFunction: index.handler
+LambdaHandlerFunction: wrapper.lambda_handler
 LambdaS3Bucket: cloudprowess
