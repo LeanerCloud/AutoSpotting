@@ -229,10 +229,10 @@ func (r *region) scanInstances() {
 	// logger.Println(r.instances)
 }
 
-func (r *region) tagInstance(instanceID string, tags []*ec2.Tag) {
+func (r *region) tagInstance(instanceID *string, tags []*ec2.Tag) {
 	svc := r.services.ec2
 	params := &ec2.CreateTagsInput{
-		Resources: []*string{aws.String(instanceID)},
+		Resources: []*string{instanceID},
 		Tags:      tags,
 	}
 
