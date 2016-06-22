@@ -6,14 +6,6 @@ type instanceReplacement struct {
 	wg sync.WaitGroup
 }
 
-type message struct {
-	eventType        string // example: ping
-	instanceID       string
-	instanceType     string
-	autoScalingGroup string
-	// To extend further if needed
-}
-
 //  This function gets called whenever the Lambda function is invoked as a
 //  result of an SNS notification, like for example by the cron caller's
 //  periodic ping messages

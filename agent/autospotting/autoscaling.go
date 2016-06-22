@@ -48,7 +48,7 @@ func (a *autoScalingGroup) process() {
 		a.replaceOnDemandInstanceWithSpot(spotInstanceID)
 	} else {
 		// find any given on-demand instance and try to replace it with a spot one
-		onDemandInstance := a.findOndemandInstance()
+		onDemandInstance := a.findOndemandInstanceDetails()
 
 		if onDemandInstance == nil {
 			logger.Println(a.region.name, a.name,
@@ -118,17 +118,9 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 }
 
 func (a *autoScalingGroup) getInstanceTags() []*ec2.Tag {
-	instance := a.findInstance()
+	instance := a.findOndemandInstanceDetails()
 	if instance != nil {
 		return instance.Tags
-	}
-	return nil
-}
-
-// Returns the details of the first instance we could find.
-func (a *autoScalingGroup) findInstance() *ec2.Instance {
-	for _, instance := range a.asgRawData.Instances {
-		return a.region.instances[*instance.InstanceId]
 	}
 	return nil
 }
@@ -138,12 +130,13 @@ func (a *autoScalingGroup) findInstanceByID(instanceID *string) *ec2.Instance {
 	return a.region.instances[*instanceID]
 }
 
-func (a *autoScalingGroup) findOndemandInstance() *ec2.Instance {
+// Returns the information about the first on-demand running instance found
+// while iterating over all instances from the group.
+func (a *autoScalingGroup) findOndemandInstanceDetails() *ec2.Instance {
 
 	for _, instance := range a.asgRawData.Instances {
 		instanceData := a.region.instances[*instance.InstanceId]
 
-		// return the first found on-demand running instance
 		if instanceData != nil &&
 			instanceData.State.String() == "running" &&
 			// this attribute is non-nil only for spot instances, where it contains
@@ -185,7 +178,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	// then we can launch a new spot instance
 	if len(a.spotInstanceRequests) == 0 {
 		logger.Println(a.name, "no spot bids were found")
-		if a.findOndemandInstance() != nil {
+		if a.findOndemandInstanceDetails() != nil {
 			logger.Println(a.name, "on-demand instances were found, proceeding to "+
 				"launch a replacement spot instance")
 			return nil, false
@@ -292,87 +285,6 @@ func (a *autoScalingGroup) hasEqualAvailibilityZones() bool {
 	return result
 }
 
-// returns the zone with the smallest total number of instances, where we can
-// launch new spot instances without risking of them being terminated by the
-// automated re-balancing operations
-func (a *autoScalingGroup) smallestAvailablityZone() *string {
-	var azInstanceCount = make(map[string]int)
-	var smallestAZ string
-	min := math.MaxInt32
-
-	logger.Println(a.region.name, "Getting smallest AZ in", a.name)
-	for _, az := range a.asgRawData.AvailabilityZones {
-		azInstanceCount[*az] = 0
-	}
-
-	for _, instance := range a.asgRawData.Instances {
-		azInstanceCount[*instance.AvailabilityZone]++
-	}
-
-	for k, v := range azInstanceCount {
-		if v <= min {
-			smallestAZ, min = k, v
-		}
-	}
-
-	logger.Println("Smallest AZ is ", smallestAZ)
-	return &smallestAZ
-}
-
-// returns the AZ with the highest total number of instances
-func (a *autoScalingGroup) biggestAvailablityZone() *string {
-	logger.Println(a.region.name, "Getting biggest AZ in", a.name)
-
-	var azInstanceCount = make(map[string]int)
-	var biggestAZ *string
-	max := 0
-
-	for _, instance := range a.asgRawData.Instances {
-		azInstanceCount[*instance.AvailabilityZone]++
-	}
-
-	for k, v := range azInstanceCount {
-		if max <= v {
-			biggestAZ, max = &k, v
-		}
-	}
-
-	logger.Println("Biggest AZ is ", *biggestAZ)
-	return biggestAZ
-}
-
-// returns the AZ with the highest number of on-demand instances, this is
-// useful for terminating on-demand instances from it in case all the AZs are
-// equal and we would otherwise brask the balance between them
-func (a *autoScalingGroup) biggestOnDemandAvailablityZone() *string {
-	logger.Println(a.region.name, "Getting biggest OnDemand AZ from ", a.name)
-
-	var azInstanceCount = make(map[string]int)
-	var biggestAZ *string
-	max := 0
-
-	for _, instance := range a.asgRawData.Instances {
-		instanceDetails := a.region.instances[*instance.InstanceId]
-
-		// only spot instances have this field set to nil
-		if instanceDetails != nil &&
-			instanceDetails.InstanceLifecycle == nil {
-			azInstanceCount[*instance.AvailabilityZone]++
-		}
-	}
-
-	for k, v := range azInstanceCount {
-		if v > max {
-			biggestAZ, max = &k, v
-		}
-	}
-
-	if biggestAZ != nil {
-		logger.Println("Biggest OnDemand AZ is ", *biggestAZ)
-	}
-	return biggestAZ
-}
-
 func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 
 	if azToLaunchIn == nil {
@@ -383,7 +295,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 	logger.Println("Trying to launch spot instance in", *azToLaunchIn,
 		"\nfirst finding an on-demand instance to use as a template")
 
-	baseInstance := a.findOndemandInstance()
+	baseInstance := a.findOndemandInstanceDetails()
 
 	if baseInstance == nil {
 		logger.Println("Found no on-demand instances, nothing to do here...")

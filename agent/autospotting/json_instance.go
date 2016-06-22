@@ -14,7 +14,7 @@ type jsonInstance struct {
 	VCPU               int                     `json:"vCPU"`
 	Generation         string                  `json:"generation"`
 	EBSIOPS            float32                 `json:"ebs_iops"`
-	NetworkPerformance string                  `json:"`
+	NetworkPerformance string                  `json:"network_performance"`
 	EBSThroughput      float32                 `json:"ebs_throughput"`
 	PrettyName         string                  `json:"pretty_name"`
 	Pricing            map[string]regionPrices `json:"pricing"`
