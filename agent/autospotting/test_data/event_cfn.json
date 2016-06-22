@@ -1,0 +1,13 @@
+{
+	"StackId": "arn:aws:cloudformation:us-east-1:540659244915:stack/autospotting-lambda/23055290-38bb-11e6-958e-50fae9e50c9a", :
+	"ResponseURL": "https://cloudformation-custom-resource-response-useast1.s3.amazonaws.com/arn%3Aaws%3Acloudformation%3Aus-east-1%3A540659244915%3Astack/autospotting-lambda/23055290-38bb-11e6-958e-50fae9e50c9a%7CLambdaCall%7C777a5838-5aa2-4c0c-b385-16697e01e61f?AWSAccessKeyId=AKIAJNXHFR7P7YGKLDPQ&Expires=1466636013&Signature=NHbSkYbFJXldAzUJ22mrg0xUqL8%3D",
+	"ResourceProperties": {
+		"ServiceToken": "arn:aws:lambda:us-east-1:540659244915:function:autospotting-lambda-LambdaFunction-1VH9EQLPKBLTP",
+		"SNSTopic": "arn:aws:sns:us-east-1:540659244915:autospotting-lambda-LambdaTopic-KCRGBKEIH30D"
+	},
+	"RequestType": "Create",
+	"ServiceToken": "arn:aws:lambda:us-east-1:540659244915:function:autospotting-lambda-LambdaFunction-1VH9EQLPKBLTP",
+	"ResourceType": "Custom::StackChangeLambdaCall",
+	"RequestId": "777a5838-5aa2-4c0c-b385-16697e01e61f",
+	"LogicalResourceId": "LambdaCall"
+}
