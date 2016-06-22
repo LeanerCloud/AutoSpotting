@@ -24,12 +24,11 @@ type cloudFormation struct {
 // CloudFormation operation, because CloudFormation always blocks waiting for
 // such a response from the custom resource.
 type cloudFormationCustomResourceResponse struct {
-	Status             string
-	PhysicalResourceID string
-	StackID            string
-	RequestID          string
-	LogicalResourceID  string
-	Data               map[string]interface{}
+	Status             string `json:"Status"`
+	PhysicalResourceID string `json:"PhysicalResourceId"`
+	StackID            string `json:"StackId"`
+	RequestID          string `json:"RequestId"`
+	LogicalResourceID  string `json:"LogicalResourceId"`
 }
 
 func (cfn *cloudFormation) processStackUpdate(
@@ -147,7 +146,6 @@ func (cfn *cloudFormation) provideCustomResourceResponse(
 	r.StackID = e.StackID
 	r.RequestID = e.RequestID
 	r.LogicalResourceID = e.LogicalResourceID
-	r.Data = map[string]interface{}{"foo": "bar"}
 
 	logger.Println(r)
 
