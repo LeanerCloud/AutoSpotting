@@ -98,8 +98,6 @@ func (cfn *cloudFormation) addLambdaInvokePermission(lambdaFunc string,
 	fmt.Printf("Function: '%s', statement: '%s', topic: '%s'",
 		lambdaFunc, statementID, topicARN)
 
-	fmt.Printf("Params: '%s'", svc)
-
 	resp, err := svc.AddPermission(&params)
 
 	if err != nil {
