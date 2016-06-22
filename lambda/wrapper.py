@@ -89,5 +89,4 @@ def run_agent(filename):
     call([binary_path,
           '-e', os.path.join('/tmp', 'event.json'),
           '-c', os.path.join('/tmp', 'context.json')],
-        stdout=PIPE,
         stderr=STDOUT)
