@@ -379,8 +379,8 @@ func (a *autoScalingGroup) bidForSpotInstance(
 	})
 
 	if err != nil {
-		logger.Println("Failed to create spot instance request for ",
-			a.name, err.Error())
+		logger.Println("Failed to create spot instance request for",
+			a.name, err.Error(), ls)
 		return
 	}
 
@@ -442,19 +442,18 @@ func convertLaunchConfigurationToSpotSpecification(
 
 	// convert attributes
 	spotLS.BlockDeviceMappings = copyBlockDeviceMappings(lc.BlockDeviceMappings)
+
 	spotLS.EbsOptimized = lc.EbsOptimized
 
-	// lc.IamInstanceProfile can be either an ID or ARN, so we have to see which
-	// one is it
+	// The launch configuration's IamInstanceProfile field can store either a
+	// human-friendly ID or an ARN, so we have to see which one is it
 	var iamInstanceProfile ec2.IamInstanceProfileSpecification
 	if lc.IamInstanceProfile != nil {
-
-		if strings.HasPrefix(*lc.IamInstanceProfile, "arn:") {
+		if strings.HasPrefix(*lc.IamInstanceProfile, "arn:aws:") {
 			iamInstanceProfile.Arn = lc.IamInstanceProfile
 		} else {
 			iamInstanceProfile.Name = lc.IamInstanceProfile
 		}
-
 		spotLS.IamInstanceProfile = &iamInstanceProfile
 	}
 
@@ -462,51 +461,55 @@ func convertLaunchConfigurationToSpotSpecification(
 
 	spotLS.InstanceType = &instanceType
 
-	// these shouldn't be copied, they break the SpotLaunchSpecification
-	//spotLS.KernelId = lc.KernelId
-	//spotLS.RamdiskId = lc.RamdiskId
+	// these ones should NOT be copied, they break the SpotLaunchSpecification
+	//spotLS.KernelId
+	//spotLS.RamdiskId
+
 	spotLS.KeyName = lc.KeyName
 
-	spotLS.Monitoring = &ec2.RunInstancesMonitoringEnabled{
-		Enabled: lc.InstanceMonitoring.Enabled,
+	if lc.InstanceMonitoring != nil {
+		spotLS.Monitoring = &ec2.RunInstancesMonitoringEnabled{
+			Enabled: lc.InstanceMonitoring.Enabled,
+		}
 	}
 
-	/* todo
-	   // needs to be created from a string
+	if lc.AssociatePublicIpAddress != nil {
+		spotLS.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
+			&ec2.InstanceNetworkInterfaceSpecification{
+				AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
+			},
+		}
+	}
 
-	   IamInstanceProfile *IamInstanceProfileSpecification
-	   IamInstanceProfile *string
+	// In case we have security groups to convert, we need to make sure they are
+	// given by ID or by free-form names
+	if lc.SecurityGroups != nil && len(lc.SecurityGroups) > 0 {
+		if havingFreeFormSecurityGroupNames(lc) {
+			spotLS.SecurityGroups = lc.SecurityGroups
+		} else {
+			spotLS.SecurityGroupIds = lc.SecurityGroups
+		}
 
-	   InstanceMonitoring *InstanceMonitoring // to be converted
+	}
 
-	   Monitoring *RunInstancesMonitoringEnabled
-
-	   NetworkInterfaces []*InstanceNetworkInterfaceSpecification
-
-	   Placement *SpotPlacement
-
-	   SecurityGroupIds []*string
-
-	   SpotPrice *string
-	   SubnetId *string
-	   The placement information for the instance. - contains AZ
-
-	*/
-
-	/*
-	   var network ec2.InstanceNetworkInterfaceSpecification
-	   network.AssociatePublicIpAddress = lc.AssociatePublicIpAddress
-
-	   spotLS.NetworkInterfaces = append(spotLS.NetworkInterfaces, &network)
-	*/
-
-	//spotLS.SecurityGroups = lc.SecurityGroups
-	spotLS.SecurityGroupIds = lc.SecurityGroups
 	spotLS.UserData = lc.UserData
+
 	spotLS.Placement = &ec2.SpotPlacement{AvailabilityZone: &az}
 
 	return &spotLS
 
+}
+
+// Checks if the security groups are given by ID or by free-form names, which
+// was possible in EC2 Classic
+func havingFreeFormSecurityGroupNames(lc *autoscaling.LaunchConfiguration) bool {
+	for _, sg := range lc.SecurityGroups {
+		if !strings.HasPrefix(*sg, "sg-") {
+			logger.Println(*sg)
+			return true
+		}
+	}
+	return false
 }
 
 func copyBlockDeviceMappings(
