@@ -116,12 +116,22 @@ func (r *region) requestSpotPrices() error {
 
 	for _, priceInfo := range spotPrices {
 
+		instType, az := *priceInfo.InstanceType, *priceInfo.AvailabilityZone
+
+		// failure to parse this means that the instance is not available on the
+		// spot market
 		price, err := strconv.ParseFloat(*priceInfo.SpotPrice, 64)
-		if err != nil { // failure to parse means that the instance is not available as spot instance
+		if err != nil {
+			logger.Println(r.name, "Instance type ", instType,
+				"is not available on the spot market")
 			continue
 		}
 
-		instType, az := *priceInfo.InstanceType, *priceInfo.AvailabilityZone
+		if r.instanceData[instType].pricing.spot == nil {
+			logger.Println(r.name, "Instance data missing for", instType, "in", az,
+				"skipping because this region is currently not supported")
+			continue
+		}
 
 		r.instanceData[instType].pricing.spot[az] = price
 
@@ -189,7 +199,7 @@ func (r *region) findSpotInstanceRequests(
 		return nil
 	}
 
-	logger.Println("Spot instance request created for", forAsgName)
+	logger.Println("Spot instance requests were previously created for", forAsgName)
 	return resp.SpotInstanceRequests
 
 }
@@ -236,7 +246,7 @@ func (r *region) tagInstance(instanceID *string, tags []*ec2.Tag) {
 		Tags:      tags,
 	}
 
-	resp, err := svc.CreateTags(params)
+	_, err := svc.CreateTags(params)
 
 	if err != nil {
 		// Print the error, cast err to awserr.Error to get the Code and
@@ -246,6 +256,5 @@ func (r *region) tagInstance(instanceID *string, tags []*ec2.Tag) {
 		return
 	}
 
-	// Pretty-print the response data.
-	logger.Println(resp)
+	logger.Println("Instance", *instanceID, "was tagged with the following tags:", tags)
 }

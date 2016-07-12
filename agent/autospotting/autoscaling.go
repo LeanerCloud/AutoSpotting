@@ -42,7 +42,7 @@ func (a *autoScalingGroup) process() {
 	}
 
 	if spotInstanceID != nil {
-		logger.Println(a.region, "Attaching spot instance",
+		logger.Println(a.region.name, "Attaching spot instance",
 			*spotInstanceID, "to", a.name)
 
 		a.replaceOnDemandInstanceWithSpot(spotInstanceID)
@@ -89,21 +89,30 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 	// Tag the Spot instance with the tags of any of the existing on-demand
 	// instances. The tags first need to be filtered from some invalid values
 	// which can't just be duplicated.
+	logger.Println(a.name, "Tagging instance", *spotInstanceID)
 	a.region.tagInstance(spotInstanceID, a.filterInstanceTags())
 
 	// temporarily increase AutoScaling group in case it's of static size
 	if minSize == maxSize {
+		logger.Println(a.name, "Temporarily increasing MaxSize")
 		a.setAutoScalingMaxSize(maxSize + 1)
 		defer a.setAutoScalingMaxSize(maxSize)
 	}
 
 	// get the details of our spot instance so we can see its AZ
+	logger.Println(a.name, "Retrieving instance details for ", *spotInstanceID)
 	if spotInst := a.findInstanceByID(spotInstanceID); spotInst != nil {
 
 		az := spotInst.Placement.AvailabilityZone
 
+		logger.Println(a.name, *spotInstanceID, "is in the availability zone",
+			*az, "looking for an on-demand instance there")
+
 		// find an on-demand instance from the same AZ as our spot instance
 		if odInst := a.findOndemandInstanceInAZ(az); odInst != nil {
+
+			logger.Println(a.name, "found", odInst.InstanceId,
+				"attaching to the group")
 
 			// revert attach/detach order when running on minimum capacity
 			if desiredCapacity == minSize {
@@ -136,12 +145,10 @@ func (a *autoScalingGroup) findOndemandInstanceDetails() *ec2.Instance {
 	for _, instance := range a.asgRawData.Instances {
 		instanceData := a.region.instances[*instance.InstanceId]
 
-		if instanceData != nil &&
-			instanceData.State.String() == "running" &&
+		if instanceData != nil && *instanceData.State.Name == "running" &&
 			// this attribute is non-nil only for spot instances, where it contains
 			// the value "spot"
 			instanceData.InstanceLifecycle == nil {
-
 			return instanceData
 		}
 	}
@@ -153,13 +160,17 @@ func (a *autoScalingGroup) findOndemandInstanceInAZ(az *string) *ec2.Instance {
 	for _, instance := range a.asgRawData.Instances {
 		instanceData := a.region.instances[*instance.InstanceId]
 
+		logger.Println(a.name, "checking", *instance.InstanceId)
+
 		// return the first found on-demand running instance
 		if instanceData != nil &&
-			instanceData.Placement.AvailabilityZone == az &&
-			instanceData.State.String() == "running" &&
+			*instanceData.Placement.AvailabilityZone == *az &&
+			*instanceData.State.Name == "running" &&
 			// this attribute is non-nil only for spot instances, where it contains
 			// the value "spot"
 			instanceData.InstanceLifecycle == nil {
+
+			logger.Println(a.name, "found", *instance.InstanceId)
 
 			return instanceData
 		}
@@ -177,15 +188,15 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	// then we can launch a new spot instance
 	if len(a.spotInstanceRequests) == 0 {
 		logger.Println(a.name, "no spot bids were found")
-		if a.findOndemandInstanceDetails() != nil {
+		if inst := a.findOndemandInstanceDetails(); inst != nil {
 			logger.Println(a.name, "on-demand instances were found, proceeding to "+
 				"launch a replacement spot instance")
 			return nil, false
 		}
 		logger.Println(a.name, "no on-demand instances were found, nothing to do")
 		return nil, true
-
 	}
+
 	logger.Println("spot bids were found, continuing")
 
 	for _, req := range a.spotInstanceRequests {
@@ -202,7 +213,8 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 					"attached to the ASG, skipping...")
 				continue
 			} else {
-				if *a.region.instances[*req.InstanceId].State.Name == "running" {
+				if a.region.instances[*req.InstanceId].State != nil &&
+					*a.region.instances[*req.InstanceId].State.Name == "running" {
 					logger.Println(a.name, "Active bid was found, with running "+
 						"instances not yet attached to the ASG",
 						*req.InstanceId)
@@ -210,8 +222,8 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 					break
 				} else {
 					logger.Println(a.name, "Active bid was found, with non-running "+
-						"instances")
-					continue
+						"instances, waiting for the next run...")
+					return nil, true
 				}
 			}
 		}
@@ -237,7 +249,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	if *instData.State.Name == "running" &&
 		instanceUpTime < gracePeriod {
 		logger.Println("The new spot instance", *spotInstanceID,
-			"is still in the grace period,  waiting for the next run...")
+			"is still in the grace period, waiting for it to be ready...")
 		return nil, true
 	}
 	return spotInstanceID, false
@@ -318,10 +330,10 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 	currentSpotPrice := a.region.
 		instanceData[*newInstanceType].pricing.spot[*azToLaunchIn]
 
-	logger.Println("Searching for best spot instance in ",
+	logger.Println("Finished searching for best spot instance in ",
 		*azToLaunchIn,
-		"\nreplacing on-demand", *baseInstance.InstanceType,
-		"instances having the ondemand price", baseOnDemandPrice,
+		"\nreplacing an on-demand", *baseInstance.InstanceType,
+		"instance having the ondemand price", baseOnDemandPrice,
 		"\nLaunching best compatible instance:", *newInstanceType,
 		"with current spot price:", currentSpotPrice)
 
@@ -372,8 +384,8 @@ func (a *autoScalingGroup) bidForSpotInstance(
 		return
 	}
 
-	// Pretty-print the response data.
-	logger.Println(resp)
+	logger.Println(a.name, "Created spot instance request",
+		*resp.SpotInstanceRequests[0].SpotInstanceRequestId)
 
 	a.tagSpotInstanceRequest(*resp.SpotInstanceRequests[0].SpotInstanceRequestId)
 }
@@ -381,7 +393,7 @@ func (a *autoScalingGroup) bidForSpotInstance(
 func (a *autoScalingGroup) tagSpotInstanceRequest(requestID string) {
 	svc := a.region.services.ec2
 
-	resp, err := svc.CreateTags(&ec2.CreateTagsInput{
+	_, err := svc.CreateTags(&ec2.CreateTagsInput{
 		Resources: []*string{aws.String(requestID)},
 		Tags: []*ec2.Tag{
 			{
@@ -394,13 +406,12 @@ func (a *autoScalingGroup) tagSpotInstanceRequest(requestID string) {
 	if err != nil {
 		// Print the error, cast err to awserr.Error to get the Code and
 		// Message from an error.
-		logger.Println("Failed to create tags for the spot instance request",
+		logger.Println(a.name, "Failed to create tags for the spot instance request",
 			err.Error())
 		return
 	}
 
-	// Pretty-print the response data.
-	logger.Println(resp)
+	logger.Println(a.name, "successfully tagged spot instance request", requestID)
 }
 
 func (a *autoScalingGroup) getLaunchConfiguration() *autoscaling.LaunchConfiguration {
@@ -435,12 +446,16 @@ func convertLaunchConfigurationToSpotSpecification(
 
 	// lc.IamInstanceProfile can be either an ID or ARN, so we have to see which
 	// one is it
+	var iamInstanceProfile ec2.IamInstanceProfileSpecification
 	if lc.IamInstanceProfile != nil {
+
 		if strings.HasPrefix(*lc.IamInstanceProfile, "arn:") {
-			spotLS.IamInstanceProfile.Arn = lc.IamInstanceProfile
+			iamInstanceProfile.Arn = lc.IamInstanceProfile
 		} else {
-			spotLS.IamInstanceProfile.Name = lc.IamInstanceProfile
+			iamInstanceProfile.Name = lc.IamInstanceProfile
 		}
+
+		spotLS.IamInstanceProfile = &iamInstanceProfile
 	}
 
 	spotLS.ImageId = lc.ImageId
@@ -593,27 +608,25 @@ func (a *autoScalingGroup) getCheapestCompatibleSpotInstanceType(
 		baseInstance)
 
 	minPrice := math.MaxFloat64
-	var chosenInstanceType *string
+	var chosenInstanceType string
 
 	for _, instance := range filteredInstances {
 		price := a.region.instanceData[instance].pricing.spot[availabilityZone]
+
 		if price < minPrice {
-			minPrice = price
-			chosenInstanceType = &instance
-			logger.Println(chosenInstanceType,
-				"changed current minimum to ",
-				minPrice)
+			minPrice, chosenInstanceType = price, instance
+			logger.Println(a.name, "changed current minimum to ", minPrice)
 		}
+		logger.Println(a.name, "cheapest instance type so far is ",
+			chosenInstanceType, "priced at", minPrice)
 	}
 
-	if chosenInstanceType != nil {
-		logger.Println("Chose cheapest instance type", *chosenInstanceType)
-	} else {
-		logger.Println("Couldn't find any cheaper spot instance type")
-
+	if chosenInstanceType != "" {
+		logger.Println("Chose cheapest instance type", chosenInstanceType)
+		return &chosenInstanceType
 	}
-
-	return chosenInstanceType
+	logger.Println("Couldn't find any cheaper spot instance type")
+	return nil
 
 }
 
@@ -674,15 +687,21 @@ func (a *autoScalingGroup) getCompatibleSpotInstanceTypes(
 			continue
 		}
 
-		if !a.alreadyRunningSpotInstance(inst.instanceType, availabilityZone) {
-			logger.Println("no running ", inst.instanceType,
-				" spot instances, adding for comparison ",
+		// checking how many spot instances of this type we already have, so that
+		// we can see how risky it is to launch a new one.
+		spotInstanceCount := a.alreadyRunningSpotInstanceCount(inst.instanceType, availabilityZone)
+
+		// We skip it in case we have more than 20% instances of this type already running
+		if spotInstanceCount == 0 || (*a.asgRawData.DesiredCapacity/spotInstanceCount > 4) {
+			logger.Println(a.name, "no redundancy issues found for", inst.instanceType,
+				"existing", spotInstanceCount, "spot instances, adding for comparison",
 			)
 
 			filteredInstanceTypes = append(filteredInstanceTypes, inst.instanceType)
 		} else {
 			logger.Println("\nInstances ", inst, " and ", refInstance,
-				"are not compatible")
+				"are not compatible or resulting redundancy for the availability zone",
+				"would be dangerously low")
 
 		}
 
@@ -709,21 +728,23 @@ func compatibleVirtualization(virtualizationType string,
 	return false
 }
 
-func (a *autoScalingGroup) alreadyRunningSpotInstance(
-	instanceType, availabilityZone string) bool {
+func (a *autoScalingGroup) alreadyRunningSpotInstanceCount(
+	instanceType, availabilityZone string) int64 {
 
-	logger.Println("Checking if not already running spot instances of type ",
+	var count int64
+	logger.Println(a.name, "Counting already running spot instances of type ",
 		instanceType, " in AZ ", availabilityZone)
 	for _, instDetails := range a.region.instances {
-		if *instDetails.InstanceType == instanceType &&
+		if a.hasInstance(*instDetails.InstanceId) &&
+			*instDetails.InstanceType == instanceType &&
 			*instDetails.Placement.AvailabilityZone == availabilityZone &&
 			instDetails.InstanceLifecycle != nil &&
 			*instDetails.InstanceLifecycle == "spot" {
-			logger.Println("Found running spot instance ", *instDetails.InstanceId,
+			logger.Println(a.name, "Found running spot instance ", *instDetails.InstanceId,
 				"of the same type:", instanceType)
-			return true
+			count++
 		}
 	}
-	logger.Println("Found no spot instance of the type:", instanceType)
-	return false
+	logger.Println(a.name, "Found", count, instanceType, "instances")
+	return count
 }
