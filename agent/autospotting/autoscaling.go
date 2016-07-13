@@ -477,6 +477,7 @@ func convertLaunchConfigurationToSpotSpecification(
 		spotLS.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
 			&ec2.InstanceNetworkInterfaceSpecification{
 				AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
+				DeviceIndex:              aws.Int64(0),
 			},
 		}
 	}
