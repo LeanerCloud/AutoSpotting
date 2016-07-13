@@ -87,6 +87,7 @@
                 "ec2:DescribeSpotPriceHistory",
                 "ec2:RequestSpotInstances",
                 "ec2:TerminateInstances",
+                "iam:PassRole",
                 "lambda:AddPermission",
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
