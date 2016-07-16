@@ -241,20 +241,24 @@ func (r *region) scanInstances() {
 
 func (r *region) tagInstance(instanceID *string, tags []*ec2.Tag) {
 	svc := r.services.ec2
-	params := &ec2.CreateTagsInput{
+	params := ec2.CreateTagsInput{
 		Resources: []*string{instanceID},
 		Tags:      tags,
 	}
 
-	_, err := svc.CreateTags(params)
+	logger.Println(r.name, "Tagging spot instance", *instanceID)
 
-	if err != nil {
-		// Print the error, cast err to awserr.Error to get the Code and
-		// Message from an error.
+	for _, err := svc.CreateTags(&params); err != nil; _, err = svc.CreateTags(&params) {
+
 		logger.Println(r.name,
-			"Failed to create tags for the spot instance request:", err.Error())
-		return
+			"Failed to create tags for the spot instance", *instanceID, err.Error())
+
+		logger.Println(r.name,
+			"Sleeping for 5 seconds before retrying")
+
+		time.Sleep(5 * time.Second)
 	}
 
-	logger.Println("Instance", *instanceID, "was tagged with the following tags:", tags)
+	logger.Println("Instance", *instanceID,
+		"was tagged with the following tags:", tags)
 }
