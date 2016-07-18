@@ -277,7 +277,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	instData := a.region.instances[*spotInstanceID]
 	gracePeriod := *a.asgRawData.HealthCheckGracePeriod
 
-	if instData.LaunchTime == nil {
+	if instData == nil || instData.LaunchTime == nil {
 		return nil, true
 	}
 
@@ -591,20 +591,22 @@ func copyBlockDeviceMappings(
 	for _, lcBDM := range lcBDMs {
 		ec2BDM.DeviceName = lcBDM.DeviceName
 
-		ec2BDM.Ebs = &ec2.EbsBlockDevice{
-			DeleteOnTermination: lcBDM.Ebs.DeleteOnTermination,
-			Encrypted:           lcBDM.Ebs.Encrypted,
-			Iops:                lcBDM.Ebs.Iops,
-			SnapshotId:          lcBDM.Ebs.SnapshotId,
-			VolumeSize:          lcBDM.Ebs.VolumeSize,
-			VolumeType:          lcBDM.Ebs.VolumeType,
+		// EBS volume information
+		if lcBDM.Ebs != nil {
+			ec2BDM.Ebs = &ec2.EbsBlockDevice{
+				DeleteOnTermination: lcBDM.Ebs.DeleteOnTermination,
+				Encrypted:           lcBDM.Ebs.Encrypted,
+				Iops:                lcBDM.Ebs.Iops,
+				SnapshotId:          lcBDM.Ebs.SnapshotId,
+				VolumeSize:          lcBDM.Ebs.VolumeSize,
+				VolumeType:          lcBDM.Ebs.VolumeType,
+			}
 		}
 
-		var noDevice string
-
+		// it turns out that the noDevice field needs to be converted from bool to
+		// *string
 		if lcBDM.NoDevice != nil {
-			noDevice = fmt.Sprintf("%t", *lcBDM.NoDevice)
-			ec2BDM.NoDevice = &noDevice
+			ec2BDM.NoDevice = aws.String(fmt.Sprintf("%t", *lcBDM.NoDevice))
 		}
 
 		ec2BDM.VirtualName = lcBDM.VirtualName
@@ -757,6 +759,53 @@ func (a *autoScalingGroup) getCompatibleSpotInstanceTypes(
 			continue
 		}
 
+		// Here we check the storage compatibility, with the following evaluation
+		// criteria:
+		// - speed: don't accept spinning disks when we used to have SSDs
+		// - number of volumes: the new instance should have enough volumes to be
+		//   able to attach all the instance store device mappings defined on the
+		//   original instance
+		// - volume size: each of the volumes should be at least as big as the
+		//   original instance's volumes
+
+		attachedVolumesNumber := a.countAttachedInstanceStoreVolumes()
+
+		if attachedVolumesNumber > 0 {
+			logger.Println("Checking the new instance's ephemeral storage",
+				"configuration because the initial instance had attached",
+				"ephemeral instance store volumes")
+
+			if inst.instanceStoreDeviceCount >= attachedVolumesNumber {
+				logger.Println("instance store volume count compatible,",
+					"continuing	evaluation")
+			} else {
+				logger.Println("instance store volume count incompatible, skipping",
+					inst.instanceType)
+				continue
+			}
+
+			if inst.instanceStoreDeviceSize >= refInstance.instanceStoreDeviceSize {
+				logger.Println("instance store volume size compatible,",
+					"continuing evaluation")
+			} else {
+				logger.Println("instance store volume size incompatible, skipping",
+					inst.instanceType)
+				continue
+			}
+
+			// Don't accept ephemeral spinning disks if the original instance has
+			// ephemeral SSDs, but accept spinning disks if we had those before.
+			if inst.instanceStoreIsSSD ||
+				(inst.instanceStoreIsSSD == refInstance.instanceStoreIsSSD) {
+				logger.Println("instance store type(SSD/spinning) compatible,",
+					"continuing evaluation")
+			} else {
+				logger.Println("instance store type(SSD/spinning) incompatible,",
+					"skipping", inst.instanceType)
+				continue
+			}
+		}
+
 		if compatibleVirtualization(*baseInstance.VirtualizationType,
 			inst.virtualizationTypes) {
 			logger.Println("virtualization compatible, continuing evaluation")
@@ -810,6 +859,17 @@ func compatibleVirtualization(virtualizationType string,
 		}
 	}
 	return false
+}
+
+func (a *autoScalingGroup) countAttachedInstanceStoreVolumes() int {
+	count := 0
+	for _, volume := range a.getLaunchConfiguration().BlockDeviceMappings {
+		if volume.VirtualName != nil &&
+			strings.Contains(*volume.VirtualName, "ephemeral") {
+			count++
+		}
+	}
+	return count
 }
 
 // Counts the number of already running spot instances.

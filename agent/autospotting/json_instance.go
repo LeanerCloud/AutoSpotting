@@ -19,6 +19,8 @@ type jsonInstance struct {
 	PrettyName         string                  `json:"pretty_name"`
 	Pricing            map[string]regionPrices `json:"pricing"`
 
+	Storage *storageConfiguration `json:"storage"`
+
 	VPC struct {
 		//		IPsPerENI int `json:"ips_per_eni"`
 		//		MaxENIs   int `json:"max_enis"`
@@ -27,12 +29,6 @@ type jsonInstance struct {
 	Arch                     []string `json:"arch"`
 	LinuxVirtualizationTypes []string `json:"linux_virtualization_types"`
 	EBSOptimized             bool     `json:"ebs_optimized"`
-
-	Storage struct {
-		SSD     bool    `json:"ssd"`
-		Devices int     `json:"devices"`
-		Size    float32 `json:"size"`
-	} `json:"storage"`
 
 	MaxBandwidth float32 `json:"max_bandwidth"`
 	InstanceType string  `json:"instance_type"`
@@ -44,6 +40,12 @@ type jsonInstance struct {
 
 	Memory          float32 `json:"memory"`
 	EBSMaxBandwidth float32 `json:"ebs_max_bandwidth"`
+}
+
+type storageConfiguration struct {
+	SSD     bool    `json:"ssd"`
+	Devices int     `json:"devices"`
+	Size    float32 `json:"size"`
 }
 
 type regionPrices struct {
@@ -61,7 +63,7 @@ type regionPrices struct {
 	// Mswin       interface{}  `json:"mswin"`
 }
 
-//-------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 type jsonInstances []jsonInstance
 

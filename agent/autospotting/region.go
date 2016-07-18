@@ -16,15 +16,21 @@ type region struct {
 	enabledAsgs  []autoScalingGroup
 	services     connections
 	wg           sync.WaitGroup
-	instances    map[string]*ec2.Instance // the key in this map is the instance ID, useful for quick retrieval of instance attributes
+	// The key in this map is the instance ID, useful for quick retrieval of
+	// instance attributes.
+	instances map[string]*ec2.Instance
 }
 
 type instanceInformation struct {
-	instanceType        string
-	vCPU                int
-	pricing             prices
-	memory              float32
-	virtualizationTypes []string
+	instanceType             string
+	vCPU                     int
+	pricing                  prices
+	memory                   float32
+	virtualizationTypes      []string
+	hasInstanceStore         bool
+	instanceStoreDeviceSize  float32
+	instanceStoreDeviceCount int
+	instanceStoreIsSSD       bool
 }
 
 type prices struct {
@@ -43,7 +49,8 @@ func (r *region) processRegion(instData *jsonInstances) {
 	logger.Println("Scanning for enabled AutoScaling groups in ", r.name)
 	r.scanEnabledAutoScalingGroups()
 
-	// only process further the region if there are any enabled autoscaling groups within it
+	// only process further the region if there are any enabled autoscaling groups
+	// within it
 	if r.hasEnabledAutoScalingGroups() {
 		logger.Println("Scanning instances in", r.name)
 		r.scanInstances()
@@ -59,12 +66,16 @@ func (r *region) processRegion(instData *jsonInstances) {
 func (r *region) determineInstanceInformation(instData *jsonInstances) {
 
 	r.instanceData = make(map[string]instanceInformation)
+
+	var info instanceInformation
+
 	for _, it := range *instData {
 
 		var price prices
 
 		// populate on-demand information
-		price.onDemand, _ = strconv.ParseFloat(it.Pricing[r.name].Linux.OnDemand, 64)
+		price.onDemand, _ = strconv.ParseFloat(
+			it.Pricing[r.name].Linux.OnDemand, 64)
 
 		price.spot = make(spotPriceMap)
 
@@ -74,17 +85,26 @@ func (r *region) determineInstanceInformation(instData *jsonInstances) {
 		// data structure for it
 		if price.onDemand > 0 {
 			// for each instance type populate the HW spec information
-			r.instanceData[it.InstanceType] = instanceInformation{
+			info = instanceInformation{
 				instanceType:        it.InstanceType,
 				vCPU:                it.VCPU,
 				memory:              it.Memory,
 				pricing:             price,
 				virtualizationTypes: it.LinuxVirtualizationTypes,
 			}
+
+			if it.Storage != nil {
+				info.hasInstanceStore = true
+				info.instanceStoreDeviceSize = it.Storage.Size
+				info.instanceStoreDeviceCount = it.Storage.Devices
+				info.instanceStoreIsSSD = it.Storage.SSD
+			}
+			r.instanceData[it.InstanceType] = info
 		}
 	}
-	// this is safe to do once outside of the loop because the call will only return entries
-	// about the available instance types, so no invalid instance types would be returned
+	// this is safe to do once outside of the loop because the call will only
+	// return entries about the available instance types, so no invalid instance
+	// types would be returned
 	if err := r.requestSpotPrices(); err != nil {
 		logger.Println(err.Error())
 	}
@@ -199,7 +219,8 @@ func (r *region) findSpotInstanceRequests(
 		return nil
 	}
 
-	logger.Println("Spot instance requests were previously created for", forAsgName)
+	logger.Println("Spot instance requests were previously created for",
+		forAsgName)
 	return resp.SpotInstanceRequests
 
 }
@@ -248,7 +269,8 @@ func (r *region) tagInstance(instanceID *string, tags []*ec2.Tag) {
 
 	logger.Println(r.name, "Tagging spot instance", *instanceID)
 
-	for _, err := svc.CreateTags(&params); err != nil; _, err = svc.CreateTags(&params) {
+	for _, err := svc.CreateTags(&params); err != nil; _, err =
+		svc.CreateTags(&params) {
 
 		logger.Println(r.name,
 			"Failed to create tags for the spot instance", *instanceID, err.Error())

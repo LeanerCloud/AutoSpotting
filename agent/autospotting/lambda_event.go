@@ -116,7 +116,7 @@ func (e *LambdaEventFromFiles) HandleEvent(cronTopic, instancesURL string) {
 		logger.Println("Loading on-demand instance pricing information")
 		jsonInst.loadFromURL(instancesURL)
 
-		//logger.Println(jsonInst)
+		// logger.Println(spew.Sdump(jsonInst))
 
 		ir.processAllRegions(&jsonInst)
 
