@@ -341,38 +341,6 @@ func (a *autoScalingGroup) waitForSpotInstance(
 	}
 }
 
-func (a *autoScalingGroup) hasEqualAvailibilityZones() bool {
-
-	var azInstanceCount = make(map[string]int)
-
-	asg := a.asgRawData
-	min, max := math.MaxInt32, 0
-
-	for _, az := range asg.AvailabilityZones {
-		azInstanceCount[*az] = 0
-	}
-
-	for _, instance := range asg.Instances {
-		azInstanceCount[*instance.AvailabilityZone]++
-	}
-
-	for _, v := range azInstanceCount {
-		if v <= min {
-			min = v
-		}
-		if v >= max {
-			max = v
-		}
-
-	}
-
-	result := (min == max)
-	logger.Println(a.name, "Checking if all AZs of are equal in size: ",
-		strconv.FormatBool(result))
-
-	return result
-}
-
 func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 
 	if azToLaunchIn == nil {

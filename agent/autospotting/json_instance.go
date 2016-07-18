@@ -20,8 +20,8 @@ type jsonInstance struct {
 	Pricing            map[string]regionPrices `json:"pricing"`
 
 	VPC struct {
-		IPsPerENI int `json:"ips_per_eni"`
-		MaxENIs   int `json:"max_enis"`
+		//		IPsPerENI int `json:"ips_per_eni"`
+		//		MaxENIs   int `json:"max_enis"`
 	} `json:"vpc"`
 
 	Arch                     []string `json:"arch"`

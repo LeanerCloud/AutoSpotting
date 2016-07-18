@@ -24,8 +24,6 @@ type LambdaEventFromFiles struct {
 	ContextFile string
 	event       eventData
 	context     contextData
-	eventJSON   []byte
-	contextJSON []byte
 }
 
 // This is a data structure we use for parsing the JSON we get in the event
