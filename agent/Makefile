@@ -24,3 +24,6 @@ install: strip
 
 upload: install
 	aws s3 sync ../build/s3/ s3://cloudprowess/
+
+test: build_local
+	./agent -e  autospotting/test_data/event.json -c autospotting/test_data/context.json
