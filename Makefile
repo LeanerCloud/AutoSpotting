@@ -28,3 +28,5 @@ upload: install
 
 test: build_local
 	./autospotting -e  core/test_data/event.json -c core/test_data/context.json
+cover:
+	go test -covermode=count -coverprofile=coverage.out ./core && go tool cover -html=coverage.out
