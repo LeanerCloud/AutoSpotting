@@ -1,5 +1,5 @@
-BINARY=agent
-LAMBDA_BINARY=agent_lambda
+BINARY=autospotting
+LAMBDA_BINARY=autospotting_lambda
 LOCAL_PATH=build/s3/dv
 
 all: build_local
@@ -26,4 +26,4 @@ upload: install
 	aws s3 sync build/s3/ s3://cloudprowess/
 
 test: build_local
-	./agent -e  autospotting/test_data/event.json -c autospotting/test_data/context.json
+	./autospotting -e  core/test_data/event.json -c core/test_data/context.json
