@@ -1,0 +1,33 @@
+---
+engines:
+  # golang
+  gofmt:
+    enabled: true
+  golint:
+    enabled: true
+    config:
+      min_confidence: 0.9
+  govet:
+    enabled: true
+  # python, for the lambda wrapper
+  pep8:
+    enabled: true
+  radon: 
+    enabled: true
+    config: 
+      python_version: 2
+  duplication:
+    enabled: true
+    config:
+      languages:
+      - python
+  # misc
+  markdownlint:
+    enabled: true
+  fixme:
+    enabled: true
+ratings:
+  paths:
+    - "**.go"
+    - "**.py"
+    - "**.md"
