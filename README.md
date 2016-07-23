@@ -1,5 +1,7 @@
 # README #
 
+[![Join the chat at https://gitter.im/cristim/autospotting](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 This README tries to document whatever steps are necessary to get the AutoSpotting application up and running.
 
 ## About AutoSpotting ##
