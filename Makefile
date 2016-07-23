@@ -1,6 +1,6 @@
 BINARY=agent
 LAMBDA_BINARY=agent_lambda
-LOCAL_PATH=../build/s3/dv
+LOCAL_PATH=build/s3/dv
 
 all: build_local
 
@@ -23,7 +23,7 @@ install: strip
 	echo $$FILENAME > ${LOCAL_PATH}/latest_agent
 
 upload: install
-	aws s3 sync ../build/s3/ s3://cloudprowess/
+	aws s3 sync build/s3/ s3://cloudprowess/
 
 test: build_local
 	./agent -e  autospotting/test_data/event.json -c autospotting/test_data/context.json
