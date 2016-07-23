@@ -1,0 +1,16 @@
+language: go
+go:
+- 1.4
+- 1.5
+- 1.6
+- tip
+deploy:
+  provider: s3
+  access_key_id: AKIAJLFCT4RDMFFFREPA
+  secret_access_key:
+    secure: VUDtwMPZMTrskIIa0hCODIwnS4Zhm0VcHtXeC7rYT+oRPevDgk1khwTQqlbTztd6LYZEiYvhjnznU3aEITww/o2d3d7GrxqIns3dQ2MgTflrnj55Ldpo10TvVDidaK+PJbTXxYzIT3uXzBLepQGnZwEV6ugQskYTQx00UZCQix+McYSgNiRWB5xjPW/4fDvtHaHXR5+3AJZJuZADZsTjnxUR8j4gLvAQSZ96PLAZ1/F2Sg+VPw9cebyN0xKAK7d+ugkg6DlpaKLh0Ixr1zFPQwTk4AEtJyUsfFzj70hR4o5BujYas4Q7XBewbHHosxDYYuEPU2XaAfQdYr6tYynnmsOWwJuH+kueG3ZItuHuMbgeRUPJpRyoXxN+CjkzknYLfsSzV59A43xV1AX+Am5nIK4F0+hZX12GkC9HlZdGp0PpjOyTIDm2PFnilb9erGiN6T68bwSvazwVoTAg1rOqqXqlPmiRWyFwlQ5qpAK5ztggrAgaO6fp4+G7HXdr7cAVQjZfF+HeJFuXIi60sqjr2RWab1EmhOUKKyLlUipeA/VQgNdWjLgZRk3tpYn450SpbmgYBU+DpaRE97ejx/BVZzLueT97p+m5FsSz/BtvqJpIBSg9kbo4J+aK6zPjikTjV31bzFFGf5xzMuV7XVVTuvMVWYwmQGrG23+ONWyT92c=
+  bucket: cloudprowess
+  local-dir: build/s3
+  acl: public_read
+  on:
+    repo: cristim/autospotting
