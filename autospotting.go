@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/cristim/autospotting/autospotting"
+	"github.com/cristim/autospotting/core"
 	"github.com/droundy/goopt"
 )
 
