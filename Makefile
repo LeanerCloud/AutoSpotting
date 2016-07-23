@@ -13,7 +13,8 @@ build_lambda:
 	GOOS=linux GOARCH=amd64 go build -o ${LAMBDA_BINARY}
 
 strip: build_lambda
-	goupx --strip-binary --lzma --best ${LAMBDA_BINARY}
+	strip ${LAMBDA_BINARY}
+	upx --lzma --best ${LAMBDA_BINARY}
 
 install: strip
 	CHECKSUM=$$(sha256sum ${LAMBDA_BINARY} | cut -f1 -d " " ); \
