@@ -13,7 +13,7 @@ before_install:
 install:
   - go get ./...
 
-script: make install
+script: go test -v ./... && make install
 
 deploy:
   provider: s3
