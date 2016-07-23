@@ -1,8 +1,11 @@
-# README #
+## AutoSpotting ##
 
-This README tries to document whatever steps are necessary to get the AutoSpotting application up and running.
-
-## About AutoSpotting ##
+[![Build Status](https://travis-ci.org/cristim/autospotting.svg?branch=master)](https://travis-ci.org/cristim/autospotting)
+[![Code Climate](https://codeclimate.com/github/cristim/autospotting/badges/gpa.svg)](https://codeclimate.com/github/cristim/autospotting)
+[![Test Coverage](https://codeclimate.com/github/cristim/autospotting/badges/coverage.svg)](https://codeclimate.com/github/cristim/autospotting/coverage)
+[![Issue Count](https://codeclimate.com/github/cristim/autospotting/badges/issue_count.svg)](https://codeclimate.com/github/cristim/autospotting)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)]()
+[![Chat on Gitter](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 Autospotting is a tool meant to automate the provitioning of AWS EC2 spot instances on existing AutoScaling groups, replacing existing instances with significantly cheaper ones.
 
