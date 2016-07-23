@@ -9,11 +9,15 @@ go:
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y upx
+  - go get github.com/mattn/goveralls
+  - go get golang.org/x/tools/cmd/cover
 
 install:
   - go get ./...
 
-script: go test -v ./... && make install
+script: go test ./core -covermode=count -coverprofile=profile.cov &&
+  goveralls -coverprofile=profile.cov -service=travis-ci &&
+  make install
 
 deploy:
   provider: s3
@@ -26,3 +30,7 @@ deploy:
   acl: public_read
   on:
     repo: cristim/autospotting
+
+addons:
+    code_climate:
+        repo_token: 26e05ea243c7138ca7ca621f5c55e2c7f13e190f535985b975c6050e8269f480
