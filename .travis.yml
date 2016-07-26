@@ -7,13 +7,13 @@ go:
 - tip
 
 before_install:
-  - sudo apt-get -qq update
-  - sudo apt-get install -y upx
-  - go get github.com/mattn/goveralls
-  - go get golang.org/x/tools/cmd/cover
+- sudo apt-get -qq update
+- sudo apt-get install -y upx
+- go get github.com/mattn/goveralls
+- go get golang.org/x/tools/cmd/cover
 
 install:
-  - go get ./...
+- go get ./...
 
 script: go test ./core -covermode=count -coverprofile=profile.cov &&
   goveralls -coverprofile=profile.cov -service=travis-ci &&
@@ -30,7 +30,7 @@ deploy:
   acl: public_read
   on:
     repo: cristim/autospotting
-
 addons:
-    code_climate:
-        repo_token: 26e05ea243c7138ca7ca621f5c55e2c7f13e190f535985b975c6050e8269f480
+  code_climate:
+    repo_token:
+      secure: JjgPe1Wx9+XwvYzAlb7YTtS/1XRV8Hoe2bg6VF2D+ZLVmKt83b3Qe+LgeQ2r77rCbmkwSjmu5GCswQ8tJGmgFE66wmNBULGpC2FhQTLG2Lt+8TH4h7aR1GIXLJti37kJJx8ouN3JKSJ0V02VJWQcdlAdwy/nuWoONP1lVeQOslF5TigojK5lHGjZkIceFvmiq3qrgEKhvk4dXpH2zQpdkHsiyvBsHcm2aeH1NzsSlT5g81EZnKyeUtbTXfIiglyY4NYdlyYrmntPxkCzJEFq5l4CpKYWQuoJ5TnXrZzF7fXYmiKOOzl55Afv578neZSzu4Fvy/d5vyA1NJDLUul4465719sk2YUIpuMEPGpekSe7WbkoN9NB7pk+Mea+7s12pkT5909ew1P1YtJiH/DroKPdeEqNTtXXnVnmN+QTHHmpNN/L66HERmRR+EihPalyrYQ8Ep95o84xUg5U/+rWyYKCnTCFUne7QYsGimTlpwBTcccjTkxF0L3S/L+mr16UMVn4TIJeQ9G14gqtmBqVtIQMrZi9YRZpK7+HneMdIBH3LGKoXxCsM49ZNuftzqf+ZCXGwtPA41Yhi71AR4hALgPjgKoc/C5rGGlg443nn1JH1x2eiX19Z6KFTP5Znqw2lAv5z160/3qse1SR0uyK/elybYnr8Ro3bGUQryBXzmo=
