@@ -538,10 +538,10 @@ func convertLaunchConfigurationToSpotSpecification(
 		}
 	}
 
-	if lc.AssociatePublicIpAddress != nil {
+	if lc.AssociatePublicIpAddress != nil && *lc.AssociatePublicIpAddress {
 		spotLS.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
 			&ec2.InstanceNetworkInterfaceSpecification{
-				AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
+				AssociatePublicIpAddress: aws.Bool(true),
 				DeviceIndex:              aws.Int64(0),
 			},
 		}
