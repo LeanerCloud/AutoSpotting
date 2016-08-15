@@ -384,7 +384,9 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 
 	lc := a.getLaunchConfiguration()
 
-	spotLS := convertLaunchConfigurationToSpotSpecification(lc,
+	spotLS := convertLaunchConfigurationToSpotSpecification(
+		lc,
+		baseInstance,
 		*newInstanceType,
 		*azToLaunchIn)
 
@@ -500,6 +502,7 @@ func (a *autoScalingGroup) getLaunchConfiguration() *autoscaling.LaunchConfigura
 
 func convertLaunchConfigurationToSpotSpecification(
 	lc *autoscaling.LaunchConfiguration,
+	baseInstance *ec2.Instance,
 	instanceType string,
 	az string) *ec2.RequestSpotLaunchSpecification {
 
@@ -538,13 +541,12 @@ func convertLaunchConfigurationToSpotSpecification(
 		}
 	}
 
-	if lc.AssociatePublicIpAddress != nil && *lc.AssociatePublicIpAddress {
-		spotLS.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
-			&ec2.InstanceNetworkInterfaceSpecification{
-				AssociatePublicIpAddress: aws.Bool(true),
-				DeviceIndex:              aws.Int64(0),
-			},
-		}
+	spotLS.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
+		&ec2.InstanceNetworkInterfaceSpecification{
+			AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
+			DeviceIndex:              aws.Int64(0),
+			SubnetId:                 baseInstance.SubnetId,
+		},
 	}
 
 	// In case we have security groups to convert, we need to make sure they are
