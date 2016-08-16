@@ -48,7 +48,7 @@ func (a *autoScalingGroup) process() {
 		a.replaceOnDemandInstanceWithSpot(spotInstanceID)
 	} else {
 		// find any given on-demand instance and try to replace it with a spot one
-		onDemandInstance := a.findInstanceDetails(true)
+		onDemandInstance := a.findInstanceDetails(nil, true)
 
 		if onDemandInstance == nil {
 			logger.Println(a.region.name, a.name,
@@ -121,7 +121,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 }
 
 func (a *autoScalingGroup) getInstanceTags() []*ec2.Tag {
-	if instance := a.findInstanceDetails(false); instance != nil {
+	if instance := a.findInstanceDetails(nil, false); instance != nil {
 		return instance.Tags
 	}
 	return nil
@@ -132,9 +132,11 @@ func (a *autoScalingGroup) findInstanceByID(instanceID *string) *ec2.Instance {
 	return a.region.instances[*instanceID]
 }
 
-// Returns the information about the first on-demand running instance found
-// while iterating over all instances from the group.
+// Returns the information about the first on-demand running instance found in
+// the given availability zone, while iterating over all instances from the
+// group.
 func (a *autoScalingGroup) findInstanceDetails(
+	availabilityZone *string,
 	onDemandOnly bool) *ec2.Instance {
 
 	for _, instance := range a.asgRawData.Instances {
@@ -147,6 +149,10 @@ func (a *autoScalingGroup) findInstanceDetails(
 			// where it contains the value "spot", if we're looking for on-demand
 			// instances only, then we have to skip the current instance.
 			if onDemandOnly && instanceData.InstanceLifecycle != nil {
+				continue
+			}
+			if (availabilityZone != nil) &&
+				(*availabilityZone != *instanceData.Placement.AvailabilityZone) {
 				continue
 			}
 			return instanceData
@@ -188,7 +194,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	// then we can launch a new spot instance
 	if len(a.spotInstanceRequests) == 0 {
 		logger.Println(a.name, "no spot bids were found")
-		if inst := a.findInstanceDetails(true); inst != nil {
+		if inst := a.findInstanceDetails(nil, true); inst != nil {
 			logger.Println(a.name, "on-demand instances were found, proceeding to "+
 				"launch a replacement spot instance")
 			return nil, false
@@ -351,7 +357,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 	logger.Println("Trying to launch spot instance in", *azToLaunchIn,
 		"\nfirst finding an on-demand instance to use as a template")
 
-	baseInstance := a.findInstanceDetails(true)
+	baseInstance := a.findInstanceDetails(azToLaunchIn, true)
 
 	if baseInstance == nil {
 		logger.Println("Found no on-demand instances, nothing to do here...")
