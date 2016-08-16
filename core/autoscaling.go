@@ -552,18 +552,8 @@ func convertLaunchConfigurationToSpotSpecification(
 			AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
 			DeviceIndex:              aws.Int64(0),
 			SubnetId:                 baseInstance.SubnetId,
+			Groups:                   lc.SecurityGroups,
 		},
-	}
-
-	// In case we have security groups to convert, we need to make sure they are
-	// given by ID or by free-form names
-	if lc.SecurityGroups != nil && len(lc.SecurityGroups) > 0 {
-		if havingFreeFormSecurityGroupNames(lc) {
-			spotLS.SecurityGroups = lc.SecurityGroups
-		} else {
-			spotLS.SecurityGroupIds = lc.SecurityGroups
-		}
-
 	}
 
 	spotLS.UserData = lc.UserData
@@ -572,22 +562,6 @@ func convertLaunchConfigurationToSpotSpecification(
 
 	return &spotLS
 
-}
-
-// Checks if the security groups are given by ID or by free-form names, which
-// was possible in EC2 Classic
-func havingFreeFormSecurityGroupNames(
-	lc *autoscaling.LaunchConfiguration) bool {
-
-	for _, sg := range lc.SecurityGroups {
-
-		if !strings.HasPrefix(*sg, "sg-") {
-			logger.Println(*sg)
-			return true
-		}
-	}
-
-	return false
 }
 
 func copyBlockDeviceMappings(
