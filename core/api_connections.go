@@ -8,23 +8,20 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/sns"
 )
 
 type connections struct {
 	session     *session.Session
 	autoScaling *autoscaling.AutoScaling
 	ec2         *ec2.EC2
-	lambda      *lambda.Lambda
-	sns         *sns.SNS
 }
 
 func getRegions() ([]string, error) {
 	var output []string
 
-	// this turns out to be much faster when running locally, to be changed back
-	// to the snippet below for production usage
+	// this turns out to be much faster when running locally than using the
+	// commented region auto-detection snipped shown below, and anyway due to
+	// Lambda limitations we currently only support running it from this region.
 	currentRegion := "us-east-1"
 
 	// m := ec2metadata.New(session.New())
@@ -65,18 +62,12 @@ func (c *connections) connect(region string) {
 
 	asConn := make(chan *autoscaling.AutoScaling)
 	ec2Conn := make(chan *ec2.EC2)
-	lambdaConn := make(chan *lambda.Lambda)
-	snsConn := make(chan *sns.SNS)
 
 	go func() { asConn <- autoscaling.New(c.session) }()
 	go func() { ec2Conn <- ec2.New(c.session) }()
-	go func() { lambdaConn <- lambda.New(c.session) }()
-	go func() { snsConn <- sns.New(c.session) }()
 
 	c.autoScaling = <-asConn
 	c.ec2 = <-ec2Conn
-	c.lambda = <-lambdaConn
-	c.sns = <-snsConn
 
 	logger.Println("Created service connections in", region)
 }

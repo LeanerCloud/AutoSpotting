@@ -1,11 +1,6 @@
 {
 "AWSTemplateFormatVersion": "2010-09-09",
   "Description": "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling",
-  "Outputs": {
-    "LambdaSnsTopicArn": {
-      "Value": { "Ref": "LambdaTopic" }
-    }
-  },
   "Parameters": {
     "LambdaHandlerFunction": {
       "Default": "wrapper.lambda_handler",
@@ -24,20 +19,6 @@
     }
   },
   "Resources": {
-    "LambdaCall": {
-      "DependsOn": [
-        "LambdaTopic",
-        "LambdaPolicy",
-        "LambdaFunction",
-        "LambdaExecutionRole"
-      ],
-      "Properties": {
-        "SNSTopic": { "Ref": "LambdaTopic" },
-        "ServiceToken": { "Fn::GetAtt": [ "LambdaFunction", "Arn" ] }
-      },
-      "Type": "Custom::StackChangeLambdaCall",
-      "Version": "1.0"
-    },
     "LambdaExecutionRole": {
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -88,11 +69,9 @@
                 "ec2:RequestSpotInstances",
                 "ec2:TerminateInstances",
                 "iam:PassRole",
-                "lambda:AddPermission",
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
                 "logs:PutLogEvents",
-                "sns:Subscribe"
               ],
               "Effect": "Allow",
               "Resource": "*"
@@ -104,17 +83,26 @@
       },
       "Type": "AWS::IAM::Policy"
     },
-    "LambdaTopic": {
+    "ScheduledRule": {
+      "Type": "AWS::Events::Rule",
       "Properties": {
-        "DisplayName": "SNS topic for SPOT EC2 instance automation",
-        "Subscription": [
-          {
-            "Endpoint": { "Fn::GetAtt": [ "LambdaFunction", "Arn" ] },
-            "Protocol": "lambda"
-          }
-        ]
-      },
-      "Type": "AWS::SNS::Topic"
+        "Description": "ScheduledRule for launching the AutoSpotting Lambda function",
+        "ScheduleExpression": "rate(5 minutes)",
+        "State": "ENABLED",
+        "Targets": [{
+          "Arn": { "Fn::GetAtt": ["LambdaFunction", "Arn"] },
+          "Id": "AutoSpottingEventGenerator"
+        }]
+      }
+    },
+    "PermissionForEventsToInvokeLambda": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": { "Ref": "LambdaFunction" },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": { "Fn::GetAtt": ["ScheduledRule", "Arn"] }
+      }
     }
   }
 }
