@@ -132,27 +132,21 @@ multiple Amazon AWS accounts, mostly created automatically with CloudFormation:
 Similar in concept to @alestic's [unreliable-town-clock](https://alestic.com/2015/05/aws-lambda-recurring-schedule/),
 but internally using the new CloudWatch events just like in his later
 developments.
-* deployed in the author's AWS account, only because it is easier to configure
-  against a fixed topic ID by hardcoding the topic name in the binary agent
-  written in golang, and also because triggering Lambda function calls from it
-  is free of charge.
+* deployed by CloudFormation
 * It is configured generate a CloudWatch event every 5 minutes, which is then
-  sent to the SNS topic
-* It has enough IAM permissions to allow anyone to attach to the topic.
+  launching the Lambda function.
 
 ### Lambda function ###
-* AWS Lambda function deployed in the user's AWS account, entirely configured by
+* AWS Lambda function deployed in the user's AWS account, also created by
   CloudFormation.
-* It is connected to the event generator topic. Messages sent to the topic
-  trigger its execution, and the topic generates these every 5 minutes.
-* Currently written in Python, but it may be rewritten/replaced at some point
+* It is connected to the event generator, which triggers it periodically,
+  currently every 5 minutes.
+* Written in Python, but it may be rewritten/replaced at some point
   once AWS implements native support for golang.
- Out of the box it has assigned a IAM role and policy with a set of permissions
-  to call various AWS services within the customer's account. The permissions
-  are the minimal set required for determining the spot instance type, launching
-  spot instances with IAM roles, attaching them to the group, detaching and then
-  terminating on-demand instances without the need of passing any explicit AWS
-  credentials or access keys.
+* It has assigned a IAM role and policy with a set of permissions to call
+  various AWS services within the user's account. The permissions are the
+  minimal set required for it to work without the need of passing any explicit
+  AWS credentials or access keys.
 
 Here is how it reacts on the event that it was given:
 
@@ -164,13 +158,6 @@ Here is how it reacts on the event that it was given:
   of JSON files created in lambda function's writeable /tmp directory, passed as
   command line arguments to the binary, which are then read and parsed by the
   agent binary at runtime.
-* The agent implements code able to handle the events it received. At the moment
-  there are two types of events:
-  * Events emmitted by the event generator's SNS topics.
-  * It is also executed by the CloudFormation stack whenever the stack is being
-    created or changed, where it implements a custom resource that currently can
-    only attach the function to the event generator's SNS topic when the stack
-    is created.
 
 ### agent ###
 
@@ -193,7 +180,7 @@ Here is how it reacts on the event that it was given:
   zone, in order to survive instance termination when outbid for a certain
   instance type.
 
-# Badges
+# GitHub Badges
 
 [![Build Status](https://travis-ci.org/cristim/autospotting.svg?branch=master)](https://travis-ci.org/cristim/autospotting)
 [![Coverage Status](https://coveralls.io/repos/github/cristim/autospotting/badge.svg?branch=master)](https://coveralls.io/github/cristim/autospotting?branch=master)

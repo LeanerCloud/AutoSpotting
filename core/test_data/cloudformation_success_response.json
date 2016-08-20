@@ -1,7 +1,0 @@
-{
-   "Status" : "SUCCESS",
-   "PhysicalResourceId" : "2016/06/17/[$LATEST]6abc89f800404e33a70340f307289698",
-   "StackId" : "arn:aws:cloudformation:us-east-1:540659244915:stack/autospotting-lambda/01064dd0-3676-11e6-949f-50d5ca6326f2",
-   "RequestId" : "e6677a8a-1e25-48b4-b044-d05834d7a408",
-   "LogicalResourceId" : "LambdaCall",
-}
