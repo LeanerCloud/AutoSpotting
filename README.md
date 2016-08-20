@@ -1,57 +1,38 @@
 # AutoSpotting #
 
-[![Build Status](https://travis-ci.org/cristim/autospotting.svg?branch=master)](https://travis-ci.org/cristim/autospotting)
-[![Coverage Status](https://coveralls.io/repos/github/cristim/autospotting/badge.svg?branch=master)](https://coveralls.io/github/cristim/autospotting?branch=master)
-[![Code Climate](https://codeclimate.com/github/cristim/autospotting/badges/gpa.svg)](https://codeclimate.com/github/cristim/autospotting)
-[![Issue Count](https://codeclimate.com/github/cristim/autospotting/badges/issue_count.svg)](https://codeclimate.com/github/cristim/autospotting)
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)]()
-[![Chat on Gitter](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+A simple tool designed to significantly lower your Amazon AWS costs by
+automating the use of the [spot market](https://aws.amazon.com/ec2/spot). It can
+often achieve savings in the range of 80-90% off the usual on-demand prices,
+like shown in the screenshot below.
 
-Autospotting is a tool meant to automate the provitioning of AWS EC2 spot
-instances on existing AutoScaling groups, replacing existing instances with
-significantly cheaper ones.
+![Savings Graph](https://cdn.cloudprowess.com/images/autospotting-savings.png)
 
-The goal is to allow the user to achieve significant savings, often in the range
-of 80% off the AWS EC2 bill, in a way that maximizes the availability in the
-event of spot market fluctuations of certain instance types in certain
-availability zones, that trigger termination of spot instances.
+When enabled on your existing on-demand AutoScaling group, it starts launching
+EC2 spot instances that are cheaper, at least as powerful and configured as
+closely as possible as your existing on-demand instances.
 
-Once enabled on an AutoScaling group, it is gradually replacing all the
-on-demand instances belonging to the group with compatible and similarly
-configured but cheaper spot instances. The replacements are done using the
-relatively new Attach/Detach actions supported by the AutoScaling API. A new
-compatible spot instance is launched, and after a while, at least as much as the
-group's grace period, it will be attached to the group, while at the same time
-an on-demand instance is detached from the group and terminated.
+It then gradually swaps them with your existing on-demand instances, which can
+then be terminated.
 
-When assessing the compatibility, it takes into account the hardware specs, such
-as CPU cores, RAM size, attached instance store volumes and their type and size,
-as well as the supported virtualization types (HVM or PV). The new spot instance
-type is usually a few times cheaper than the original instance type, while also
-often providing more computing capacity. The new instance is also configured
-with the same roles, security groups and tags and set to execute the same user
-data script as the original instance, so from a functionality perspective it
-should be indistinguishable from other instances in the group.
+# Features
 
-When replacing multiple instances in a group, the algorithm tries to use a wide
-variety of instance types, in order to reduce the probability of simultaneous
-failures that may impact the availability of the group. It Always tries to
-launch the cheapest instance, but if the group already has a considerable amount
-of instances of that type in the same availability zone (currently more than 20%
-of the group's capacity is in that zone and of that instance type), it picks the
-second cheapest compatible instance, and so on. Assuming the market price is
-high enough that there are no spot instances that can be launched, it would keep
-running from on-demand capacity, but it continuously attempts to replace them
-until eventually the prices decrease ant it gets the chance to convert any of
-the existing on-demand instances.
-
-Further details can be seen on a number of posts on the author's
-[blog](https://mcristi.wordpress.com)
+* Easy to install and set up on existing environments, see the installation
+  steps below for more details
+* Designed for AutoScaling groups with long-running instances
+* Should be compatible with any higher level AWS services internally backed by
+  AutoScaling, such as ECS or Beanstalk.
+* Optimizes for high availability over lowest costs whenever possible
+* Minimalist implementation, leveraging and relying on battle-tested AWS
+  services - mainly AutoScaling and ELB - for all the mission-critical stuff:
+  * instance health checks
+  * replacement of terminated instances
+  * ELB integration
+  * horizontal scaling
+* Minimal cost overhead, within the Lambda free tier and with low bandwidth costs
 
 ## Getting Started ##
 
 ### Requirements ###
-
 * You will need credentials to an AWS account able to run CloudFormation stacks.
 * The following steps assume you have the AWS cli tool installed, but the setup
   can also be done manually using the AWS console or using other tools able to
@@ -75,16 +56,7 @@ If you are using the AWS command-line tool, you can use this command instead:
 Notes:
 
 * For technical reasons the stack needs to be launched in US-East-1(Virginia)
-  region, so please make sure it's not created somewhere else in case you use an
-  AWS credentials profile which may be defined for another region.
-* The stack is based on prebuilt binaries hosted on the author's AWS account.
-  The author is being actually charged a few pennies of network traffic each
-  month so donations to offset this cost are welcome via Paypal if you are using
-  it for anything serious. The binaries can be self-compiled and it can also be
-  self-hosted with not too much effort in case you have any concerns about
-  reliability, dependence on foreign infrastructure or running binary blobs.
-* Once installed, it will automatically execute every 5 minutes and the payload
-  binary will take action on the AutoScaling groups where it was enabled.
+  region, so make sure it's not created in another region.
 
 ### Configuration for an AutoScaling group ###
 
@@ -117,6 +89,39 @@ spot instances yourself.
 
 The tags set on the group can be deleted at any time you want.
 
+
+# How it works
+
+Once enabled on an AutoScaling group, it is gradually replacing all the
+on-demand instances belonging to the group with compatible and similarly
+configured but cheaper spot instances. The replacements are done using the
+relatively new Attach/Detach actions supported by the AutoScaling API. A new
+compatible spot instance is launched, and after a while, at least as much as the
+group's grace period, it will be attached to the group, while at the same time
+an on-demand instance is detached from the group and terminated.
+
+When assessing the compatibility, it takes into account the hardware specs, such
+as CPU cores, RAM size, attached instance store volumes and their type and size,
+as well as the supported virtualization types (HVM or PV). The new spot instance
+type is usually a few times cheaper than the original instance type, while also
+often providing more computing capacity. The new instance is also configured
+with the same roles, security groups and tags and set to execute the same user
+data script as the original instance, so from a functionality perspective it
+should be indistinguishable from other instances in the group.
+
+When replacing multiple instances in a group, the algorithm tries to use a wide
+variety of instance types, in order to reduce the probability of simultaneous
+failures that may impact the availability of the entire group. It always tries
+to launch the cheapest instance, but if the group already has a considerable
+amount of instances of that type in the same availability zone (currently more
+than 20% of the group's capacity is in that zone and of that instance type), it
+picks the second cheapest compatible instance, and so on. Assuming the market
+price is high enough that there are no spot instances that can be launched, it
+would keep running from on-demand capacity, but it continuously attempts to
+replace them until eventually the prices decrease ant it gets the chance to
+convert any of the existing on-demand instances.
+
+
 ## Internals ##
 
 When deployed, the software consists on a number of resources running across
@@ -127,7 +132,6 @@ multiple Amazon AWS accounts, mostly created automatically with CloudFormation:
 Similar in concept to @alestic's [unreliable-town-clock](https://alestic.com/2015/05/aws-lambda-recurring-schedule/),
 but internally using the new CloudWatch events just like in his later
 developments.
-
 * deployed in the author's AWS account, only because it is easier to configure
   against a fixed topic ID by hardcoding the topic name in the binary agent
   written in golang, and also because triggering Lambda function calls from it
@@ -137,14 +141,13 @@ developments.
 * It has enough IAM permissions to allow anyone to attach to the topic.
 
 ### Lambda function ###
-
 * AWS Lambda function deployed in the user's AWS account, entirely configured by
   CloudFormation.
 * It is connected to the event generator topic. Messages sent to the topic
   trigger its execution, and the topic generates these every 5 minutes.
 * Currently written in Python, but it may be rewritten/replaced at some point
   once AWS implements native support for golang.
-* Out of the box it has assigned a IAM role and policy with a set of permissions
+ Out of the box it has assigned a IAM role and policy with a set of permissions
   to call various AWS services within the customer's account. The permissions
   are the minimal set required for determining the spot instance type, launching
   spot instances with IAM roles, attaching them to the group, detaching and then
@@ -189,3 +192,12 @@ Here is how it reacts on the event that it was given:
   also how much redundancy we need to have in place in the current availability
   zone, in order to survive instance termination when outbid for a certain
   instance type.
+
+# Badges
+
+[![Build Status](https://travis-ci.org/cristim/autospotting.svg?branch=master)](https://travis-ci.org/cristim/autospotting)
+[![Coverage Status](https://coveralls.io/repos/github/cristim/autospotting/badge.svg?branch=master)](https://coveralls.io/github/cristim/autospotting?branch=master)
+[![Code Climate](https://codeclimate.com/github/cristim/autospotting/badges/gpa.svg)](https://codeclimate.com/github/cristim/autospotting)
+[![Issue Count](https://codeclimate.com/github/cristim/autospotting/badges/issue_count.svg)](https://codeclimate.com/github/cristim/autospotting)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)]()
+[![Chat on Gitter](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
