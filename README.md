@@ -124,61 +124,50 @@ convert any of the existing on-demand instances.
 
 ## Internals ##
 
-When deployed, the software consists on a number of resources running across
-multiple Amazon AWS accounts, mostly created automatically with CloudFormation:
+When deployed, the software consists on a number of resources running in your
+Amazon AWS account, created automatically with CloudFormation:
 
 ### Event generator ###
 
 Similar in concept to @alestic's [unreliable-town-clock](https://alestic.com/2015/05/aws-lambda-recurring-schedule/),
 but internally using the new CloudWatch events just like in his later
 developments.
-* deployed by CloudFormation
 * It is configured generate a CloudWatch event every 5 minutes, which is then
   launching the Lambda function.
 
 ### Lambda function ###
-* AWS Lambda function deployed in the user's AWS account, also created by
-  CloudFormation.
-* It is connected to the event generator, which triggers it periodically,
-  currently every 5 minutes.
+* AWS Lambda function connected to the event generator, which triggers it
+  periodically, currently every 5 minutes.
 * Written in Python, but it may be rewritten/replaced at some point
   once AWS implements native support for golang.
 * It has assigned a IAM role and policy with a set of permissions to call
   various AWS services within the user's account. The permissions are the
   minimal set required for it to work without the need of passing any explicit
   AWS credentials or access keys.
-
-Here is how it reacts on the event that it was given:
-
-* It downloads and executes the agent code(a golang binary), stored in S3 and
-  served through a CloudFront distribution, in order to be able to replace the
-  agent binary without customer's intervention for continuous delivery purposes.
-* The agent is given all the data generated in the event that triggered the
-  current execution of the function. At the moment the data is written to a pair
-  of JSON files created in lambda function's writeable /tmp directory, passed as
-  command line arguments to the binary, which are then read and parsed by the
-  agent binary at runtime.
+* When executed it checks the latest version, downloads if not already present
+  and runs the agent code(a golang binary)
 
 ### agent ###
 
-* Golang binary that gets called from the Lambda function's Python wrapper,
-  which implements all the instance replacement logic.
-* Relatively small size for a Golang binary. For achieving that it is stripped
-  and compressed with goupx, then uploaded to an S3 bucket, from where it is
-  currently served through a CloudFront distribution.
-* Can react on the SNS events passed as files given as command like arguments
-* The spot instances are created by duplicating the configuration of the
-  currently running on-demand instances as closely as possible(IAM roles,
-  security groups, user_data script, etc.) only by adding a spot bid price
-  attribute and eventually changing the instance type to a usually bigger, but
-  compatible one.
-* The bid price is set to the on-demand price of the instances configured
-  initially on the AutoScaling group.
-* The new launch configuration may also have a different instance type,
-  determined based on compatibility with the original instance type, considering
-  also how much redundancy we need to have in place in the current availability
-  zone, in order to survive instance termination when outbid for a certain
-  instance type.
+* Golang binary, stored in the author's S3 bucket, where it is uploaded by the
+  Travis CI on every build, for auto-update purposes.
+* For more performance, it is served through a CloudFront distribution.
+* Sripped and compressed with goupx in order to reduce data transfer costs for
+  the users.
+* It is downloaded and executed from the Lambda function's Python wrapper.
+* Implements all the instance replacement logic.
+  * The spot instances are created by duplicating the configuration of the
+    currently running on-demand instances as closely as possible(IAM roles,
+    security groups, user_data script, etc.) only by adding a spot bid price
+    attribute and eventually changing the instance type to a usually bigger, but
+    compatible one.
+  * The bid price is set to the on-demand price of the instances configured
+    initially on the AutoScaling group.
+  * The new launch configuration may also have a different instance type,
+    determined based on compatibility with the original instance type,
+    considering also how much redundancy we need to have in place in the current
+    availability zone, in order to survive instance termination when outbid for
+    a certain instance type.
 
 # GitHub Badges
 
