@@ -2,6 +2,7 @@ BINARY=autospotting
 LAMBDA_BINARY=autospotting_lambda
 LOCAL_PATH=build/s3/dv
 BUCKET_NAME=cloudprowess
+SHA=$(shell git rev-parse HEAD | cut -c 1-8)
 
 # upstream data
 #INSTANCES_URL="https://raw.githubusercontent.com/powdahound/ec2instances.info/master/www/instances.json"
@@ -25,13 +26,14 @@ strip: build_lambda_binary
 	strip ${LAMBDA_BINARY}
 
 lambda: strip
-	git rev-parse HEAD | cut -c 1-8 > lambda/GIT_SHA
+	echo ${SHA} > lambda/GIT_SHA
 	mv ${LAMBDA_BINARY} lambda/
 	curl ${INSTANCES_URL} --output lambda/instances.json
 	zip -9 -v -j lambda lambda/*
 	rm -rf ${LOCAL_PATH}
 	mkdir -p ${LOCAL_PATH}
 	mv lambda.zip ${LOCAL_PATH}
+	cp -f ${LOCAL_PATH}/lambda.zip ${LOCAL_PATH}/lambda_${SHA}.zip
 
 install: lambda
 
