@@ -47,23 +47,3 @@ func runTestCase(t *testing.T, tc testCase) {
 	}
 
 }
-
-func testLoadFromURL(t *testing.T) {
-	dataFile := "test_data/json_instance/instances.json"
-
-	ts := httpMock(dataFile)
-	defer ts.Close()
-
-	var i jsonInstances
-	i.loadFromURL(ts.URL)
-
-	testCases := []testCase{
-		// i, index, instanceType, numCPU, RAM, onDemandUSEast
-		{i[14], "t1.micro", 1, 0.613, "0.02"},
-	}
-
-	for _, tc := range testCases {
-		runTestCase(t, tc)
-	}
-
-}

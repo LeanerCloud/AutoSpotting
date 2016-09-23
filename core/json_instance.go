@@ -3,7 +3,7 @@ package autospotting
 import (
 	"encoding/json"
 	"io/ioutil"
-	"net/http"
+	"log"
 )
 
 // AWS Instances JSON Structure Definitions
@@ -67,20 +67,11 @@ type regionPrices struct {
 
 type jsonInstances []jsonInstance
 
-func (i *jsonInstances) loadFromURL(url string) error {
+func (i *jsonInstances) loadFromFile(fileName string) error {
 
-	response, err := http.Get(url)
+	contents, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		logger.Println(err.Error())
-		return err
-	}
-
-	defer response.Body.Close()
-
-	contents, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		logger.Println(err.Error())
-		return err
+		log.Fatal(err.Error())
 	}
 
 	// logger.Println(string(contents))

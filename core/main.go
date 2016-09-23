@@ -3,7 +3,7 @@ package autospotting
 // Run starts processing all AWS regions looking for AutoScaling groups
 // enabled and taking action by replacing more pricy on-demand instances with
 // compatible and cheaper spot instances.
-func Run(instancesURL string) {
+func Run(instancesFile string) {
 
 	initLogger()
 
@@ -13,7 +13,7 @@ func Run(instancesURL string) {
 	var jsonInst jsonInstances
 
 	logger.Println("Loading on-demand instance pricing information")
-	jsonInst.loadFromURL(instancesURL)
+	jsonInst.loadFromFile(instancesFile)
 
 	// logger.Println(spew.Sdump(jsonInst))
 
