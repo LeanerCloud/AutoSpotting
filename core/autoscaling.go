@@ -517,7 +517,9 @@ func convertLaunchConfigurationToSpotSpecification(
 	// convert attributes
 	spotLS.BlockDeviceMappings = copyBlockDeviceMappings(lc.BlockDeviceMappings)
 
-	spotLS.EbsOptimized = lc.EbsOptimized
+	if lc.EbsOptimized != nil {
+		spotLS.EbsOptimized = lc.EbsOptimized
+	}
 
 	// The launch configuration's IamInstanceProfile field can store either a
 	// human-friendly ID or an ARN, so we have to see which one is it
@@ -535,11 +537,14 @@ func convertLaunchConfigurationToSpotSpecification(
 
 	spotLS.InstanceType = &instanceType
 
-	// these ones should NOT be copied, they break the SpotLaunchSpecification
-	//spotLS.KernelId
-	//spotLS.RamdiskId
+	// these ones should NOT be copied, they break the SpotLaunchSpecification,
+	// so that it can't be launched
+	// - spotLS.KernelId
+	// - spotLS.RamdiskId
 
-	spotLS.KeyName = lc.KeyName
+	if lc.KeyName != nil && *lc.KeyName != "" {
+		spotLS.KeyName = lc.KeyName
+	}
 
 	if lc.InstanceMonitoring != nil {
 		spotLS.Monitoring = &ec2.RunInstancesMonitoringEnabled{
@@ -556,7 +561,9 @@ func convertLaunchConfigurationToSpotSpecification(
 		},
 	}
 
-	spotLS.UserData = lc.UserData
+	if lc.UserData != nil && *lc.UserData != "" {
+		spotLS.UserData = lc.UserData
+	}
 
 	spotLS.Placement = &ec2.SpotPlacement{AvailabilityZone: &az}
 
