@@ -14,7 +14,12 @@
     },
     "LambdaZipPath": {
       "Default": "dv/lambda.zip",
-      "Description": "Path to the Lambda function zip file inside the S3 bucket",
+      "Description": "Path to the Lambda function zip file inside the S3 bucket. Can be used to update to a more recent version, using the first 8 characters of a commit SHA, such as 'dv/lambda_d34db33f.zip'",
+      "Type": "String"
+    },
+    "ExecutionFrequency": {
+      "Default": "rate(5 minutes)",
+      "Description": "Frequency of executing the Lambda function, trade-off between speed and stability. Can accept any value documented at http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html",
       "Type": "String"
     }
   },
@@ -71,7 +76,7 @@
                 "iam:PassRole",
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
-                "logs:PutLogEvents",
+                "logs:PutLogEvents"
               ],
               "Effect": "Allow",
               "Resource": "*"
@@ -87,7 +92,7 @@
       "Type": "AWS::Events::Rule",
       "Properties": {
         "Description": "ScheduledRule for launching the AutoSpotting Lambda function",
-        "ScheduleExpression": "rate(5 minutes)",
+        "ScheduleExpression": { "Ref": "ExecutionFrequency" },
         "State": "ENABLED",
         "Targets": [{
           "Arn": { "Fn::GetAtt": ["LambdaFunction", "Arn"] },
