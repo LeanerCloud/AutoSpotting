@@ -261,6 +261,13 @@ func (r *region) scanInstances() {
 }
 
 func (r *region) tagInstance(instanceID *string, tags []*ec2.Tag) {
+
+	if len(tags) == 0 {
+		logger.Println(r.name, "Tagging spot instance", *instanceID,
+			"no tags were defined, skipping...")
+		return
+	}
+
 	svc := r.services.ec2
 	params := ec2.CreateTagsInput{
 		Resources: []*string{instanceID},
