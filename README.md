@@ -34,7 +34,7 @@ then be terminated.
 
 ### Requirements ###
 * You will need credentials to an AWS account able to run CloudFormation stacks.
-* The following steps assume you have the AWS cli tool installed, but the setup
+* Some of the following steps assume you have the AWS cli tool installed, but the setup
   can also be done manually using the AWS console or using other tools able to
   launch CloudFormation stacks and set tags on AutoScaling groups.
 
@@ -42,7 +42,7 @@ then be terminated.
 
 First you need to launch a CloudFormation stack in your account. Clicking the
 button below and following the launch wizard to completion is all you need to
-get it installed.
+get it installed, you can safely use the default stack parameters.
 
 [![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
 
@@ -77,6 +77,14 @@ command:
 This needs to be done for every single group where you want it enabled,
 otherwise the group is ignored. If you have lots of groups you may want to
 script it in some way.
+
+### Updates and Downgrades ###
+
+The software doesn't auto-update anymore(it used to in the first few versions), so you will need to manually perform updates using CloudFormation.
+
+The updates need the first 8 characters of the git commit SHA of the version you would like to use, no matter if it is old or new.
+
+Assuming you want to update to the version with the git commit SHA hash starting with d34db33f, you will need to perform a CloudFormation stack update in which you change the "LambdaZipPath" stack parameter into "dv/lambda_d34db33f.zip".
 
 ### Uninstallation ###
 
@@ -149,12 +157,8 @@ developments.
 
 ### agent ###
 
-* Golang binary, stored in the author's S3 bucket, where it is uploaded by the
-  Travis CI on every build, for auto-update purposes.
-* For more performance, it is served through a CloudFront distribution.
-* Sripped and compressed with goupx in order to reduce data transfer costs for
-  the users.
-* It is downloaded and executed from the Lambda function's Python wrapper.
+* Stripped Golang binary, build into the Lambda function ZIP file.
+* It is executed from the Lambda function's Python wrapper.
 * Implements all the instance replacement logic.
   * The spot instances are created by duplicating the configuration of the
     currently running on-demand instances as closely as possible(IAM roles,
