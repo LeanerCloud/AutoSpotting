@@ -80,22 +80,33 @@ script it in some way.
 
 ### Updates and Downgrades ###
 
-The software doesn't auto-update anymore(it used to in the first few versions), so you will need to manually perform updates using CloudFormation.
+The software doesn't auto-update anymore(it used to in the first few versions),
+so you will need to manually perform updates using CloudFormation, based on the
+Travis CI build number of the version you would like to use going forward.
 
-The updates need the first 8 characters of the git commit SHA of the version you would like to use, no matter if it is old or new.
+This method can be used both for upgrades and downgrades, so assuming you would
+like to switch to the build with the number 45, you will need to perform a
+CloudFormation stack update in which you change the "LambdaZipPath" stack
+parameter to a value that looks like `dv/lambda_build_45.zip`.
 
-Assuming you want to update to the version with the git commit SHA hash starting with d34db33f, you will need to perform a CloudFormation stack update in which you change the "LambdaZipPath" stack parameter into "dv/lambda_d34db33f.zip".
+Git commit SHAs(truncated to 7 characters) are also accepted instead of the
+build numbers, so for example `dv/lambda_build_f7f395d.zip` should also be a
+valid object, as long as the build is available in the author's
+[S3 bucket](http://s3.amazonaws.com/cloudprowess).
+
+The full list of builds and git commits can be seen on the Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
 
 ### Uninstallation ###
 
-If at some point you want to uninstall it, just delete the stack. The
-AutoScaling groups where it used to be enabled will keep running until their
-spot instances eventually get outbid and terminated, then replaced by
-AutoScaling with on-demand ones, eventually bringing the group to the initial
-state. If you want you can speed up the process by gradually terminating the
-spot instances yourself.
+If at some point you want to uninstall it, you just need to delete the
+CloudFormation  stack. The AutoScaling groups where it used to be enabled will
+keep running until their spot instances eventually get outbid and terminated,
+then replaced by AutoScaling with on-demand ones, eventually bringing the group
+to the initial state. If you want, you can speed up the process by gradually
+terminating the spot instances yourself.
 
-The tags set on the group can be deleted at any time you want.
+The tags set on the group can be deleted at any time you want it to be disabled
+on the group.
 
 
 # How it works
@@ -106,28 +117,36 @@ configured but cheaper spot instances. The replacements are done using the
 relatively new Attach/Detach actions supported by the AutoScaling API. A new
 compatible spot instance is launched, and after a while, at least as much as the
 group's grace period, it will be attached to the group, while at the same time
-an on-demand instance is detached from the group and terminated.
+an on-demand instance is detached from the group and terminated in order to keep
+the group at constant capacity.
 
 When assessing the compatibility, it takes into account the hardware specs, such
 as CPU cores, RAM size, attached instance store volumes and their type and size,
 as well as the supported virtualization types (HVM or PV). The new spot instance
 type is usually a few times cheaper than the original instance type, while also
-often providing more computing capacity. The new instance is also configured
-with the same roles, security groups and tags and set to execute the same user
-data script as the original instance, so from a functionality perspective it
-should be indistinguishable from other instances in the group.
+often providing more computing capacity.
+
+The new instance is configured with the same roles, security groups and tags and
+set to execute the same user data script as the original instance, so from a
+functionality perspective it should be indistinguishable from other instances in
+the group, although it hardware specs may be slightly different, but only for
+better.
 
 When replacing multiple instances in a group, the algorithm tries to use a wide
 variety of instance types, in order to reduce the probability of simultaneous
 failures that may impact the availability of the entire group. It always tries
-to launch the cheapest instance, but if the group already has a considerable
-amount of instances of that type in the same availability zone (currently more
-than 20% of the group's capacity is in that zone and of that instance type), it
-picks the second cheapest compatible instance, and so on. Assuming the market
-price is high enough that there are no spot instances that can be launched, it
-would keep running from on-demand capacity, but it continuously attempts to
-replace them until eventually the prices decrease ant it gets the chance to
-convert any of the existing on-demand instances.
+to launch the cheapest available compatible instance type, but if the group
+already has a considerable amount of instances of that type in the same
+availability zone (currently more than 20% of the group's capacity is in that
+zone and of that instance type), it picks the second cheapest compatible
+instance, and so on.
+
+Assuming the market price is high enough that there are no spot instances that
+can be launched, (and also in case of software crashes which may still rarely
+happen), the group would not be changed and it would keep running as per
+AutoScaling's defined on-demand capacity, but the AutoSpotting software
+continuously attempts to replace them until eventually the prices decrease ant
+it gets the chance to convert any of the existing on-demand instances.
 
 
 ## Internals ##
@@ -140,24 +159,26 @@ Amazon AWS account, created automatically with CloudFormation:
 Similar in concept to @alestic's [unreliable-town-clock](https://alestic.com/2015/05/aws-lambda-recurring-schedule/),
 but internally using the new CloudWatch events just like in his later
 developments.
-* It is configured generate a CloudWatch event every 5 minutes, which is then
-  launching the Lambda function.
+* It is configured to generate a CloudWatch event, for triggering the Lambda function.
+* The default frequency is every 5 minutes, but it is configurable using
+CloudFormation
+
 
 ### Lambda function ###
 * AWS Lambda function connected to the event generator, which triggers it
-  periodically, currently every 5 minutes.
-* Written in Python, but it may be rewritten/replaced at some point
+  periodically.
+* Small handler written in Python, but it may be rewritten/replaced at some point
   once AWS implements native support for golang.
 * It has assigned a IAM role and policy with a set of permissions to call
-  various AWS services within the user's account. The permissions are the
-  minimal set required for it to work without the need of passing any explicit
-  AWS credentials or access keys.
-* When executed it checks the latest version, downloads if not already present
-  and runs the agent code(a golang binary)
+  various AWS services within the user's account.
+* The permissions are the minimal set required for it to work without the need
+  of passing any explicit AWS credentials or access keys.
+* When executed, it runs the agent code(a golang binary) also included in the
+Lambda function's code ZIP archive.
 
 ### agent ###
 
-* Stripped Golang binary, build into the Lambda function ZIP file.
+* Stripped Golang binary, bundled at build time into the Lambda function ZIP file.
 * It is executed from the Lambda function's Python wrapper.
 * Implements all the instance replacement logic.
   * The spot instances are created by duplicating the configuration of the
