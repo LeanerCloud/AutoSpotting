@@ -10,13 +10,13 @@ from subprocess import call, STDOUT
 
 BINARY = './autospotting_lambda'
 JSON_INSTANCES = 'instances.json'
-GIT_SHA = 'GIT_SHA'
+BUILD = 'BUILD'
 
 def lambda_handler(event, context):
     """ Main entry point for Lambda """
 
-    with open(GIT_SHA, 'r') as sha:
-        print 'Starting AutoSpotting, built from the git SHA', sha.read()
+    with open(BUILD, 'r') as sha:
+        print 'Starting AutoSpotting, build', sha.read()
 
     print 'Received event: ' + json.dumps(event, indent=2)
 

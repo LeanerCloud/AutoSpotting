@@ -1,6 +1,6 @@
 build
 autospotting
 coverage.out
-lambda/GIT_SHA
+lambda/BUILD
 lambda/autospotting_lambda
 lambda/instances.json
