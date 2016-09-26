@@ -1,10 +1,7 @@
 language: go
 
-# It should build with >1.4, but multiple parallel builds cause race conditions
-# between deployments that upload different content to S3. In addition, before
-# 1.6 we would need goupx as well, from 1.6 on just having upx is enough
 go:
-- tip
+- 1.7
 
 before_install:
 - go get github.com/mattn/goveralls
