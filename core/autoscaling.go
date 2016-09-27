@@ -105,8 +105,8 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 		// find an on-demand instance from the same AZ as our spot instance
 		if odInst := a.findOndemandInstanceInAZ(az); odInst != nil {
 
-			logger.Println(a.name, "found", *odInst.InstanceId,
-				"attaching to the group")
+			logger.Println(a.name, "found on-demand instance", *odInst.InstanceId,
+				"replacing with new spot instance", spotInst.InstanceId)
 
 			// revert attach/detach order when running on minimum capacity
 			if desiredCapacity == minSize {
