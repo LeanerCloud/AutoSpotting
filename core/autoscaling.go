@@ -314,7 +314,7 @@ func (a *autoScalingGroup) waitForSpotInstance(
 	spotRequest *ec2.SpotInstanceRequest) *string {
 
 	logger.Println(a.name, "Waiting for spot instance for",
-		spotRequest.SpotInstanceRequestId)
+		*spotRequest.SpotInstanceRequestId)
 
 	ec2Client := a.region.services.ec2
 
