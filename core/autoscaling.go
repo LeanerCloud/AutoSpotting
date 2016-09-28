@@ -222,7 +222,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 			// function timeout when waiting for the instances would break the loop,
 			// because the subsequent run would find a failed spot request instead
 			// of an open one.
-			a.waitForSpotInstance(req)
+			a.waitForAndTagSpotInstance(req)
 			activeSpotInstanceRequest = req
 		}
 
@@ -254,7 +254,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 				} else {
 					logger.Println(a.name, "Active bid was found, with no running "+
 						"instances, waiting for an instance to start ...")
-					a.waitForSpotInstance(req)
+					a.waitForAndTagSpotInstance(req)
 					activeSpotInstanceRequest = req
 				}
 			}
@@ -270,13 +270,6 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	}
 
 	spotInstanceID := activeSpotInstanceRequest.InstanceId
-
-	logger.Println(a.name, "found instance", *spotInstanceID, "tagging it first")
-
-	// Here we should have an unattached spot instance, trying to tag it with
-	// the EC2 tags set on the other instances already added to the autoscaling
-	// group.
-	a.region.tagInstance(spotInstanceID, a.filterInstanceTags())
 
 	logger.Println("Considering ", *spotInstanceID, "for attaching to", a.name)
 
@@ -310,41 +303,39 @@ func (a *autoScalingGroup) hasInstance(instanceID string) bool {
 	return false
 }
 
-func (a *autoScalingGroup) waitForSpotInstance(
-	spotRequest *ec2.SpotInstanceRequest) *string {
+// This function returns an Instance ID
+func (a *autoScalingGroup) waitForAndTagSpotInstance(
+	spotRequest *ec2.SpotInstanceRequest) {
 
-	logger.Println(a.name, "Waiting for spot instance for",
+	logger.Println(a.name, "Waiting for spot instance for spot instance request",
 		*spotRequest.SpotInstanceRequestId)
 
 	ec2Client := a.region.services.ec2
 
-	// Keep trying until the instance was found.
-	for {
-		params := ec2.DescribeSpotInstanceRequestsInput{
-			SpotInstanceRequestIds: []*string{spotRequest.SpotInstanceRequestId},
-		}
-
-		requestDetails, err := ec2Client.DescribeSpotInstanceRequests(&params)
-		if err != nil {
-			logger.Println(a.name, "Failed to describe spot instance requests")
-		}
-
-		logger.Println(a.name, "Refreshed details for",
-			*spotRequest.SpotInstanceRequestId,
-			requestDetails,
-			"checking for a running instance")
-
-		if len(requestDetails.SpotInstanceRequests) == 1 {
-			instanceID := requestDetails.SpotInstanceRequests[0].InstanceId
-
-			if instanceID != nil {
-				return instanceID
-			}
-		}
-
-		logger.Println(a.name, "Couldn't find instance, retrying in 5 seconds")
-		time.Sleep(5 * time.Second)
+	params := ec2.DescribeSpotInstanceRequestsInput{
+		SpotInstanceRequestIds: []*string{spotRequest.SpotInstanceRequestId},
 	}
+
+	err := ec2Client.WaitUntilSpotInstanceRequestFulfilled(&params)
+	if err != nil {
+		logger.Println(a.name, "Error waiting for instance:", err.Error())
+		return
+	}
+
+	logger.Println(a.name, "Done waiting for an instance.")
+
+	// Now we try to get the InstanceID of the instance we got
+	requestDetails, err := ec2Client.DescribeSpotInstanceRequests(&params)
+	if err != nil {
+		logger.Println(a.name, "Failed to describe spot instance requests")
+	}
+
+	// due to the waiter we can now safely assume all this data is available
+	spotInstanceID := requestDetails.SpotInstanceRequests[0].InstanceId
+
+	logger.Println(a.name, "found new spot instance", *spotInstanceID,
+		"\nTagging it to match the other instances from the group")
+	a.region.tagInstance(spotInstanceID, a.filterInstanceTags())
 }
 
 func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
@@ -442,24 +433,20 @@ func (a *autoScalingGroup) bidForSpotInstance(
 
 	logger.Println(a.name, "Created spot instance request", *spotRequestID)
 
-	// tag the spot instance request to associate it with the current ASG, so we
-	// know where to attach the instance later.
-	a.tagSpotInstanceRequest(*spotRequestID)
-
-	// Waiting for he instance to start so that we can then later tag it with
+	// Waiting for the instance to start so that we can then later tag it with
 	// the same tags originally set on the on-demand instances.
 	//
-	// This wait is only returns after the instance was found and it may be
+	// This waiter only returns after the instance was found and it may be
 	// interrupted by the lambda function's timeout, so we also need to check in
 	// the next run if we have any open spot requests with no instances and
 	// resume the wait there.
-	spotInstanceID := a.waitForSpotInstance(spotRequest)
+	a.waitForAndTagSpotInstance(spotRequest)
 
-	if spotInstanceID != nil {
-		logger.Println(a.name, "found new spot instance", *spotInstanceID,
-			"\nTagging it to match the other instances from the group")
-		a.region.tagInstance(spotInstanceID, a.filterInstanceTags())
-	}
+	// tag the spot instance request to associate it with the current ASG, so we
+	// know where to attach the instance later. In case the waiter failed, it may
+	// happen that the instance is actually tagged in the next run, but the spot
+	// instance request needs to be tagged anyway.
+	a.tagSpotInstanceRequest(*spotRequestID)
 }
 
 func (a *autoScalingGroup) tagSpotInstanceRequest(requestID string) {
