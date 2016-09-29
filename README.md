@@ -36,10 +36,10 @@ then be terminated.
   as they support instances attached later to existing groups
 * Can automatically replace any instance types with any instance types available
   on the spot market
-  * as long as they are cheaper and at least as big
+  * as long as they are cheaper and at least as big as the original instances
   * it doesn't matter if the original instance is available on the spot market:
-  for example it is often seen to replace t2.medium with better m4.large
-  instances, as long as they happen to be cheaper.
+  for example it is often replacing t2.medium with better m4.large instances,
+  as long as they happen to be cheaper.
 * Self-contained, has no runtime dependencies on external infrastructure,
   except for the regional EC2 and AutoScaling API endpoints
 * Minimal cost overhead, typically a few cents per month
@@ -116,8 +116,8 @@ build numbers, so for example `dv/lambda_build_f7f395d.zip` should also be a
 valid parameter, as long as that build is available in the author's
 [S3 bucket](http://s3.amazonaws.com/cloudprowess).
 
-The full list of builds and git commits can be seen on the Travis CI
-[builds page](https://travis-ci.org/cristim/autospotting/builds)
+The full list of builds and their respective git commits can be seen on the
+Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
 
 ### Uninstallation ###
 
@@ -137,24 +137,25 @@ disabled for that group.
 
 Once enabled on an AutoScaling group, it is gradually replacing all the
 on-demand instances belonging to the group with compatible and similarly
-configured but cheaper spot instances. The replacements are done using the
-relatively new Attach/Detach actions supported by the AutoScaling API. A new
-compatible spot instance is launched, and after a while, at least as much as the
-group's grace period, it will be attached to the group, while at the same time
-an on-demand instance is detached from the group and terminated in order to keep
-the group at constant capacity.
+configured but cheaper spot instances.
+
+The replacements are done using the relatively new Attach/Detach actions supported
+by the AutoScaling API. A new compatible spot instance is launched, and after a
+while, at least as much as the group's grace period, it will be attached to the
+group, while at the same time an on-demand instance is detached from the group
+and terminated in order to keep the group at constant capacity.
 
 When assessing the compatibility, it takes into account the hardware specs, such
 as CPU cores, RAM size, attached instance store volumes and their type and size,
-as well as the supported virtualization types (HVM or PV). The new spot instance
-type is usually a few times cheaper than the original instance type, while also
-often providing more computing capacity.
+as well as the supported virtualization types (HVM or PV) of both instance types.
+The new spot instance is usually a few times cheaper than the original instance,
+while also often providing more computing capacity.
 
-The new instance is configured with the same roles, security groups and tags and
-set to execute the same user data script as the original instance, so from a
+The new spot instance is configured with the same roles, security groups and tags
+and set to execute the same user data script as the original instance, so from a
 functionality perspective it should be indistinguishable from other instances in
-the group, although its hardware specs may be slightly different(at least the
-same, if not bigger capacity).
+the group, although its hardware specs may be slightly different(again: at least
+the same, but often can be of bigger capacity).
 
 When replacing multiple instances in a group, the algorithm tries to use a wide
 variety of instance types, in order to reduce the probability of simultaneous
@@ -165,12 +166,19 @@ availability zone (currently more than 20% of the group's capacity is in that
 zone and of that instance type), it picks the second cheapest compatible
 instance, and so on.
 
-Assuming the market price is high enough that there are no spot instances that
-can be launched, (and also in case of software crashes which may still rarely
-happen), the group would not be changed and it would keep running as per
-AutoScaling's defined on-demand capacity, but the AutoSpotting software
-continuously attempts to replace them until eventually the prices decrease ant
-it gets the chance to convert any of the existing on-demand instances.
+During multiple replacements performed on a given group, it only swaps them one
+at a time per Lambda function invocation, in order to not change the group too
+fast, but instances belonging to multiple groups can be replaced concurrently.
+If you find this slow, the Lambda function invocation frequency (defaulting to
+once every 5 minutes) can be changed by updating the CloudFormation stack, which
+has a parameter for it.
+
+In the (so far unlikely) case in which the market price is high enough that 
+there are no spot instances that can be launched, (and also in case of software
+crashes which may still rarely happen), the group would not be changed and it
+would keep running as it is, but AutoSpotting will continuously attempt to
+replace them, until eventually the prices decrease again and replaecments may
+succeed again.
 
 
 ## Internal components ##
