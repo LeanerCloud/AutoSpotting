@@ -18,22 +18,42 @@ then be terminated.
 
 * Easy to install and set up on existing environments, see the installation
   steps below for more details
-* Designed for AutoScaling groups with long-running instances
-* Should be compatible with any higher level AWS services internally backed by
-  AutoScaling, such as ECS or Beanstalk.
-* Optimizes for high availability over lowest costs whenever possible
+* Designed for use against AutoScaling groups with relatively long-running
+  instances, where it's acceptable to run costlier on-demand instances from
+  time to time, as opposed to short-term batch processing tasks
+* Supports higher level AWS services internally backed by AutoScaling, such as 
+  ECS or Elastic Beanstalk.
+* Optimizes for high availability over lowest costs whenever possible, but it
+  still often achieves significant cost savings.
 * Minimalist implementation, leveraging and relying on battle-tested AWS
-  services - mainly AutoScaling and ELB - for all the mission-critical stuff:
+  services - mainly AutoScaling - for all the mission-critical stuff:
   * instance health checks
   * replacement of terminated instances
-  * ELB integration
+  * ELB or ALB integration
   * horizontal scaling
-* Minimal cost overhead, within the Lambda free tier and with low bandwidth costs
-
+* Should be compatible out of the box with most AWS services that integrate
+  with your AutoScaling groups, such as CodeDeploy, CloudWatch, etc. as long
+  as they support instances attached later to existing groups
+* Can automatically replace any instance types with any instance types available
+  on the spot market
+  * as long as they are cheaper and at least as big
+  * it doesn't matter if the original instance is available on the spot market:
+  for example it is often seen to replace t2.medium with better m4.large
+  instances, as long as they happen to be cheaper.
+* Self-contained, has no runtime dependencies on external infrastructure,
+  except for the regional EC2 and AutoScaling API endpoints
+* Minimal cost overhead, typically a few cents per month
+  * backed by Lambda, with typical execution time well within the Lambda
+  free tier
+  * all you pay for running it are tiny bandwidth costs, measured in 
+  cents/month, for performing API calls against all regional API endpoints
+  of the EC2 and AutoScaling AWS services.
+ 
 ## Getting Started ##
 
 ### Requirements ###
-* You will need credentials to an AWS account able to run CloudFormation stacks.
+
+* You will need credentials to an AWS account able to start CloudFormation stacks.
 * Some of the following steps assume you have the AWS cli tool installed, but the setup
   can also be done manually using the AWS console or using other tools able to
   launch CloudFormation stacks and set tags on AutoScaling groups.
@@ -55,8 +75,10 @@ If you are using the AWS command-line tool, you can use this command instead:
 
 Notes:
 
-* For technical reasons the stack needs to be launched in US-East-1(Virginia)
+* For technical reasons the stack needs to be launched in the US-East-1(Virginia)
   region, so make sure it's not created in another region.
+* The AutoScaling groups it runs against can be in any region, since all regions
+  are processed at runtime.
 
 ### Configuration for an AutoScaling group ###
 
@@ -65,18 +87,18 @@ Enabling it on an AutoScaling group is a matter of setting a tag on the group:
     Key: spot-enabled
     Value: true
 
-This can be configured with the AWS console from [this view](https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#AutoScalingGroups:view=details),
-but in this case the region may differ, because the stack connects to all your
-regions when trying to take action.
+This can be configured with the AWS console from [this view](https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#AutoScalingGroups:view=details), (the region may differ).
+
+As mentioned before, your environments may be in any AWS region.
 
 If you use the AWS command-line tools, the same can be achieved using this
 command:
 
     aws --region us-east-1 autoscaling create-or-update-tags --tags ResourceId=my-auto-scaling-group,ResourceType=auto-scaling-group,Key=spot-enabled,Value=true,PropagateAtLaunch=false
 
-This needs to be done for every single group where you want it enabled,
-otherwise the group is ignored. If you have lots of groups you may want to
-script it in some way.
+This needs to be done for every single AutoScaling group where you want it
+enabled, otherwise the group is ignored. If you have lots of groups you may
+want to script it in some way.
 
 ### Updates and Downgrades ###
 
@@ -91,23 +113,25 @@ parameter to a value that looks like `dv/lambda_build_45.zip`.
 
 Git commit SHAs(truncated to 7 characters) are also accepted instead of the
 build numbers, so for example `dv/lambda_build_f7f395d.zip` should also be a
-valid object, as long as the build is available in the author's
+valid parameter, as long as that build is available in the author's
 [S3 bucket](http://s3.amazonaws.com/cloudprowess).
 
-The full list of builds and git commits can be seen on the Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
+The full list of builds and git commits can be seen on the Travis CI
+[builds page](https://travis-ci.org/cristim/autospotting/builds)
 
 ### Uninstallation ###
 
 If at some point you want to uninstall it, you just need to delete the
-CloudFormation  stack. The AutoScaling groups where it used to be enabled will
+CloudFormation stack.
+
+The AutoScaling groups where it used to be enabled will
 keep running until their spot instances eventually get outbid and terminated,
-then replaced by AutoScaling with on-demand ones, eventually bringing the group
-to the initial state. If you want, you can speed up the process by gradually
-terminating the spot instances yourself.
+then replaced by AutoScaling with on-demand ones. This is eventually bringing
+the group to the initial state. If you want, you can speed up the process by
+gradually terminating the spot instances yourself.
 
-The tags set on the group can be deleted at any time you want it to be disabled
-on the group.
-
+The tags set on the group can be deleted at any time you want it to be
+disabled for that group.
 
 # How it works
 
@@ -129,8 +153,8 @@ often providing more computing capacity.
 The new instance is configured with the same roles, security groups and tags and
 set to execute the same user data script as the original instance, so from a
 functionality perspective it should be indistinguishable from other instances in
-the group, although it hardware specs may be slightly different, but only for
-better.
+the group, although its hardware specs may be slightly different(at least the
+same, if not bigger capacity).
 
 When replacing multiple instances in a group, the algorithm tries to use a wide
 variety of instance types, in order to reduce the probability of simultaneous
@@ -149,7 +173,7 @@ continuously attempts to replace them until eventually the prices decrease ant
 it gets the chance to convert any of the existing on-demand instances.
 
 
-## Internals ##
+## Internal components ##
 
 When deployed, the software consists on a number of resources running in your
 Amazon AWS account, created automatically with CloudFormation:
