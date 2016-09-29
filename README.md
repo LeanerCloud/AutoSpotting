@@ -32,8 +32,9 @@ then be terminated.
   * ELB or ALB integration
   * horizontal scaling
 * Should be compatible out of the box with most AWS services that integrate
-  with your AutoScaling groups, such as CodeDeploy, CloudWatch, etc. as long
-  as they support instances attached later to existing groups
+  with your AutoScaling groups, such as ELB, ALB, CodeDeploy, CloudWatch, etc.
+  as long as they support instances attached later to existing groups (this may be 
+  problematic for some of them)
 * Can automatically replace any instance types with any instance types available
   on the spot market
   * as long as they are cheaper and at least as big as the original instances
