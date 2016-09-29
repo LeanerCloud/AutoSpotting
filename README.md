@@ -18,18 +18,19 @@ then be terminated.
 
 * Easy to install and set up on existing environments, you can literally get 
  started within 5 minutes. See the installation steps below for more details
-* Free and open source, you only pay for the bandwidth it generates
-* Minimal runtime cost overhead, typically a few cents per month
+* Free and open source, you only pay for runtime resource consumption, 
+  typically a few cents per month.
   * backed by Lambda, with typical execution time well within the Lambda
   free tier
-  * all you pay for running it are tiny bandwidth costs, measured in 
-  cents/month, for performing API calls against all regional API endpoints
-  of the EC2 and AutoScaling AWS services.
+  * small bandwidth costs, for performing API calls against all regional API
+  endpoints of the EC2 and AutoScaling services.
 * Designed for use against AutoScaling groups with relatively long-running
   instances, where it's acceptable to run costlier on-demand instances from
-  time to time, as opposed to short-term batch processing tasks
+  time to time. For short-term batch processing you should have a look into
+  the [spot blocks](https://aws.amazon.com/blogs/aws/new-ec2-spot-blocks-for-defined-duration-workloads/)
+  instead.
 * Supports higher level AWS services internally backed by AutoScaling, such as 
-  ECS or Elastic Beanstalk.
+  ECS or Elastic Beanstalk, with minimal configuration changes.
 * Optimizes for high availability over lowest costs whenever possible, but it
   still often achieves significant cost savings.
 * Minimalist implementation (currently about 1000 CLOC of Golang code), 
@@ -51,7 +52,7 @@ then be terminated.
   as long as they happen to be cheaper.
 * Self-contained, has no runtime dependencies on external infrastructure except
   for the regional EC2 and AutoScaling API endpoints
-  * it's not a SaaS, it actually fully runs within your AWS account
+  * it's not a SaaS, it fully runs within your AWS account
   * it doesn't gather/persist/export any information about the resources running
   in your AWS account
   
