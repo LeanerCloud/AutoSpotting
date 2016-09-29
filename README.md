@@ -16,8 +16,15 @@ then be terminated.
 
 # Features
 
-* Easy to install and set up on existing environments, see the installation
-  steps below for more details
+* Easy to install and set up on existing environments, you can literally get 
+ started within 5 minutes. See the installation steps below for more details
+* Free and open source, you only pay for the bandwidth it generates
+* Minimal runtime cost overhead, typically a few cents per month
+  * backed by Lambda, with typical execution time well within the Lambda
+  free tier
+  * all you pay for running it are tiny bandwidth costs, measured in 
+  cents/month, for performing API calls against all regional API endpoints
+  of the EC2 and AutoScaling AWS services.
 * Designed for use against AutoScaling groups with relatively long-running
   instances, where it's acceptable to run costlier on-demand instances from
   time to time, as opposed to short-term batch processing tasks
@@ -25,30 +32,29 @@ then be terminated.
   ECS or Elastic Beanstalk.
 * Optimizes for high availability over lowest costs whenever possible, but it
   still often achieves significant cost savings.
-* Minimalist implementation, leveraging and relying on battle-tested AWS
-  services - mainly AutoScaling - for all the mission-critical stuff:
+* Minimalist implementation (currently about 1000 CLOC of Golang code), 
+  leveraging and relying on battle-tested AWS services - mainly AutoScaling -
+  for most mission-critical things:
   * instance health checks
   * replacement of terminated instances
-  * ELB or ALB integration
+  * integration with, ELB, ALB, CloudWatch
   * horizontal scaling
 * Should be compatible out of the box with most AWS services that integrate
   with your AutoScaling groups, such as ELB, ALB, CodeDeploy, CloudWatch, etc.
-  as long as they support instances attached later to existing groups (this may be 
-  problematic for some of them)
+  as long as they support instances attached later to existing groups. This may be 
+  problematic for some of them but in general it works.
 * Can automatically replace any instance types with any instance types available
-  on the spot market
+  on the spot market:
   * as long as they are cheaper and at least as big as the original instances
   * it doesn't matter if the original instance is available on the spot market:
   for example it is often replacing t2.medium with better m4.large instances,
   as long as they happen to be cheaper.
-* Self-contained, has no runtime dependencies on external infrastructure,
-  except for the regional EC2 and AutoScaling API endpoints
-* Minimal cost overhead, typically a few cents per month
-  * backed by Lambda, with typical execution time well within the Lambda
-  free tier
-  * all you pay for running it are tiny bandwidth costs, measured in 
-  cents/month, for performing API calls against all regional API endpoints
-  of the EC2 and AutoScaling AWS services.
+* Self-contained, has no runtime dependencies on external infrastructure except
+  for the regional EC2 and AutoScaling API endpoints
+  * it's not a SaaS, it actually fully runs within your AWS account
+  * it doesn't gather/persist/export any information about the resources running
+  in your AWS account
+  
  
 ## Getting Started ##
 
