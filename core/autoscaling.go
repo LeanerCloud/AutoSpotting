@@ -356,13 +356,13 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 	}
 	logger.Println("Found on-demand instance", *baseInstance.InstanceId)
 
-	newInstanceType := a.getCheapestCompatibleSpotInstanceType(
+	newInstanceType, err := a.getCheapestCompatibleSpotInstanceType(
 		*azToLaunchIn,
 		baseInstance)
 
 	if newInstanceType == nil {
-		logger.Println("No cheaper compatible instance type was found, " +
-			"nothing to do here...")
+		logger.Println("No cheaper compatible instance type was found, "+
+			"nothing to do here...", err)
 		return
 	}
 
@@ -477,6 +477,10 @@ func (a *autoScalingGroup) tagSpotInstanceRequest(requestID string) {
 func (a *autoScalingGroup) getLaunchConfiguration() *autoscaling.LaunchConfiguration {
 
 	lcName := a.asgRawData.LaunchConfigurationName
+
+	if lcName == nil {
+		return nil
+	}
 
 	svc := a.region.services.autoScaling
 
@@ -655,14 +659,19 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 
 func (a *autoScalingGroup) getCheapestCompatibleSpotInstanceType(
 	availabilityZone string,
-	baseInstance *ec2.Instance) *string {
+	baseInstance *ec2.Instance) (*string, error) {
 
 	logger.Println("Getting cheapest spot instance compatible to ",
 		*baseInstance.InstanceId, " of type", *baseInstance.InstanceType)
 
-	filteredInstances := a.getCompatibleSpotInstanceTypes(
+	filteredInstances, err := a.getCompatibleSpotInstanceTypes(
 		availabilityZone,
 		baseInstance)
+
+	if err != nil {
+		logger.Println("Couldn't find any compatible instance types", err)
+		return nil, err
+	}
 
 	minPrice := math.MaxFloat64
 	var chosenInstanceType string
@@ -680,15 +689,15 @@ func (a *autoScalingGroup) getCheapestCompatibleSpotInstanceType(
 
 	if chosenInstanceType != "" {
 		logger.Println("Chose cheapest instance type", chosenInstanceType)
-		return &chosenInstanceType
+		return &chosenInstanceType, nil
 	}
 	logger.Println("Couldn't find any cheaper spot instance type")
-	return nil
+	return nil, fmt.Errorf("No cheaper spot instance types could be found")
 
 }
 
 func (a *autoScalingGroup) getCompatibleSpotInstanceTypes(
-	availabilityZone string, baseInstance *ec2.Instance) []string {
+	availabilityZone string, baseInstance *ec2.Instance) ([]string, error) {
 
 	logger.Println("Getting spot instances compatible to ",
 		*baseInstance.InstanceId, " of type", *baseInstance.InstanceType)
@@ -697,6 +706,15 @@ func (a *autoScalingGroup) getCompatibleSpotInstanceTypes(
 
 	refInstance := a.region.instanceData[*baseInstance.InstanceType]
 	logger.Println("Using this data as reference", refInstance)
+
+	// Count the ephemeral volumes attached to the original instance's block
+	// device mappings, this number is used later when comparing with each
+	// instance type.
+	attachedVolumesNumber, err := a.countAttachedInstanceStoreVolumes()
+
+	if err == nil {
+		return []string{}, err
+	}
 
 	//filtering compatible instance types
 	for _, inst := range a.region.instanceData {
@@ -743,8 +761,6 @@ func (a *autoScalingGroup) getCompatibleSpotInstanceTypes(
 		//   original instance
 		// - volume size: each of the volumes should be at least as big as the
 		//   original instance's volumes
-
-		attachedVolumesNumber := a.countAttachedInstanceStoreVolumes()
 
 		if attachedVolumesNumber > 0 {
 			logger.Println("Checking the new instance's ephemeral storage",
@@ -817,7 +833,7 @@ func (a *autoScalingGroup) getCompatibleSpotInstanceTypes(
 	}
 	logger.Printf("\n Found following compatible instances: %#v\n",
 		filteredInstanceTypes)
-	return filteredInstanceTypes
+	return filteredInstanceTypes, nil
 
 }
 
@@ -837,15 +853,26 @@ func compatibleVirtualization(virtualizationType string,
 	return false
 }
 
-func (a *autoScalingGroup) countAttachedInstanceStoreVolumes() int {
+func (a *autoScalingGroup) countAttachedInstanceStoreVolumes() (int, error) {
 	count := 0
-	for _, volume := range a.getLaunchConfiguration().BlockDeviceMappings {
+
+	lc := a.getLaunchConfiguration()
+
+	if lc == nil {
+		return 0, fmt.Errorf("Launch configuration not found")
+	}
+
+	if lc.BlockDeviceMappings == nil {
+		return 0, fmt.Errorf("Launch configuration has no block device mappings")
+	}
+
+	for _, volume := range lc.BlockDeviceMappings {
 		if volume.VirtualName != nil &&
 			strings.Contains(*volume.VirtualName, "ephemeral") {
 			count++
 		}
 	}
-	return count
+	return count, nil
 }
 
 // Counts the number of already running spot instances.
