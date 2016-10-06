@@ -713,7 +713,7 @@ func (a *autoScalingGroup) getCompatibleSpotInstanceTypes(
 	attachedVolumesNumber, err := a.countAttachedInstanceStoreVolumes()
 
 	if err == nil {
-		return []string{}, err
+		logger.Println("Couldn't determine the attached instance store volumes")
 	}
 
 	//filtering compatible instance types
