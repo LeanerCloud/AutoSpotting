@@ -1,7 +1,12 @@
 {
-"AWSTemplateFormatVersion": "2010-09-09",
+  "AWSTemplateFormatVersion": "2010-09-09",
   "Description": "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling",
   "Parameters": {
+    "ExecutionFrequency": {
+      "Default": "rate(5 minutes)",
+      "Description": "Frequency of executing the Lambda function, trade-off between speed and stability. Can accept any value documented at http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html",
+      "Type": "String"
+    },
     "LambdaHandlerFunction": {
       "Default": "wrapper.lambda_handler",
       "Description": "Handler function for Lambda",
@@ -17,10 +22,10 @@
       "Description": "Path to the Lambda function zip file inside the S3 bucket. Can be used to update to a more recent version, using the first 8 characters of a commit SHA, such as 'dv/lambda_d34db33f.zip'",
       "Type": "String"
     },
-    "ExecutionFrequency": {
-      "Default": "rate(5 minutes)",
-      "Description": "Frequency of executing the Lambda function, trade-off between speed and stability. Can accept any value documented at http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html",
-      "Type": "String"
+    "LogRetentionPeriod": {
+      "Default": "7",
+      "Description": "Number of days to keep the Lambda function logs in CloudWatch.",
+      "Type": "Number"
     }
   },
   "Resources": {
@@ -32,7 +37,9 @@
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
               "Principal": {
-                "Service": [ "lambda.amazonaws.com" ]
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
               }
             }
           ]
@@ -44,13 +51,24 @@
     "LambdaFunction": {
       "Properties": {
         "Code": {
-          "S3Bucket": { "Ref": "LambdaS3Bucket" },
-          "S3Key": { "Ref": "LambdaZipPath" }
+          "S3Bucket": {
+            "Ref": "LambdaS3Bucket"
+          },
+          "S3Key": {
+            "Ref": "LambdaZipPath"
+          }
         },
         "Description": "Implements SPOT instance automation",
-        "Handler": { "Ref": "LambdaHandlerFunction" },
+        "Handler": {
+          "Ref": "LambdaHandlerFunction"
+        },
         "MemorySize": "128",
-        "Role": { "Fn::GetAtt": [ "LambdaExecutionRole", "Arn" ] },
+        "Role": {
+          "Fn::GetAtt": [
+            "LambdaExecutionRole",
+            "Arn"
+          ]
+        },
         "Runtime": "python2.7",
         "Timeout": "300"
       },
@@ -84,30 +102,69 @@
           ]
         },
         "PolicyName": "LambdaPolicy",
-        "Roles": [ { "Ref": "LambdaExecutionRole" } ]
+        "Roles": [
+          {
+            "Ref": "LambdaExecutionRole"
+          }
+        ]
       },
       "Type": "AWS::IAM::Policy"
     },
-    "ScheduledRule": {
-      "Type": "AWS::Events::Rule",
+    "LogGroup": {
       "Properties": {
-        "Description": "ScheduledRule for launching the AutoSpotting Lambda function",
-        "ScheduleExpression": { "Ref": "ExecutionFrequency" },
-        "State": "ENABLED",
-        "Targets": [{
-          "Arn": { "Fn::GetAtt": ["LambdaFunction", "Arn"] },
-          "Id": "AutoSpottingEventGenerator"
-        }]
-      }
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              {
+                "Ref": "LambdaFunction"
+              }
+            ]
+          ]
+        },
+        "RetentionInDays": {
+          "Ref": "LogRetentionPeriod"
+        }
+      },
+      "Type": "AWS::Logs::LogGroup"
     },
     "PermissionForEventsToInvokeLambda": {
-      "Type": "AWS::Lambda::Permission",
       "Properties": {
-        "FunctionName": { "Ref": "LambdaFunction" },
         "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "LambdaFunction"
+        },
         "Principal": "events.amazonaws.com",
-        "SourceArn": { "Fn::GetAtt": ["ScheduledRule", "Arn"] }
-      }
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "ScheduledRule",
+            "Arn"
+          ]
+        }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "ScheduledRule": {
+      "Properties": {
+        "Description": "ScheduledRule for launching the AutoSpotting Lambda function",
+        "ScheduleExpression": {
+          "Ref": "ExecutionFrequency"
+        },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "LambdaFunction",
+                "Arn"
+              ]
+            },
+            "Id": "AutoSpottingEventGenerator"
+          }
+        ]
+      },
+      "Type": "AWS::Events::Rule"
     }
   }
 }
