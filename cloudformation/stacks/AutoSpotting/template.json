@@ -19,7 +19,7 @@
     },
     "LambdaZipPath": {
       "Default": "dv/lambda.zip",
-      "Description": "Path to the Lambda function zip file inside the S3 bucket. Can be used to update to a more recent version, using the first 8 characters of a commit SHA, such as 'dv/lambda_d34db33f.zip'",
+      "Description": "Path to the Lambda function zip file inside the S3 bucket. Can be used to update to a more recent version, such as 'dv/lambda_build_57.zip'. Build numbers can be taken from TravisCI: https://travis-ci.org/cristim/autospotting/builds",
       "Type": "String"
     },
     "LogRetentionPeriod": {
