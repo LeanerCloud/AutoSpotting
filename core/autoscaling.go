@@ -394,7 +394,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) {
 	svc := a.region.services.autoScaling
 
-	resp, err := svc.UpdateAutoScalingGroup(
+	_, err := svc.UpdateAutoScalingGroup(
 		&autoscaling.UpdateAutoScalingGroupInput{
 			AutoScalingGroupName: aws.String(a.name),
 			MaxSize:              aws.Int64(maxSize),
