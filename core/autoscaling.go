@@ -406,9 +406,6 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) {
 		logger.Println(err.Error())
 		return
 	}
-
-	// Pretty-print the response data.
-	logger.Println(resp)
 }
 
 func (a *autoScalingGroup) bidForSpotInstance(

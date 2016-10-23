@@ -6,9 +6,7 @@ SHA=$(shell git rev-parse HEAD | cut -c 1-7)
 BUILD:=$(or ${TRAVIS_BUILD_NUMBER}, ${TRAVIS_BUILD_NUMBER}, ${SHA})
 
 # upstream data
-#INSTANCES_URL="https://raw.githubusercontent.com/powdahound/ec2instances.info/master/www/instances.json"
-# my Github fork
-INSTANCES_URL="https://raw.githubusercontent.com/cristim/ec2instances.info/master/www/instances.json"
+INSTANCES_URL="https://raw.githubusercontent.com/powdahound/ec2instances.info/37596e2/www/instances.json"
 
 all: build_local
 
