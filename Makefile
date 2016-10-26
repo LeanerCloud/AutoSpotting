@@ -6,7 +6,8 @@ SHA=$(shell git rev-parse HEAD | cut -c 1-7)
 BUILD:=$(or ${TRAVIS_BUILD_NUMBER}, ${TRAVIS_BUILD_NUMBER}, ${SHA})
 
 # upstream data
-INSTANCES_URL="https://raw.githubusercontent.com/powdahound/ec2instances.info/37596e2/www/instances.json"
+EC2_INSTANCES_INFO_COMMIT_SHA=f34075aa09c52233735cd879ebda3f70d77b7ca5
+INSTANCES_URL="https://raw.githubusercontent.com/powdahound/ec2instances.info/${EC2_INSTANCES_INFO_COMMIT_SHA}/www/instances.json"
 
 all: build_local
 
