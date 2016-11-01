@@ -234,6 +234,13 @@ Lambda function's code ZIP archive.
     availability zone, in order to survive instance termination when outbid for
     a certain instance type.
 
+## Compiling and Installing your own components ##
+It's relatively easy to build and install your own version of this tool's binaries, 
+removing your dependency on the author's version, and allowing any customizations
+and improvements your organization needs.
+
+[More details here](./SETUP.md)
+
 # GitHub Badges
 
 [![Build Status](https://travis-ci.org/cristim/autospotting.svg?branch=master)](https://travis-ci.org/cristim/autospotting)
