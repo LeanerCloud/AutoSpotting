@@ -1,6 +1,12 @@
 package autospotting
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
+)
 
 // Run starts processing all AWS regions looking for AutoScaling groups
 // enabled and taking action by replacing more pricy on-demand instances with
@@ -16,6 +22,39 @@ func Run(instancesFile string) {
 
 	processAllRegions(&jsonInst)
 
+}
+
+func getRegions() ([]string, error) {
+	var output []string
+
+	// this turns out to be much faster when running locally than using the
+	// commented region auto-detection snipped shown below, and anyway due to
+	// Lambda limitations we currently only support running it from this region.
+	currentRegion := "us-east-1"
+
+	// m := ec2metadata.New(session.New())
+	// if m.Available() {
+	// 	currentRegion, _ = m.Region()
+	// }
+
+	svc := ec2.New(
+		session.New(
+			&aws.Config{
+				Region: aws.String(currentRegion),
+			}))
+
+	resp, err := svc.DescribeRegions(&ec2.DescribeRegionsInput{})
+
+	if err != nil {
+		logger.Println(err.Error())
+		return nil, err
+	}
+
+	for _, r := range resp.Regions {
+		logger.Println("Adding region", *r.RegionName)
+		output = append(output, *r.RegionName)
+	}
+	return output, nil
 }
 
 func processAllRegions(instData *jsonInstances) {

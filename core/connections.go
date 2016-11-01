@@ -16,39 +16,6 @@ type connections struct {
 	ec2         *ec2.EC2
 }
 
-func getRegions() ([]string, error) {
-	var output []string
-
-	// this turns out to be much faster when running locally than using the
-	// commented region auto-detection snipped shown below, and anyway due to
-	// Lambda limitations we currently only support running it from this region.
-	currentRegion := "us-east-1"
-
-	// m := ec2metadata.New(session.New())
-	// if m.Available() {
-	// 	currentRegion, _ = m.Region()
-	// }
-
-	svc := ec2.New(
-		session.New(
-			&aws.Config{
-				Region: aws.String(currentRegion),
-			}))
-
-	resp, err := svc.DescribeRegions(&ec2.DescribeRegionsInput{})
-
-	if err != nil {
-		logger.Println(err.Error())
-		return nil, err
-	}
-
-	for _, r := range resp.Regions {
-		logger.Println("Adding region", *r.RegionName)
-		output = append(output, *r.RegionName)
-	}
-	return output, nil
-}
-
 func (c *connections) connect(region string) {
 
 	logger.Println("Creating Service connections in", region)
