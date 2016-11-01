@@ -33,8 +33,7 @@ func (c *connections) connect(region string) {
 	go func() { asConn <- autoscaling.New(c.session) }()
 	go func() { ec2Conn <- ec2.New(c.session) }()
 
-	c.autoScaling = <-asConn
-	c.ec2 = <-ec2Conn
+	c.autoScaling, c.ec2 = <-asConn, <-ec2Conn
 
 	logger.Println("Created service connections in", region)
 }
