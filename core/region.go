@@ -11,14 +11,19 @@ import (
 
 // data structure that stores information about a region
 type region struct {
-	name         string
-	instanceData map[string]instanceInformation // the key in this map is the instance type
-	enabledAsgs  []autoScalingGroup
-	services     connections
-	wg           sync.WaitGroup
+	name string
+
+	// The key in this map is the instance type.
+	instanceData map[string]instanceInformation
+
 	// The key in this map is the instance ID, useful for quick retrieval of
 	// instance attributes.
 	instances map[string]*ec2.Instance
+
+	//
+	enabledASGs []autoScalingGroup
+	services    connections
+	wg          sync.WaitGroup
 }
 
 type instanceInformation struct {
@@ -174,9 +179,12 @@ func (r *region) scanEnabledAutoScalingGroups() {
 	for _, asg := range resp.AutoScalingGroups {
 		for _, tag := range asg.Tags {
 			if *tag.Key == filterTagName && *tag.Value == filterValue {
-				var group autoScalingGroup
-				group.create(r, asg)
-				r.enabledAsgs = append(r.enabledAsgs, group)
+				group := autoScalingGroup{
+					name:       *asg.AutoScalingGroupName,
+					region:     r,
+					asgRawData: asg,
+				}
+				r.enabledASGs = append(r.enabledASGs, group)
 			}
 		}
 	}
@@ -184,12 +192,12 @@ func (r *region) scanEnabledAutoScalingGroups() {
 
 func (r *region) hasEnabledAutoScalingGroups() bool {
 
-	return len(r.enabledAsgs) > 0
+	return len(r.enabledASGs) > 0
 
 }
 
 func (r *region) processEnabledAutoScalingGroups() {
-	for _, asg := range r.enabledAsgs {
+	for _, asg := range r.enabledASGs {
 		r.wg.Add(1)
 		go func(a autoScalingGroup) {
 			a.process()

@@ -22,13 +22,6 @@ type autoScalingGroup struct {
 	spotInstanceRequests []*ec2.SpotInstanceRequest
 }
 
-func (a *autoScalingGroup) create(region *region, asg *autoscaling.Group) {
-	a.name = *asg.AutoScalingGroupName
-	a.region = region
-	a.asgRawData = asg
-
-}
-
 func (a *autoScalingGroup) process() {
 
 	logger.Println("Finding spot instance requests created for", a.name)
