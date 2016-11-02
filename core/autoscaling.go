@@ -533,13 +533,19 @@ func convertLaunchConfigurationToSpotSpecification(
 		}
 	}
 
-	spotLS.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
-		&ec2.InstanceNetworkInterfaceSpecification{
-			AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
-			DeviceIndex:              aws.Int64(0),
-			SubnetId:                 baseInstance.SubnetId,
-			Groups:                   lc.SecurityGroups,
-		},
+	if lc.AssociatePublicIpAddress != nil || baseInstance.SubnetId != nil {
+		// Instances are running in a VPC.
+		spotLS.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
+			&ec2.InstanceNetworkInterfaceSpecification{
+				AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
+				DeviceIndex:              aws.Int64(0),
+				SubnetId:                 baseInstance.SubnetId,
+				Groups:                   lc.SecurityGroups,
+			},
+		}
+	} else {
+		// Instances are running in EC2 Classic.
+		spotLS.SecurityGroups = lc.SecurityGroups
 	}
 
 	if lc.UserData != nil && *lc.UserData != "" {
