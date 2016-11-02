@@ -1,7 +1,9 @@
 # ChangeLog
 
-## 2 November 2016, build 72
+## 2 November 2016, build 74
 - Test and fix support for EC2 Classic
+- Fix corner case in handling of ephemeral storage
+- Earlier spot request tagging
 
 ## 26 October 26, build 65
 - Regional expansion for R3 and D2 instances

@@ -99,7 +99,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 		if odInst := a.findOndemandInstanceInAZ(az); odInst != nil {
 
 			logger.Println(a.name, "found on-demand instance", *odInst.InstanceId,
-				"replacing with new spot instance", spotInst.InstanceId)
+				"replacing with new spot instance", *spotInst.InstanceId)
 
 			// revert attach/detach order when running on minimum capacity
 			if desiredCapacity == minSize {
@@ -423,6 +423,12 @@ func (a *autoScalingGroup) bidForSpotInstance(
 
 	logger.Println(a.name, "Created spot instance request", *spotRequestID)
 
+	// tag the spot instance request to associate it with the current ASG, so we
+	// know where to attach the instance later. In case the waiter failed, it may
+	// happen that the instance is actually tagged in the next run, but the spot
+	// instance request needs to be tagged anyway.
+	a.tagSpotInstanceRequest(*spotRequestID)
+
 	// Waiting for the instance to start so that we can then later tag it with
 	// the same tags originally set on the on-demand instances.
 	//
@@ -431,12 +437,6 @@ func (a *autoScalingGroup) bidForSpotInstance(
 	// the next run if we have any open spot requests with no instances and
 	// resume the wait there.
 	a.waitForAndTagSpotInstance(spotRequest)
-
-	// tag the spot instance request to associate it with the current ASG, so we
-	// know where to attach the instance later. In case the waiter failed, it may
-	// happen that the instance is actually tagged in the next run, but the spot
-	// instance request needs to be tagged anyway.
-	a.tagSpotInstanceRequest(*spotRequestID)
 }
 
 func (a *autoScalingGroup) tagSpotInstanceRequest(requestID string) {
@@ -692,6 +692,14 @@ func (a *autoScalingGroup) getCheapestCompatibleSpotInstanceType(
 
 }
 
+// Why the heck isn't this in the Go standard library?
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}
+
 func (a *autoScalingGroup) getCompatibleSpotInstanceTypes(
 	availabilityZone string, baseInstance *ec2.Instance) ([]string, error) {
 
@@ -706,11 +714,14 @@ func (a *autoScalingGroup) getCompatibleSpotInstanceTypes(
 	// Count the ephemeral volumes attached to the original instance's block
 	// device mappings, this number is used later when comparing with each
 	// instance type.
-	attachedVolumesNumber, err := a.countAttachedInstanceStoreVolumes()
+	lcMappings, err := a.countLaunchConfigEphemeralVolumes()
 
 	if err == nil {
-		logger.Println("Couldn't determine the attached instance store volumes")
+		logger.Println("Couldn't determine the launch configuration device mapping",
+			"configuration")
 	}
+
+	attachedVolumesNumber := min(lcMappings, refInstance.instanceStoreDeviceCount)
 
 	//filtering compatible instance types
 	for _, inst := range a.region.instanceData {
@@ -849,7 +860,7 @@ func compatibleVirtualization(virtualizationType string,
 	return false
 }
 
-func (a *autoScalingGroup) countAttachedInstanceStoreVolumes() (int, error) {
+func (a *autoScalingGroup) countLaunchConfigEphemeralVolumes() (int, error) {
 	count := 0
 
 	lc := a.getLaunchConfiguration()
@@ -862,12 +873,15 @@ func (a *autoScalingGroup) countAttachedInstanceStoreVolumes() (int, error) {
 		return 0, fmt.Errorf("Launch configuration has no block device mappings")
 	}
 
-	for _, volume := range lc.BlockDeviceMappings {
-		if volume.VirtualName != nil &&
-			strings.Contains(*volume.VirtualName, "ephemeral") {
+	for _, mapping := range lc.BlockDeviceMappings {
+		if mapping.VirtualName != nil &&
+			strings.Contains(*mapping.VirtualName, "ephemeral") {
+			logger.Println("Found ephemeral device mapping", *mapping.VirtualName)
 			count++
 		}
 	}
+	logger.Printf("Launch configuration would attach %d ephemeral volumes",
+		"if available", count)
 	return count, nil
 }
 
