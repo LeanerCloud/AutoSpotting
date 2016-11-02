@@ -1,4 +1,12 @@
-# 23 October 2016, Travis CI build 63
+# ChangeLog
+
+## 2 November 2016, build 72
+- Test and fix support for EC2 Classic
+
+## 26 October 26, build 65
+- Regional expansion for R3 and D2 instances
+
+## 23 October 2016, Travis CI build 63
 - Add support for the new Ohio AWS region
 - Add support in all the regions for the newly released instance types: m4.16xlarge, p2.xlarge, p2.8xlarge, p2.16xlarge and x1.16xlarge
 
