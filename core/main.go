@@ -1,6 +1,8 @@
 package autospotting
 
 import (
+	"log"
+	"os"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -8,12 +10,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
+var logger *log.Logger
+
 // Run starts processing all AWS regions looking for AutoScaling groups
 // enabled and taking action by replacing more pricy on-demand instances with
 // compatible and cheaper spot instances.
 func Run(instancesFile string) {
 
-	initLogger()
+	logger = log.New(os.Stdout, "", log.Lshortfile)
 
 	var jsonInst jsonInstances
 
