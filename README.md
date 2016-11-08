@@ -2,7 +2,7 @@
 
 A simple tool designed to significantly lower your Amazon AWS costs by
 automating the use of the [spot market](https://aws.amazon.com/ec2/spot). It can
-often achieve savings up to 90% off the usual on-demand prices, like shown 
+often achieve savings up to 90% off the usual on-demand prices, like shown
 in the screenshot below.
 
 When enabled on your existing on-demand AutoScaling group, it starts launching
@@ -19,8 +19,8 @@ then be terminated.
 * **Easy to install and set up on existing environments based on AutoScaling**
   * you can literally get started within 5 minutes, unlike SpotFleets or other tools
   which may require a considerable migration effort.
-  * only needs to be installed once, in a single region, and can handle all 
-  other regions without any additional configuration, see the installation 
+  * only needs to be installed once, in a single region, and can handle all
+  other regions without any additional configuration, see the installation
   steps below for more details.
   * easy to enable and disable for reverting to the initial configuration
   based on resource tagging, if you decide you don't want to use it anymore.
@@ -39,7 +39,7 @@ then be terminated.
   * any instance replacement or scaling done by AutoScaling would still launch
   your previously configured on-demand instances.
   * on-demand instances often launch faster than spot ones so you don't need
-  to wait for potentially slower spot instance fulfilment when you need to 
+  to wait for potentially slower spot instance fulfilment when you need to
   scale out or when you eventually lose some of the spot capacity, which may
   happen when using spot fleets or other similar tools.
 
@@ -95,7 +95,7 @@ then be terminated.
   * most runtime failures or crashes(quite rare nowadays) tend to be harmless.
   * often only result in failing to start new spot instances so your group will
   simply remain or fall back to on-demand capacity, just as it was before.
-  * in most cases it is not impacting your running instances nor the ability to 
+  * in most cases it is not impacting your running instances nor the ability to
   launch new ones.
   * only needs the minimum set of IAM permissions needed for it to do its job.
   * does not delegate any IAM permissions to resources outside of your AWS account.
@@ -107,13 +107,13 @@ then be terminated.
 
 * **Significant cost savings compared to on-demand or reserved instances**
   * up to 90% cost reduction compared to on-demand instances.
-  * up to 75% cost reduction compared to reserved instances, without any 
+  * up to 75% cost reduction compared to reserved instances, without any
   down-payment or long term commitment.
   * in the screenshot below you can see the results after enabling it on an
   on-demand AutoScaling group.
 
 ![Savings Graph](https://cdn.cloudprowess.com/images/autospotting-savings.png)
- 
+
 ## Getting Started ##
 
 ### Requirements ###
@@ -148,7 +148,7 @@ Notes:
 ### Configuration for an AutoScaling group ###
 
 Nothing will happen if you just launch the stack, you also need to opt-in and enable
-it for each AutoScaling group where you want to use it. 
+it for each AutoScaling group where you want to use it.
 
 Enabling it on an AutoScaling group is a matter of setting a tag on the group:
 
@@ -215,6 +215,48 @@ gradually terminating the spot instances yourself.
 The tags set on the group can be deleted at any time you want it to be
 disabled for that group.
 
+## Best Practices ##
+
+These recommendations apply for most cloud environments, but they become
+especially important when using more volatile spot instances.
+
+* **Set a non-zero grace period on the AutoScaling group**
+  * in order to attach spot instances only after they are fully configured.
+  * otherwise they may be attached prematurely before being ready.
+  * they may be also be terminated after failing load balancer health checks.
+
+* **Check your instance storage and block device mapping configuration**
+  * this may be an issue if you use instances which have ephemeral instance
+    storage, often the case on previous instance types.
+  * you should only specify ephemeral instance store in the on-demand launch
+   configuration if you do make use of it by mounting it on the filesystem.
+  * the replacement algorithm tries to give you instances with as much instance
+    storage as your original instances, since it can't tell if you did mount it.
+  * this adds more constraints on the algorithm, so it reduces the number of
+    compatible instance types it can use for launching spot instances.
+  * this is fine if you actually use that instance storage, but it is reducing
+    your options if you don't actually use it, so it may more often fail to get
+    spot instances and fall back to on-demand capacity.
+
+* **Don't keep state on instances**
+  * You should delegate all your state to external services, AWS has a wide
+    offering of stateful services which allow your instances to become
+    stateless.
+    - Databases: RDS, DynamoDB
+    - Caches: ElastiCache
+    - Storage: S3, EFS
+    - Queues: SQS
+  * Don't attach EBS volumes to individual instances, try to use EFS instead.
+
+ * **Handle the spot instance termination signal**
+  * AWS [informs](https://aws.amazon.com/blogs/aws/new-ec2-spot-instance-termination-notices/)
+    your spot instances when they are about to be terminated, make use of that
+    information to save whatever temporary state you may still have on your
+    running spot instances.
+  * There are existing tools which implement such an event handler, such as
+  [seespot](https://github.com/acksin/seespot). This will need to be added to
+  your user_data script. 
+
 # How it works
 
 Once enabled on an AutoScaling group, it is gradually replacing all the
@@ -255,7 +297,7 @@ If you find this slow, the Lambda function invocation frequency (defaulting to
 once every 5 minutes) can be changed by updating the CloudFormation stack, which
 has a parameter for it.
 
-In the (so far unlikely) case in which the market price is high enough that 
+In the (so far unlikely) case in which the market price is high enough that
 there are no spot instances that can be launched, (and also in case of software
 crashes which may still rarely happen), the group would not be changed and it
 would keep running as it is, but AutoSpotting will continuously attempt to
@@ -309,7 +351,7 @@ Lambda function's code ZIP archive.
     a certain instance type.
 
 ## Compiling and Installing your own components ##
-It's relatively easy to build and install your own version of this tool's binaries, 
+It's relatively easy to build and install your own version of this tool's binaries,
 removing your dependency on the author's version, and allowing any customizations
 and improvements your organization needs.
 
