@@ -1,6 +1,11 @@
 build
+debug
+data
+bindata.go
 autospotting
 coverage.out
 lambda/BUILD
 lambda/autospotting_lambda
 lambda/instances.json
+.vscode/
+handler.zip

@@ -2,7 +2,6 @@ package autospotting
 
 import (
 	"log"
-	"os"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -15,22 +14,17 @@ var logger *log.Logger
 // Run starts processing all AWS regions looking for AutoScaling groups
 // enabled and taking action by replacing more pricy on-demand instances with
 // compatible and cheaper spot instances.
-func Run(instancesFile string) {
+func Run(cfg Config) {
 
-	logger = log.New(os.Stdout, "", log.Lshortfile)
+	logger = log.New(cfg.LogFile, "", cfg.LogFlag)
 
-	var jsonInst jsonInstances
-
-	logger.Println("Loading on-demand instance pricing information")
-	jsonInst.loadFromFile(instancesFile)
-
-	processAllRegions(&jsonInst)
+	processAllRegions(cfg)
 
 }
 
 // processAllRegions iterates all regions in parallel, and replaces instances
 // for each of the ASGs tagged with 'spot-enabled=true'.
-func processAllRegions(instData *jsonInstances) {
+func processAllRegions(cfg Config) {
 
 	var wg sync.WaitGroup
 
@@ -44,7 +38,7 @@ func processAllRegions(instData *jsonInstances) {
 		wg.Add(1)
 		r := region{name: r}
 		go func() {
-			r.processRegion(instData)
+			r.processRegion(cfg)
 			wg.Done()
 		}()
 	}

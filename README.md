@@ -2,8 +2,8 @@
 
 A simple tool designed to significantly lower your Amazon AWS costs by
 automating the use of the [spot market](https://aws.amazon.com/ec2/spot). It can
-often achieve savings up to 90% off the usual on-demand prices, like shown
-in the screenshot below.
+often achieve savings up to 90% off the usual on-demand prices, like shown in
+the screenshot below.
 
 When enabled on your existing on-demand AutoScaling group, it starts launching
 EC2 spot instances that are cheaper, at least as powerful and configured as
@@ -12,75 +12,76 @@ closely as possible as your existing on-demand instances.
 It then gradually swaps them with your existing on-demand instances, which can
 then be terminated.
 
-[![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
+[![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
 
 # Features and Benefits
 
 * **Easy to install and set up on existing environments based on AutoScaling**
-  * you can literally get started within 5 minutes, unlike SpotFleets or other tools
-  which may require a considerable migration effort.
+  * you can literally get started within 5 minutes, unlike SpotFleets or other
+    tools which may require a considerable migration effort.
   * only needs to be installed once, in a single region, and can handle all
-  other regions without any additional configuration, see the installation
-  steps below for more details.
-  * easy to enable and disable for reverting to the initial configuration
-  based on resource tagging, if you decide you don't want to use it anymore.
+    other regions without any additional configuration, see the installation
+    steps below for more details.
+  * easy to enable and disable for reverting to the initial configuration based
+    on resource tagging, if you decide you don't want to use it anymore.
   * easy to automate migration of multiple existing stacks, simply using scripts
-  that set the expected tag on multiple AutoScaling groups.
+    that set the expected tag on multiple AutoScaling groups.
 
 * **Designed for use against AutoScaling groups with relatively long-running
-  instances**
+    instances**
   * for use cases where it is acceptable to run costlier on-demand instances
-  from time to time.
-  * for short-term batch processing use cases you should have a look into
-  the [spot blocks](https://aws.amazon.com/blogs/aws/new-ec2-spot-blocks-for-defined-duration-workloads/)
-  instead.
+    from time to time.
+  * for short-term batch processing use cases you should have a look into the
+    [spot
+    blocks](https://aws.amazon.com/blogs/aws/new-ec2-spot-blocks-for-defined-duration-workloads/)
+    instead.
 
 * **It doesn't interfere with the group's original launch configuration**
   * any instance replacement or scaling done by AutoScaling would still launch
-  your previously configured on-demand instances.
-  * on-demand instances often launch faster than spot ones so you don't need
-  to wait for potentially slower spot instance fulfilment when you need to
-  scale out or when you eventually lose some of the spot capacity, which may
-  happen when using spot fleets or other similar tools.
+    your previously configured on-demand instances.
+  * on-demand instances often launch faster than spot ones so you don't need to
+    wait for potentially slower spot instance fulfilment when you need to scale
+    out or when you eventually lose some of the spot capacity, which may happen
+    when using spot fleets or other similar tools.
 
 * **Supports any higher level AWS services internally backed
-  by AutoScaling**
+    by AutoScaling**
   * services such as ECS or Elastic Beanstalk work out of the box.
   * with minimal configuration changes, unlike spot fleets or other tools.
 
 * **Compatible out of the box with most AWS services that integrate
-  with AutoScaling groups**
+    with AutoScaling groups**
   * services such as ELB, ALB, CodeDeploy, CloudWatch, etc. should work out of
-  the box or at most require minimal configuration changes.
+    the box or at most require minimal configuration changes.
   * as long as they support instances attached later to existing groups.
-  * this may be problematic for some (some Code Deploy use scenarios come to mind)
-  but in general it works.
+  * this may be problematic for some (some Code Deploy use scenarios come to
+    mind) but in general it works.
 
-* **Can automatically replace any instance types with any instance types available
-  on the spot market**
+* **Can automatically replace any instance types with any instance types
+    available on the spot market**
   * as long as they are cheaper and at least as big as the original instances.
   * it doesn't matter if the original instance is available on the spot market:
-  for example it is often replacing t2.medium with better m4.large instances,
-  as long as they happen to be cheaper.
+    for example it is often replacing t2.medium with better m4.large instances,
+    as long as they happen to be cheaper.
 
 * **Self-hosted**
   * has no runtime dependencies on external infrastructure except for the regional
-  EC2 and AutoScaling API endpoints.
+    EC2 and AutoScaling API endpoints.
   * it's not a SaaS, it fully runs within your AWS account.
   * it doesn't gather/persist/export any information about the resources running
-  in your AWS account.
+    in your AWS account.
 
 * **Free and open source**
   * there are no service fees at install time or run time.
   * you only pay for the small runtime costs it generates.
-  * open source, so it is fully auditable and you can see the logs of everything it
-  does.
-  * the code is relatively small and simple so in case of bugs or missing features
-  you may even be able to fix it yourself.
+  * open source, so it is fully auditable and you can see the logs of everything
+    it does.
+  * the code is relatively small and simple so in case of bugs or missing
+    features you may even be able to fix it yourself.
 
 * **Negligible runtime costs**
-  * you only pay for the bandwidth consumed performing API calls against AWS services
-  across different regions.
+  * you only pay for the bandwidth consumed performing API calls against AWS
+  services across different regions.
   * backed by Lambda, with typical monthly execution time well within the Lambda
   free tier plan.
 
@@ -88,29 +89,30 @@ then be terminated.
   * currently about 1000 CLOC of relatively readable Golang code.
   * stateless, and without many moving parts.
   * leveraging and relying on battle-tested AWS services - namely AutoScaling -
-  for most mission-critical things, such as instance health checks, horizontal scaling,
-  replacement of terminated instances, integration with, ELB, ALB and CloudWatch.
+    for most mission-critical things, such as instance health checks, horizontal
+    scaling, replacement of terminated instances, integration with, ELB, ALB and
+    CloudWatch.
 
 * **Relatively safe and secure**
   * most runtime failures or crashes(quite rare nowadays) tend to be harmless.
   * often only result in failing to start new spot instances so your group will
-  simply remain or fall back to on-demand capacity, just as it was before.
+    simply remain or fall back to on-demand capacity, just as it was before.
   * in most cases it is not impacting your running instances nor the ability to
-  launch new ones.
+    launch new ones.
   * only needs the minimum set of IAM permissions needed for it to do its job.
   * does not delegate any IAM permissions to resources outside of your AWS account.
 
 * **Optimizes for high availability over cost whenever possible**
   * it tries to diversify the instance types.
   * when having enough desired capacity, it is often spreading over four
-  different spot pricing zones (instance type/availability zone combinations).
+    different spot pricing zones (instance type/availability zone combinations).
 
 * **Significant cost savings compared to on-demand or reserved instances**
   * up to 90% cost reduction compared to on-demand instances.
   * up to 75% cost reduction compared to reserved instances, without any
-  down-payment or long term commitment.
+    down-payment or long term commitment.
   * in the screenshot below you can see the results after enabling it on an
-  on-demand AutoScaling group.
+    on-demand AutoScaling group.
 
 ![Savings Graph](https://cdn.cloudprowess.com/images/autospotting-savings.png)
 
@@ -119,50 +121,63 @@ then be terminated.
 ### Requirements ###
 
 * You will need credentials to an AWS account able to start CloudFormation stacks.
-* Some of the following steps assume you have the AWS cli tool installed, but the setup
-  can also be done manually using the AWS console or using other tools able to
-  launch CloudFormation stacks and set tags on AutoScaling groups.
+* Some of the following steps assume you have the AWS cli tool installed, but
+  the setup can also be done manually using the AWS console or using other tools
+  able to launch CloudFormation stacks and set tags on AutoScaling groups.
 
 ### Installation ###
 
-First you need to launch a CloudFormation stack in your account. Clicking the
-button below and following the launch wizard to completion is all you need to
-get it installed, you can safely use the default stack parameters.
+You only need to launch a CloudFormation stack in your account. Click the
+button below and follow the launch wizard to completion, you can safely use the
+default stack parameters.
 
-[![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
+[![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
 
 If you are using the AWS command-line tool, you can use this command instead:
-
-    aws cloudformation create-stack \
-    --stack-name AutoSpotting \
-    --template-url https://s3.amazonaws.com/cloudprowess/dv/template.json \
-    --capabilities CAPABILITY_IAM
-
+```
+aws cloudformation create-stack \
+--stack-name AutoSpotting \
+--template-url https://s3.amazonaws.com/cloudprowess/dv/template.json \
+--capabilities CAPABILITY_IAM
+```
 Notes:
 
-* For technical reasons the stack needs to be launched in the US-East-1(Virginia)
-  region, so make sure it's not created in another region.
+* For technical reasons the stack needs to be launched in the
+  US-East-1(Virginia) region, so make sure it's not created in another region.
 * The AutoScaling groups it runs against can be in any region, since all regions
   are processed at runtime.
 
 ### Configuration for an AutoScaling group ###
 
-Nothing will happen if you just launch the stack, you also need to opt-in and enable
-it for each AutoScaling group where you want to use it.
+Since AutoSpotting uses an opt-in model, nothing will be touched in your AWS
+account if you just launch the stack. You will need to explicitly enable it for
+each AutoScaling group where you want it to be used.
 
-Enabling it on an AutoScaling group is a matter of setting a tag on the group:
+Enabling it for an AutoScaling group is a matter of setting a tag on the group:
 
-    Key: spot-enabled
-    Value: true
+```
+Key: spot-enabled
+Value: true
+```
 
-This can be configured with the AWS console from [this view](https://console.aws.amazon.com/ec2/autoscaling/home?region=us-east-1#AutoScalingGroups:view=details), (the region may differ).
-
-As mentioned before, your environments may be in any AWS region.
+This can be configured with the AWS console from [this
+view](https://console.aws.amazon.com/ec2/autoscaling/home?region=eu-west-1#AutoScalingGroups:view=details),
 
 If you use the AWS command-line tools, the same can be achieved using this
 command:
 
-    aws --region us-east-1 autoscaling create-or-update-tags --tags ResourceId=my-auto-scaling-group,ResourceType=auto-scaling-group,Key=spot-enabled,Value=true,PropagateAtLaunch=false
+```
+aws autoscaling
+--region eu-west-1 \
+create-or-update-tags \
+--tags ResourceId=my-auto-scaling-group,ResourceType=auto-scaling-group,Key=spot-enabled,Value=true,PropagateAtLaunch=false
+```
+
+**Note**
+* the above instructions use the eu-west-1 AWS region as an example. Depending
+  on where your groups are defined, you may need to use a different region,
+  since as mentioned before, your environments may be located anywhere.
+
 
 This needs to be done for every single AutoScaling group where you want it
 enabled, otherwise the group is ignored. If you have lots of groups you may
@@ -200,6 +215,13 @@ valid parameter, as long as that build is available in the author's
 
 The full list of builds and their respective git commits can be seen on the
 Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
+
+**Note**: As of build 79 the CloudFormation template is also similarly versioned
+for every subsequent build, but this build also breaks compatibility with older
+stacks. If you run an older build you will also need to update the stack
+template when updating to a build later than 79. Although the template is not
+changed very often, it's recommended that you always keep it at the same build
+as the binary.
 
 ### Uninstallation ###
 
@@ -248,14 +270,15 @@ especially important when using more volatile spot instances.
     - Queues: SQS
   * Don't attach EBS volumes to individual instances, try to use EFS instead.
 
- * **Handle the spot instance termination signal**
-  * AWS [informs](https://aws.amazon.com/blogs/aws/new-ec2-spot-instance-termination-notices/)
+* **Handle the spot instance termination signal**
+  * AWS
+    [informs](https://aws.amazon.com/blogs/aws/new-ec2-spot-instance-termination-notices/)
     your spot instances when they are about to be terminated, make use of that
     information to save whatever temporary state you may still have on your
     running spot instances.
   * There are existing tools which implement such an event handler, such as
-  [seespot](https://github.com/acksin/seespot). This will need to be added to
-  your user_data script. 
+    [seespot](https://github.com/acksin/seespot). This will need to be added to
+    your user_data script.
 
 # How it works
 
@@ -263,23 +286,23 @@ Once enabled on an AutoScaling group, it is gradually replacing all the
 on-demand instances belonging to the group with compatible and similarly
 configured but cheaper spot instances.
 
-The replacements are done using the relatively new Attach/Detach actions supported
-by the AutoScaling API. A new compatible spot instance is launched, and after a
-while, at least as much as the group's grace period, it will be attached to the
-group, while at the same time an on-demand instance is detached from the group
-and terminated in order to keep the group at constant capacity.
+The replacements are done using the relatively new Attach/Detach actions
+supported by the AutoScaling API. A new compatible spot instance is launched,
+and after a while, at least as much as the group's grace period, it will be
+attached to the group, while at the same time an on-demand instance is detached
+from the group and terminated in order to keep the group at constant capacity.
 
 When assessing the compatibility, it takes into account the hardware specs, such
 as CPU cores, RAM size, attached instance store volumes and their type and size,
-as well as the supported virtualization types (HVM or PV) of both instance types.
-The new spot instance is usually a few times cheaper than the original instance,
-while also often providing more computing capacity.
+as well as the supported virtualization types (HVM or PV) of both instance
+types. The new spot instance is usually a few times cheaper than the original
+instance, while also often providing more computing capacity.
 
-The new spot instance is configured with the same roles, security groups and tags
-and set to execute the same user data script as the original instance, so from a
-functionality perspective it should be indistinguishable from other instances in
-the group, although its hardware specs may be slightly different(again: at least
-the same, but often can be of bigger capacity).
+The new spot instance is configured with the same roles, security groups and
+tags and set to execute the same user data script as the original instance, so
+from a functionality perspective it should be indistinguishable from other
+instances in the group, although its hardware specs may be slightly
+different(again: at least the same, but often can be of bigger capacity).
 
 When replacing multiple instances in a group, the algorithm tries to use a wide
 variety of instance types, in order to reduce the probability of simultaneous
@@ -312,10 +335,12 @@ Amazon AWS account, created automatically with CloudFormation:
 
 ### Event generator ###
 
-Similar in concept to @alestic's [unreliable-town-clock](https://alestic.com/2015/05/aws-lambda-recurring-schedule/),
+Similar in concept to @alestic's
+[unreliable-town-clock](https://alestic.com/2015/05/aws-lambda-recurring-schedule/),
 but internally using the new CloudWatch events just like in his later
 developments.
-* It is configured to generate a CloudWatch event, for triggering the Lambda function.
+* It is configured to generate a CloudWatch event, for triggering the Lambda
+  function.
 * The default frequency is every 5 minutes, but it is configurable using
 CloudFormation
 
@@ -323,20 +348,16 @@ CloudFormation
 ### Lambda function ###
 * AWS Lambda function connected to the event generator, which triggers it
   periodically.
-* Small handler written in Python, but it may be rewritten/replaced at some point
-  once AWS implements native support for golang.
-* It has assigned a IAM role and policy with a set of permissions to call
-  various AWS services within the user's account.
+* It has assigned a IAM role and policy with a set of permissions to call the
+  APIs of various AWS services(EC2 and AutoScaling for now) within the user's
+  account.
 * The permissions are the minimal set required for it to work without the need
   of passing any explicit AWS credentials or access keys.
-* When executed, it runs the agent code(a golang binary) also included in the
-Lambda function's code ZIP archive.
-
-### agent ###
-
-* Stripped Golang binary, bundled at build time into the Lambda function ZIP file.
-* It is executed from the Lambda function's Python wrapper.
-* Implements all the instance replacement logic.
+* Contains a handler written in Golang, built using the
+  [eawsy/aws-lambda-go](https://github.com/eawsy/aws-lambda-go) library, which
+  implements a novel aproach that allows Golang code compiled natively to be
+  built in such a way that it can be injected into the Lambda Python runtime.
+* The handler implements all the instance replacement logic.
   * The spot instances are created by duplicating the configuration of the
     currently running on-demand instances as closely as possible(IAM roles,
     security groups, user_data script, etc.) only by adding a spot bid price
