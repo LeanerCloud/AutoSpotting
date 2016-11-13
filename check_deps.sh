@@ -7,7 +7,7 @@ function check_dep {
   }
 }
 
-DEPS="curl git go strip zip"
+DEPS="wget git go docker"
 
 echo "Checking for the presence of the following dependencies: ${DEPS}"
 

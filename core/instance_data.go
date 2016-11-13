@@ -1,10 +1,6 @@
 package autospotting
 
-import (
-	"encoding/json"
-	"io/ioutil"
-	"log"
-)
+import "encoding/json"
 
 // AWS Instances JSON Structure Definitions
 
@@ -65,20 +61,17 @@ type regionPrices struct {
 
 //------------------------------------------------------------------------------
 
-type jsonInstances []jsonInstance
+// InstanceInformation is a large data structure containing pricing and hardware
+// information about all the EC2 instance types from all AWS regions.
+type InstanceInformation []jsonInstance
 
-func (i *jsonInstances) loadFromFile(fileName string) error {
+// LoadFromAssetData loads the InstanceInformation object based on a
+// JSON-encoded contents, injected at build time by go-bindata.
+func (i *InstanceInformation) LoadFromAssetData(contents []byte) error {
 
-	contents, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	// logger.Println(string(contents))
-	err = json.Unmarshal(contents, &i)
+	err := json.Unmarshal(contents, &i)
 	if err != nil {
 		logger.Println(err.Error())
-
 		return err
 	}
 

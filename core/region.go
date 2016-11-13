@@ -13,6 +13,7 @@ import (
 type region struct {
 	name string
 
+	cfg Config
 	// The key in this map is the instance type.
 	instanceData map[string]instanceInformation
 
@@ -46,13 +47,13 @@ type prices struct {
 // The key in this map is the availavility zone
 type spotPriceMap map[string]float64
 
-func (r *region) processRegion(instData *jsonInstances) {
+func (r *region) processRegion(cfg Config) {
 	logger.Println("Creating connections to the required AWS services in", r.name)
 	r.services.connect(r.name)
 	// only process the regions where we have AutoScaling groups set to be handled
 
 	logger.Println("Scanning for enabled AutoScaling groups in ", r.name)
-	r.scanEnabledAutoScalingGroups()
+	r.scanForEnabledAutoScalingGroups()
 
 	// only process further the region if there are any enabled autoscaling groups
 	// within it
@@ -61,20 +62,20 @@ func (r *region) processRegion(instData *jsonInstances) {
 		r.scanInstances()
 
 		logger.Println("Scanning full instance information in", r.name)
-		r.determineInstanceInformation(instData)
+		r.determineInstanceInformation(cfg)
 
 		logger.Println("Processing enabled AutoScaling groups in", r.name)
 		r.processEnabledAutoScalingGroups()
 	}
 }
 
-func (r *region) determineInstanceInformation(instData *jsonInstances) {
+func (r *region) determineInstanceInformation(cfg Config) {
 
 	r.instanceData = make(map[string]instanceInformation)
 
 	var info instanceInformation
 
-	for _, it := range *instData {
+	for _, it := range cfg.InstanceData {
 
 		var price prices
 
@@ -165,14 +166,16 @@ func (r *region) requestSpotPrices() error {
 	return nil
 }
 
-func (r *region) scanEnabledAutoScalingGroups() {
+func (r *region) scanForEnabledAutoScalingGroups() {
 	filterTagName, filterValue := "spot-enabled", "true"
 
 	svc := r.services.autoScaling
 	resp, err := svc.DescribeAutoScalingGroups(nil)
 
 	if err != nil {
-		logger.Println("scanEnabledAutoScalingGroups:", err.Error())
+		logger.Println("Failed to describe AutoScaling groups in",
+			r.name,
+			err.Error())
 		return
 	}
 

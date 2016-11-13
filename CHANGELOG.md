@@ -1,5 +1,24 @@
 # ChangeLog
 
+## 14 November 2016, build 79
+
+ Major, breaking compatibility, packaging update: now using eawsy/aws-lambda-go for packaging of the Lambda function
+
+- Switch to the golang-native eawsy/aws-lambda-go for packaging of
+  the Lambda function code.
+- This is a breaking change, updating already running CloudFormation
+  stacks will also need a template update.
+- Add versioning for the CloudFormation template.
+- Buildsystem updates (both on Makefile and Travis CI configuration).
+- Change build dependencies: now building Lambda code in Docker, use
+  wget instead of curl in order not to download data unnecessarily.
+- Remove the Python Lambda wrapper, it is no longer needed.
+- Start using go-bindata for shipping static files, instead of packaging
+  them in the Lambda zip file.
+- Introduce a configuration object for the main functionality, not in
+  use yet.
+- Documentation updates and better formatting.
+
 ## 2 November 2016, build 74
 - Test and fix support for EC2 Classic
 - Fix corner case in handling of ephemeral storage
