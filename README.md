@@ -216,12 +216,17 @@ valid parameter, as long as that build is available in the author's
 The full list of builds and their respective git commits can be seen on the
 Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
 
-**Note**: As of build 79 the CloudFormation template is also similarly versioned
-for every subsequent build, but this build also breaks compatibility with older
-stacks. If you run an older build you will also need to update the stack
-template when updating to a build later than 79. Although the template is not
-changed very often, it's recommended that you always keep it at the same build
-as the binary.
+#### Compatibility notices
+
+- As of build 79 the CloudFormation template is also versioned for every
+  subsequent build, but unfortunately **this build also breaks compatibility
+  with older stacks**. If you run an older build you will also need to update
+  the stack when updating to a build later than 79. Although the template rarely
+  changes, it's recommended that you always keep it at the same build as the
+  binary. Make sure you use the following stack parameter on any newer builds:
+```
+LambdaHandlerFunction: handler.handle
+```
 
 ### Uninstallation ###
 
