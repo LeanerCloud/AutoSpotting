@@ -140,6 +140,7 @@ aws cloudformation create-stack \
 --template-url https://s3.amazonaws.com/cloudprowess/dv/template.json \
 --capabilities CAPABILITY_IAM
 ```
+
 Notes:
 
 * For technical reasons the stack needs to be launched in the
@@ -172,6 +173,10 @@ aws autoscaling
 create-or-update-tags \
 --tags ResourceId=my-auto-scaling-group,ResourceType=auto-scaling-group,Key=spot-enabled,Value=true,PropagateAtLaunch=false
 ```
+
+* **Elastic Beanstalk Installation**
+  * In order to add tags to existing Elastic Beanstalk environment, you will need to rebuild the environment with the spot-enabled tag.
+  Follow this guide: http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments
 
 **Note**
 * the above instructions use the eu-west-1 AWS region as an example. Depending
