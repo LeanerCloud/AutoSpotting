@@ -65,8 +65,8 @@ then be terminated.
     as long as they happen to be cheaper.
 
 * **Self-hosted**
-  * has no runtime dependencies on external infrastructure except for the regional
-    EC2 and AutoScaling API endpoints.
+  * has no runtime dependencies on external infrastructure except for the
+    regional EC2 and AutoScaling API endpoints.
   * it's not a SaaS, it fully runs within your AWS account.
   * it doesn't gather/persist/export any information about the resources running
     in your AWS account.
@@ -100,7 +100,8 @@ then be terminated.
   * in most cases it is not impacting your running instances nor the ability to
     launch new ones.
   * only needs the minimum set of IAM permissions needed for it to do its job.
-  * does not delegate any IAM permissions to resources outside of your AWS account.
+  * does not delegate any IAM permissions to resources outside of your AWS
+    account.
 
 * **Optimizes for high availability over cost whenever possible**
   * it tries to diversify the instance types.
@@ -120,7 +121,8 @@ then be terminated.
 
 ### Requirements ###
 
-* You will need credentials to an AWS account able to start CloudFormation stacks.
+* You will need credentials to an AWS account able to start CloudFormation
+  stacks.
 * Some of the following steps assume you have the AWS cli tool installed, but
   the setup can also be done manually using the AWS console or using other tools
   able to launch CloudFormation stacks and set tags on AutoScaling groups.
@@ -178,7 +180,6 @@ create-or-update-tags \
   on where your groups are defined, you may need to use a different region,
   since as mentioned before, your environments may be located anywhere.
 
-
 This needs to be done for every single AutoScaling group where you want it
 enabled, otherwise the group is ignored. If you have lots of groups you may
 want to script it in some way.
@@ -197,6 +198,12 @@ One good way to automate is using CloudFormation, using this example snippet:
   }
 }
 ```
+#### Elastic Beanstalk Installation ####
+  * In order to add tags to existing Elastic Beanstalk environment, you will
+    need to rebuild the environment with the spot-enabled tag. Follow this
+    [guide](http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments)
+
+
 ### Updates and Downgrades ###
 
 The software doesn't auto-update anymore(it used to in the first few versions),
@@ -218,7 +225,7 @@ Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
 
 #### Compatibility notices
 
-- As of build 79 the CloudFormation template is also versioned for every
+* As of build 79 the CloudFormation template is also versioned for every
   subsequent build, but unfortunately **this build also breaks compatibility
   with older stacks**. If you run an older build you will also need to update
   the stack when updating to a build later than 79. Although the template rarely
@@ -256,7 +263,7 @@ especially important when using more volatile spot instances.
   * this may be an issue if you use instances which have ephemeral instance
     storage, often the case on previous instance types.
   * you should only specify ephemeral instance store in the on-demand launch
-   configuration if you do make use of it by mounting it on the filesystem.
+    configuration if you do make use of it by mounting it on the filesystem.
   * the replacement algorithm tries to give you instances with as much instance
     storage as your original instances, since it can't tell if you did mount it.
   * this adds more constraints on the algorithm, so it reduces the number of
@@ -347,7 +354,7 @@ developments.
 * It is configured to generate a CloudWatch event, for triggering the Lambda
   function.
 * The default frequency is every 5 minutes, but it is configurable using
-CloudFormation
+  CloudFormation
 
 
 ### Lambda function ###
@@ -377,9 +384,9 @@ CloudFormation
     a certain instance type.
 
 ## Compiling and Installing your own components ##
-It's relatively easy to build and install your own version of this tool's binaries,
-removing your dependency on the author's version, and allowing any customizations
-and improvements your organization needs.
+It's relatively easy to build and install your own version of this tool's
+binaries, removing your dependency on the author's version, and allowing any
+customizations and improvements your organization needs.
 
 [More details here](./SETUP.md)
 
