@@ -140,6 +140,12 @@ aws cloudformation create-stack \
 --template-url https://s3.amazonaws.com/cloudprowess/dv/template.json \
 --capabilities CAPABILITY_IAM
 ```
+
+* **Elastic Beanstalk Installation**
+  In order to add tags to Elastic Beanstalk, you will need to rebuild the environment with the spot-enabled tag.
+  Follow this guide: http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments
+    
+    
 Notes:
 
 * For technical reasons the stack needs to be launched in the
