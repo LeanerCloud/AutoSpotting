@@ -14,7 +14,7 @@ then be terminated.
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
 
-# Features and Benefits
+## Features and Benefits ##
 
 * **Easy to install and set up on existing environments based on AutoScaling**
   * you can literally get started within 5 minutes, unlike SpotFleets or other
@@ -136,12 +136,14 @@ default stack parameters.
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
 
 If you are using the AWS command-line tool, you can use this command instead:
+
 ```
 aws cloudformation create-stack \
 --stack-name AutoSpotting \
 --template-url https://s3.amazonaws.com/cloudprowess/dv/template.json \
 --capabilities CAPABILITY_IAM
 ```
+
 Notes:
 
 * For technical reasons the stack needs to be launched in the
@@ -175,7 +177,8 @@ create-or-update-tags \
 --tags ResourceId=my-auto-scaling-group,ResourceType=auto-scaling-group,Key=spot-enabled,Value=true,PropagateAtLaunch=false
 ```
 
-**Note**
+#### Note ####
+
 * the above instructions use the eu-west-1 AWS region as an example. Depending
   on where your groups are defined, you may need to use a different region,
   since as mentioned before, your environments may be located anywhere.
@@ -185,6 +188,7 @@ enabled, otherwise the group is ignored. If you have lots of groups you may
 want to script it in some way.
 
 One good way to automate is using CloudFormation, using this example snippet:
+
 ```
 "MyAutoScalingGroup": {
   "Properties": {
@@ -198,11 +202,12 @@ One good way to automate is using CloudFormation, using this example snippet:
   }
 }
 ```
-#### Elastic Beanstalk Installation ####
-  * In order to add tags to existing Elastic Beanstalk environment, you will
-    need to rebuild the environment with the spot-enabled tag. Follow this
-    [guide](http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments)
 
+#### Elastic Beanstalk Installation ####
+
+* In order to add tags to existing Elastic Beanstalk environment, you will
+  need to rebuild the environment with the spot-enabled tag. Follow this
+  [guide](http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments)
 
 ### Updates and Downgrades ###
 
@@ -223,7 +228,7 @@ valid parameter, as long as that build is available in the author's
 The full list of builds and their respective git commits can be seen on the
 Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
 
-#### Compatibility notices
+#### Compatibility notices ####
 
 * As of build 79 the CloudFormation template is also versioned for every
   subsequent build, but unfortunately **this build also breaks compatibility
@@ -231,6 +236,7 @@ Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
   the stack when updating to a build later than 79. Although the template rarely
   changes, it's recommended that you always keep it at the same build as the
   binary. Make sure you use the following stack parameter on any newer builds:
+
 ```
 LambdaHandlerFunction: handler.handle
 ```
@@ -276,10 +282,10 @@ especially important when using more volatile spot instances.
   * You should delegate all your state to external services, AWS has a wide
     offering of stateful services which allow your instances to become
     stateless.
-    - Databases: RDS, DynamoDB
-    - Caches: ElastiCache
-    - Storage: S3, EFS
-    - Queues: SQS
+    * Databases: RDS, DynamoDB
+    * Caches: ElastiCache
+    * Storage: S3, EFS
+    * Queues: SQS
   * Don't attach EBS volumes to individual instances, try to use EFS instead.
 
 * **Handle the spot instance termination signal**
@@ -292,7 +298,7 @@ especially important when using more volatile spot instances.
     [seespot](https://github.com/acksin/seespot). This will need to be added to
     your user_data script.
 
-# How it works
+## How it works ##
 
 Once enabled on an AutoScaling group, it is gradually replacing all the
 on-demand instances belonging to the group with compatible and similarly
@@ -339,7 +345,6 @@ would keep running as it is, but AutoSpotting will continuously attempt to
 replace them, until eventually the prices decrease again and replaecments may
 succeed again.
 
-
 ## Internal components ##
 
 When deployed, the software consists on a number of resources running in your
@@ -351,13 +356,14 @@ Similar in concept to @alestic's
 [unreliable-town-clock](https://alestic.com/2015/05/aws-lambda-recurring-schedule/),
 but internally using the new CloudWatch events just like in his later
 developments.
+
 * It is configured to generate a CloudWatch event, for triggering the Lambda
   function.
 * The default frequency is every 5 minutes, but it is configurable using
   CloudFormation
 
-
 ### Lambda function ###
+
 * AWS Lambda function connected to the event generator, which triggers it
   periodically.
 * It has assigned a IAM role and policy with a set of permissions to call the
@@ -384,13 +390,14 @@ developments.
     a certain instance type.
 
 ## Compiling and Installing your own components ##
+
 It's relatively easy to build and install your own version of this tool's
 binaries, removing your dependency on the author's version, and allowing any
 customizations and improvements your organization needs.
 
 [More details here](./SETUP.md)
 
-# GitHub Badges
+## GitHub Badges ##
 
 [![Build Status](https://travis-ci.org/cristim/autospotting.svg?branch=master)](https://travis-ci.org/cristim/autospotting)
 [![Coverage Status](https://coveralls.io/repos/github/cristim/autospotting/badge.svg?branch=master)](https://coveralls.io/github/cristim/autospotting?branch=master)
