@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
 )
 
 // data structure that stores information about a region
@@ -66,6 +67,8 @@ func (r *region) processRegion(cfg Config) {
 
 		logger.Println("Processing enabled AutoScaling groups in", r.name)
 		r.processEnabledAutoScalingGroups()
+	} else {
+		logger.Println(r.name, "has no enabled AutoScaling groups")
 	}
 }
 
@@ -166,11 +169,45 @@ func (r *region) requestSpotPrices() error {
 	return nil
 }
 
+func (r *region) scanForEnabledAutoScalingGroupsByTag(asgs *[]*string) {
+	svc := r.services.autoScaling
+
+	input := autoscaling.DescribeTagsInput{
+		Filters: []*autoscaling.Filter{
+			{Name: aws.String("key"), Values: []*string{aws.String("spot-enabled")}},
+			{Name: aws.String("value"), Values: []*string{aws.String("true")}},
+		},
+	}
+	resp, err := svc.DescribeTags(&input)
+
+	if err != nil {
+		logger.Println("Failed to describe AutoScaling tags in",
+			r.name,
+			err.Error())
+		return
+	}
+
+	for _, tag := range resp.Tags {
+		logger.Println("Found enabled ASG:", *tag.ResourceId)
+		*asgs = append(*asgs, tag.ResourceId)
+	}
+}
+
 func (r *region) scanForEnabledAutoScalingGroups() {
-	filterTagName, filterValue := "spot-enabled", "true"
+	asgs := []*string{}
+
+	r.scanForEnabledAutoScalingGroupsByTag(&asgs)
+
+	if len(asgs) == 0 {
+		return
+	}
 
 	svc := r.services.autoScaling
-	resp, err := svc.DescribeAutoScalingGroups(nil)
+
+	input := autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: asgs,
+	}
+	resp, err := svc.DescribeAutoScalingGroups(&input)
 
 	if err != nil {
 		logger.Println("Failed to describe AutoScaling groups in",
@@ -180,16 +217,12 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 	}
 
 	for _, asg := range resp.AutoScalingGroups {
-		for _, tag := range asg.Tags {
-			if *tag.Key == filterTagName && *tag.Value == filterValue {
-				group := autoScalingGroup{
-					name:       *asg.AutoScalingGroupName,
-					region:     r,
-					asgRawData: asg,
-				}
-				r.enabledASGs = append(r.enabledASGs, group)
-			}
+		group := autoScalingGroup{
+			name:       *asg.AutoScalingGroupName,
+			region:     r,
+			asgRawData: asg,
 		}
+		r.enabledASGs = append(r.enabledASGs, group)
 	}
 }
 
