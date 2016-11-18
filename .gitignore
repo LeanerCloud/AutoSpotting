@@ -1,7 +1,6 @@
 build
 debug
 data
-bindata.go
 autospotting
 coverage.out
 lambda/BUILD

@@ -8,12 +8,13 @@ BUILD := $(or ${TRAVIS_BUILD_NUMBER}, ${TRAVIS_BUILD_NUMBER}, ${SHA})
 # upstream data
 EC2_INSTANCES_INFO_COMMIT_SHA=f34075aa09c52233735cd879ebda3f70d77b7ca5
 INSTANCES_URL="https://raw.githubusercontent.com/powdahound/ec2instances.info/${EC2_INSTANCES_INFO_COMMIT_SHA}/www/instances.json"
+BINDATA_FILE=generated_bindata.go
 
 all: build_local
 
 clean:
 	rm -rf data
-	rm -rf bindata.go
+	rm -rf ${BINDATA_FILE}
 
 bindata:
 	./check_deps.sh
@@ -21,7 +22,8 @@ bindata:
 	mkdir -p data
 	wget -nv -c ${INSTANCES_URL} -O data/instances.json
 	echo ${BUILD} > data/BUILD
-	go-bindata -nocompress data/
+	go-bindata -o ${BINDATA_FILE} -nometadata data/
+
 
 build_lambda_binary: bindata
 	docker run --rm -v ${GOPATH}:/go -v ${PWD}:/tmp eawsy/aws-lambda-go
@@ -49,3 +51,4 @@ test: build_local
 cover:
 	go test -covermode=count -coverprofile=coverage.out ./core
 	go tool cover -html=coverage.out
+
