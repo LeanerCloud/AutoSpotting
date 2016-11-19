@@ -14,6 +14,7 @@ type connections struct {
 	session     *session.Session
 	autoScaling *autoscaling.AutoScaling
 	ec2         *ec2.EC2
+	region      string
 }
 
 func (c *connections) connect(region string) {
@@ -33,7 +34,7 @@ func (c *connections) connect(region string) {
 	go func() { asConn <- autoscaling.New(c.session) }()
 	go func() { ec2Conn <- ec2.New(c.session) }()
 
-	c.autoScaling, c.ec2 = <-asConn, <-ec2Conn
+	c.autoScaling, c.ec2, c.region = <-asConn, <-ec2Conn, region
 
 	logger.Println("Created service connections in", region)
 }
