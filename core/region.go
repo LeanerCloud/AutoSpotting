@@ -1,13 +1,14 @@
 package autospotting
 
 import (
+	"errors"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
 // data structure that stores information about a region
@@ -122,28 +123,19 @@ func (r *region) determineInstanceInformation(cfg Config) {
 
 func (r *region) requestSpotPrices() error {
 
-	logger.Println(r.name, "Requesting spot prices")
-	ec2Conn := r.services.ec2
-	params := &ec2.DescribeSpotPriceHistoryInput{
-		ProductDescriptions: []*string{
-			aws.String("Linux/UNIX"),
-		},
-		StartTime: aws.Time(time.Now()),
-		EndTime:   aws.Time(time.Now()),
-	}
+	s := spotPrices{conn: r.services}
 
-	resp, err := ec2Conn.DescribeSpotPriceHistory(params)
+	// Retrieve all current spot prices from the current region.
+	// TODO: add support for other OSes
+	err := s.fetch("Linux/UNIX", 0, nil, nil)
 
 	if err != nil {
-		logger.Println(r.name, "Failed requesting spot prices:", err.Error())
-		return err
+		return errors.New("Couldn't fetch spot prices in" + r.name)
 	}
 
-	spotPrices := resp.SpotPriceHistory
+	logger.Println("Spot Price list in ", r.name, ":\n", s.data)
 
-	// logger.Println("Spot Price list in ", r.name, ":\n", spotPrices)
-
-	for _, priceInfo := range spotPrices {
+	for _, priceInfo := range s.data {
 
 		instType, az := *priceInfo.InstanceType, *priceInfo.AvailabilityZone
 
