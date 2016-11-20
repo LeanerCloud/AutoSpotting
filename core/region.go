@@ -3,6 +3,7 @@ package autospotting
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 type region struct {
 	name string
 
-	cfg Config
+	conf Config
 	// The key in this map is the instance type.
 	instanceTypeInformation map[string]instanceTypeInformation
 
@@ -36,11 +37,26 @@ type prices struct {
 // The key in this map is the availavility zone
 type spotPriceMap map[string]float64
 
-func (r *region) processRegion(cfg Config) {
+func (r *region) enabled() bool {
 
-	if r.name != "us-east-1" {
-		return
+	var enabledRegions []string
+
+	if r.conf.Regions != "" {
+		enabledRegions = strings.Split(r.conf.Regions, ",")
+	} else {
+		return true
 	}
+
+	for _, region := range enabledRegions {
+		if region == r.name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (r *region) processRegion() {
 
 	logger.Println("Creating connections to the required AWS services in", r.name)
 	r.services.connect(r.name)
@@ -54,7 +70,7 @@ func (r *region) processRegion(cfg Config) {
 	if r.hasEnabledAutoScalingGroups() {
 
 		logger.Println("Scanning full instance information in", r.name)
-		r.determineInstanceTypeInformation(cfg)
+		r.determineInstanceTypeInformation(r.conf)
 
 		debug.Println(spew.Sdump(r.instanceTypeInformation))
 
