@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -10,17 +11,35 @@ import (
 	lambda "github.com/eawsy/aws-lambda-go/service/lambda/runtime"
 )
 
-var cfg autospotting.Config
+type cfgData struct {
+	autospotting.Config
+}
+
+var conf *cfgData
 
 func main() {
-	prepareConfig()
 	run()
+}
+
+func run() {
+	fmt.Printf("Starting autospotting agent, build %s", conf.BuildNumber)
+	autospotting.Run(conf.Config)
+	fmt.Println("Execution completed, nothing left to do")
 }
 
 // this is the equivalent of a main for when running from Lambda, but on Lambda the
 // run() is executed within the handler function every time we have an event
 func init() {
-	prepareConfig()
+
+	conf = &cfgData{
+		autospotting.Config{
+			LogFile: os.Stdout,
+			LogFlag: log.Lshortfile,
+		},
+	}
+
+	conf.initialize()
+
 	lambda.HandleFunc(handle)
 }
 
@@ -29,22 +48,32 @@ func handle(evt json.RawMessage, ctx *lambda.Context) (interface{}, error) {
 	return nil, nil
 }
 
-func run() {
-	fmt.Printf("Starting autospotting agent, build %s", cfg.BuildNumber)
-	autospotting.Run(cfg)
-	fmt.Println("Execution completed, nothing left to do")
-}
+// Configuration handling
+func (c *cfgData) initialize() {
 
-func prepareConfig() {
 	build, instanceInfo := readAssets()
 
-	cfg = parseCommandLineFlags()
-	cfg.BuildNumber = string(build)
+	c.parseCommandLineFlags()
+	c.BuildNumber = string(build)
 
-	err := cfg.RawInstanceData.LoadFromAssetContent(instanceInfo)
+	err := c.RawInstanceData.LoadFromAssetContent(instanceInfo)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+}
+
+func (c *cfgData) parseCommandLineFlags() {
+
+	flag.StringVar(&c.Regions, "regions", "", "Regions(comma separated list)"+
+		"where it should run, by default runs on all regions")
+
+	// flag.StringVar(&cfg.Regions, "region", "", "Regions(comma separated list)"+
+	//    "where it should run, by default runs on all regions")
+
+	flag.Parse()
+
+	log.Println("Parsed command line flags")
+
 }
 
 func readAssets() (string, []byte) {
@@ -61,14 +90,4 @@ func readAssets() (string, []byte) {
 	}
 
 	return string(build), instanceInfo
-}
-
-func parseCommandLineFlags() autospotting.Config {
-
-	cfg := autospotting.Config{
-		LogFile: os.Stdout,
-		LogFlag: log.Lshortfile,
-	}
-
-	return cfg
 }

@@ -26,6 +26,8 @@ func Run(cfg Config) {
 		debug = log.New(ioutil.Discard, "", 0)
 	}
 
+	debug.Println(cfg)
+
 	processAllRegions(cfg)
 
 }
@@ -42,11 +44,21 @@ func processAllRegions(cfg Config) {
 		logger.Println(err.Error())
 		return
 	}
+
 	for _, r := range regions {
+
 		wg.Add(1)
-		r := region{name: r}
+		r := region{name: r, conf: cfg}
+
 		go func() {
-			r.processRegion(cfg)
+
+			if r.enabled() {
+				logger.Printf("Enabled to run in %s, processing region.\n", r.name)
+				r.processRegion()
+			} else {
+				logger.Println("Not enabled to run in", r.name, "\nList of enabled regions:", regions)
+			}
+
 			wg.Done()
 		}()
 	}
@@ -56,6 +68,8 @@ func processAllRegions(cfg Config) {
 // getRegions generates a list of AWS regions.
 func getRegions() ([]string, error) {
 	var output []string
+
+	logger.Println("Scanning for available AWS regions")
 
 	// This turns out to be much faster when running locally than using region
 	// auto-detection, and anyway due to Lambda limitations we currently only
@@ -75,9 +89,14 @@ func getRegions() ([]string, error) {
 		return nil, err
 	}
 
+	debug.Println(resp)
+
 	for _, r := range resp.Regions {
-		logger.Println("Adding region", *r.RegionName)
-		output = append(output, *r.RegionName)
+
+		if r != nil && r.RegionName != nil {
+			logger.Println("Found region", *r.RegionName)
+			output = append(output, *r.RegionName)
+		}
 	}
 	return output, nil
 }
