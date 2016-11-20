@@ -306,6 +306,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	debug.Println(instData)
 
 	if instData == nil || instData.LaunchTime == nil {
+		logger.Println("Apparently", *spotInstanceID, "is no longer running, moving on...")
 		return nil, true
 	}
 
