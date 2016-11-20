@@ -1,6 +1,10 @@
 package autospotting
 
-import "github.com/aws/aws-sdk-go/service/ec2"
+import (
+	"strings"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
+)
 
 type instanceTypeInformation struct {
 	instanceType             string
@@ -48,4 +52,19 @@ func (it *instance) terminate(svc *ec2.EC2) {
 	}); err != nil {
 		logger.Println(err.Error())
 	}
+}
+
+func (it *instance) filterTags() []*ec2.Tag {
+	var filteredTags []*ec2.Tag
+
+	tags := it.Tags
+
+	// filtering reserved tags, which start with the "aws:" prefix
+	for _, tag := range tags {
+		if !strings.HasPrefix(*tag.Key, "aws:") {
+			filteredTags = append(filteredTags, tag)
+		}
+	}
+
+	return filteredTags
 }
