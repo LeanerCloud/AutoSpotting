@@ -1,9 +1,12 @@
 package autospotting
 
+// In this file we generate a raw data structure unmarshaled from the
+// ec2instances.info JSON file, embedded into the binary at build time using go-
+// bindata.
+
 import "encoding/json"
 
 // AWS Instances JSON Structure Definitions
-
 type jsonInstance struct {
 	Family             string                  `json:"family"`
 	EnhancedNetworking bool                    `json:"enhanced_networking"`
@@ -18,8 +21,8 @@ type jsonInstance struct {
 	Storage *storageConfiguration `json:"storage"`
 
 	VPC struct {
-		//		IPsPerENI int `json:"ips_per_eni"`
-		//		MaxENIs   int `json:"max_enis"`
+		//    IPsPerENI int `json:"ips_per_eni"`
+		//    MaxENIs   int `json:"max_enis"`
 	} `json:"vpc"`
 
 	Arch                     []string `json:"arch"`
@@ -61,15 +64,15 @@ type regionPrices struct {
 
 //------------------------------------------------------------------------------
 
-// InstanceInformation is a large data structure containing pricing and hardware
+// RawInstanceData is a large data structure containing pricing and hardware
 // information about all the EC2 instance types from all AWS regions.
-type InstanceInformation []jsonInstance
+type RawInstanceData []jsonInstance
 
-// LoadFromAssetData loads the InstanceInformation object based on a
+// LoadFromAssetData loads the RawInstanceData object based on a
 // JSON-encoded contents, injected at build time by go-bindata.
-func (i *InstanceInformation) LoadFromAssetData(contents []byte) error {
+func (ii *RawInstanceData) LoadFromAssetContent(contents []byte) error {
 
-	err := json.Unmarshal(contents, &i)
+	err := json.Unmarshal(contents, &ii)
 	if err != nil {
 		logger.Println(err.Error())
 		return err

@@ -41,7 +41,7 @@ func prepareConfig() {
 	cfg = parseCommandLineFlags()
 	cfg.BuildNumber = string(build)
 
-	err := cfg.InstanceData.LoadFromAssetData(instanceInfo)
+	err := cfg.RawInstanceData.LoadFromAssetContent(instanceInfo)
 	if err != nil {
 		log.Fatal(err.Error())
 	}

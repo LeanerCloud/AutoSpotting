@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/davecgh/go-spew/spew"
 )
 
 // data structure that stores information about a region
@@ -17,28 +18,14 @@ type region struct {
 
 	cfg Config
 	// The key in this map is the instance type.
-	instanceData map[string]instanceInformation
+	instanceTypeInformation map[string]instanceTypeInformation
 
-	// The key in this map is the instance ID, useful for quick retrieval of
-	// instance attributes.
-	instances map[string]*ec2.Instance
+	instances instances
 
-	//
 	enabledASGs []autoScalingGroup
 	services    connections
-	wg          sync.WaitGroup
-}
 
-type instanceInformation struct {
-	instanceType             string
-	vCPU                     int
-	pricing                  prices
-	memory                   float32
-	virtualizationTypes      []string
-	hasInstanceStore         bool
-	instanceStoreDeviceSize  float32
-	instanceStoreDeviceCount int
-	instanceStoreIsSSD       bool
+	wg sync.WaitGroup
 }
 
 type prices struct {
@@ -50,6 +37,11 @@ type prices struct {
 type spotPriceMap map[string]float64
 
 func (r *region) processRegion(cfg Config) {
+
+	if r.name != "us-east-1" {
+		return
+	}
+
 	logger.Println("Creating connections to the required AWS services in", r.name)
 	r.services.connect(r.name)
 	// only process the regions where we have AutoScaling groups set to be handled
@@ -60,11 +52,14 @@ func (r *region) processRegion(cfg Config) {
 	// only process further the region if there are any enabled autoscaling groups
 	// within it
 	if r.hasEnabledAutoScalingGroups() {
-		logger.Println("Scanning instances in", r.name)
-		r.scanInstances()
 
 		logger.Println("Scanning full instance information in", r.name)
-		r.determineInstanceInformation(cfg)
+		r.determineInstanceTypeInformation(cfg)
+
+		debug.Println(spew.Sdump(r.instanceTypeInformation))
+
+		logger.Println("Scanning instances in", r.name)
+		r.scanInstances()
 
 		logger.Println("Processing enabled AutoScaling groups in", r.name)
 		r.processEnabledAutoScalingGroups()
@@ -73,15 +68,60 @@ func (r *region) processRegion(cfg Config) {
 	}
 }
 
-func (r *region) determineInstanceInformation(cfg Config) {
+func (r *region) scanInstances() error {
+	svc := r.services.ec2
+	params := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("instance-state-name"),
+				Values: []*string{
+					aws.String("running"),
+					aws.String("pending"),
+				},
+			},
+		},
+	}
 
-	r.instanceData = make(map[string]instanceInformation)
+	resp, err := svc.DescribeInstances(params)
+	if err != nil {
+		return err
+	}
 
-	var info instanceInformation
+	debug.Println(resp)
 
-	for _, it := range cfg.InstanceData {
+	r.instances.catalog = make(map[string]*instance)
+
+	if len(resp.Reservations) > 0 &&
+		resp.Reservations[0].Instances != nil {
+
+		for _, res := range resp.Reservations {
+			for _, inst := range res.Instances {
+
+				i := instance{
+					Instance: inst,
+					typeInfo: r.instanceTypeInformation[*inst.InstanceType],
+				}
+				debug.Println("Type Info:", *inst.InstanceType, spew.Sdump(i.typeInfo))
+				r.instances.add(&i)
+
+			}
+		}
+	}
+	debug.Println(spew.Sdump(r.instances))
+	return nil
+}
+
+func (r *region) determineInstanceTypeInformation(cfg Config) {
+
+	r.instanceTypeInformation = make(map[string]instanceTypeInformation)
+
+	var info instanceTypeInformation
+
+	for _, it := range cfg.RawInstanceData {
 
 		var price prices
+
+		debug.Println(it)
 
 		// populate on-demand information
 		price.onDemand, _ = strconv.ParseFloat(
@@ -95,7 +135,7 @@ func (r *region) determineInstanceInformation(cfg Config) {
 		// data structure for it
 		if price.onDemand > 0 {
 			// for each instance type populate the HW spec information
-			info = instanceInformation{
+			info = instanceTypeInformation{
 				instanceType:        it.InstanceType,
 				vCPU:                it.VCPU,
 				memory:              it.Memory,
@@ -109,16 +149,19 @@ func (r *region) determineInstanceInformation(cfg Config) {
 				info.instanceStoreDeviceCount = it.Storage.Devices
 				info.instanceStoreIsSSD = it.Storage.SSD
 			}
-			r.instanceData[it.InstanceType] = info
+			debug.Println(info)
+			r.instanceTypeInformation[it.InstanceType] = info
 		}
 	}
 	// this is safe to do once outside of the loop because the call will only
 	// return entries about the available instance types, so no invalid instance
 	// types would be returned
+
 	if err := r.requestSpotPrices(); err != nil {
 		logger.Println(err.Error())
 	}
-	// logger.Printf("%#v\n", r.instanceData)
+
+	debug.Println(spew.Sdump(r.instanceTypeInformation))
 }
 
 func (r *region) requestSpotPrices() error {
@@ -133,7 +176,7 @@ func (r *region) requestSpotPrices() error {
 		return errors.New("Couldn't fetch spot prices in" + r.name)
 	}
 
-	logger.Println("Spot Price list in ", r.name, ":\n", s.data)
+	// logger.Println("Spot Price list in ", r.name, ":\n", s.data)
 
 	for _, priceInfo := range s.data {
 
@@ -148,13 +191,13 @@ func (r *region) requestSpotPrices() error {
 			continue
 		}
 
-		if r.instanceData[instType].pricing.spot == nil {
+		if r.instanceTypeInformation[instType].pricing.spot == nil {
 			logger.Println(r.name, "Instance data missing for", instType, "in", az,
 				"skipping because this region is currently not supported")
 			continue
 		}
 
-		r.instanceData[instType].pricing.spot[az] = price
+		r.instanceTypeInformation[instType].pricing.spot[az] = price
 
 	}
 
@@ -209,10 +252,9 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 	}
 
 	for _, asg := range resp.AutoScalingGroups {
-		group := autoScalingGroup{
-			name:       *asg.AutoScalingGroupName,
-			region:     r,
-			asgRawData: asg,
+		group := autoScalingGroup{Group: asg,
+			name:   *asg.AutoScalingGroupName,
+			region: r,
 		}
 		r.enabledASGs = append(r.enabledASGs, group)
 	}
@@ -233,67 +275,6 @@ func (r *region) processEnabledAutoScalingGroups() {
 		}(asg)
 	}
 	r.wg.Wait()
-}
-
-func (r *region) findSpotInstanceRequests(
-	forAsgName string) []*ec2.SpotInstanceRequest {
-
-	svc := r.services.ec2
-
-	params := &ec2.DescribeSpotInstanceRequestsInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   aws.String("tag:launched-for-asg"),
-				Values: []*string{aws.String(forAsgName)},
-			},
-		},
-	}
-	resp, err := svc.DescribeSpotInstanceRequests(params)
-
-	if err != nil {
-		logger.Println(err.Error())
-		return nil
-	}
-
-	logger.Println("Spot instance requests were previously created for",
-		forAsgName)
-	return resp.SpotInstanceRequests
-
-}
-
-func (r *region) scanInstances() {
-	svc := r.services.ec2
-	params := &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("instance-state-name"),
-				Values: []*string{
-					aws.String("running"),
-					aws.String("pending"),
-				},
-			},
-		},
-	}
-
-	resp, err := svc.DescribeInstances(params)
-	if err != nil {
-		logger.Println(err.Error())
-		return
-	}
-
-	r.instances = make(map[string]*ec2.Instance)
-
-	if len(resp.Reservations) > 0 &&
-		resp.Reservations[0].Instances != nil {
-
-		for _, res := range resp.Reservations {
-			for _, inst := range res.Instances {
-				r.instances[*inst.InstanceId] = inst
-			}
-		}
-	}
-
-	// logger.Println(r.instances)
 }
 
 func (r *region) tagInstance(instanceID *string, tags []*ec2.Tag) {

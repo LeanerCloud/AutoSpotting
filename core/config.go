@@ -19,7 +19,7 @@ type Config struct {
 	*/
 
 	// Static data fetched from ec2instances.info
-	InstanceData InstanceInformation
+	RawInstanceData RawInstanceData
 
 	// Logging
 	LogFile io.Writer
