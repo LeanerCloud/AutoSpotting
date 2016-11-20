@@ -1,7 +1,9 @@
 package autospotting
 
 import (
+	"io/ioutil"
 	"log"
+	"os"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -9,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-var logger *log.Logger
+var logger, debug *log.Logger
 
 // Run starts processing all AWS regions looking for AutoScaling groups
 // enabled and taking action by replacing more pricy on-demand instances with
@@ -17,6 +19,12 @@ var logger *log.Logger
 func Run(cfg Config) {
 
 	logger = log.New(cfg.LogFile, "", cfg.LogFlag)
+
+	if os.Getenv("AUTOSPOTTING_DEBUG") == "true" {
+		debug = log.New(cfg.LogFile, "", cfg.LogFlag)
+	} else {
+		debug = log.New(ioutil.Discard, "", 0)
+	}
 
 	processAllRegions(cfg)
 
