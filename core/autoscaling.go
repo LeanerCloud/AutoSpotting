@@ -239,7 +239,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 				"started:", *req.InstanceId)
 
 			// If the instance is already in the group we don't need to do anything.
-			if a.hasInstance(*req.InstanceId) {
+			if a.instances.get(*req.InstanceId) != nil {
 				logger.Println(a.name, "Instance", *req.InstanceId,
 					"is already attached to the ASG, skipping...")
 				continue
@@ -303,15 +303,6 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 		return nil, true
 	}
 	return spotInstanceID, false
-}
-
-func (a *autoScalingGroup) hasInstance(instanceID string) bool {
-	for _, inst := range a.instances.catalog {
-		if *inst.InstanceId == instanceID {
-			return true
-		}
-	}
-	return false
 }
 
 // This function returns an Instance ID
@@ -903,11 +894,9 @@ func (a *autoScalingGroup) alreadyRunningSpotInstanceCount(
 	logger.Println(a.name, "Counting already running spot instances of type ",
 		instanceType, " in AZ ", availabilityZone)
 	for _, inst := range a.instances.catalog {
-		if a.hasInstance(*inst.InstanceId) &&
-			*inst.InstanceType == instanceType &&
+		if *inst.InstanceType == instanceType &&
 			*inst.Placement.AvailabilityZone == availabilityZone &&
-			inst.InstanceLifecycle != nil &&
-			*inst.InstanceLifecycle == "spot" {
+			inst.isSpot() {
 			logger.Println(a.name, "Found running spot instance ",
 				*inst.InstanceId, "of the same type:", instanceType)
 			count++
