@@ -56,7 +56,8 @@ func processAllRegions(cfg Config) {
 				logger.Printf("Enabled to run in %s, processing region.\n", r.name)
 				r.processRegion()
 			} else {
-				logger.Println("Not enabled to run in", r.name, "\nList of enabled regions:", regions)
+				logger.Println("Not enabled to run in", r.name,
+					"\nList of enabled regions:", cfg.Regions)
 			}
 
 			wg.Done()
