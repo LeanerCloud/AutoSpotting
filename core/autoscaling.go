@@ -106,7 +106,14 @@ func (a *autoScalingGroup) scanInstances() {
 func (a *autoScalingGroup) filterInstanceTags() []*ec2.Tag {
 	var filteredTags []*ec2.Tag
 
-	tags := a.getAnyInstance().Tags
+	i := a.getAnyInstance()
+
+	if i == nil {
+		return []*ec2.Tag{}
+	}
+
+	tags := i.Tags
+
 	// filtering reserved tags, which start with the "aws:" prefix
 	for _, tag := range tags {
 		if !strings.HasPrefix(*tag.Key, "aws:") {
