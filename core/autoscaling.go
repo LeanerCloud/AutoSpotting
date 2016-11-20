@@ -103,27 +103,6 @@ func (a *autoScalingGroup) scanInstances() {
 
 }
 
-func (a *autoScalingGroup) filterInstanceTags() []*ec2.Tag {
-	var filteredTags []*ec2.Tag
-
-	i := a.getAnyInstance()
-
-	if i == nil {
-		return []*ec2.Tag{}
-	}
-
-	tags := i.Tags
-
-	// filtering reserved tags, which start with the "aws:" prefix
-	for _, tag := range tags {
-		if !strings.HasPrefix(*tag.Key, "aws:") {
-			filteredTags = append(filteredTags, tag)
-		}
-	}
-
-	return filteredTags
-}
-
 func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 	spotInstanceID *string) {
 
@@ -367,7 +346,7 @@ func (a *autoScalingGroup) waitForAndTagSpotInstance(
 
 	logger.Println(a.name, "found new spot instance", *spotInstanceID,
 		"\nTagging it to match the other instances from the group")
-	a.region.tagInstance(spotInstanceID, a.filterInstanceTags())
+	a.region.tagInstance(spotInstanceID, a.getAnyInstance().filterTags())
 }
 
 func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
