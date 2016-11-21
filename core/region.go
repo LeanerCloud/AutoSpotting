@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -85,6 +84,7 @@ func (r *region) processRegion() {
 }
 
 func (r *region) scanInstances() error {
+
 	svc := r.services.ec2
 	params := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
@@ -112,19 +112,20 @@ func (r *region) scanInstances() error {
 
 		for _, res := range resp.Reservations {
 			for _, inst := range res.Instances {
-
-				i := instance{
-					Instance: inst,
-					typeInfo: r.instanceTypeInformation[*inst.InstanceType],
-				}
-				debug.Println("Type Info:", *inst.InstanceType, spew.Sdump(i.typeInfo))
-				r.instances.add(&i)
-
+				r.addInstance(inst)
 			}
 		}
 	}
 	debug.Println(spew.Sdump(r.instances))
 	return nil
+}
+
+func (r *region) addInstance(inst *ec2.Instance) {
+	r.instances.add(&instance{
+		Instance: inst,
+		typeInfo: r.instanceTypeInformation[*inst.InstanceType],
+		region:   r,
+	})
 }
 
 func (r *region) determineInstanceTypeInformation(cfg Config) {
@@ -220,8 +221,10 @@ func (r *region) requestSpotPrices() error {
 	return nil
 }
 
-func (r *region) scanForEnabledAutoScalingGroupsByTag(asgs *[]*string) {
+func (r *region) scanForEnabledAutoScalingGroupsByTag() []*string {
 	svc := r.services.autoScaling
+
+	var asgs []*string
 
 	input := autoscaling.DescribeTagsInput{
 		Filters: []*autoscaling.Filter{
@@ -237,7 +240,7 @@ func (r *region) scanForEnabledAutoScalingGroupsByTag(asgs *[]*string) {
 			logger.Println("Processing page", pageNum, "of DescribeTagsPages for", r.name)
 			for _, tag := range page.Tags {
 				logger.Println(r.name, "has enabled ASG:", *tag.ResourceId)
-				*asgs = append(*asgs, tag.ResourceId)
+				asgs = append(asgs, tag.ResourceId)
 			}
 			return true
 		},
@@ -246,14 +249,13 @@ func (r *region) scanForEnabledAutoScalingGroupsByTag(asgs *[]*string) {
 		logger.Println("Failed to describe AutoScaling tags in",
 			r.name,
 			err.Error())
-		return
 	}
+	return asgs
 }
 
 func (r *region) scanForEnabledAutoScalingGroups() {
-	asgNames := []*string{}
 
-	r.scanForEnabledAutoScalingGroupsByTag(&asgNames)
+	asgNames := r.scanForEnabledAutoScalingGroupsByTag()
 
 	if len(asgNames) == 0 {
 		return
@@ -306,36 +308,4 @@ func (r *region) processEnabledAutoScalingGroups() {
 		}(asg)
 	}
 	r.wg.Wait()
-}
-
-func (r *region) tagInstance(instanceID *string, tags []*ec2.Tag) {
-
-	if len(tags) == 0 {
-		logger.Println(r.name, "Tagging spot instance", *instanceID,
-			"no tags were defined, skipping...")
-		return
-	}
-
-	svc := r.services.ec2
-	params := ec2.CreateTagsInput{
-		Resources: []*string{instanceID},
-		Tags:      tags,
-	}
-
-	logger.Println(r.name, "Tagging spot instance", *instanceID)
-
-	for _, err := svc.CreateTags(&params); err != nil; _, err =
-		svc.CreateTags(&params) {
-
-		logger.Println(r.name,
-			"Failed to create tags for the spot instance", *instanceID, err.Error())
-
-		logger.Println(r.name,
-			"Sleeping for 5 seconds before retrying")
-
-		time.Sleep(5 * time.Second)
-	}
-
-	logger.Println("Instance", *instanceID,
-		"was tagged with the following tags:", tags)
 }
