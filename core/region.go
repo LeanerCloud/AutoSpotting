@@ -229,36 +229,58 @@ func (r *region) scanForEnabledAutoScalingGroupsByTag(asgs *[]*string) {
 			{Name: aws.String("value"), Values: []*string{aws.String("true")}},
 		},
 	}
-	resp, err := svc.DescribeTags(&input)
-
+	pageNum := 0
+	err := svc.DescribeTagsPages(
+		&input,
+		func(page *autoscaling.DescribeTagsOutput, lastPage bool) bool {
+			pageNum++
+			logger.Println("Processing page", pageNum, "of DescribeTagsPages for", r.name)
+			for _, tag := range page.Tags {
+				logger.Println(r.name, "has enabled ASG:", *tag.ResourceId)
+				*asgs = append(*asgs, tag.ResourceId)
+			}
+			return true
+		},
+	)
 	if err != nil {
 		logger.Println("Failed to describe AutoScaling tags in",
 			r.name,
 			err.Error())
 		return
 	}
-
-	for _, tag := range resp.Tags {
-		logger.Println("Found enabled ASG:", *tag.ResourceId)
-		*asgs = append(*asgs, tag.ResourceId)
-	}
 }
 
 func (r *region) scanForEnabledAutoScalingGroups() {
-	asgs := []*string{}
+	asgNames := []*string{}
 
-	r.scanForEnabledAutoScalingGroupsByTag(&asgs)
+	r.scanForEnabledAutoScalingGroupsByTag(&asgNames)
 
-	if len(asgs) == 0 {
+	if len(asgNames) == 0 {
 		return
 	}
 
 	svc := r.services.autoScaling
 
 	input := autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: asgs,
+		AutoScalingGroupNames: asgNames,
 	}
-	resp, err := svc.DescribeAutoScalingGroups(&input)
+	pageNum := 0
+	err := svc.DescribeAutoScalingGroupsPages(
+		&input,
+		func(page *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
+			pageNum++
+			logger.Println("Processing page", pageNum, "of DescribeAutoScalingGroupsPages for", r.name)
+			for _, asg := range page.AutoScalingGroups {
+				group := autoScalingGroup{
+					Group:  asg,
+					name:   *asg.AutoScalingGroupName,
+					region: r,
+				}
+				r.enabledASGs = append(r.enabledASGs, group)
+			}
+			return true
+		},
+	)
 
 	if err != nil {
 		logger.Println("Failed to describe AutoScaling groups in",
@@ -267,13 +289,6 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 		return
 	}
 
-	for _, asg := range resp.AutoScalingGroups {
-		group := autoScalingGroup{Group: asg,
-			name:   *asg.AutoScalingGroupName,
-			region: r,
-		}
-		r.enabledASGs = append(r.enabledASGs, group)
-	}
 }
 
 func (r *region) hasEnabledAutoScalingGroups() bool {
