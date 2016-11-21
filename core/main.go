@@ -18,6 +18,19 @@ var logger, debug *log.Logger
 // compatible and cheaper spot instances.
 func Run(cfg Config) {
 
+	setupLogging(cfg)
+
+	debug.Println(cfg)
+
+	processAllRegions(cfg)
+
+}
+
+func disableLogging() {
+	setupLogging(Config{LogFile: ioutil.Discard})
+}
+
+func setupLogging(cfg Config) {
 	logger = log.New(cfg.LogFile, "", cfg.LogFlag)
 
 	if os.Getenv("AUTOSPOTTING_DEBUG") == "true" {
@@ -25,10 +38,6 @@ func Run(cfg Config) {
 	} else {
 		debug = log.New(ioutil.Discard, "", 0)
 	}
-
-	debug.Println(cfg)
-
-	processAllRegions(cfg)
 
 }
 
