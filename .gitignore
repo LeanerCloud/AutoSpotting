@@ -8,3 +8,4 @@ lambda/autospotting_lambda
 lambda/instances.json
 .vscode/
 handler.zip
+*.coverprofile
