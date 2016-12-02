@@ -84,6 +84,7 @@
                 "autoscaling:DescribeLaunchConfigurations",
                 "autoscaling:AttachInstances",
                 "autoscaling:DetachInstances",
+		"autoscaling:DescribeTags",
                 "ec2:CreateTags",
                 "ec2:DescribeInstances",
                 "ec2:DescribeRegions",
