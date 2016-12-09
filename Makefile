@@ -23,6 +23,7 @@ bindata:
 	wget -nv -c ${INSTANCES_URL} -O data/instances.json
 	echo ${BUILD} > data/BUILD
 	go-bindata -o ${BINDATA_FILE} -nometadata data/
+	go fmt ${BINDATA_FILE}
 
 
 build_lambda_binary: bindata

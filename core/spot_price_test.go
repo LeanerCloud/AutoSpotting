@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"math"
+	"os"
 	"testing"
 	"time"
 
@@ -10,6 +11,11 @@ import (
 )
 
 const TOLERANCE = 0.000001
+
+func TestMain(m *testing.M) {
+	disableLogging()
+	os.Exit(m.Run())
+}
 
 func Test_spotPrices_average(t *testing.T) {
 	NOW := time.Now()
