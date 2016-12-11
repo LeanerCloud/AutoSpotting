@@ -12,7 +12,7 @@ before_install:
 - go get github.com/mattn/goveralls
 - go get golang.org/x/tools/cmd/cover
 - docker pull eawsy/aws-lambda-go:latest
-- make bindata
+- make prepare_bindata
 
 install:
 - go get ./...
