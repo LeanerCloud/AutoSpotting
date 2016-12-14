@@ -65,8 +65,8 @@ func processAllRegions(cfg Config) {
 				logger.Printf("Enabled to run in %s, processing region.\n", r.name)
 				r.processRegion()
 			} else {
-				logger.Println("Not enabled to run in", r.name,
-					"\nList of enabled regions:", cfg.Regions)
+				debug.Println("Not enabled to run in", r.name)
+				debug.Println("List of enabled regions:", cfg.Regions)
 			}
 
 			wg.Done()
@@ -104,7 +104,7 @@ func getRegions() ([]string, error) {
 	for _, r := range resp.Regions {
 
 		if r != nil && r.RegionName != nil {
-			logger.Println("Found region", *r.RegionName)
+			debug.Println("Found region", *r.RegionName)
 			output = append(output, *r.RegionName)
 		}
 	}
