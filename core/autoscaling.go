@@ -8,6 +8,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"math"
+)
+
+const (
+	onDemandPercentageLong  = "on_demand_percentage"
+	onDemandNumberLong      = "on_demand_number"
+	DefaultMinOnDemandValue = -1
 )
 
 type autoScalingGroup struct {
@@ -20,15 +27,162 @@ type autoScalingGroup struct {
 
 	// spot instance requests generated for the current group
 	spotInstanceRequests []*spotInstanceRequest
+	minOnDemand          int64
+}
+
+func (a *autoScalingGroup) loadPercentageOnDemand() (int64, bool) {
+	if tagValue := a.getTagValue(onDemandPercentageLong); tagValue != nil {
+		if percentage, err := strconv.ParseFloat(*tagValue, 64); err == nil {
+			if percentage == 0 {
+				logger.Printf("Loaded MinOnDemand value to %f from tag %s\n", percentage, onDemandPercentageLong)
+				return int64(percentage), true
+			} else if percentage > 0 && percentage <= 100 {
+				instanceNumber := float64(len(a.instances.catalog))
+				onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
+				logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, onDemandPercentageLong)
+				return onDemand, true
+			} else {
+				logger.Printf("Ignoring value out of range %f\n", percentage)
+			}
+		} else {
+			logger.Printf("Error with ParseFloat: %s\n", err.Error())
+		}
+	} else {
+		logger.Printf("Couldn't find tag %s anymore\n", onDemandPercentageLong)
+	}
+	return DefaultMinOnDemandValue, false
+}
+
+func (a *autoScalingGroup) loadNumberOnDemand() (int64, bool) {
+
+	if tagValue := a.getTagValue(onDemandNumberLong); tagValue != nil {
+		if onDemand, err := strconv.Atoi(*tagValue); err == nil {
+			if onDemand < 0 || int64(onDemand) > *a.MaxSize {
+				logger.Printf("Ignoring value out of range %d\n", onDemand)
+			} else {
+				logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, onDemandNumberLong)
+				return int64(onDemand), true
+			}
+		} else {
+			logger.Printf("Error with Atoi: %s\n", err.Error())
+		}
+	} else {
+		debug.Printf("Couldn't find tag %s anymore\n", onDemandNumberLong)
+	}
+	return DefaultMinOnDemandValue, false
+}
+
+func (a *autoScalingGroup) loadConfOnDemand() bool {
+	tagList := [2]string{onDemandNumberLong, onDemandPercentageLong}
+	loadDyn := map[string]func() (int64, bool){
+		onDemandPercentageLong: a.loadPercentageOnDemand,
+		onDemandNumberLong:     a.loadNumberOnDemand,
+	}
+
+	for _, tagKey := range tagList {
+		if tagValue := a.getTagValue(tagKey); tagValue != nil {
+			if _, ok := loadDyn[tagKey]; ok {
+				if newValue, done := loadDyn[tagKey](); done == true {
+					a.minOnDemand = newValue
+					return done
+				}
+			} else {
+				debug.Println("Couldn't find proper value for ", tagKey)
+			}
+		} else {
+			debug.Println("Couldn't find tag", tagKey)
+		}
+	}
+	return false
+}
+
+// Add configuration of other elements here: prices, whitelisting, etc
+func (a *autoScalingGroup) loadConfigFromTags() {
+
+	if a.loadConfOnDemand() == true {
+		logger.Println("Found and applied configuration for OnDemand value")
+	}
+}
+
+func (a *autoScalingGroup) loadDefaultConfigNumber() (int64, bool) {
+	onDemand := a.region.conf.MinOnDemandNumber
+	if onDemand < 0 || onDemand > int64(len(a.instances.catalog)) {
+		logger.Println("Ignoring default value out of range:", onDemand)
+	} else {
+		logger.Printf("Loaded default value %d from conf number.", onDemand)
+		return int64(onDemand), true
+	}
+	return DefaultMinOnDemandValue, false
+}
+
+func (a *autoScalingGroup) loadDefaultConfigPercentage() (int64, bool) {
+	percentage := a.region.conf.MinOnDemandPercentage
+	if percentage >= 0 && percentage <= 100 {
+		instanceNumber := float64(len(a.instances.catalog))
+		if percentage == 0 {
+			return int64(instanceNumber), true
+		}
+		onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
+		logger.Printf("Loaded default value %d from conf percentage.", onDemand)
+		return onDemand, true
+	} else {
+		logger.Printf("Ignoring default value out of range: %f", percentage)
+	}
+	return DefaultMinOnDemandValue, false
+}
+
+func (a *autoScalingGroup) loadDefaultConfig() bool {
+	var done bool = false
+	a.minOnDemand = DefaultMinOnDemandValue
+
+	if a.region.conf.MinOnDemandNumber != 0 {
+		a.minOnDemand, done = a.loadDefaultConfigNumber()
+	}
+	if done == false && a.region.conf.MinOnDemandPercentage != 0 {
+		a.minOnDemand, done = a.loadDefaultConfigPercentage()
+	} else {
+		logger.Println("No default value for on-demand instances specified, skipping.")
+	}
+	return done
+}
+
+func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
+	onDemandRunning, _ := a.alreadyRunningInstanceCount(false, "")
+	if onDemandRunning < a.minOnDemand {
+		logger.Println("Currently less OnDemand instances than required !")
+		if a.allInstanceRunning() == true && int64(len(a.instances.catalog)) >= *a.DesiredCapacity {
+			logger.Println("All instances are running and desired capacity is satisfied")
+			if randomSpot := a.getAnySpotInstance(); randomSpot != nil {
+				logger.Println("Terminating a random spot instances")
+				randomSpot.terminate()
+			}
+		}
+		return false
+	} else if onDemandRunning == a.minOnDemand {
+		logger.Println("OnDemand running equal to the required number, skipping run")
+		return false
+	}
+	logger.Println("Currently more than enough OnDemand instances running")
+	return true
+}
+
+func (a *autoScalingGroup) allInstanceRunning() bool {
+	_, totalRunning := a.alreadyRunningInstanceCount(false, "")
+	return totalRunning == int64(len(a.instances.catalog))
 }
 
 func (a *autoScalingGroup) process() {
-
 	logger.Println("Finding spot instance requests created for", a.name)
 	a.findSpotInstanceRequests()
 	a.scanInstances()
+	a.loadDefaultConfig()
+	a.loadConfigFromTags()
 
 	debug.Println("Found spot instance requests:", a.spotInstanceRequests)
+
+	if a.needReplaceOnDemandInstances() == false {
+		return
+	}
 
 	spotInstanceID, waitForNextRun := a.havingReadyToAttachSpotInstance()
 
@@ -44,7 +198,7 @@ func (a *autoScalingGroup) process() {
 		a.replaceOnDemandInstanceWithSpot(spotInstanceID)
 	} else {
 		// find any given on-demand instance and try to replace it with a spot one
-		onDemandInstance := a.getInstance(nil, true)
+		onDemandInstance := a.getInstance(nil, true, false)
 
 		if onDemandInstance == nil {
 			logger.Println(a.region.name, a.name,
@@ -193,7 +347,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 // group. It can also filter by AZ and Lifecycle.
 func (a *autoScalingGroup) getInstance(
 	availabilityZone *string,
-	onDemandOnly bool) *instance {
+	onDemand bool, any bool) *instance {
 
 	for _, i := range a.instances.catalog {
 
@@ -203,7 +357,9 @@ func (a *autoScalingGroup) getInstance(
 			// the InstanceLifecycle attribute is non-nil only for spot instances,
 			// where it contains the value "spot", if we're looking for on-demand
 			// instances only, then we have to skip the current instance.
-			if onDemandOnly && i.isSpot() {
+			if any == false &&
+				(onDemand == true && i.isSpot() == true ||
+					(onDemand == false && i.isSpot() == false)) {
 				continue
 			}
 			if (availabilityZone != nil) &&
@@ -217,15 +373,19 @@ func (a *autoScalingGroup) getInstance(
 }
 
 func (a *autoScalingGroup) findOndemandInstanceInAZ(az *string) *instance {
-	return a.getInstance(az, true)
+	return a.getInstance(az, true, false)
 }
 
 func (a *autoScalingGroup) getAnyOnDemandInstance() *instance {
-	return a.getInstance(nil, true)
+	return a.getInstance(nil, true, false)
+}
+
+func (a *autoScalingGroup) getAnySpotInstance() *instance {
+	return a.getInstance(nil, false, false)
 }
 
 func (a *autoScalingGroup) getAnyInstance() *instance {
-	return a.getInstance(nil, false)
+	return a.getInstance(nil, false, true)
 }
 
 // returns an instance ID as *string and a bool that tells us if  we need to
@@ -534,7 +694,7 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 }
 
 // Counts the number of already running spot instances.
-func (a *autoScalingGroup) alreadyRunningSpotInstanceCount(
+func (a *autoScalingGroup) alreadyRunningSpotInstanceTypeCount(
 	instanceType, availabilityZone string) int64 {
 
 	var count int64
@@ -551,4 +711,43 @@ func (a *autoScalingGroup) alreadyRunningSpotInstanceCount(
 	}
 	logger.Println(a.name, "Found", count, instanceType, "instances")
 	return count
+}
+
+// Counts the number of already running instances on-demand or spot, in any or a specific AZ.
+func (a *autoScalingGroup) alreadyRunningInstanceCount(
+	spot bool, availabilityZone string) (int64, int64) {
+	var total int64 = 0
+	var count int64 = 0
+	var instanceCategory string = "spot"
+
+	if spot == false {
+		instanceCategory = "on-demand"
+	}
+	logger.Println(a.name, "Counting already running on demand instances ")
+	for _, inst := range a.instances.catalog {
+		if *inst.Instance.State.Name == "running" {
+			// Count running Spot instances
+			if spot == true && inst.isSpot() == true &&
+				(*inst.Placement.AvailabilityZone == availabilityZone || availabilityZone == "") {
+				count++
+				// Count running OnDemand instances
+			} else if spot == false && inst.isSpot() == false &&
+				(*inst.Placement.AvailabilityZone == availabilityZone || availabilityZone == "") {
+				count++
+			}
+			// Count total running instances
+			total++
+		}
+	}
+	logger.Println(a.name, "Found", count, instanceCategory, "instances running on a total of", total)
+	return count, total
+}
+
+func (a *autoScalingGroup) getTagValue(keyMatch string) *string {
+	for _, asgTag := range a.Tags {
+		if *asgTag.Key == keyMatch {
+			return asgTag.Value
+		}
+	}
+	return nil
 }

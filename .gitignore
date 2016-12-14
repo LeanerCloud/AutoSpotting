@@ -9,3 +9,4 @@ lambda/instances.json
 .vscode/
 handler.zip
 *.coverprofile
+.idea/

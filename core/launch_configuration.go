@@ -28,8 +28,7 @@ func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() (int, error) 
 		}
 	}
 
-	logger.Printf("Launch configuration would attach %d ephemeral volumes",
-		"if available", count)
+	logger.Printf("Launch configuration would attach %d ephemeral volumes if available", count)
 
 	return count, nil
 }
