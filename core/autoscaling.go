@@ -31,43 +31,42 @@ type autoScalingGroup struct {
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand() (int64, bool) {
-	if tagValue := a.getTagValue(onDemandPercentageLong); tagValue != nil {
-		if percentage, err := strconv.ParseFloat(*tagValue, 64); err == nil {
-			if percentage == 0 {
-				logger.Printf("Loaded MinOnDemand value to %f from tag %s\n", percentage, onDemandPercentageLong)
-				return int64(percentage), true
-			} else if percentage > 0 && percentage <= 100 {
-				instanceNumber := float64(len(a.instances.catalog))
-				onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
-				logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, onDemandPercentageLong)
-				return onDemand, true
-			} else {
-				logger.Printf("Ignoring value out of range %f\n", percentage)
-			}
-		} else {
-			logger.Printf("Error with ParseFloat: %s\n", err.Error())
-		}
-	} else {
+	tagValue := a.getTagValue(onDemandPercentageLong)
+	if tagValue == nil {
 		logger.Printf("Couldn't find tag %s anymore\n", onDemandPercentageLong)
+		return DefaultMinOnDemandValue, false
+	}
+	percentage, err := strconv.ParseFloat(*tagValue, 64)
+	if err != nil {
+		logger.Printf("Error with ParseFloat: %s\n", err.Error())
+	} else if percentage == 0 {
+		logger.Printf("Loaded MinOnDemand value to %f from tag %s\n", percentage, onDemandPercentageLong)
+		return int64(percentage), true
+	} else if percentage > 0 && percentage <= 100 {
+		instanceNumber := float64(len(a.instances.catalog))
+		onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
+		logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, onDemandPercentageLong)
+		return onDemand, true
+	} else {
+		logger.Printf("Ignoring value out of range %f\n", percentage)
 	}
 	return DefaultMinOnDemandValue, false
 }
 
 func (a *autoScalingGroup) loadNumberOnDemand() (int64, bool) {
-
-	if tagValue := a.getTagValue(onDemandNumberLong); tagValue != nil {
-		if onDemand, err := strconv.Atoi(*tagValue); err == nil {
-			if onDemand < 0 || int64(onDemand) > *a.MaxSize {
-				logger.Printf("Ignoring value out of range %d\n", onDemand)
-			} else {
-				logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, onDemandNumberLong)
-				return int64(onDemand), true
-			}
-		} else {
-			logger.Printf("Error with Atoi: %s\n", err.Error())
-		}
-	} else {
+	tagValue := a.getTagValue(onDemandNumberLong)
+	if tagValue == nil {
 		debug.Printf("Couldn't find tag %s anymore\n", onDemandNumberLong)
+		return DefaultMinOnDemandValue, false
+	}
+	onDemand, err := strconv.Atoi(*tagValue)
+	if err != nil {
+		logger.Printf("Error with Atoi: %s\n", err.Error())
+	} else if onDemand >= 0 && int64(onDemand) <= *a.MaxSize {
+		logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, onDemandNumberLong)
+		return int64(onDemand), true
+	} else {
+		logger.Printf("Ignoring value out of range %d\n", onDemand)
 	}
 	return DefaultMinOnDemandValue, false
 }
@@ -106,29 +105,27 @@ func (a *autoScalingGroup) loadConfigFromTags() {
 
 func (a *autoScalingGroup) loadDefaultConfigNumber() (int64, bool) {
 	onDemand := a.region.conf.MinOnDemandNumber
-	if onDemand < 0 || onDemand > int64(len(a.instances.catalog)) {
-		logger.Println("Ignoring default value out of range:", onDemand)
-	} else {
+	if onDemand >= 0 && onDemand <= int64(len(a.instances.catalog)) {
 		logger.Printf("Loaded default value %d from conf number.", onDemand)
 		return int64(onDemand), true
 	}
+	logger.Println("Ignoring default value out of range:", onDemand)
 	return DefaultMinOnDemandValue, false
 }
 
 func (a *autoScalingGroup) loadDefaultConfigPercentage() (int64, bool) {
 	percentage := a.region.conf.MinOnDemandPercentage
-	if percentage >= 0 && percentage <= 100 {
-		instanceNumber := float64(len(a.instances.catalog))
-		if percentage == 0 {
-			return int64(instanceNumber), true
-		}
-		onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
-		logger.Printf("Loaded default value %d from conf percentage.", onDemand)
-		return onDemand, true
-	} else {
+	if percentage < 0 || percentage > 100 {
 		logger.Printf("Ignoring default value out of range: %f", percentage)
+		return DefaultMinOnDemandValue, false
 	}
-	return DefaultMinOnDemandValue, false
+	instanceNumber := len(a.instances.catalog)
+	if percentage == 0 {
+		return int64(instanceNumber), true
+	}
+	onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
+	logger.Printf("Loaded default value %d from conf percentage.", onDemand)
+	return onDemand, true
 }
 
 func (a *autoScalingGroup) loadDefaultConfig() bool {
@@ -148,22 +145,24 @@ func (a *autoScalingGroup) loadDefaultConfig() bool {
 
 func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 	onDemandRunning, _ := a.alreadyRunningInstanceCount(false, "")
-	if onDemandRunning < a.minOnDemand {
-		logger.Println("Currently less OnDemand instances than required !")
-		if a.allInstanceRunning() == true && int64(len(a.instances.catalog)) >= *a.DesiredCapacity {
-			logger.Println("All instances are running and desired capacity is satisfied")
-			if randomSpot := a.getAnySpotInstance(); randomSpot != nil {
-				logger.Println("Terminating a random spot instances")
-				randomSpot.terminate()
-			}
-		}
-		return false
-	} else if onDemandRunning == a.minOnDemand {
-		logger.Println("OnDemand running equal to the required number, skipping run")
+	if onDemandRunning > a.minOnDemand {
+		logger.Println("Currently more than enough OnDemand instances running")
+		return true
+	}
+	if onDemandRunning == a.minOnDemand {
+		logger.Println("Currently OnDemand running equals to the required number, skipping run")
 		return false
 	}
-	logger.Println("Currently more than enough OnDemand instances running")
-	return true
+	logger.Println("Currently less OnDemand instances than required !")
+	if a.allInstanceRunning() == true && int64(len(a.instances.catalog)) >= *a.DesiredCapacity {
+		logger.Println("All instances are running and desired capacity is satisfied")
+		if randomSpot := a.getAnySpotInstance(); randomSpot != nil {
+			logger.Println("Terminating a random spot instance",
+				*randomSpot.Instance.InstanceId)
+			randomSpot.terminate()
+		}
+	}
+	return false
 }
 
 func (a *autoScalingGroup) allInstanceRunning() bool {
