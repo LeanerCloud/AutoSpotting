@@ -123,7 +123,7 @@ func (a *autoScalingGroup) loadDefaultConfigPercentage() (int64, bool) {
 	if percentage == 0 {
 		return int64(instanceNumber), true
 	}
-	onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
+	onDemand := int64(math.Floor((float64(instanceNumber) * percentage / 100.0) + .5))
 	logger.Printf("Loaded default value %d from conf percentage.", onDemand)
 	return onDemand, true
 }
