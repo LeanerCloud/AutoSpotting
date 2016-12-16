@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	onDemandPercentageLong  = "on_demand_percentage"
-	onDemandNumberLong      = "on_demand_number"
-	DefaultMinOnDemandValue = -1
+	OnDemandPercentageLong  = "on_demand_percentage"
+	OnDemandNumberLong      = "on_demand_number"
+	DefaultMinOnDemandValue = 0
 )
 
 type autoScalingGroup struct {
@@ -30,22 +30,17 @@ type autoScalingGroup struct {
 	minOnDemand          int64
 }
 
-func (a *autoScalingGroup) loadPercentageOnDemand() (int64, bool) {
-	tagValue := a.getTagValue(onDemandPercentageLong)
-	if tagValue == nil {
-		logger.Printf("Couldn't find tag %s anymore\n", onDemandPercentageLong)
-		return DefaultMinOnDemandValue, false
-	}
+func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
 	percentage, err := strconv.ParseFloat(*tagValue, 64)
 	if err != nil {
 		logger.Printf("Error with ParseFloat: %s\n", err.Error())
 	} else if percentage == 0 {
-		logger.Printf("Loaded MinOnDemand value to %f from tag %s\n", percentage, onDemandPercentageLong)
+		logger.Printf("Loaded MinOnDemand value to %f from tag %s\n", percentage, OnDemandPercentageLong)
 		return int64(percentage), true
 	} else if percentage > 0 && percentage <= 100 {
 		instanceNumber := float64(len(a.instances.catalog))
 		onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
-		logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, onDemandPercentageLong)
+		logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandPercentageLong)
 		return onDemand, true
 	} else {
 		logger.Printf("Ignoring value out of range %f\n", percentage)
@@ -53,17 +48,12 @@ func (a *autoScalingGroup) loadPercentageOnDemand() (int64, bool) {
 	return DefaultMinOnDemandValue, false
 }
 
-func (a *autoScalingGroup) loadNumberOnDemand() (int64, bool) {
-	tagValue := a.getTagValue(onDemandNumberLong)
-	if tagValue == nil {
-		debug.Printf("Couldn't find tag %s anymore\n", onDemandNumberLong)
-		return DefaultMinOnDemandValue, false
-	}
+func (a *autoScalingGroup) loadNumberOnDemand(tagValue *string) (int64, bool) {
 	onDemand, err := strconv.Atoi(*tagValue)
 	if err != nil {
 		logger.Printf("Error with Atoi: %s\n", err.Error())
 	} else if onDemand >= 0 && int64(onDemand) <= *a.MaxSize {
-		logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, onDemandNumberLong)
+		logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandNumberLong)
 		return int64(onDemand), true
 	} else {
 		logger.Printf("Ignoring value out of range %d\n", onDemand)
@@ -72,21 +62,19 @@ func (a *autoScalingGroup) loadNumberOnDemand() (int64, bool) {
 }
 
 func (a *autoScalingGroup) loadConfOnDemand() bool {
-	tagList := [2]string{onDemandNumberLong, onDemandPercentageLong}
-	loadDyn := map[string]func() (int64, bool){
-		onDemandPercentageLong: a.loadPercentageOnDemand,
-		onDemandNumberLong:     a.loadNumberOnDemand,
+	tagList := [2]string{OnDemandNumberLong, OnDemandPercentageLong}
+	loadDyn := map[string]func(*string) (int64, bool){
+		OnDemandPercentageLong: a.loadPercentageOnDemand,
+		OnDemandNumberLong:     a.loadNumberOnDemand,
 	}
 
 	for _, tagKey := range tagList {
 		if tagValue := a.getTagValue(tagKey); tagValue != nil {
 			if _, ok := loadDyn[tagKey]; ok {
-				if newValue, done := loadDyn[tagKey](); done == true {
+				if newValue, done := loadDyn[tagKey](tagValue); done {
 					a.minOnDemand = newValue
 					return done
 				}
-			} else {
-				debug.Println("Couldn't find proper value for ", tagKey)
 			}
 		} else {
 			debug.Println("Couldn't find tag", tagKey)
@@ -96,11 +84,13 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 }
 
 // Add configuration of other elements here: prices, whitelisting, etc
-func (a *autoScalingGroup) loadConfigFromTags() {
+func (a *autoScalingGroup) loadConfigFromTags() bool {
 
 	if a.loadConfOnDemand() == true {
 		logger.Println("Found and applied configuration for OnDemand value")
+		return true
 	}
+	return false
 }
 
 func (a *autoScalingGroup) loadDefaultConfigNumber() (int64, bool) {
@@ -120,9 +110,6 @@ func (a *autoScalingGroup) loadDefaultConfigPercentage() (int64, bool) {
 		return DefaultMinOnDemandValue, false
 	}
 	instanceNumber := len(a.instances.catalog)
-	if percentage == 0 {
-		return int64(instanceNumber), true
-	}
 	onDemand := int64(math.Floor((float64(instanceNumber) * percentage / 100.0) + .5))
 	logger.Printf("Loaded default value %d from conf percentage.", onDemand)
 	return onDemand, true
