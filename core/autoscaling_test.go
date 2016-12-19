@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"testing"
 )
 
@@ -964,6 +965,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 	}
 }
 
+type mockEC2Client struct {
+	ec2iface.EC2API
+}
+
+func (m *mockEC2Client) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
+	return nil, nil
+}
+
 func TestNeedReplaceOnDemandInstances(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -1030,35 +1039,37 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 			desiredCapacity: aws.Int64(0),
 			expectedRun:     false,
 		},
-		//
-		// This test cannot be satisfied yet as terminate() method
-		// needs to be mocked before. Otherwise the call would fail.
-		//
-		//{name: "ASG has not the required on-demand running",
-		//	asgInstances: instances{
-		//		catalog: map[string]*instance{
-		//			"id-1": &instance{
-		//				Instance: &ec2.Instance{
-		//					InstanceId:        aws.String("id-1"),
-		//					State:             &ec2.InstanceState{Name: aws.String("running")},
-		//					Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-		//					InstanceLifecycle: aws.String("spot"),
-		//				},
-		//			},
-		//			"id-2": &instance{
-		//				Instance: &ec2.Instance{
-		//					InstanceId:        aws.String("id-2"),
-		//					State:             &ec2.InstanceState{Name: aws.String("running")},
-		//					Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-		//					InstanceLifecycle: aws.String("on-demand"),
-		//				},
-		//			},
-		//		},
-		//	},
-		//	minOnDemand:     2,
-		//	desiredCapacity: aws.Int64(0),
-		//	expectedRun:     false,
-		//},
+		{name: "ASG has not the required on-demand running",
+			asgInstances: instances{
+				catalog: map[string]*instance{
+					"id-1": &instance{
+						Instance: &ec2.Instance{
+							InstanceId:        aws.String("id-1"),
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+						region: &region{
+							name: "test-region",
+							services: connections{
+								ec2: &mockEC2Client{},
+							},
+						},
+					},
+					"id-2": &instance{
+						Instance: &ec2.Instance{
+							InstanceId:        aws.String("id-2"),
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+							InstanceLifecycle: aws.String("on-demand"),
+						},
+					},
+				},
+			},
+			minOnDemand:     2,
+			desiredCapacity: aws.Int64(0),
+			expectedRun:     false,
+		},
 		{name: "ASG has just enough on-demand instances running",
 			asgInstances: instances{
 				catalog: map[string]*instance{
@@ -1133,7 +1144,6 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := autoScalingGroup{Group: &autoscaling.Group{}}
-			a.region = &region{name: "test-region"}
 			a.name = "asg-test"
 			a.DesiredCapacity = tt.desiredCapacity
 			a.instances = tt.asgInstances
