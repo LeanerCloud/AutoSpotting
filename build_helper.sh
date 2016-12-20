@@ -4,7 +4,7 @@ SHA=$(git rev-parse HEAD | cut -c 1-7)
 BUILD=${TRAVIS_BUILD_NUMBER:-$SHA}
 
 # upstream data
-EC2_INSTANCES_INFO_COMMIT_SHA=ac8f6729ba24df485e42395941045d827be2a67d
+EC2_INSTANCES_INFO_COMMIT_SHA=e655e36660bc617713c4ef9a1409cc65a209cb27
 INSTANCES_URL="https://raw.githubusercontent.com/powdahound/ec2instances.info/${EC2_INSTANCES_INFO_COMMIT_SHA}/www/instances.json"
 BINDATA_FILE=generated_bindata.go
 
