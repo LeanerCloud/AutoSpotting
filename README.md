@@ -1,3 +1,30 @@
+Table of Contents
+=================
+
+  * [Table of Contents](#table-of-contents)
+  * [AutoSpotting](#autospotting)
+    * [Features and Benefits](#features-and-benefits)
+    * [Getting Started](#getting-started)
+      * [Requirements](#requirements)
+      * [Installation](#installation)
+      * [Enable autospotting](#enable-autospotting)
+        * [For an AutoScaling group](#for-an-autoscaling-group)
+        * [For Elastic Beanstalk](#for-elastic-beanstalk)
+      * [Configuration of autospotting](#configuration-of-autospotting)
+        * [Testing configuration](#testing-configuration)
+        * [Running configuration](#running-configuration)
+          * [Minimum on-demand configuration](#minimum-on-demand-configuration)
+      * [Updates and Downgrades](#updates-and-downgrades)
+        * [Compatibility notices](#compatibility-notices)
+      * [Uninstallation](#uninstallation)
+    * [Best Practices](#best-practices)
+    * [How it works](#how-it-works)
+    * [Internal components](#internal-components)
+      * [Event generator](#event-generator)
+      * [Lambda function](#lambda-function)
+    * [Compiling and Installing your own components](#compiling-and-installing-your-own-components)
+    * [GitHub Badges](#github-badges)
+
 # AutoSpotting #
 
 A simple tool designed to significantly lower your Amazon AWS costs by
@@ -151,7 +178,8 @@ Notes:
 * The AutoScaling groups it runs against can be in any region, since all regions
   are processed at runtime.
 
-### Configuration for an AutoScaling group ###
+### Enable autospotting ###
+#### For an AutoScaling group ####
 
 Since AutoSpotting uses an opt-in model, nothing will be touched in your AWS
 account if you just launch the stack. You will need to explicitly enable it for
@@ -177,7 +205,7 @@ create-or-update-tags \
 --tags ResourceId=my-auto-scaling-group,ResourceType=auto-scaling-group,Key=spot-enabled,Value=true,PropagateAtLaunch=false
 ```
 
-#### Note ####
+**Note**
 
 * the above instructions use the eu-west-1 AWS region as an example. Depending
   on where your groups are defined, you may need to use a different region,
@@ -203,11 +231,74 @@ One good way to automate is using CloudFormation, using this example snippet:
 }
 ```
 
-#### Elastic Beanstalk Installation ####
+#### For Elastic Beanstalk ####
 
 * In order to add tags to existing Elastic Beanstalk environment, you will
   need to rebuild the environment with the spot-enabled tag. Follow this
   [guide](http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments)
+
+### Configuration of autospotting ###
+#### Testing configuration ####
+
+The algorithm of autospotting can have custom CLI configurations. It can use
+pre-selected default regions, as well as default on-demand instances to keep in
+the auto-scaling groups. This is particularly useful when used during testing,
+in order to limit the scope of action and/or general configurations.
+
+To select those testing options from the command line:
+
+```
+$ ./autospotting -h
+Usage of ./autospotting:
+  -minOnDemandNumber int
+    	Minimum on-demand instances (number) running in ASG.
+  -minOnDemandPercentage float
+    	Minimum on-demand instances (percentage) running in ASG.
+  -regions string
+    	Regions (comma separated list) where it should run, by default runs on all regions
+```
+
+The value of `-minOnDemandNumber` has a higher priority than
+`-minOnDemandPercentage`, so if you specify both options in the command line,
+percentage will NOT be taken into account. It would be taken into account, ONLY
+if the `-minOnDemandNumber` is invalid (negativ, above the max number, etc).
+
+The value of `-regions` impact the scope within which autospotting run, while
+the options of `-minOnDemandNumber` and `-minOnDemandPercentage` would impact
+all auto-scaling groups within the regions.
+
+**Note**: These configurations are destined to be implemented at the Lambda
+level as well -to be used as general default values-, but this isn't quite the
+case yet.
+
+#### Running configuration ####
+##### Minimum on-demand configuration  #####
+
+On top of the CLI configuration for the on-demand instances, autospotting
+can read those values from the tags of the auto-scaling groups. There are two
+available tags: `autospotting_on_demand_number` and
+`autospotting_on_demand_percentage`.
+
+Just like for the CLI configuration the defined number has a higher priority
+than the percentage value. So the percentage will be ignored if
+`autospotting_on_denamd_number` is present and valid.
+
+The order of priority from strongest to lowest for minimum on-demand
+configuration is as following:
+
+ 1. Tag `autospotting_on_demand_number` in ASG
+ 2. Tag `autospotting_on_demand_percentage` in ASG
+ 3. Option `-minOnDemandNumber` in CLI
+ 4. Option `-minOnDemandPercentage` in CLI
+
+Note that the percentage does round up values. Therefore if we have for example
+3 instances running in an autoscaling-group, and you specify 10%, autospotting
+will understand that you want 0 instances. If you specify 16%, then it will
+still understand that you want 0 instances, because `0.16 * 3` is equal to
+`0.47999` so it is rounded down to 0; but if you specify 17%
+(or more than 16.66667%) then the algorithm understands that you want at least
+one instance (`0.17 * 3 = 0.51`). All in all it should work as you expect, but
+this was just to explain some more the functionning of the percentage's math.
 
 ### Updates and Downgrades ###
 
