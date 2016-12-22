@@ -178,7 +178,7 @@ func (i *instance) getCompatibleSpotInstanceTypes(lc *launchConfiguration) ([]st
 
 		// checking how many spot instances of this type we already have, so that
 		// we can see how risky it is to launch a new one.
-		spotInstanceCount := i.asg.alreadyRunningSpotInstanceCount(
+		spotInstanceCount := i.asg.alreadyRunningSpotInstanceTypeCount(
 			candidate.instanceType, availabilityZone)
 
 		// We skip it in case we have more than 20% instances of this type already

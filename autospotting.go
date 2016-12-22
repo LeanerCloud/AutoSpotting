@@ -3,12 +3,11 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 
-	autospotting "github.com/cristim/autospotting/core"
 	lambda "github.com/eawsy/aws-lambda-go/service/lambda/runtime"
+	autospotting "github.com/cristim/autospotting/core"
 )
 
 type cfgData struct {
@@ -22,9 +21,9 @@ func main() {
 }
 
 func run() {
-	fmt.Printf("Starting autospotting agent, build %s", conf.BuildNumber)
+	log.Print("Starting autospotting agent, build", conf.BuildNumber)
 	autospotting.Run(conf.Config)
-	fmt.Println("Execution completed, nothing left to do")
+	log.Println("Execution completed, nothing left to do")
 }
 
 // this is the equivalent of a main for when running from Lambda, but on Lambda the
@@ -34,7 +33,7 @@ func init() {
 	conf = &cfgData{
 		autospotting.Config{
 			LogFile: os.Stdout,
-			LogFlag: log.Lshortfile,
+			LogFlag: log.Ldate | log.Ltime | log.Lshortfile,
 		},
 	}
 
@@ -63,17 +62,14 @@ func (c *cfgData) initialize() {
 }
 
 func (c *cfgData) parseCommandLineFlags() {
-
-	flag.StringVar(&c.Regions, "regions", "", "Regions(comma separated list)"+
+	flag.StringVar(&c.Regions, "regions", "", "Regions (comma separated list)"+
 		"where it should run, by default runs on all regions")
-
-	// flag.StringVar(&cfg.Regions, "region", "", "Regions(comma separated list)"+
-	//    "where it should run, by default runs on all regions")
-
+	flag.Int64Var(&c.MinOnDemandNumber, "minOnDemandNumber", 0, "Minimum "+
+		"on-demand instances (number) running in ASG.")
+	flag.Float64Var(&c.MinOnDemandPercentage, "minOnDemandPercentage", 0.0,
+		"Minimum on-demand instances (percentage) running in ASG.")
 	flag.Parse()
-
 	log.Println("Parsed command line flags")
-
 }
 
 func readAssets() (string, []byte) {

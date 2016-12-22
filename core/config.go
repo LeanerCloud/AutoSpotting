@@ -26,5 +26,7 @@ type Config struct {
 
 	BuildNumber string
 
-	Regions string
+	Regions               string
+	MinOnDemandNumber     int64
+	MinOnDemandPercentage float64
 }
