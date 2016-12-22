@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	OnDemandPercentageLong  = "on_demand_percentage"
-	OnDemandNumberLong      = "on_demand_number"
+	OnDemandPercentageLong  = "autospotting_on_demand_percentage"
+	OnDemandNumberLong      = "autospotting_on_demand_number"
 	DefaultMinOnDemandValue = 0
 )
 
