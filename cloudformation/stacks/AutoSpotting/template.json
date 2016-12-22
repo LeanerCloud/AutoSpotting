@@ -26,6 +26,21 @@
       "Default": "7",
       "Description": "Number of days to keep the Lambda function logs in CloudWatch.",
       "Type": "Number"
+    },
+    "MinOnDemandNumber": {
+      "Default": "0",
+      "Description": "Minimum on-demand instances (number) running in ASG.",
+      "Type": "Number"
+    },
+    "MinOnDemandPercentage": {
+      "Default": "0",
+      "Description": "Minimum on-demand instances (percentage) running in ASG.",
+      "Type": "Number"
+    },
+    "Regions": {
+      "Default": "",
+      "Description": "Regions (comma separated list)where it should run, by default runs on all regions",
+      "Type": "String"
     }
   },
   "Resources": {
@@ -37,9 +52,7 @@
               "Action": "sts:AssumeRole",
               "Effect": "Allow",
               "Principal": {
-                "Service": [
-                  "lambda.amazonaws.com"
-                ]
+                "Service": [ "lambda.amazonaws.com" ]
               }
             }
           ]
@@ -51,24 +64,13 @@
     "LambdaFunction": {
       "Properties": {
         "Code": {
-          "S3Bucket": {
-            "Ref": "LambdaS3Bucket"
-          },
-          "S3Key": {
-            "Ref": "LambdaZipPath"
-          }
+          "S3Bucket": { "Ref": "LambdaS3Bucket" },
+          "S3Key": { "Ref": "LambdaZipPath" }
         },
         "Description": "Implements SPOT instance automation",
-        "Handler": {
-          "Ref": "LambdaHandlerFunction"
-        },
+        "Handler": { "Ref": "LambdaHandlerFunction" },
         "MemorySize": "128",
-        "Role": {
-          "Fn::GetAtt": [
-            "LambdaExecutionRole",
-            "Arn"
-          ]
-        },
+        "Role": { "Fn::GetAtt": [ "LambdaExecutionRole", "Arn" ] },
         "Runtime": "python2.7",
         "Timeout": "300"
       },
@@ -84,7 +86,7 @@
                 "autoscaling:DescribeLaunchConfigurations",
                 "autoscaling:AttachInstances",
                 "autoscaling:DetachInstances",
-		"autoscaling:DescribeTags",
+                "autoscaling:DescribeTags",
                 "ec2:CreateTags",
                 "ec2:DescribeInstances",
                 "ec2:DescribeRegions",
@@ -103,11 +105,7 @@
           ]
         },
         "PolicyName": "LambdaPolicy",
-        "Roles": [
-          {
-            "Ref": "LambdaExecutionRole"
-          }
-        ]
+        "Roles": [ { "Ref": "LambdaExecutionRole" } ]
       },
       "Type": "AWS::IAM::Policy"
     },
@@ -118,49 +116,39 @@
             "",
             [
               "/aws/lambda/",
-              {
-                "Ref": "LambdaFunction"
-              }
+              { "Ref": "LambdaFunction" }
             ]
           ]
         },
-        "RetentionInDays": {
-          "Ref": "LogRetentionPeriod"
-        }
+        "RetentionInDays": { "Ref": "LogRetentionPeriod" }
       },
       "Type": "AWS::Logs::LogGroup"
     },
     "PermissionForEventsToInvokeLambda": {
       "Properties": {
         "Action": "lambda:InvokeFunction",
-        "FunctionName": {
-          "Ref": "LambdaFunction"
-        },
+        "FunctionName": { "Ref": "LambdaFunction" },
         "Principal": "events.amazonaws.com",
-        "SourceArn": {
-          "Fn::GetAtt": [
-            "ScheduledRule",
-            "Arn"
-          ]
-        }
+        "SourceArn": { "Fn::GetAtt": [ "ScheduledRule", "Arn" ] }
       },
       "Type": "AWS::Lambda::Permission"
     },
     "ScheduledRule": {
       "Properties": {
         "Description": "ScheduledRule for launching the AutoSpotting Lambda function",
-        "ScheduleExpression": {
-          "Ref": "ExecutionFrequency"
+        "EventPattern": {
+            "detail": {
+            "MinOnDemandNumber": [{ "Ref": "MinOnDemandNumber" }],
+            "MinOnDemandPercentage": [{ "Ref": "MinOnDemandPercentage" }],
+            "Regions": [{ "Ref": "Regions" }]
+          },
+          "detail-type": [ "autospotting" ]
         },
+        "ScheduleExpression": { "Ref": "ExecutionFrequency" },
         "State": "ENABLED",
         "Targets": [
           {
-            "Arn": {
-              "Fn::GetAtt": [
-                "LambdaFunction",
-                "Arn"
-              ]
-            },
+            "Arn": { "Fn::GetAtt": [ "LambdaFunction", "Arn" ] },
             "Id": "AutoSpottingEventGenerator"
           }
         ]
