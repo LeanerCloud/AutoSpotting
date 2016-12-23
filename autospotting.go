@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	lambda "github.com/eawsy/aws-lambda-go/service/lambda/runtime"
 	autospotting "github.com/cristim/autospotting/core"
+	"github.com/eawsy/aws-lambda-go/service/lambda/runtime"
 )
 
 type cfgData struct {
@@ -39,10 +39,11 @@ func init() {
 
 	conf.initialize()
 
-	lambda.HandleFunc(handle)
+	runtime.HandleFunc(handle)
 }
 
-func handle(evt json.RawMessage, ctx *lambda.Context) (interface{}, error) {
+func handle(evt json.RawMessage, ctx *runtime.Context) (interface{}, error) {
+	conf.applyCloudWatchEventConfigs(evt)
 	run()
 	return nil, nil
 }
@@ -54,6 +55,8 @@ func (c *cfgData) initialize() {
 
 	c.parseCommandLineFlags()
 	c.BuildNumber = string(build)
+
+	log.Println("Current Configuration", c)
 
 	err := c.RawInstanceData.LoadFromAssetContent(instanceInfo)
 	if err != nil {
@@ -86,4 +89,19 @@ func readAssets() (string, []byte) {
 	}
 
 	return string(build), instanceInfo
+}
+
+func (c *cfgData) applyCloudWatchEventConfigs(evt json.RawMessage) {
+
+	var eventOptions autospotting.EventOptions
+
+	err := json.Unmarshal(evt, &eventOptions)
+
+	if err != nil {
+		log.Println("Error parsing CloudWatch event data:", err)
+		return
+	}
+
+	log.Printf("Received CloudWatch event %v\n", eventOptions)
+	c.EventOptions = eventOptions
 }

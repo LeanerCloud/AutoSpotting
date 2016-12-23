@@ -4,18 +4,12 @@ import (
 	"io"
 )
 
-// Config contains a number of feature flags and static data storing the EC2
-// instance information.
+// Config contains a number of flags and static data storing the EC2 instance
+// information.
 type Config struct {
-	/*
-		// TODO: make use of these in the code
-		// Test data for mocking calls
-		LoadTestData bool
-		SaveTestData bool
-		TestDataDir  string
-		// Take no actions
-		NoOp bool
-	*/
+	// Configuration options that can be overridden at runtime based on
+	// CloudWatch Event information.
+	EventOptions
 
 	// Static data fetched from ec2instances.info
 	RawInstanceData RawInstanceData
@@ -25,8 +19,13 @@ type Config struct {
 	LogFlag int
 
 	BuildNumber string
+}
 
-	Regions               string
-	MinOnDemandNumber     int64
-	MinOnDemandPercentage float64
+// EventOptions contains a number of settings that can be dynamically configured
+// at runtime, based in data coming from each CloudWatch event. It is also used
+// for parsing the CloudWatch Event JSON payload.
+type EventOptions struct {
+	MinOnDemandNumber     int64   `json:"MinOnDemandNumber"`
+	MinOnDemandPercentage float64 `json:"MinOnDemandPercentage"`
+	Regions               string  `json:"Regions"`
 }

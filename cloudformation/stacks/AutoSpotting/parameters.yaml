@@ -1,3 +1,8 @@
 ---
 LambdaHandlerFunction: handler.handle
 LambdaS3Bucket: cloudprowess
+LambdaMemorySize: '256'
+ExecutionFrequency: "rate(1 minute)"
+MinOnDemandNumber: '1'
+MinOnDemandPercentage: '50'
+Regions: us-east-1,eu-west-1,ca-central-1
