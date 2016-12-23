@@ -2,9 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"log"
 	"os"
+
+	"github.com/namsral/flag"
 
 	autospotting "github.com/cristim/autospotting/core"
 	"github.com/eawsy/aws-lambda-go/service/lambda/runtime"
@@ -43,7 +44,6 @@ func init() {
 }
 
 func handle(evt json.RawMessage, ctx *runtime.Context) (interface{}, error) {
-	conf.applyCloudWatchEventConfigs(evt)
 	run()
 	return nil, nil
 }
@@ -56,7 +56,7 @@ func (c *cfgData) initialize() {
 	c.parseCommandLineFlags()
 	c.BuildNumber = string(build)
 
-	log.Println("Current Configuration", c)
+	log.Printf("Current Configuration: %+v\n", c)
 
 	err := c.RawInstanceData.LoadFromAssetContent(instanceInfo)
 	if err != nil {
@@ -65,14 +65,27 @@ func (c *cfgData) initialize() {
 }
 
 func (c *cfgData) parseCommandLineFlags() {
-	flag.StringVar(&c.Regions, "regions", "", "Regions (comma separated list)"+
-		"where it should run, by default runs on all regions")
-	flag.Int64Var(&c.MinOnDemandNumber, "minOnDemandNumber", 0, "Minimum "+
-		"on-demand instances (number) running in ASG.")
-	flag.Float64Var(&c.MinOnDemandPercentage, "minOnDemandPercentage", 0.0,
-		"Minimum on-demand instances (percentage) running in ASG.")
+
+	flag.StringVar(&c.Regions, "regions", "",
+		"Regions where it should be activated (comma or whitespace separated list, "+
+			"also supports globs), by default it runs on all regions.\n\t"+
+			"Example: ./autospotting -regions 'eu-*,us-east-1'")
+
+	flag.Int64Var(&c.MinOnDemandNumber, "min_on_demand_number", 0,
+		"On-demand capacity (as absolute number) ensured to be running in each of your groups.\n\t"+
+			"Can be overridden on a per-group basis using the tag "+
+			autospotting.OnDemandNumberLong)
+
+	flag.Float64Var(&c.MinOnDemandPercentage, "min_on_demand_percentage", 0.0,
+		"On-demand capacity (percentage of the total number of instances in the group) "+
+			"ensured to be running in each of your groups.\n\t"+
+			"Can be overridden on a per-group basis using the tag "+
+			autospotting.OnDemandPercentageLong+
+			"\n\tIt is ignored if min_on_demand_number is also set.")
+
 	flag.Parse()
-	log.Println("Parsed command line flags")
+	log.Printf("Parsed command line flags: regions='%s' min_on_demand_number=%d min_on_demand_percentage=%.1f",
+		c.Regions, c.MinOnDemandNumber, c.MinOnDemandPercentage)
 }
 
 func readAssets() (string, []byte) {
@@ -89,19 +102,4 @@ func readAssets() (string, []byte) {
 	}
 
 	return string(build), instanceInfo
-}
-
-func (c *cfgData) applyCloudWatchEventConfigs(evt json.RawMessage) {
-
-	var eventOptions autospotting.EventOptions
-
-	err := json.Unmarshal(evt, &eventOptions)
-
-	if err != nil {
-		log.Println("Error parsing CloudWatch event data:", err)
-		return
-	}
-
-	log.Printf("Received CloudWatch event %v\n", eventOptions)
-	c.EventOptions = eventOptions
 }

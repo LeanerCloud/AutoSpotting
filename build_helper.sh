@@ -41,6 +41,7 @@ function check_all_dependencies {
 
 function prepare_bindata {
   check_all_dependencies
+  go get ./...
   type go-bindata || go get -u github.com/jteeuwen/go-bindata/...
   mkdir -p data
   wget -nv ${INSTANCES_URL} -O data/instances.json
