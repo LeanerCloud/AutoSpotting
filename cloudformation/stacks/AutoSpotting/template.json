@@ -12,6 +12,11 @@
       "Description": "Handler function for Lambda",
       "Type": "String"
     },
+    "LambdaMemorySize": {
+      "Default": "256",
+      "Description": "Memory allocated to the Lambda function",
+      "Type": "Number"
+    },
     "LambdaS3Bucket": {
       "Default": "cloudprowess",
       "Description": "S3 bucket that contains the function",
@@ -69,7 +74,7 @@
         },
         "Description": "Implements SPOT instance automation",
         "Handler": { "Ref": "LambdaHandlerFunction" },
-        "MemorySize": "128",
+        "MemorySize": { "Ref": "LambdaMemorySize" },
         "Role": { "Fn::GetAtt": [ "LambdaExecutionRole", "Arn" ] },
         "Runtime": "python2.7",
         "Timeout": "300"
@@ -87,6 +92,7 @@
                 "autoscaling:AttachInstances",
                 "autoscaling:DetachInstances",
                 "autoscaling:DescribeTags",
+                "autoscaling:UpdateAutoScalingGroup",
                 "ec2:CreateTags",
                 "ec2:DescribeInstances",
                 "ec2:DescribeRegions",
@@ -136,20 +142,26 @@
     "ScheduledRule": {
       "Properties": {
         "Description": "ScheduledRule for launching the AutoSpotting Lambda function",
-        "EventPattern": {
-            "detail": {
-            "MinOnDemandNumber": [{ "Ref": "MinOnDemandNumber" }],
-            "MinOnDemandPercentage": [{ "Ref": "MinOnDemandPercentage" }],
-            "Regions": [{ "Ref": "Regions" }]
-          },
-          "detail-type": [ "autospotting" ]
-        },
         "ScheduleExpression": { "Ref": "ExecutionFrequency" },
         "State": "ENABLED",
         "Targets": [
           {
             "Arn": { "Fn::GetAtt": [ "LambdaFunction", "Arn" ] },
-            "Id": "AutoSpottingEventGenerator"
+            "Id": "AutoSpottingEventGenerator",
+            "Input": {
+              "Fn::Join": [
+                "",
+                [
+                  "{ \"MinOnDemandNumber\": ",
+                  { "Ref": "MinOnDemandNumber" },
+                  ",\"MinOnDemandPercentage\": ",
+                  { "Ref": "MinOnDemandPercentage" },
+                  ",\"Regions\": \"",
+                  { "Ref": "Regions" },
+                  "\"}"
+                ]
+              ]
+            }
           }
         ]
       },
