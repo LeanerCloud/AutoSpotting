@@ -4,7 +4,7 @@
   "Parameters": {
     "ExecutionFrequency": {
       "Default": "rate(5 minutes)",
-      "Description": "Frequency of executing the Lambda function, trade-off between speed and stability. Can accept any value documented at http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html",
+      "Description": "Frequency of executing the Lambda function, influences the speed of replacing your instances. Can accept any value documented at http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html",
       "Type": "String"
     },
     "LambdaHandlerFunction": {
@@ -34,17 +34,17 @@
     },
     "MinOnDemandNumber": {
       "Default": "0",
-      "Description": "Minimum on-demand instances (number) running in ASG.",
+      "Description": "Minimum on-demand instances (absolute number) to be kept in each of your groups. It is a global default value that can be overridden on a per-group basis using the autospotting_on_demand_number tag. It takes precedence over MinOnDemandPercentage, so it doesn't make sense to pass both of them.",
       "Type": "Number"
     },
     "MinOnDemandPercentage": {
-      "Default": "0",
-      "Description": "Minimum on-demand instances (percentage) running in ASG.",
+      "Default": "0.0",
+      "Description": "Minimum on-demand instances (percentage of the instances currently running in each group) that will be kept when replacing with spot instances. It is also a global default value that can be overridden on a per-group basis using the autospotting_on_demand_percentage tag. MinOnDemandNumber takes precedence if both these parameters are passed",
       "Type": "Number"
     },
     "Regions": {
       "Default": "",
-      "Description": "Regions (comma separated list)where it should run, by default runs on all regions",
+      "Description": "Space separated list of regions where it should run (supports globs), in case you may want to limit it to a smaller set of regions. If unset it will run against all available regions. Example: 'us-east-1 eu-*'",
       "Type": "String"
     }
   },
@@ -73,6 +73,13 @@
           "S3Key": { "Ref": "LambdaZipPath" }
         },
         "Description": "Implements SPOT instance automation",
+        "Environment": {
+          "Variables": {
+            "MIN_ON_DEMAND_NUMBER": { "Ref": "MinOnDemandNumber" },
+            "MIN_ON_DEMAND_PERCENTAGE": { "Ref": "MinOnDemandPercentage" },
+            "REGIONS": { "Ref": "Regions" }
+          }
+        },
         "Handler": { "Ref": "LambdaHandlerFunction" },
         "MemorySize": { "Ref": "LambdaMemorySize" },
         "Role": { "Fn::GetAtt": [ "LambdaExecutionRole", "Arn" ] },
@@ -147,21 +154,7 @@
         "Targets": [
           {
             "Arn": { "Fn::GetAtt": [ "LambdaFunction", "Arn" ] },
-            "Id": "AutoSpottingEventGenerator",
-            "Input": {
-              "Fn::Join": [
-                "",
-                [
-                  "{ \"MinOnDemandNumber\": ",
-                  { "Ref": "MinOnDemandNumber" },
-                  ",\"MinOnDemandPercentage\": ",
-                  { "Ref": "MinOnDemandPercentage" },
-                  ",\"Regions\": \"",
-                  { "Ref": "Regions" },
-                  "\"}"
-                ]
-              ]
-            }
+            "Id": "AutoSpottingEventGenerator"
           }
         ]
       },

@@ -7,6 +7,7 @@ Table of Contents
     * [Getting Started](#getting-started)
       * [Requirements](#requirements)
       * [Installation](#installation)
+        * [Installation options](#installation-options)
       * [Enable autospotting](#enable-autospotting)
         * [For an AutoScaling group](#for-an-autoscaling-group)
         * [For Elastic Beanstalk](#for-elastic-beanstalk)
@@ -129,11 +130,14 @@ then be terminated.
   * only needs the minimum set of IAM permissions needed for it to do its job.
   * does not delegate any IAM permissions to resources outside of your AWS
     account.
+  * execution scope can be limited to a certain set of regions.
 
 * **Optimizes for high availability over cost whenever possible**
   * it tries to diversify the instance types.
   * when having enough desired capacity, it is often spreading over four
     different spot pricing zones (instance type/availability zone combinations).
+  * supports keeping a configurable number of on-demand instances in the group,
+    either an absolute number or a percentage of the instances from the group.
 
 * **Significant cost savings compared to on-demand or reserved instances**
   * up to 90% cost reduction compared to on-demand instances.
@@ -178,12 +182,38 @@ Notes:
 * The AutoScaling groups it runs against can be in any region, since all regions
   are processed at runtime.
 
+#### Installation options ####
+
+The CloudFormation stack takes a number of parameters, which allows you to
+configure it for your own environment. The defaults should be safe enough for
+most use cases, but for testing or more advanced use cases you may want to tweak
+some of them.
+
+Some parameters control the Lambda runtime, while others allow tweaking the
+AutoSpotting algorithm, for example to keep a certain amount of on-demand
+capacity in the group, or run only against some AWS regions.
+
+The algorithm parameters are just global defaults that can often be overridden
+at the AutoScaling group level based on additional tags set on the group.
+
+The full list of parameters, including relatively detailed explanations about
+them and their overriding group tags can be seen in the CloudFormation AWS
+console when installing or updating the stack.
+
+In case you may want to change some of them later, you can do it at any time by
+updating the stack.
+
+Note: even though the stack template is not changing so often and it may often
+support multiple software versions, due to possible compatibility issues, it is
+recommended to also update the stack template when updating the software
+version.
+
 ### Enable autospotting ###
 #### For an AutoScaling group ####
 
-Since AutoSpotting uses an opt-in model, nothing will be touched in your AWS
-account if you just launch the stack. You will need to explicitly enable it for
-each AutoScaling group where you want it to be used.
+Since AutoSpotting uses an opt-in model, no resources will be changed in your
+AWS account if you just launch the stack. You will need to explicitly enable it
+for each AutoScaling group where you want it to be used.
 
 Enabling it for an AutoScaling group is a matter of setting a tag on the group:
 
@@ -250,26 +280,29 @@ To select those testing options from the command line:
 ```
 $ ./autospotting -h
 Usage of ./autospotting:
-  -minOnDemandNumber int
-    	Minimum on-demand instances (number) running in ASG.
-  -minOnDemandPercentage float
-    	Minimum on-demand instances (percentage) running in ASG.
-  -regions string
-    	Regions (comma separated list) where it should run, by default runs on all regions
+  -min_on_demand_number=0: On-demand capacity (as absolute number) ensured to be running in each of your groups.
+        Can be overridden on a per-group basis using the tag autospotting_on_demand_number
+  -min_on_demand_percentage=0: On-demand capacity (percentage of the total number of instances in the group) ensured to be running in each of your groups.
+        Can be overridden on a per-group basis using the tag autospotting_on_demand_percentage
+        It is ignored if min_on_demand_number is also set.
+  -regions="": Regions where it should be activated (comma or whitespace separated list, also supports globs), by default it runs on all regions.
+        Example: ./autospotting -regions 'eu-*,us-east-1'
 ```
 
-The value of `-minOnDemandNumber` has a higher priority than
-`-minOnDemandPercentage`, so if you specify both options in the command line,
+The value of `-min_on_demand_number` has a higher priority than
+`-min_on_demand_percentage`, so if you specify both options in the command line,
 percentage will NOT be taken into account. It would be taken into account, ONLY
-if the `-minOnDemandNumber` is invalid (negativ, above the max number, etc).
+if the `-min_on_demand_number` is invalid (negativ, above the max number, etc).
 
 The value of `-regions` impact the scope within which autospotting run, while
-the options of `-minOnDemandNumber` and `-minOnDemandPercentage` would impact
+the options of `-min_on_demand_number` and `-min_on_demand_percentage` would impact
 all auto-scaling groups within the regions.
 
-**Note**: These configurations are destined to be implemented at the Lambda
-level as well -to be used as general default values-, but this isn't quite the
-case yet.
+All the flags are also exposed as environment variables, for example using the
+-region CLI flag is equivalent to using the REGION environment variable.
+
+**Note**: These configurations are also implemented when running from Lambda,
+passed as environment variables set by CloudFormation for the Lambda function.
 
 #### Running configuration ####
 ##### Minimum on-demand configuration  #####
@@ -281,15 +314,15 @@ available tags: `autospotting_on_demand_number` and
 
 Just like for the CLI configuration the defined number has a higher priority
 than the percentage value. So the percentage will be ignored if
-`autospotting_on_denamd_number` is present and valid.
+`autospotting_on_demand_number` is present and valid.
 
 The order of priority from strongest to lowest for minimum on-demand
 configuration is as following:
 
  1. Tag `autospotting_on_demand_number` in ASG
  2. Tag `autospotting_on_demand_percentage` in ASG
- 3. Option `-minOnDemandNumber` in CLI
- 4. Option `-minOnDemandPercentage` in CLI
+ 3. Option `-min_on_demand_number` in CLI
+ 4. Option `-min_on_demand_percentage` in CLI
 
 Note that the percentage does round up values. Therefore if we have for example
 3 instances running in an autoscaling-group, and you specify 10%, autospotting
@@ -462,6 +495,8 @@ developments.
   account.
 * The permissions are the minimal set required for it to work without the need
   of passing any explicit AWS credentials or access keys.
+* Some algorithm parameters can be configured using Lambda environment
+  variables, based on some of the CloudFormation stack parameters.
 * Contains a handler written in Golang, built using the
   [eawsy/aws-lambda-go](https://github.com/eawsy/aws-lambda-go) library, which
   implements a novel aproach that allows Golang code compiled natively to be
