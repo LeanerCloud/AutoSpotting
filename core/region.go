@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"errors"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -41,13 +42,17 @@ func (r *region) enabled() bool {
 	var enabledRegions []string
 
 	if r.conf.Regions != "" {
-		enabledRegions = strings.Split(r.conf.Regions, ",")
+		// Allow both space- and comma-separated values for the region list.
+		csv := strings.Replace(r.conf.Regions, " ", ",", -1)
+		enabledRegions = strings.Split(csv, ",")
 	} else {
 		return true
 	}
 
 	for _, region := range enabledRegions {
-		if region == r.name {
+
+		// glob matching for region names
+		if match, _ := filepath.Match(region, r.name); match {
 			return true
 		}
 	}
