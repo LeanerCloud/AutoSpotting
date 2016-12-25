@@ -68,13 +68,12 @@ type regionPrices struct {
 // information about all the EC2 instance types from all AWS regions.
 type RawInstanceData []jsonInstance
 
-// LoadFromAssetData loads the RawInstanceData object based on a
+// LoadFromAssetContent loads the RawInstanceData object based on a
 // JSON-encoded contents, injected at build time by go-bindata.
 func (ii *RawInstanceData) LoadFromAssetContent(contents []byte) error {
 
 	err := json.Unmarshal(contents, &ii)
 	if err != nil {
-		logger.Println(err.Error())
 		return err
 	}
 
