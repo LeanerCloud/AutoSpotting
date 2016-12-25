@@ -58,9 +58,6 @@ function prepare_upload_data {
   rm -rf ${LOCAL_PATH}
   mkdir -p ${LOCAL_PATH}
   mv handler.zip ${LOCAL_PATH}/lambda.zip
-}
-
-function prepare_cloudformation_code {
   cp -f cloudformation/stacks/AutoSpotting/template.json ${LOCAL_PATH}/template.json
   cp -f cloudformation/stacks/AutoSpotting/template.json ${LOCAL_PATH}/template_build_${BUILD}.json
   cp -f ${LOCAL_PATH}/lambda.zip ${LOCAL_PATH}/lambda_build_${BUILD}.zip
