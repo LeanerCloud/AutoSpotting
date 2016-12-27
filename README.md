@@ -29,36 +29,55 @@ Table of Contents
 # AutoSpotting #
 
 A simple tool designed to significantly lower your Amazon AWS costs by
-automating the use of the [spot market](https://aws.amazon.com/ec2/spot). It can
-often achieve savings up to 90% off the usual on-demand prices, like shown in
-the screenshot below.
+automating the use of the [spot market](https://aws.amazon.com/ec2/spot).
 
-When enabled on your existing on-demand AutoScaling group, it starts launching
+When enabled on an existing on-demand AutoScaling group, it starts launching
 EC2 spot instances that are cheaper, at least as powerful and configured as
 closely as possible as your existing on-demand instances.
 
-It then gradually swaps them with your existing on-demand instances, which can
-then be terminated.
+It then gradually swaps them one by one with your existing on-demand instances,
+just like shown below:
+
+![Workflow](https://cdn.cloudprowess.com/images/autospotting.gif)
+
+In this case the initial instance type was quite expensive, so the algorithm
+chose a different type that had more computing capacity. At the end that group
+had 3x more CPU cores and 66% more RAM than in the initial state of the group,
+and all this with 33% cost savings and without running entirely on spot
+instances, since some users find that a bit risky.
+
+Nevertheless, AutoSpotting tends to be quite reliable even on all-spot
+configurations (has automated failover to on-demand nodes and spreads over
+multiple price zones), where it can often achieve savings up to 90% off
+the usual on-demand prices, much like in the 85% price reduction shown below.
+This was seen on a group of two m3.medium instances running in eu-west-1:
+
+![Savings Graph](https://cdn.cloudprowess.com/images/autospotting-savings.png)
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
 
 ## Features and Benefits ##
 
+* **Significant cost savings compared to on-demand or reserved instances**
+  * up to 90% cost reduction compared to on-demand instances.
+  * up to 75% cost reduction compared to reserved instances, without any
+    down-payment or long term commitment.
+
 * **Easy to install and set up on existing environments based on AutoScaling**
-  * you can literally get started within 5 minutes, unlike SpotFleets or other
+  * you can literally get started within minutes, unlike SpotFleets or other
     tools which may require a considerable migration effort.
   * only needs to be installed once, in a single region, and can handle all
-    other regions without any additional configuration, see the installation
-    steps below for more details.
+    other regions without any additional configuration (but can also be
+    restricted to just a few regions if desired).
   * easy to enable and disable for reverting to the initial configuration based
     on resource tagging, if you decide you don't want to use it anymore.
   * easy to automate migration of multiple existing stacks, simply using scripts
-    that set the expected tag on multiple AutoScaling groups.
+    that set the expected tags on multiple AutoScaling groups.
 
 * **Designed for use against AutoScaling groups with relatively long-running
     instances**
-  * for use cases where it is acceptable to run costlier on-demand instances
-    from time to time.
+  * for use cases where it is acceptable to run on-demand instances from time to
+    time.
   * for short-term batch processing use cases you should have a look into the
     [spot
     blocks](https://aws.amazon.com/blogs/aws/new-ec2-spot-blocks-for-defined-duration-workloads/)
@@ -74,16 +93,17 @@ then be terminated.
 
 * **Supports any higher level AWS services internally backed
     by AutoScaling**
-  * services such as ECS or Elastic Beanstalk work out of the box.
-  * with minimal configuration changes, unlike spot fleets or other tools.
+  * services such as ECS or Elastic Beanstalk work out of the box with minimal
+    configuration changes or tweaks, unlike spot fleets or other tools.
+
 
 * **Compatible out of the box with most AWS services that integrate
     with AutoScaling groups**
   * services such as ELB, ALB, CodeDeploy, CloudWatch, etc. should work out of
     the box or at most require minimal configuration changes.
   * as long as they support instances attached later to existing groups.
-  * this may be problematic for some (some Code Deploy use scenarios come to
-    mind) but in general it works.
+  * any other 3rd party services that run on top of AutoScaling groups should
+    work as well.
 
 * **Can automatically replace any instance types with any instance types
     available on the spot market**
@@ -133,20 +153,12 @@ then be terminated.
   * execution scope can be limited to a certain set of regions.
 
 * **Optimizes for high availability over cost whenever possible**
-  * it tries to diversify the instance types.
-  * when having enough desired capacity, it is often spreading over four
-    different spot pricing zones (instance type/availability zone combinations).
+  * it tries to diversify the instance types to reduce the chance of
+    simultaneous failures across the entire group. When having enough desired
+    capacity, it is often spreading over four different spot pricing zones
+    (instance type/availability zone combinations).
   * supports keeping a configurable number of on-demand instances in the group,
     either an absolute number or a percentage of the instances from the group.
-
-* **Significant cost savings compared to on-demand or reserved instances**
-  * up to 90% cost reduction compared to on-demand instances.
-  * up to 75% cost reduction compared to reserved instances, without any
-    down-payment or long term commitment.
-  * in the screenshot below you can see the results after enabling it on an
-    on-demand AutoScaling group.
-
-![Savings Graph](https://cdn.cloudprowess.com/images/autospotting-savings.png)
 
 ## Getting Started ##
 
@@ -387,10 +399,10 @@ especially important when using more volatile spot instances.
 * **Set a non-zero grace period on the AutoScaling group**
   * in order to attach spot instances only after they are fully configured.
   * otherwise they may be attached prematurely before being ready.
-  * they may be also be terminated after failing load balancer health checks.
+  * they may also be terminated after failing load balancer health checks.
 
 * **Check your instance storage and block device mapping configuration**
-  * this may be an issue if you use instances which have ephemeral instance
+  * this may become an issue if you use instances which have ephemeral instance
     storage, often the case on previous instance types.
   * you should only specify ephemeral instance store in the on-demand launch
     configuration if you do make use of it by mounting it on the filesystem.
