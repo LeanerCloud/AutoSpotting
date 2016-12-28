@@ -1,6 +1,7 @@
 package autospotting
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -8,12 +9,21 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"math"
 )
 
 const (
-	OnDemandPercentageLong  = "autospotting_on_demand_percentage"
-	OnDemandNumberLong      = "autospotting_on_demand_number"
+	// OnDemandPercentageLong is the name of a tag that can be defined on a
+	// per-group level for overriding maintained on-demand capacity given as a
+	// percentage of the group's running instances.
+	OnDemandPercentageLong = "autospotting_on_demand_percentage"
+
+	// OnDemandNumberLong is the name of a tag that can be defined on a
+	// per-group level for overriding maintained on-demand capacity given as an
+	// absolute number.
+	OnDemandNumberLong = "autospotting_on_demand_number"
+
+	// DefaultMinOnDemandValue stores the default on-demand capacity to be kept
+	// running in a group managed by autospotting.
 	DefaultMinOnDemandValue = 0
 )
 
@@ -42,9 +52,10 @@ func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool
 		onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
 		logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandPercentageLong)
 		return onDemand, true
-	} else {
-		logger.Printf("Ignoring value out of range %f\n", percentage)
 	}
+
+	logger.Printf("Ignoring value out of range %f\n", percentage)
+
 	return DefaultMinOnDemandValue, false
 }
 
@@ -116,7 +127,7 @@ func (a *autoScalingGroup) loadDefaultConfigPercentage() (int64, bool) {
 }
 
 func (a *autoScalingGroup) loadDefaultConfig() bool {
-	var done bool = false
+	done := false
 	a.minOnDemand = DefaultMinOnDemandValue
 
 	if a.region.conf.MinOnDemandNumber != 0 {
@@ -702,9 +713,9 @@ func (a *autoScalingGroup) alreadyRunningSpotInstanceTypeCount(
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.
 func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	spot bool, availabilityZone string) (int64, int64) {
-	var total int64 = 0
-	var count int64 = 0
-	var instanceCategory string = "spot"
+
+	var total, count int64
+	instanceCategory := "spot"
 
 	if spot == false {
 		instanceCategory = "on-demand"

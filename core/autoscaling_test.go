@@ -1,11 +1,12 @@
 package autospotting
 
 import (
+	"testing"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"testing"
 )
 
 func TestGetTagValue(t *testing.T) {
@@ -61,7 +62,7 @@ func TestGetTagValue(t *testing.T) {
 			a.Tags = tt.asgTags
 			retValue := a.getTagValue(tt.tagKey)
 			if tt.expected == nil && retValue != tt.expected {
-				t.Errorf("Value received for %s: %s expected %s", tt.tagKey, retValue, tt.expected)
+				t.Errorf("Value received for %s: %s expected %s", tt.tagKey, *retValue, *tt.expected)
 			} else if tt.expected != nil && *retValue != *tt.expected {
 				t.Errorf("Value received for %s: %s expected %s", tt.tagKey, *retValue, *tt.expected)
 			}
@@ -395,7 +396,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 			a.MaxSize = tt.maxSize
 			done := a.loadConfOnDemand()
 			if tt.loadingExpected != done {
-				t.Errorf("loadConfOnDemand returned: %b expected %b", done, tt.loadingExpected)
+				t.Errorf("loadConfOnDemand returned: %t expected %t", done, tt.loadingExpected)
 			} else if tt.numberExpected != a.minOnDemand {
 				t.Errorf("loadConfOnDemand, minOnDemand value received %d, expected %d",
 					a.minOnDemand, tt.numberExpected)
@@ -611,7 +612,7 @@ func TestLoadDefaultConf(t *testing.T) {
 			a.region = tt.region
 			done := a.loadDefaultConfig()
 			if tt.loadingExpected != done {
-				t.Errorf("loadConfOnDemand returned: %b expected %b", done, tt.loadingExpected)
+				t.Errorf("loadConfOnDemand returned: %t expected %t", done, tt.loadingExpected)
 			} else if tt.numberExpected != a.minOnDemand {
 				t.Errorf("loadConfOnDemand, minOnDemand value received %d, expected %d",
 					a.minOnDemand, tt.numberExpected)
@@ -679,7 +680,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 			a.MaxSize = tt.maxSize
 			done := a.loadConfigFromTags()
 			if tt.loadingExpected != done {
-				t.Errorf("loadConfOnDemand returned: %b expected %b", done, tt.loadingExpected)
+				t.Errorf("loadConfOnDemand returned: %t expected %t", done, tt.loadingExpected)
 			}
 		})
 	}
@@ -955,10 +956,10 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			a.instances = tt.asgInstances
 			count, total := a.alreadyRunningInstanceCount(tt.spot, tt.availabilityZone)
 			if tt.expectedCount != count {
-				t.Errorf("alreadyRunningInstanceCount returned count: %b expected %b",
+				t.Errorf("alreadyRunningInstanceCount returned count: %d expected %d",
 					count, tt.expectedCount)
 			} else if tt.expectedTotal != total {
-				t.Errorf("alreadyRunningInstanceCount returned total: %b expected %b",
+				t.Errorf("alreadyRunningInstanceCount returned total: %d expected %d",
 					total, tt.expectedTotal)
 			}
 		})
@@ -1150,7 +1151,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 			a.minOnDemand = tt.minOnDemand
 			shouldRun := a.needReplaceOnDemandInstances()
 			if tt.expectedRun != shouldRun {
-				t.Errorf("needReplaceOnDemandInstances returned: %b expected %b",
+				t.Errorf("needReplaceOnDemandInstances returned: %t expected %t",
 					shouldRun, tt.expectedRun)
 			}
 		})

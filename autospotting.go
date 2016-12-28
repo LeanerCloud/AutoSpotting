@@ -7,7 +7,7 @@ import (
 
 	"github.com/namsral/flag"
 
-	autospotting "github.com/cristim/autospotting/core"
+	"github.com/cristim/autospotting/core"
 	"github.com/eawsy/aws-lambda-go/service/lambda/runtime"
 )
 
@@ -27,8 +27,8 @@ func run() {
 	log.Println("Execution completed, nothing left to do")
 }
 
-// this is the equivalent of a main for when running from Lambda, but on Lambda the
-// run() is executed within the handler function every time we have an event
+// this is the equivalent of a main for when running from Lambda, but on Lambda
+// the run() is executed within the handler function every time we have an event
 func init() {
 
 	conf = &cfgData{
@@ -54,7 +54,7 @@ func (c *cfgData) initialize() {
 	build, instanceInfo := readAssets()
 
 	c.parseCommandLineFlags()
-	c.BuildNumber = string(build)
+	c.BuildNumber = build
 
 	log.Printf("Current Configuration: %+v\n", c)
 
