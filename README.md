@@ -63,8 +63,7 @@ This was seen on a group of two m3.medium instances running in eu-west-1:
     down-payment or long term commitment.
 
 * **Easy to install and set up on existing environments based on AutoScaling**
-  * you can literally get started within minutes, unlike SpotFleets or other
-    tools which may require a considerable migration effort.
+  * you can literally get started within minutes.
   * only needs to be installed once, in a single region, and can handle all
     other regions without any additional configuration (but can also be
     restricted to just a few regions if desired).
@@ -87,13 +86,12 @@ This was seen on a group of two m3.medium instances running in eu-west-1:
     your previously configured on-demand instances.
   * on-demand instances often launch faster than spot ones so you don't need to
     wait for potentially slower spot instance fulfilment when you need to scale
-    out or when you eventually lose some of the spot capacity, which may happen
-    when using spot fleets or other similar tools.
+    out or when you eventually lose some of the spot capacity.
 
 * **Supports any higher level AWS services internally backed
     by AutoScaling**
   * services such as ECS or Elastic Beanstalk work out of the box with minimal
-    configuration changes or tweaks, unlike spot fleets or other tools.
+    configuration changes or tweaks.
 
 * **Compatible out of the box with most AWS services that integrate
     with AutoScaling groups**
@@ -185,12 +183,12 @@ aws cloudformation create-stack \
 --capabilities CAPABILITY_IAM
 ```
 
-Notes:
+Notes
 
 * For technical reasons the stack needs to be launched in the
   US-East-1(Virginia) region, so make sure it's not created in another region.
 * The AutoScaling groups it runs against can be in any region, since all regions
-  are processed at runtime.
+  are processed at runtime, unless configured otherwise.
 
 #### Installation options ####
 
@@ -246,11 +244,9 @@ create-or-update-tags \
 --tags ResourceId=my-auto-scaling-group,ResourceType=auto-scaling-group,Key=spot-enabled,Value=true,PropagateAtLaunch=false
 ```
 
-##### Note #####
-
-* the above instructions use the eu-west-1 AWS region as an example. Depending
-  on where your groups are defined, you may need to use a different region,
-  since as mentioned before, your environments may be located anywhere.
+**Note:** the above instructions use the eu-west-1 AWS region as an example. Depending
+on where your groups are defined, you may need to use a different region,
+since as mentioned before, your environments may be located anywhere.
 
 This needs to be done for every single AutoScaling group where you want it
 enabled, otherwise the group is ignored. If you have lots of groups you may
@@ -340,7 +336,7 @@ configuration is as following:
 1. Option `-min_on_demand_number` in CLI
 1. Option `-min_on_demand_percentage` in CLI
 
-Note that the percentage does round up values. Therefore if we have for example
+**Note:** the percentage does round up values. Therefore if we have for example
 3 instances running in an autoscaling-group, and you specify 10%, autospotting
 will understand that you want 0 instances. If you specify 16%, then it will
 still understand that you want 0 instances, because `0.16 * 3` is equal to
