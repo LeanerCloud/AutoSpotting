@@ -1,5 +1,54 @@
 # ChangeLog
 
+## 29 December 2016, build 158
+
+I forgot to update this in a while, so this is a quite big changelog entry.
+
+I got the first major code contributions by other developers, so from now on the
+changelog entries will be split by author. It may also have a header like this
+one in which it will contain a short summary or a message from the author.
+
+Special thanks to Hugo Rosnet, who contributed a lot of code that implemented a
+number of major features, helped me with multiple code reviews and kept me
+motivated enough to constantly work on this project.
+
+Also thanks to Jay Wineinger who contributed a non-trivial piece of code, and to
+the other folks who contributed documentation, raised or discussed various
+Github issues.
+
+~Cristian
+
+### Changes by author
+
+#### @cristim
+
+- Big code refactoring to make the code more maintainable and testable.
+- Buildsystem improvements (and regressions, since fixed).
+- Updated regional and instance type coverage, thanks to ec2instances.info.
+- Support restricting the execution to a given set of regions.
+- Expose all configuration options also as CloudFormation stack parameters.
+- Documentation updates and improvements.
+- Random small cleanups.
+
+#### @xlr-8
+
+- Update Lambda function's IAM permissions.
+- The algorithm now supports keeping on-demand instances in each AutoScaling
+  group.
+- The algorithm is now configurable using tags set on the group and based on
+  flags when executing it locally as a CLI tool.
+- Significant test coverage increases.
+- Significant clean-up and refactoring of the core algorithm.
+- Documentation improvements.
+
+#### @jwineinger
+
+- Pagination fix, making it work for users having many ASGs.
+
+#### @roeyazroel
+
+- Documentation for Elastic Beanstalk.
+
 ## 14 November 2016, build 79
 
  Major, breaking compatibility, packaging update: now using eawsy/aws-lambda-go
