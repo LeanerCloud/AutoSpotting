@@ -238,7 +238,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (*string, error) {
 		return &chosenInstanceType, nil
 	}
 	logger.Println("Couldn't find any cheaper spot instance type")
-	return nil, fmt.Errorf("No cheaper spot instance types could be found")
+	return nil, fmt.Errorf("no cheaper spot instance types could be found")
 
 }
 

@@ -60,8 +60,9 @@ binaries.
 
 1. Set up an S3 bucket in your AWS account that will host your custom binaries.
 
-1. The Makefile can use a `BUCKET_NAME` variable that tells it where to upload
-   new binaries. Set it into your environment to the name of your S3 bucket.
+1. The build system can use a `BUCKET_NAME` variable that tells it where to
+   upload new binaries. Set it into your environment to the name of your S3
+   bucket.
 
    `export BUCKET_NAME=my-bucket`
 
@@ -101,7 +102,7 @@ tool:
   * Uploads the generated binaries from `build/s3` to the specified S3 bucket.
 
 * **test**
-  * Runs `go build` to compile the project locally.
+  * Compiles the project for local execution.
   * Runs the tool locally
 
 [Back to the main Readme](./README.md)
