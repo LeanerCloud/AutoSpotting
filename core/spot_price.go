@@ -70,7 +70,7 @@ func (s *spotPrices) average(az string, instanceType string) (float64, error) {
 	debug.Println(data)
 
 	if len(data) == 0 {
-		return -1, errors.New("Can't determine average, missing spot data")
+		return -1, errors.New("can't determine average, missing spot data")
 	}
 
 	if len(data) == 1 {
