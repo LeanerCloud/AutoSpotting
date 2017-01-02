@@ -147,7 +147,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
+					"id-1": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -167,9 +167,9 @@ func TestLoadConfOnDemand(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -189,9 +189,9 @@ func TestLoadConfOnDemand(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -211,9 +211,9 @@ func TestLoadConfOnDemand(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -281,9 +281,9 @@ func TestLoadConfOnDemand(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -303,9 +303,9 @@ func TestLoadConfOnDemand(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -329,10 +329,10 @@ func TestLoadConfOnDemand(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
-					"id-4": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
+					"id-4": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -356,10 +356,10 @@ func TestLoadConfOnDemand(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
-					"id-4": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
+					"id-4": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -459,9 +459,9 @@ func TestLoadDefaultConf(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -477,9 +477,9 @@ func TestLoadDefaultConf(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -495,9 +495,9 @@ func TestLoadDefaultConf(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -525,9 +525,9 @@ func TestLoadDefaultConf(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -543,9 +543,9 @@ func TestLoadDefaultConf(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -561,10 +561,10 @@ func TestLoadDefaultConf(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
-					"id-4": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
+					"id-4": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -580,10 +580,10 @@ func TestLoadDefaultConf(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
-					"id-4": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
+					"id-4": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -661,10 +661,10 @@ func TestLoadConfigFromTags(t *testing.T) {
 			},
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{},
-					"id-2": &instance{},
-					"id-3": &instance{},
-					"id-4": &instance{},
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
+					"id-4": {},
 				},
 			},
 			maxSize:         aws.Int64(10),
@@ -708,7 +708,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgName: "test-asg",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("stopped")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
@@ -726,14 +726,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgName: "test-asg",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
@@ -751,14 +751,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgName: "test-asg",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
@@ -776,14 +776,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgName: "test-asg",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
@@ -801,14 +801,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgName: "test-asg",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
@@ -826,14 +826,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgName: "test-asg",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
@@ -851,14 +851,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgName: "test-asg",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
@@ -876,14 +876,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgName: "test-asg",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
@@ -901,14 +901,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgName: "test-asg",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
@@ -926,14 +926,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgName: "test-asg",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("stopped")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
@@ -997,14 +997,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 		{name: "ASG has no instance running - 1 on-demand required",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
@@ -1020,14 +1020,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 		{name: "ASG has no instance running - 0 on-demand required",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
@@ -1043,7 +1043,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 		{name: "ASG has not the required on-demand running",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							InstanceId:        aws.String("id-1"),
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -1057,7 +1057,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 							},
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							InstanceId:        aws.String("id-2"),
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -1074,14 +1074,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 		{name: "ASG has just enough on-demand instances running",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
@@ -1097,14 +1097,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 		{name: "ASG has more than enough on-demand instances running but not desired capacity",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
@@ -1120,14 +1120,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 		{name: "ASG has more than enough on-demand instances running and desired capacity",
 			asgInstances: instances{
 				catalog: map[string]*instance{
-					"id-1": &instance{
+					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
 					},
-					"id-2": &instance{
+					"id-2": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
