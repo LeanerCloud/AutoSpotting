@@ -17,7 +17,7 @@ func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() (int, error) 
 	count := 0
 
 	if lc.BlockDeviceMappings == nil {
-		return 0, fmt.Errorf("Launch configuration has no block device mappings")
+		return 0, fmt.Errorf("launch configuration has no block device mappings")
 	}
 
 	for _, mapping := range lc.BlockDeviceMappings {
