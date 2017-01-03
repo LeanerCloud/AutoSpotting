@@ -84,7 +84,7 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 	if lc.AssociatePublicIpAddress != nil || baseInstance.SubnetId != nil {
 		// Instances are running in a VPC.
 		spotLS.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
-			&ec2.InstanceNetworkInterfaceSpecification{
+			{
 				AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
 				DeviceIndex:              aws.Int64(0),
 				SubnetId:                 baseInstance.SubnetId,
