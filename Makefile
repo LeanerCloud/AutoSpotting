@@ -24,6 +24,7 @@ all: fmt-check vet-check build_local test                                       
 clean:                                                                      ## Remove installed packages/temporary files
 	go clean ./...
 	rm -rf $(BINDATA_DIR) $(BINDATA_FILE)
+	make -f Makefile.lambda clean
 .PHONY: clean
 
 check_deps:                                                                 ## Verify the system has all dependencies installed
@@ -37,21 +38,21 @@ check_deps:                                                                 ## V
 build_deps:
 	@go get github.com/mattn/goveralls
 	@go get golang.org/x/tools/cmd/cover
-	@docker pull eawsy/aws-lambda-go:latest
+	@docker pull eawsy/aws-lambda-go-shim:latest
 .PHONY: build_deps
 
 prepare_bindata: check_deps build_deps                                      ## Convert instance data into go file
-	go get ./...
 	@type go-bindata || go get -u github.com/jteeuwen/go-bindata/...
 	@mkdir -p $(BINDATA_DIR)
 	wget --quiet -nv $(INSTANCES_URL) -O $(BINDATA_DIR)/instances.json
 	@echo $(BUILD) > $(BINDATA_DIR)/BUILD
 	go-bindata -o $(BINDATA_FILE) -nometadata $(BINDATA_DIR)
 	gofmt -l -s -w $(BINDATA_FILE)
+	go get ./...
 .PHONY: prepare_bindata
 
 build_lambda_binary: prepare_bindata                                        ## Build lambda binary
-	docker run --rm -v $(GOPATH):/go -v $(PWD):/tmp $(DOCKER_IMG)
+	make -f Makefile.lambda docker
 .PHONY: build_lambda_binary
 
 prepare_upload_data: build_lambda_binary                                    ## Create archive to be uploaded
@@ -62,6 +63,7 @@ prepare_upload_data: build_lambda_binary                                    ## C
 	@cp -f cloudformation/stacks/AutoSpotting/template.json $(LOCAL_PATH)/template_build_$(BUILD).json
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(BUILD).zip
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(SHA).zip
+	@make -f Makefile.lambda clean
 .PHONY: prepare_upload_data
 
 build_local: prepare_bindata                                                ## Build binary - local dev

@@ -5,10 +5,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/namsral/flag"
-
 	"github.com/cristim/autospotting/core"
-	"github.com/eawsy/aws-lambda-go/service/lambda/runtime"
+	"github.com/eawsy/aws-lambda-go-core/service/lambda/runtime"
+	"github.com/namsral/flag"
 )
 
 type cfgData struct {
@@ -40,10 +39,10 @@ func init() {
 
 	conf.initialize()
 
-	runtime.HandleFunc(handle)
 }
 
-func handle(evt json.RawMessage, ctx *runtime.Context) (interface{}, error) {
+// Handle implements the AWS Lambda handler
+func Handle(evt json.RawMessage, ctx *runtime.Context) (interface{}, error) {
 	run()
 	return nil, nil
 }
