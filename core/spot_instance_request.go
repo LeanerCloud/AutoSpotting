@@ -48,7 +48,13 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() {
 
 	tags := s.asg.propagatedInstanceTags()
 
-	s.region.instances.get(*spotInstanceID).tag(tags)
+	i := s.region.instances.get(*spotInstanceID)
+
+	if i != nil {
+		i.tag(tags)
+	} else {
+		logger.Println(s.asg.name, "new spot instance", *spotInstanceID, "has disappeared")
+	}
 }
 
 func (s *spotInstanceRequest) tag(asgName string) {
