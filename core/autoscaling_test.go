@@ -81,7 +81,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 	}{
 		{name: "ASG does not have any conf tags",
 			asgTags:         []*autoscaling.TagDescription{},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -97,7 +97,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("text"),
 				},
 			},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -113,7 +113,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("142.2"),
 				},
 			},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -129,7 +129,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("-22"),
 				},
 			},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -145,11 +145,10 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("0"),
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
-					"id-1": {},
-				},
-			},
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"id-1": {}, },
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  0,
 			loadingExpected: true,
@@ -165,13 +164,13 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("33.0"),
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  1,
 			loadingExpected: true,
@@ -187,13 +186,13 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("75.0"),
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+	 map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  2,
 			loadingExpected: true,
@@ -209,13 +208,13 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("100.0"),
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  3,
 			loadingExpected: true,
@@ -231,7 +230,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("text"),
 				},
 			},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -247,7 +246,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("2.5"),
 				},
 			},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -263,7 +262,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("-7"),
 				},
 			},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -279,13 +278,13 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("50"),
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -301,13 +300,13 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("1"),
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  1,
 			loadingExpected: true,
@@ -327,14 +326,14 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("2"),
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 					"id-4": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  2,
 			loadingExpected: true,
@@ -354,14 +353,14 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("-2"),
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 					"id-4": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  3,
 			loadingExpected: true,
@@ -382,7 +381,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 				},
 			},
 			maxSize:         aws.Int64(10),
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
@@ -421,7 +420,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					MinOnDemandPercentage: 0.0,
 				},
 			},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -433,7 +432,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					MinOnDemandPercentage: 142.2,
 				},
 			},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -445,7 +444,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					MinOnDemandPercentage: -22.2,
 				},
 			},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -457,13 +456,13 @@ func TestLoadDefaultConf(t *testing.T) {
 					MinOnDemandPercentage: 33.0,
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  1,
 			loadingExpected: true,
@@ -475,13 +474,13 @@ func TestLoadDefaultConf(t *testing.T) {
 					MinOnDemandPercentage: 75.0,
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  2,
 			loadingExpected: true,
@@ -493,13 +492,13 @@ func TestLoadDefaultConf(t *testing.T) {
 					MinOnDemandPercentage: 100,
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  3,
 			loadingExpected: true,
@@ -511,7 +510,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					MinOnDemandPercentage: 0,
 				},
 			},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -523,13 +522,13 @@ func TestLoadDefaultConf(t *testing.T) {
 					MinOnDemandPercentage: 0,
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -541,13 +540,13 @@ func TestLoadDefaultConf(t *testing.T) {
 					MinOnDemandPercentage: 0,
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  1,
 			loadingExpected: true,
@@ -559,14 +558,14 @@ func TestLoadDefaultConf(t *testing.T) {
 					MinOnDemandPercentage: 75,
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 					"id-4": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  2,
 			loadingExpected: true,
@@ -578,14 +577,14 @@ func TestLoadDefaultConf(t *testing.T) {
 					MinOnDemandPercentage: 75.0,
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 					"id-4": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  3,
 			loadingExpected: true,
@@ -598,7 +597,7 @@ func TestLoadDefaultConf(t *testing.T) {
 				},
 			},
 			maxSize:         aws.Int64(10),
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
@@ -640,7 +639,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 					Value: aws.String("text"),
 				},
 			},
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
 			loadingExpected: false,
 		},
@@ -659,14 +658,14 @@ func TestLoadConfigFromTags(t *testing.T) {
 					Value: aws.String("-2"),
 				},
 			},
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
 					"id-4": {},
 				},
-			},
+			),
 			maxSize:         aws.Int64(10),
 			loadingExpected: true,
 		},
@@ -698,7 +697,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 	}{
 		{name: "ASG has no instance at all",
 			asgName:          "test-asg",
-			asgInstances:     instances{},
+			asgInstances:     makeInstances(),
 			spot:             true,
 			availabilityZone: "",
 			expectedCount:    0,
@@ -706,8 +705,8 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		},
 		{name: "ASG has no 'running' instance but has some",
 			asgName: "test-asg",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				 map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("stopped")},
@@ -716,7 +715,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			spot:             true,
 			availabilityZone: "",
 			expectedCount:    0,
@@ -724,8 +723,8 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		},
 		{name: "ASG has no 'running' spot instances but has some",
 			asgName: "test-asg",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -741,7 +740,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			spot:             true,
 			availabilityZone: "",
 			expectedCount:    0,
@@ -749,8 +748,8 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		},
 		{name: "ASG has no 'running' on-demand instances but has some",
 			asgName: "test-asg",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -766,7 +765,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			spot:             false,
 			availabilityZone: "",
 			expectedCount:    0,
@@ -774,8 +773,8 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		},
 		{name: "ASG has no 'running' on-demand instances in the AZ",
 			asgName: "test-asg",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -791,7 +790,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			spot:             false,
 			availabilityZone: "eu-west-1c",
 			expectedCount:    0,
@@ -799,8 +798,8 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		},
 		{name: "ASG has some 'running' on-demand instances in the AZ",
 			asgName: "test-asg",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -816,7 +815,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			spot:             false,
 			availabilityZone: "eu-west-1b",
 			expectedCount:    1,
@@ -824,8 +823,8 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		},
 		{name: "ASG has no 'running' spot instances in the AZ",
 			asgName: "test-asg",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -841,7 +840,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			spot:             true,
 			availabilityZone: "eu-west-1c",
 			expectedCount:    0,
@@ -849,8 +848,8 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		},
 		{name: "ASG has some 'running' spot instances in any AZ",
 			asgName: "test-asg",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -866,7 +865,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			spot:             true,
 			availabilityZone: "",
 			expectedCount:    2,
@@ -874,8 +873,8 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		},
 		{name: "ASG has no 'running' spot instances in any AZ",
 			asgName: "test-asg",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
@@ -891,7 +890,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			spot:             true,
 			availabilityZone: "",
 			expectedCount:    0,
@@ -899,8 +898,8 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		},
 		{name: "ASG has some 'running' on-demand instances in any AZ",
 			asgName: "test-asg",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -916,7 +915,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			spot:             false,
 			availabilityZone: "",
 			expectedCount:    1,
@@ -924,8 +923,8 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		},
 		{name: "ASG has no 'running' on-demand instances in any AZ",
 			asgName: "test-asg",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -941,7 +940,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			spot:             false,
 			availabilityZone: "",
 			expectedCount:    0,
@@ -983,20 +982,20 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 		expectedRun     bool
 	}{
 		{name: "ASG has no instance at all - 1 on-demand required",
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			minOnDemand:     1,
 			desiredCapacity: aws.Int64(0),
 			expectedRun:     false,
 		},
 		{name: "ASG has no instance at all - 0 on-demand required",
-			asgInstances:    instances{},
+			asgInstances:    makeInstances(),
 			minOnDemand:     0,
 			desiredCapacity: aws.Int64(0),
 			expectedRun:     false,
 		},
 		{name: "ASG has no instance running - 1 on-demand required",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
@@ -1012,14 +1011,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			minOnDemand:     1,
 			desiredCapacity: aws.Int64(0),
 			expectedRun:     false,
 		},
 		{name: "ASG has no instance running - 0 on-demand required",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
@@ -1035,14 +1034,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			minOnDemand:     0,
 			desiredCapacity: aws.Int64(0),
 			expectedRun:     false,
 		},
 		{name: "ASG has not the required on-demand running",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							InstanceId:        aws.String("id-1"),
@@ -1066,14 +1065,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			minOnDemand:     2,
 			desiredCapacity: aws.Int64(0),
 			expectedRun:     false,
 		},
 		{name: "ASG has just enough on-demand instances running",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -1089,14 +1088,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			minOnDemand:     1,
 			desiredCapacity: aws.Int64(0),
 			expectedRun:     false,
 		},
 		{name: "ASG has more than enough on-demand instances running but not desired capacity",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -1112,14 +1111,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			minOnDemand:     1,
 			desiredCapacity: aws.Int64(1),
 			expectedRun:     true,
 		},
 		{name: "ASG has more than enough on-demand instances running and desired capacity",
-			asgInstances: instances{
-				catalog: map[string]*instance{
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("running")},
@@ -1135,7 +1134,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 						},
 					},
 				},
-			},
+			),
 			minOnDemand:     1,
 			desiredCapacity: aws.Int64(4),
 			expectedRun:     true,
