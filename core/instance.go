@@ -28,7 +28,7 @@ type instances interface {
 }
 
 func makeInstances() instances {
-	return &instanceManager{}
+	return &instanceManager{catalog: map[string]*instance{}}
 }
 
 func makeInstancesWithCatalog(catalog map[string]*instance) instances {
