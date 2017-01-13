@@ -122,7 +122,7 @@ func (r *region) scanInstances() error {
 		}
 	}
 
-	debug.Println(r.dump())
+	debug.Println(r.instances.dump())
 
 	return nil
 }
