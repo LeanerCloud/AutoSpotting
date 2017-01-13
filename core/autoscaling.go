@@ -240,7 +240,7 @@ func (a *autoScalingGroup) findSpotInstanceRequests() error {
 func (a *autoScalingGroup) scanInstances() {
 
 	logger.Println("Adding instances to", a.name)
-	a.instances.catalog = make(map[string]*instance)
+	a.instances = makeInstances()
 
 	for _, inst := range a.Instances {
 		i := a.region.instances.get(*inst.InstanceId)
@@ -368,10 +368,10 @@ func (a *autoScalingGroup) getInstance(
 				(*availabilityZone != *i.Placement.AvailabilityZone) {
 				continue
 			}
-			return i
+			retI = i
 		}
 	}
-	return nil
+	return retI
 }
 
 func (a *autoScalingGroup) findOndemandInstanceInAZ(az *string) *instance {
