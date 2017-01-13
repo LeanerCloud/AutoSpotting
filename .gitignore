@@ -10,3 +10,5 @@ lambda/instances.json
 handler.zip
 *.coverprofile
 .idea/
+terraform/.terraform/
+terraform.tfstate*
