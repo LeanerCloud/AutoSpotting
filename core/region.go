@@ -110,7 +110,7 @@ func (r *region) scanInstances() error {
 
 	debug.Println(resp)
 
-	r.instances.catalog = make(map[string]*instance)
+	r.instances = makeInstances()
 
 	if len(resp.Reservations) > 0 &&
 		resp.Reservations[0].Instances != nil {
@@ -121,7 +121,9 @@ func (r *region) scanInstances() error {
 			}
 		}
 	}
-	debug.Println(spew.Sdump(r.instances))
+
+	debug.Println(r.dump())
+
 	return nil
 }
 
