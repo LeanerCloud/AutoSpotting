@@ -3,8 +3,8 @@ package autospotting
 import (
 	"fmt"
 	"math"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/davecgh/go-spew/spew"
@@ -18,8 +18,8 @@ type instanceManager struct {
 }
 
 type instances interface {
-	add (inst *instance)
-	get (string)*instance
+	add(inst *instance)
+	get(string) *instance
 	count() int
 	count64() int64
 	make()
@@ -32,7 +32,7 @@ func makeInstances() instances {
 }
 
 func makeInstancesWithCatalog(catalog map[string]*instance) instances {
-	return &instanceManager{catalog:catalog}
+	return &instanceManager{catalog: catalog}
 }
 
 func (is *instanceManager) dump() string {
@@ -73,7 +73,7 @@ func (is *instanceManager) count64() int64 {
 
 func (is *instanceManager) instances() <-chan *instance {
 	retC := make(chan *instance)
-	go func () {
+	go func() {
 		is.RLock()
 		defer is.RUnlock()
 		defer close(retC)
@@ -84,7 +84,6 @@ func (is *instanceManager) instances() <-chan *instance {
 
 	return retC
 }
-
 
 type instance struct {
 	*ec2.Instance

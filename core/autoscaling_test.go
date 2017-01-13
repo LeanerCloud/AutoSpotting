@@ -147,7 +147,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 			},
 			asgInstances: makeInstancesWithCatalog(
 				map[string]*instance{
-					"id-1": {}, },
+					"id-1": {}},
 			),
 			maxSize:         aws.Int64(10),
 			numberExpected:  0,
@@ -187,7 +187,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 				},
 			},
 			asgInstances: makeInstancesWithCatalog(
-	 map[string]*instance{
+				map[string]*instance{
 					"id-1": {},
 					"id-2": {},
 					"id-3": {},
@@ -706,7 +706,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		{name: "ASG has no 'running' instance but has some",
 			asgName: "test-asg",
 			asgInstances: makeInstancesWithCatalog(
-				 map[string]*instance{
+				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
 							State:             &ec2.InstanceState{Name: aws.String("stopped")},
