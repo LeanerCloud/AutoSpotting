@@ -1,11 +1,11 @@
 package autospotting
 
 import (
-	"fmt"
 	"math"
 	"sync"
 	"time"
 
+	"fmt"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -191,8 +191,10 @@ func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformatio
 
 	debug.Println("Checking current spot quantity:")
 	debug.Println("\tSpot count: ", spotInstanceCount)
-	debug.Println("\tRation desired/spot currently running: ",
-		(*i.asg.DesiredCapacity/spotInstanceCount > 4))
+	if spotInstanceCount != 0 {
+		debug.Println("\tRation desired/spot currently running: ",
+			(*i.asg.DesiredCapacity/spotInstanceCount > 4))
+	}
 	return spotInstanceCount == 0 || *i.asg.DesiredCapacity/spotInstanceCount > 4
 }
 
@@ -202,23 +204,23 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (*string, error) {
 	current := i.typeInfo
 	bestPrice := math.MaxFloat64
 	chosenSpotType = nil
-	lc := i.asg.getLaunchConfiguration()
 
 	// Count the ephemeral volumes attached to the original instance's block
 	// device mappings, this number is used later when comparing with each
 	// instance type.
+	lc := i.asg.getLaunchConfiguration()
 	lcMappings, err := lc.countLaunchConfigEphemeralVolumes()
-	if err != nil {
+	if err == nil {
 		logger.Println("Couldn't determine the launch configuration device mapping",
 			"configuration")
-		return chosenSpotType, err
 	}
 
 	attachedVolumesNumber := min(lcMappings, current.instanceStoreDeviceCount)
 
 	for _, candidate := range i.region.instanceTypeInformation {
 
-		logger.Println("\nComparing ", candidate, " with ", current)
+		logger.Println("Comparing ", candidate.instanceType, " with ",
+			current.instanceType)
 
 		if i.isSpotQuantityCompatible(candidate) &&
 			i.isPriceCompatible(candidate, bestPrice) &&
@@ -227,14 +229,16 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (*string, error) {
 			i.isCompatibleVirtualization(candidate.virtualizationTypes) {
 			bestPrice = candidate.pricing.spot[*i.Placement.AvailabilityZone]
 			chosenSpotType = &candidate.instanceType
+			debug.Println("Best option is now: ", *chosenSpotType, " at ", bestPrice)
+		} else if chosenSpotType != nil {
+			debug.Println("Current best option: ", *chosenSpotType, " at ", bestPrice)
 		}
-
 	}
-	if chosenSpotType != "" {
-		debug.Println("Cheapest compatible spot instance found: ", chosenSpotType)
+	if chosenSpotType != nil {
+		debug.Println("Cheapest compatible spot instance found: ", *chosenSpotType)
 		return chosenSpotType, nil
 	}
-	return chosenSpotType, nil
+	return chosenSpotType, fmt.Errorf("No cheaper spot instance types could be found")
 }
 
 func (i *instance) tag(tags []*ec2.Tag) {
