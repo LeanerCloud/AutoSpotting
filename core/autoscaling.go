@@ -516,7 +516,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 	}
 
 	logger.Println("Trying to launch spot instance in", *azToLaunchIn,
-		"\nfirst finding an on-demand instance to use as a template")
+		"first finding an on-demand instance to use as a template")
 
 	baseInstance := a.findOndemandInstanceInAZ(azToLaunchIn)
 
