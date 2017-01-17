@@ -40,8 +40,8 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() {
 	// due to the waiter we can now safely assume all this data is available
 	spotInstanceID := requestDetails.SpotInstanceRequests[0].InstanceId
 
-	logger.Println(s.asg.name, "found new spot instance", *spotInstanceID,
-		"\nTagging it to match the other instances from the group")
+	logger.Println(s.asg.name, "Found new spot instance", *spotInstanceID)
+	logger.Println("Tagging it to match the other instances from the group")
 
 	// we need to re-scan in order to have the information a
 	err = s.region.scanInstances()

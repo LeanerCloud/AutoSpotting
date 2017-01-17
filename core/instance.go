@@ -198,12 +198,10 @@ func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformatio
 	return spotInstanceCount == 0 || *i.asg.DesiredCapacity/spotInstanceCount > 4
 }
 
-func (i *instance) getCheapestCompatibleSpotInstanceType() (*string, error) {
-	var chosenSpotType *string
-
+func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 	current := i.typeInfo
 	bestPrice := math.MaxFloat64
-	chosenSpotType = nil
+	chosenSpotType := ""
 
 	// Count the ephemeral volumes attached to the original instance's block
 	// device mappings, this number is used later when comparing with each
@@ -228,14 +226,14 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (*string, error) {
 			i.isStorageComaptible(candidate, attachedVolumesNumber) &&
 			i.isCompatibleVirtualization(candidate.virtualizationTypes) {
 			bestPrice = candidate.pricing.spot[*i.Placement.AvailabilityZone]
-			chosenSpotType = &candidate.instanceType
-			debug.Println("Best option is now: ", *chosenSpotType, " at ", bestPrice)
-		} else if chosenSpotType != nil {
-			debug.Println("Current best option: ", *chosenSpotType, " at ", bestPrice)
+			chosenSpotType = candidate.instanceType
+			debug.Println("Best option is now: ", chosenSpotType, " at ", bestPrice)
+		} else if chosenSpotType != "" {
+			debug.Println("Current best option: ", chosenSpotType, " at ", bestPrice)
 		}
 	}
-	if chosenSpotType != nil {
-		debug.Println("Cheapest compatible spot instance found: ", *chosenSpotType)
+	if chosenSpotType != "" {
+		debug.Println("Cheapest compatible spot instance found: ", chosenSpotType)
 		return chosenSpotType, nil
 	}
 	return chosenSpotType, fmt.Errorf("No cheaper spot instance types could be found")
