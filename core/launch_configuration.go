@@ -110,9 +110,10 @@ func copyBlockDeviceMappings(
 	lcBDMs []*autoscaling.BlockDeviceMapping) []*ec2.BlockDeviceMapping {
 
 	var ec2BDMlist []*ec2.BlockDeviceMapping
-	var ec2BDM ec2.BlockDeviceMapping
 
 	for _, lcBDM := range lcBDMs {
+		var ec2BDM ec2.BlockDeviceMapping
+
 		ec2BDM.DeviceName = lcBDM.DeviceName
 
 		// EBS volume information
