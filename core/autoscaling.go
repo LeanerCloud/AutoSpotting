@@ -97,7 +97,7 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 // Add configuration of other elements here: prices, whitelisting, etc
 func (a *autoScalingGroup) loadConfigFromTags() bool {
 
-	if a.loadConfOnDemand() == true {
+	if a.loadConfOnDemand() {
 		logger.Println("Found and applied configuration for OnDemand value")
 		return true
 	}
@@ -133,7 +133,7 @@ func (a *autoScalingGroup) loadDefaultConfig() bool {
 	if a.region.conf.MinOnDemandNumber != 0 {
 		a.minOnDemand, done = a.loadDefaultConfigNumber()
 	}
-	if done == false && a.region.conf.MinOnDemandPercentage != 0 {
+	if !done && a.region.conf.MinOnDemandPercentage != 0 {
 		a.minOnDemand, done = a.loadDefaultConfigPercentage()
 	} else {
 		logger.Println("No default value for on-demand instances specified, skipping.")
@@ -152,7 +152,7 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 		return false
 	}
 	logger.Println("Currently less OnDemand instances than required !")
-	if a.allInstanceRunning() == true && a.instances.count64() >= *a.DesiredCapacity {
+	if a.allInstanceRunning() && a.instances.count64() >= *a.DesiredCapacity {
 		logger.Println("All instances are running and desired capacity is satisfied")
 		if randomSpot := a.getAnySpotInstance(); randomSpot != nil {
 			logger.Println("Terminating a random spot instance",
@@ -180,13 +180,13 @@ func (a *autoScalingGroup) process() {
 
 	debug.Println("Found spot instance requests:", a.spotInstanceRequests)
 
-	if a.needReplaceOnDemandInstances() == false {
+	if !a.needReplaceOnDemandInstances() {
 		return
 	}
 
 	spotInstanceID, waitForNextRun := a.havingReadyToAttachSpotInstance()
 
-	if waitForNextRun == true {
+	if waitForNextRun {
 		logger.Println("Waiting for next run while processing", a.name)
 		return
 	}
@@ -362,9 +362,9 @@ func (a *autoScalingGroup) getInstance(
 			// the InstanceLifecycle attribute is non-nil only for spot instances,
 			// where it contains the value "spot", if we're looking for on-demand
 			// instances only, then we have to skip the current instance.
-			if any == false &&
-				(onDemand == true && i.isSpot() == true ||
-					(onDemand == false && i.isSpot() == false)) {
+			if !any &&
+				(onDemand && i.isSpot() ||
+					(!onDemand && !i.isSpot())) {
 				continue
 			}
 			if (availabilityZone != nil) &&
@@ -725,18 +725,18 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	var total, count int64
 	instanceCategory := "spot"
 
-	if spot == false {
+	if !spot {
 		instanceCategory = "on-demand"
 	}
 	logger.Println(a.name, "Counting already running on demand instances ")
 	for inst := range a.instances.instances() {
 		if *inst.Instance.State.Name == "running" {
 			// Count running Spot instances
-			if spot == true && inst.isSpot() == true &&
+			if spot && inst.isSpot() &&
 				(*inst.Placement.AvailabilityZone == availabilityZone || availabilityZone == "") {
 				count++
 				// Count running OnDemand instances
-			} else if spot == false && inst.isSpot() == false &&
+			} else if !spot && !inst.isSpot() &&
 				(*inst.Placement.AvailabilityZone == availabilityZone || availabilityZone == "") {
 				count++
 			}
