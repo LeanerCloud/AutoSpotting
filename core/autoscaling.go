@@ -108,7 +108,7 @@ func (a *autoScalingGroup) loadDefaultConfigNumber() (int64, bool) {
 	onDemand := a.region.conf.MinOnDemandNumber
 	if onDemand >= 0 && onDemand <= int64(a.instances.count()) {
 		logger.Printf("Loaded default value %d from conf number.", onDemand)
-		return int64(onDemand), true
+		return onDemand, true
 	}
 	logger.Println("Ignoring default value out of range:", onDemand)
 	return DefaultMinOnDemandValue, false
@@ -170,7 +170,10 @@ func (a *autoScalingGroup) allInstanceRunning() bool {
 
 func (a *autoScalingGroup) process() {
 	logger.Println("Finding spot instance requests created for", a.name)
-	a.findSpotInstanceRequests()
+	err := a.findSpotInstanceRequests()
+	if err != nil {
+		logger.Printf("Error: %s while searching for spot instances for %s\n", err, a.name)
+	}
 	a.scanInstances()
 	a.loadDefaultConfig()
 	a.loadConfigFromTags()

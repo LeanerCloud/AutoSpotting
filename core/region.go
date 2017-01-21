@@ -79,7 +79,10 @@ func (r *region) processRegion() {
 		debug.Println(spew.Sdump(r.instanceTypeInformation))
 
 		logger.Println("Scanning instances in", r.name)
-		r.scanInstances()
+		err := r.scanInstances()
+		if err != nil {
+			logger.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
+		}
 
 		logger.Println("Processing enabled AutoScaling groups in", r.name)
 		r.processEnabledAutoScalingGroups()
