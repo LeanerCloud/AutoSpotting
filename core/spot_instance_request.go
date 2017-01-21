@@ -44,7 +44,10 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() {
 		"\nTagging it to match the other instances from the group")
 
 	// we need to re-scan in order to have the information a
-	s.region.scanInstances()
+	err = s.region.scanInstances()
+	if err != nil {
+		logger.Printf("Failed to scan instances: %s for %s\n", err, s.asg.name)
+	}
 
 	tags := s.asg.propagatedInstanceTags()
 
