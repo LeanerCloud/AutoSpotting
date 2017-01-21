@@ -71,11 +71,6 @@ type RawInstanceData []jsonInstance
 // LoadFromAssetContent loads the RawInstanceData object based on a
 // JSON-encoded contents, injected at build time by go-bindata.
 func (ii *RawInstanceData) LoadFromAssetContent(contents []byte) error {
-
 	err := json.Unmarshal(contents, &ii)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
