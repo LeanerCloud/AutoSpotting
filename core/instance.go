@@ -148,7 +148,7 @@ func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool
 //   original instance
 // - volume size: each of the volumes should be at least as big as the
 //   original instance's volumes
-func (i *instance) isStorageComaptible(spotCandidate instanceTypeInformation, attachedVolumes int) bool {
+func (i *instance) isStorageCompatible(spotCandidate instanceTypeInformation, attachedVolumes int) bool {
 	existing := i.typeInfo
 
 	debug.Println("Comparing storage spot/instance:")
@@ -168,7 +168,7 @@ func (i *instance) isStorageComaptible(spotCandidate instanceTypeInformation, at
 				spotCandidate.instanceStoreIsSSD == existing.instanceStoreIsSSD))
 }
 
-func (i *instance) isCompatibleVirtualization(spotVirtualizationTypes []string) bool {
+func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) bool {
 	current := *i.VirtualizationType
 
 	debug.Println("Comparing virtualization spot/instance:")
@@ -184,7 +184,7 @@ func (i *instance) isCompatibleVirtualization(spotVirtualizationTypes []string) 
 	return false
 }
 
-// We skip it in case we have more than 20% instances of this type already running
+// We skip it in case we have more than 25% instances of this type already running
 func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformation) bool {
 	spotInstanceCount := i.asg.alreadyRunningSpotInstanceTypeCount(
 		spotCandidate.instanceType, *i.Placement.AvailabilityZone)
@@ -223,8 +223,8 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 		if i.isSpotQuantityCompatible(candidate) &&
 			i.isPriceCompatible(candidate, bestPrice) &&
 			i.isClassCompatible(candidate) &&
-			i.isStorageComaptible(candidate, attachedVolumesNumber) &&
-			i.isCompatibleVirtualization(candidate.virtualizationTypes) {
+			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
+			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
 			bestPrice = candidate.pricing.spot[*i.Placement.AvailabilityZone]
 			chosenSpotType = candidate.instanceType
 			debug.Println("Best option is now: ", chosenSpotType, " at ", bestPrice)
