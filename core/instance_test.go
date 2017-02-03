@@ -34,7 +34,11 @@ func TestIsSpot(t *testing.T) {
 			i.InstanceLifecycle = tt.lifeCycle
 			retValue := i.isSpot()
 			if retValue != tt.expected {
-				t.Errorf("Value received for '%s': %s expected %s", tt.lifeCycle, retValue, tt.expected)
+				if tt.lifeCycle != nil {
+					t.Errorf("Value received for '%v': %t expected %t", *tt.lifeCycle, retValue, tt.expected)
+				} else {
+					t.Errorf("Value received for '%v': %t expected %t", tt.lifeCycle, retValue, tt.expected)
+				}
 			}
 		})
 	}
@@ -128,7 +132,7 @@ func TestIsPriceCompatible(t *testing.T) {
 			candidate.pricing = tt.spotPrices
 			retValue := i.isPriceCompatible(candidate, tt.bestPrice)
 			if retValue != tt.expected {
-				t.Errorf("Value received: %s expected %s", retValue, tt.expected)
+				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
 			}
 		})
 	}
@@ -189,7 +193,7 @@ func TestIsClassCompatible(t *testing.T) {
 			}
 			retValue := i.isClassCompatible(tt.spotInfo)
 			if retValue != tt.expected {
-				t.Errorf("Value received: %s expected %s", retValue, tt.expected)
+				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
 			}
 		})
 	}
@@ -210,8 +214,8 @@ func TestIsStorageCompatible(t *testing.T) {
 				instanceStoreIsSSD:       false,
 			},
 			instanceInfo: instanceTypeInformation{
-				instanceStoreDeviceSize:  0.0,
-				instanceStoreIsSSD:       false,
+				instanceStoreDeviceSize: 0.0,
+				instanceStoreIsSSD:      false,
 			},
 			attachedVolumes: 0,
 			expected:        true,
@@ -223,8 +227,8 @@ func TestIsStorageCompatible(t *testing.T) {
 				instanceStoreIsSSD:       false,
 			},
 			instanceInfo: instanceTypeInformation{
-				instanceStoreDeviceSize:  50.0,
-				instanceStoreIsSSD:       false,
+				instanceStoreDeviceSize: 50.0,
+				instanceStoreIsSSD:      false,
 			},
 			attachedVolumes: 1,
 			expected:        true,
@@ -236,8 +240,8 @@ func TestIsStorageCompatible(t *testing.T) {
 				instanceStoreIsSSD:       false,
 			},
 			instanceInfo: instanceTypeInformation{
-				instanceStoreDeviceSize:  50.0,
-				instanceStoreIsSSD:       false,
+				instanceStoreDeviceSize: 50.0,
+				instanceStoreIsSSD:      false,
 			},
 			attachedVolumes: 1,
 			expected:        false,
@@ -249,8 +253,8 @@ func TestIsStorageCompatible(t *testing.T) {
 				instanceStoreIsSSD:       false,
 			},
 			instanceInfo: instanceTypeInformation{
-				instanceStoreDeviceSize:  50.0,
-				instanceStoreIsSSD:       false,
+				instanceStoreDeviceSize: 50.0,
+				instanceStoreIsSSD:      false,
 			},
 			attachedVolumes: 1,
 			expected:        true,
@@ -262,8 +266,8 @@ func TestIsStorageCompatible(t *testing.T) {
 				instanceStoreIsSSD:       false,
 			},
 			instanceInfo: instanceTypeInformation{
-				instanceStoreDeviceSize:  50.0,
-				instanceStoreIsSSD:       false,
+				instanceStoreDeviceSize: 50.0,
+				instanceStoreIsSSD:      false,
 			},
 			attachedVolumes: 2,
 			expected:        false,
@@ -275,8 +279,8 @@ func TestIsStorageCompatible(t *testing.T) {
 				instanceStoreIsSSD:       false,
 			},
 			instanceInfo: instanceTypeInformation{
-				instanceStoreDeviceSize:  50.0,
-				instanceStoreIsSSD:       false,
+				instanceStoreDeviceSize: 50.0,
+				instanceStoreIsSSD:      false,
 			},
 			attachedVolumes: 1,
 			expected:        true,
@@ -288,8 +292,8 @@ func TestIsStorageCompatible(t *testing.T) {
 				instanceStoreIsSSD:       false,
 			},
 			instanceInfo: instanceTypeInformation{
-				instanceStoreDeviceSize:  50.0,
-				instanceStoreIsSSD:       true,
+				instanceStoreDeviceSize: 50.0,
+				instanceStoreIsSSD:      true,
 			},
 			attachedVolumes: 1,
 			expected:        false,
@@ -301,8 +305,8 @@ func TestIsStorageCompatible(t *testing.T) {
 				instanceStoreIsSSD:       true,
 			},
 			instanceInfo: instanceTypeInformation{
-				instanceStoreDeviceSize:  50.0,
-				instanceStoreIsSSD:       true,
+				instanceStoreDeviceSize: 50.0,
+				instanceStoreIsSSD:      true,
 			},
 			attachedVolumes: 1,
 			expected:        true,
@@ -314,7 +318,7 @@ func TestIsStorageCompatible(t *testing.T) {
 			i := &instance{typeInfo: tt.instanceInfo}
 			retValue := i.isStorageCompatible(tt.spotInfo, tt.attachedVolumes)
 			if retValue != tt.expected {
-				t.Errorf("Value received: %s expected %s", retValue, tt.expected)
+				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
 			}
 		})
 	}
@@ -356,7 +360,7 @@ func TestIsVirtualizationCompatible(t *testing.T) {
 			}}
 			retValue := i.isVirtualizationCompatible(tt.spotVirtualizationTypes)
 			if retValue != tt.expected {
-				t.Errorf("Value received: %s expected %s", retValue, tt.expected)
+				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
 			}
 		})
 	}
@@ -478,7 +482,7 @@ func TestMin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			retValue := min(tt.x, tt.y)
 			if retValue != tt.expected {
-				t.Errorf("Value received: %s expected %s", retValue, tt.expected)
+				t.Errorf("Value received: %d expected %d", retValue, tt.expected)
 			}
 		})
 	}
