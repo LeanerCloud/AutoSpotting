@@ -454,7 +454,7 @@ func TestIsQuantityCompatible(t *testing.T) {
 			}
 			retValue := i.isSpotQuantityCompatible(tt.spotInfo)
 			if retValue != tt.expected {
-				t.Errorf("Value received: %s expected %s", retValue, tt.expected)
+				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
 			}
 		})
 	}
