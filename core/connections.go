@@ -7,13 +7,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 )
 
 type connections struct {
 	session     *session.Session
-	autoScaling *autoscaling.AutoScaling
+	autoScaling autoscalingiface.AutoScalingAPI
 	ec2         ec2iface.EC2API
 	region      string
 }
