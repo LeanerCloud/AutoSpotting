@@ -60,7 +60,7 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() {
 	}
 }
 
-func (s *spotInstanceRequest) tag(asgName string) {
+func (s *spotInstanceRequest) tag(asgName string) error {
 	svc := s.region.services.ec2
 
 	_, err := svc.CreateTags(&ec2.CreateTagsInput{
@@ -79,9 +79,11 @@ func (s *spotInstanceRequest) tag(asgName string) {
 		logger.Println(asgName,
 			"Failed to create tags for the spot instance request",
 			err.Error())
-		return
+		return err
 	}
 
 	logger.Println(asgName, "successfully tagged spot instance request",
 		*s.SpotInstanceRequestId)
+
+	return nil
 }
