@@ -120,6 +120,21 @@ func (i *instance) terminate() {
 	}
 }
 
+// We skip it in case we have more than 25% instances of this type already running
+func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformation) bool {
+	fmt.Println("BC5")
+	spotInstanceCount := i.asg.alreadyRunningSpotInstanceTypeCount(
+		spotCandidate.instanceType, *i.Placement.AvailabilityZone)
+
+	debug.Println("Checking current spot quantity:")
+	debug.Println("\tSpot count: ", spotInstanceCount)
+	if spotInstanceCount != 0 {
+		debug.Println("\tRation desired/spot currently running: ",
+			(*i.asg.DesiredCapacity/spotInstanceCount > 4))
+	}
+	return spotInstanceCount == 0 || *i.asg.DesiredCapacity/spotInstanceCount > 4
+}
+
 func (i *instance) isPriceCompatible(spotCandidate instanceTypeInformation, bestPrice float64) bool {
 	spotPrice := spotCandidate.pricing.spot[*i.Placement.AvailabilityZone]
 
@@ -184,36 +199,20 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 	return false
 }
 
-// We skip it in case we have more than 25% instances of this type already running
-func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformation) bool {
-	spotInstanceCount := i.asg.alreadyRunningSpotInstanceTypeCount(
-		spotCandidate.instanceType, *i.Placement.AvailabilityZone)
-
-	debug.Println("Checking current spot quantity:")
-	debug.Println("\tSpot count: ", spotInstanceCount)
-	if spotInstanceCount != 0 {
-		debug.Println("\tRation desired/spot currently running: ",
-			(*i.asg.DesiredCapacity/spotInstanceCount > 4))
-	}
-	return spotInstanceCount == 0 || *i.asg.DesiredCapacity/spotInstanceCount > 4
-}
-
 func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 	current := i.typeInfo
 	bestPrice := math.MaxFloat64
 	chosenSpotType := ""
+	attachedVolumesNumber := current.instanceStoreDeviceCount
 
 	// Count the ephemeral volumes attached to the original instance's block
 	// device mappings, this number is used later when comparing with each
 	// instance type.
 	lc := i.asg.getLaunchConfiguration()
-	lcMappings, err := lc.countLaunchConfigEphemeralVolumes()
-	if err == nil {
-		logger.Println("Couldn't determine the launch configuration device mapping",
-			"configuration")
+	if lc != nil {
+		lcMappings := lc.countLaunchConfigEphemeralVolumes()
+		attachedVolumesNumber = min(lcMappings, current.instanceStoreDeviceCount)
 	}
-
-	attachedVolumesNumber := min(lcMappings, current.instanceStoreDeviceCount)
 
 	for _, candidate := range i.region.instanceTypeInformation {
 
