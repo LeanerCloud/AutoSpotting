@@ -13,24 +13,24 @@ type launchConfiguration struct {
 	*autoscaling.LaunchConfiguration
 }
 
-func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() (int, error) {
+func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() int {
 	count := 0
 
 	if lc.BlockDeviceMappings == nil {
-		return 0, fmt.Errorf("launch configuration has no block device mappings")
+		return count
 	}
 
 	for _, mapping := range lc.BlockDeviceMappings {
 		if mapping.VirtualName != nil &&
 			strings.Contains(*mapping.VirtualName, "ephemeral") {
-			logger.Println("Found ephemeral device mapping", *mapping.VirtualName)
+			debug.Println("Found ephemeral device mapping", *mapping.VirtualName)
 			count++
 		}
 	}
 
 	logger.Printf("Launch configuration would attach %d ephemeral volumes if available", count)
 
-	return count, nil
+	return count
 }
 
 func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(

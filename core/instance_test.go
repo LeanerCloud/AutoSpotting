@@ -460,6 +460,103 @@ func TestIsQuantityCompatible(t *testing.T) {
 	}
 }
 
+func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
+	tests := []struct {
+		name               string
+		spotInfos          map[string]instanceTypeInformation
+		instanceInfo       *instance
+		asg                *autoScalingGroup
+		lc                 *launchConfiguration
+		expectedString     string
+		expectedError      error
+	}{
+		{name: "ASG has no 'running' instance but has some",
+			spotInfos: map[string]instanceTypeInformation{
+				"test": instanceTypeInformation{
+					instanceType: "m3.medium",
+					pricing: prices{
+						spot: map[string]float64{
+							"eu-central-1": 0.5,
+							"eu-west-1": 1.0,
+							"eu-west-2": 2.0,
+						},
+					},
+					vCPU: 10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize: 50.0,
+					instanceStoreIsSSD: false,
+					virtualizationTypes: []string{"PV", "else"},
+				},
+			},
+			instanceInfo: &instance{
+				Instance: &ec2.Instance{
+					VirtualizationType: aws.String("paravirtual"),
+					Placement: &ec2.Placement{
+						AvailabilityZone: aws.String("eu-central-1"),
+					},
+				},
+				typeInfo: instanceTypeInformation{
+					instanceType: "t2.micro",
+					vCPU: 10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize: 50.0,
+					instanceStoreIsSSD: false,
+				},
+				price: 10,
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "test-asg",
+				instances: makeInstancesWithCatalog(
+					map[string]*instance{
+						"id-1": {
+							Instance: &ec2.Instance{
+								InstanceId:        aws.String("id-1"),
+								InstanceType:      aws.String("t2.micro"),
+								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+								InstanceLifecycle: aws.String("spot"),
+							},
+						},
+					},
+				),
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			lc: &launchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+						&autoscaling.BlockDeviceMapping{
+							VirtualName: aws.String("vn1"),
+						},
+						&autoscaling.BlockDeviceMapping{
+							VirtualName: aws.String("ephemeral"),
+						},
+					},
+				},
+			},
+			expectedString: "m3.medium",
+			expectedError: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i := tt.instanceInfo
+			i.region.instanceTypeInformation = tt.spotInfos
+			i.asg = tt.asg
+			retValue, err := i.getCheapestCompatibleSpotInstanceType()
+			if err != tt.expectedError {
+				t.Errorf("Error received: %v expected %v", err, tt.expectedError)
+			} else if retValue != tt.expectedString {
+				t.Errorf("Value received: %s expected %s", retValue, tt.expectedString)
+			}
+		})
+	}
+}
+
 func TestMin(t *testing.T) {
 	tests := []struct {
 		name     string
