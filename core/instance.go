@@ -135,7 +135,7 @@ func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformatio
 	debug.Println("Checking current spot quantity:")
 	debug.Println("\tSpot count: ", spotInstanceCount)
 	if spotInstanceCount != 0 {
-		debug.Println("\tRation desired/spot currently running: ",
+		debug.Println("\tRatio desired/spot currently running: ",
 			(*i.asg.DesiredCapacity/spotInstanceCount > 4))
 	}
 	return spotInstanceCount == 0 || *i.asg.DesiredCapacity/spotInstanceCount > 4

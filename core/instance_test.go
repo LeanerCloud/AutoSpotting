@@ -27,7 +27,7 @@ func TestAdd(t *testing.T) {
 		catalog  map[string]*instance
 		expected map[string]*instance
 	}{
-		{name: "map contain a nil pointer",
+		{name: "map contains a nil pointer",
 			catalog: map[string]*instance{
 				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 				"inst2": nil,
@@ -44,7 +44,7 @@ func TestAdd(t *testing.T) {
 				"1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 			},
 		},
-		{name: "map has several instance",
+		{name: "map has several instances",
 			catalog: map[string]*instance{
 				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 				"inst2": &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
@@ -132,7 +132,7 @@ func TestCount(t *testing.T) {
 			},
 			expected: 1,
 		},
-		{name: "map has several instance",
+		{name: "map has several instances",
 			catalog: map[string]*instance{
 				"id-1": {},
 				"id-2": {},
@@ -174,7 +174,7 @@ func TestCount64(t *testing.T) {
 			},
 			expected: 1,
 		},
-		{name: "map has several instance",
+		{name: "map has several instances",
 			catalog: map[string]*instance{
 				"id-1": {},
 				"id-2": {},
@@ -242,7 +242,7 @@ func TestIsPriceCompatible(t *testing.T) {
 		bestPrice        float64
 		expected         bool
 	}{
-		{name: "Not spot price for such availability zone",
+		{name: "No spot price for such availability zone",
 			spotPrices: prices{
 				spot: map[string]float64{
 					"eu-central-1": 0.5,
@@ -281,7 +281,7 @@ func TestIsPriceCompatible(t *testing.T) {
 			bestPrice:        1.4,
 			expected:         true,
 		},
-		{name: "Spot price is equal 0.0",
+		{name: "Spot price is 0.0",
 			spotPrices: prices{
 				spot: map[string]float64{
 					"eu-central-1": 0.0,
