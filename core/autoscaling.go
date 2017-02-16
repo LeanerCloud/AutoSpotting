@@ -595,7 +595,8 @@ func (a *autoScalingGroup) bidForSpotInstance(
 	// know where to attach the instance later. In case the waiter failed, it may
 	// happen that the instance is actually tagged in the next run, but the spot
 	// instance request needs to be tagged anyway.
-	sr.tag(a.name)
+	err = sr.tag(a.name)
+	logger.Println(a.name, "Can't tag spot instance", err.Error())
 
 	// Waiting for the instance to start so that we can then later tag it with
 	// the same tags originally set on the on-demand instances.
