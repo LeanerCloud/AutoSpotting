@@ -121,7 +121,7 @@ func (i *instance) terminate() error {
 		},
 	)
 	if err != nil {
-		logger.Printf("Issue while terminating %s", *i.InstanceId, err.Error())
+		logger.Printf("Issue while terminating %v: %v", *i.InstanceId, err.Error())
 		return err
 	}
 	return nil
