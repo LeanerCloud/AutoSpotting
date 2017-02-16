@@ -5,6 +5,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
+// Set the default timeout for tagging instances
+const (
+	defaultTimeout = 60
+)
+
 type spotInstanceRequest struct {
 	*ec2.SpotInstanceRequest
 	region *region
@@ -40,8 +45,8 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() {
 	// due to the waiter we can now safely assume all this data is available
 	spotInstanceID := requestDetails.SpotInstanceRequests[0].InstanceId
 
-	logger.Println(s.asg.name, "found new spot instance", *spotInstanceID,
-		"\nTagging it to match the other instances from the group")
+	logger.Println(s.asg.name, "Found new spot instance", *spotInstanceID)
+	logger.Println("Tagging it to match the other instances from the group")
 
 	// we need to re-scan in order to have the information a
 	err = s.region.scanInstances()
@@ -54,7 +59,7 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() {
 	i := s.region.instances.get(*spotInstanceID)
 
 	if i != nil {
-		i.tag(tags)
+		i.tag(tags, defaultTimeout)
 	} else {
 		logger.Println(s.asg.name, "new spot instance", *spotInstanceID, "has disappeared")
 	}

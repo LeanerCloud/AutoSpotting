@@ -300,7 +300,6 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 			err.Error())
 		return
 	}
-
 }
 
 func (r *region) hasEnabledAutoScalingGroups() bool {

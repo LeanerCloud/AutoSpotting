@@ -516,7 +516,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 	}
 
 	logger.Println("Trying to launch spot instance in", *azToLaunchIn,
-		"\nfirst finding an on-demand instance to use as a template")
+		"first finding an on-demand instance to use as a template")
 
 	baseInstance := a.findOndemandInstanceInAZ(azToLaunchIn)
 
@@ -528,7 +528,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 
 	newInstanceType, err := baseInstance.getCheapestCompatibleSpotInstanceType()
 
-	if newInstanceType == nil {
+	if err != nil {
 		logger.Println("No cheaper compatible instance type was found, "+
 			"nothing to do here...", err)
 		return
@@ -537,20 +537,19 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 	baseOnDemandPrice := baseInstance.price
 
 	currentSpotPrice := a.region.
-		instanceTypeInformation[*newInstanceType].pricing.spot[*azToLaunchIn]
+		instanceTypeInformation[newInstanceType].pricing.spot[*azToLaunchIn]
 
-	logger.Println("Finished searching for best spot instance in ",
-		*azToLaunchIn,
-		"\nreplacing an on-demand", *baseInstance.InstanceType,
-		"instance having the ondemand price", baseOnDemandPrice,
-		"\nLaunching best compatible instance:", *newInstanceType,
+	logger.Println("Finished searching for best spot instance in ", *azToLaunchIn)
+	logger.Println("Replacing an on-demand", *baseInstance.InstanceType,
+		"instance having the ondemand price", baseOnDemandPrice)
+	logger.Println("Launching best compatible instance:", newInstanceType,
 		"with current spot price:", currentSpotPrice)
 
 	lc := a.getLaunchConfiguration()
 
 	spotLS := lc.convertLaunchConfigurationToSpotSpecification(
 		baseInstance,
-		*newInstanceType,
+		newInstanceType,
 		*azToLaunchIn)
 
 	logger.Println("Bidding for spot instance for ", a.name)
