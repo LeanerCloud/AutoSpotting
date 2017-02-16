@@ -1,11 +1,201 @@
 package autospotting
 
 import (
+	"errors"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"reflect"
 	"testing"
 )
+
+func TestMake(t *testing.T) {
+	expected := map[string]*instance{}
+	is := &instanceManager{}
+
+	is.make()
+	if !reflect.DeepEqual(is.catalog, expected) {
+		t.Errorf("Catalog's type: '%s' expected: '%s'",
+			reflect.TypeOf(is.catalog).String(),
+			reflect.TypeOf(expected).String())
+	}
+}
+
+func TestAdd(t *testing.T) {
+	tests := []struct {
+		name     string
+		catalog  map[string]*instance
+		expected map[string]*instance
+	}{
+		{name: "map contain a nil pointer",
+			catalog: map[string]*instance{
+				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"inst2": nil,
+			},
+			expected: map[string]*instance{
+				"1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+			},
+		},
+		{name: "map has 1 instance",
+			catalog: map[string]*instance{
+				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+			},
+			expected: map[string]*instance{
+				"1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+			},
+		},
+		{name: "map has several instance",
+			catalog: map[string]*instance{
+				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"inst2": &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
+				"inst3": &instance{Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+			},
+			expected: map[string]*instance{
+				"1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"2": &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
+				"3": &instance{Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			is := &instanceManager{}
+			is.make()
+			for _, c := range tt.catalog {
+				is.add(c)
+			}
+			if !reflect.DeepEqual(tt.expected, is.catalog) {
+				t.Errorf("Value received: %v expected %v", is.catalog, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGet(t *testing.T) {
+	tests := []struct {
+		name     string
+		catalog  map[string]*instance
+		idToGet  string
+		expected *instance
+	}{
+		{name: "map contains the required instance",
+			catalog: map[string]*instance{
+				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"inst2": &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
+				"inst3": &instance{Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+			},
+			idToGet:  "inst2",
+			expected: &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
+		},
+		{name: "catalog doesn't contain the instance",
+			catalog: map[string]*instance{
+				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"inst2": &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
+				"inst3": &instance{Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+			},
+			idToGet:  "7",
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			is := &instanceManager{}
+			is.make()
+			is.catalog = tt.catalog
+			retInstance := is.get(tt.idToGet)
+			if !reflect.DeepEqual(tt.expected, retInstance) {
+				t.Errorf("Value received: %v expected %v", retInstance, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		catalog  map[string]*instance
+		expected int
+	}{
+		{name: "map is nil",
+			catalog:  nil,
+			expected: 0,
+		},
+		{name: "map is empty",
+			catalog:  map[string]*instance{},
+			expected: 0,
+		},
+		{name: "map has 1 instance",
+			catalog: map[string]*instance{
+				"id-1": {},
+			},
+			expected: 1,
+		},
+		{name: "map has several instance",
+			catalog: map[string]*instance{
+				"id-1": {},
+				"id-2": {},
+				"id-3": {},
+			},
+			expected: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			is := &instanceManager{}
+			is.catalog = tt.catalog
+			ret := is.count()
+			if ret != tt.expected {
+				t.Errorf("Value received: '%d' expected %d", ret, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCount64(t *testing.T) {
+	tests := []struct {
+		name     string
+		catalog  map[string]*instance
+		expected int64
+	}{
+		{name: "map is nil",
+			catalog:  nil,
+			expected: 0,
+		},
+		{name: "map is empty",
+			catalog:  map[string]*instance{},
+			expected: 0,
+		},
+		{name: "map has 1 instance",
+			catalog: map[string]*instance{
+				"id-1": {},
+			},
+			expected: 1,
+		},
+		{name: "map has several instance",
+			catalog: map[string]*instance{
+				"id-1": {},
+				"id-2": {},
+				"id-3": {},
+			},
+			expected: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			is := &instanceManager{}
+			is.catalog = tt.catalog
+			ret := is.count64()
+			if ret != tt.expected {
+				t.Errorf("Value received: '%d' expected %d", ret, tt.expected)
+			}
+		})
+	}
+}
 
 func TestIsSpot(t *testing.T) {
 
@@ -462,31 +652,47 @@ func TestIsQuantityCompatible(t *testing.T) {
 
 func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 	tests := []struct {
-		name               string
-		spotInfos          map[string]instanceTypeInformation
-		instanceInfo       *instance
-		asg                *autoScalingGroup
-		lc                 *launchConfiguration
-		expectedString     string
-		expectedError      error
+		name           string
+		spotInfos      map[string]instanceTypeInformation
+		instanceInfo   *instance
+		asg            *autoScalingGroup
+		lc             *launchConfiguration
+		expectedString string
+		expectedError  error
 	}{
-		{name: "ASG has no 'running' instance but has some",
+		{name: "better/cheaper spot instance found",
 			spotInfos: map[string]instanceTypeInformation{
-				"test": instanceTypeInformation{
-					instanceType: "m3.medium",
+				"1": instanceTypeInformation{
+					instanceType: "type1",
 					pricing: prices{
 						spot: map[string]float64{
 							"eu-central-1": 0.5,
-							"eu-west-1": 1.0,
-							"eu-west-2": 2.0,
+							"eu-west-1":    1.0,
+							"eu-west-2":    2.0,
 						},
 					},
-					vCPU: 10,
+					vCPU:   10,
 					memory: 2.5,
 					instanceStoreDeviceCount: 1,
-					instanceStoreDeviceSize: 50.0,
-					instanceStoreIsSSD: false,
-					virtualizationTypes: []string{"PV", "else"},
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+					virtualizationTypes:      []string{"PV", "else"},
+				},
+				"2": instanceTypeInformation{
+					instanceType: "type2",
+					pricing: prices{
+						spot: map[string]float64{
+							"eu-central-1": 0.8,
+							"eu-west-1":    1.0,
+							"eu-west-2":    2.0,
+						},
+					},
+					vCPU:   10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+					virtualizationTypes:      []string{"PV", "else"},
 				},
 			},
 			instanceInfo: &instance{
@@ -497,14 +703,14 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 					},
 				},
 				typeInfo: instanceTypeInformation{
-					instanceType: "t2.micro",
-					vCPU: 10,
-					memory: 2.5,
+					instanceType: "typeX",
+					vCPU:         10,
+					memory:       2.5,
 					instanceStoreDeviceCount: 1,
-					instanceStoreDeviceSize: 50.0,
-					instanceStoreIsSSD: false,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
 				},
-				price: 10,
+				price:  0.75,
 				region: &region{},
 			},
 			asg: &autoScalingGroup{
@@ -514,8 +720,8 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						"id-1": {
 							Instance: &ec2.Instance{
 								InstanceId:        aws.String("id-1"),
-								InstanceType:      aws.String("t2.micro"),
-								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+								InstanceType:      aws.String("typeX"),
+								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
 								InstanceLifecycle: aws.String("spot"),
 							},
 						},
@@ -537,8 +743,95 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 					},
 				},
 			},
-			expectedString: "m3.medium",
-			expectedError: nil,
+			expectedString: "type1",
+			expectedError:  nil,
+		},
+		{name: "better/cheaper spot instance not found",
+			spotInfos: map[string]instanceTypeInformation{
+				"1": instanceTypeInformation{
+					instanceType: "type1",
+					pricing: prices{
+						spot: map[string]float64{
+							"eu-central-1": 0.5,
+							"eu-west-1":    1.0,
+							"eu-west-2":    2.0,
+						},
+					},
+					vCPU:   10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+					virtualizationTypes:      []string{"PV", "else"},
+				},
+				"2": instanceTypeInformation{
+					instanceType: "type2",
+					pricing: prices{
+						spot: map[string]float64{
+							"eu-central-1": 0.8,
+							"eu-west-1":    1.0,
+							"eu-west-2":    2.0,
+						},
+					},
+					vCPU:   10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+					virtualizationTypes:      []string{"PV", "else"},
+				},
+			},
+			instanceInfo: &instance{
+				Instance: &ec2.Instance{
+					VirtualizationType: aws.String("paravirtual"),
+					Placement: &ec2.Placement{
+						AvailabilityZone: aws.String("eu-central-1"),
+					},
+				},
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+					vCPU:         10,
+					memory:       2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+				},
+				price:  0.45,
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "test-asg",
+				instances: makeInstancesWithCatalog(
+					map[string]*instance{
+						"id-1": {
+							Instance: &ec2.Instance{
+								InstanceId:        aws.String("id-1"),
+								InstanceType:      aws.String("typeX"),
+								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
+								InstanceLifecycle: aws.String("spot"),
+							},
+						},
+					},
+				),
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			lc: &launchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+					LaunchConfigurationName: aws.String("test"),
+					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+						&autoscaling.BlockDeviceMapping{
+							VirtualName: aws.String("vn1"),
+						},
+						&autoscaling.BlockDeviceMapping{
+							VirtualName: aws.String("ephemeral"),
+						},
+					},
+				},
+			},
+			expectedString: "",
+			expectedError:  errors.New("No cheaper spot instance types could be found"),
 		},
 	}
 
@@ -548,12 +841,174 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			i.region.instanceTypeInformation = tt.spotInfos
 			i.asg = tt.asg
 			retValue, err := i.getCheapestCompatibleSpotInstanceType()
-			if err != tt.expectedError {
-				t.Errorf("Error received: %v expected %v", err, tt.expectedError)
+			if err == nil && tt.expectedError != err {
+				t.Errorf("Error received: %v expected %v", err, tt.expectedError.Error())
+			} else if err != nil && tt.expectedError == nil {
+				t.Errorf("Error received: %s expected %s", err.Error(), tt.expectedError)
+			} else if err != nil && tt.expectedError != nil && err.Error() != tt.expectedError.Error() {
+				t.Errorf("Error received: %s expected %s", err.Error(), tt.expectedError.Error())
 			} else if retValue != tt.expectedString {
 				t.Errorf("Value received: %s expected %s", retValue, tt.expectedString)
 			}
 		})
+	}
+}
+
+type mock struct {
+	ec2iface.EC2API
+	mockErr error
+}
+
+func (m mock) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
+	return nil, m.mockErr
+}
+
+func (m mock) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
+	return nil, m.mockErr
+}
+
+func TestTerminate(t *testing.T) {
+	tests := []struct {
+		name     string
+		tags     []*ec2.Tag
+		inst     *instance
+		expected error
+	}{
+		{
+			name: "no issue with terminate",
+			tags: []*ec2.Tag{},
+			inst: &instance{
+				Instance: &ec2.Instance{
+					InstanceId: aws.String("id1"),
+				},
+				region: &region{
+					services: connections{
+						ec2: mock{
+							mockErr: nil,
+						},
+					},
+				},
+			},
+			expected: nil,
+		},
+		{
+			name: "issue with terminate",
+			tags: []*ec2.Tag{},
+			inst: &instance{
+				Instance: &ec2.Instance{
+					InstanceId: aws.String("id1"),
+				},
+				region: &region{
+					services: connections{
+						ec2: mock{
+							mockErr: errors.New(""),
+						},
+					},
+				},
+			},
+			expected: errors.New(""),
+		},
+	}
+	for _, tt := range tests {
+		ret := tt.inst.terminate()
+		if ret != nil && ret.Error() != tt.expected.Error() {
+			t.Errorf("error actual: %s, expected: %s", ret.Error(), tt.expected.Error())
+		}
+	}
+}
+
+func TestTag(t *testing.T) {
+	tests := []struct {
+		name     string
+		tags     []*ec2.Tag
+		inst     *instance
+		expected error
+	}{
+		{
+			name: "no tags without error",
+			tags: []*ec2.Tag{},
+			inst: &instance{
+				Instance: &ec2.Instance{
+					InstanceId: aws.String("id1"),
+				},
+				region: &region{
+					name: "test",
+					services: connections{
+						ec2: mock{
+							mockErr: nil,
+						},
+					},
+				},
+			},
+			expected: nil,
+		},
+		{
+			name: "no tags with error",
+			tags: []*ec2.Tag{},
+			inst: &instance{
+				Instance: &ec2.Instance{
+					InstanceId: aws.String("id1"),
+				},
+				region: &region{
+					name: "test",
+					services: connections{
+						ec2: mock{
+							mockErr: errors.New(""),
+						},
+					},
+				},
+			},
+			expected: errors.New(""),
+		},
+		{
+			name: "tags without error",
+			tags: []*ec2.Tag{
+				{Key: aws.String("proj"), Value: aws.String("test")},
+				{Key: aws.String("x"), Value: aws.String("3")},
+			},
+			inst: &instance{
+				Instance: &ec2.Instance{
+					InstanceId: aws.String("id1"),
+				},
+				region: &region{
+					name: "test",
+					services: connections{
+						ec2: mock{
+							mockErr: nil,
+						},
+					},
+				},
+			},
+			expected: nil,
+		},
+		{
+			name: "tags with error",
+			tags: []*ec2.Tag{
+				{Key: aws.String("proj"), Value: aws.String("test")},
+				{Key: aws.String("x"), Value: aws.String("3")},
+			},
+			inst: &instance{
+				Instance: &ec2.Instance{
+					InstanceId: aws.String("id1"),
+				},
+				region: &region{
+					name: "test",
+					services: connections{
+						ec2: mock{
+							mockErr: errors.New(""),
+						},
+					},
+				},
+			},
+			expected: errors.New(""),
+		},
+	}
+
+	for _, tt := range tests {
+		ret := tt.inst.tag(tt.tags, 1)
+		if ret != nil && ret.Error() != tt.expected.Error() {
+			t.Errorf("error actual: %s, expected: %s", ret.Error(), tt.expected.Error())
+		}
 	}
 }
 
