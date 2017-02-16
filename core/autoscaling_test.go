@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 )
 
 func TestGetTagValue(t *testing.T) {
@@ -965,14 +964,6 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 	}
 }
 
-type mockEC2Client struct {
-	ec2iface.EC2API
-}
-
-func (m *mockEC2Client) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
-	return nil, nil
-}
-
 func TestNeedReplaceOnDemandInstances(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -1052,7 +1043,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 						region: &region{
 							name: "test-region",
 							services: connections{
-								ec2: &mockEC2Client{},
+								ec2: &mock{},
 							},
 						},
 					},

@@ -5,7 +5,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"reflect"
 	"testing"
 )
@@ -854,19 +853,6 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 	}
 }
 
-type mock struct {
-	ec2iface.EC2API
-	mockErr error
-}
-
-func (m mock) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
-	return nil, m.mockErr
-}
-
-func (m mock) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
-	return nil, m.mockErr
-}
-
 func TestTerminate(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -884,7 +870,7 @@ func TestTerminate(t *testing.T) {
 				region: &region{
 					services: connections{
 						ec2: mock{
-							mockErr: nil,
+							er: nil,
 						},
 					},
 				},
@@ -901,7 +887,7 @@ func TestTerminate(t *testing.T) {
 				region: &region{
 					services: connections{
 						ec2: mock{
-							mockErr: errors.New(""),
+							er: errors.New(""),
 						},
 					},
 				},
@@ -935,7 +921,7 @@ func TestTag(t *testing.T) {
 					name: "test",
 					services: connections{
 						ec2: mock{
-							mockErr: nil,
+							er: nil,
 						},
 					},
 				},
@@ -953,7 +939,7 @@ func TestTag(t *testing.T) {
 					name: "test",
 					services: connections{
 						ec2: mock{
-							mockErr: errors.New(""),
+							er: errors.New(""),
 						},
 					},
 				},
@@ -974,7 +960,7 @@ func TestTag(t *testing.T) {
 					name: "test",
 					services: connections{
 						ec2: mock{
-							mockErr: nil,
+							er: nil,
 						},
 					},
 				},
@@ -995,7 +981,7 @@ func TestTag(t *testing.T) {
 					name: "test",
 					services: connections{
 						ec2: mock{
-							mockErr: errors.New(""),
+							er: errors.New(""),
 						},
 					},
 				},
