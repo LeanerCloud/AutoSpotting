@@ -5,6 +5,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
+// Set the default timeout for tagging instances
+const (
+	defaultTimeout = 60
+)
+
 type spotInstanceRequest struct {
 	*ec2.SpotInstanceRequest
 	region *region
@@ -54,7 +59,7 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() {
 	i := s.region.instances.get(*spotInstanceID)
 
 	if i != nil {
-		i.tag(tags)
+		i.tag(tags, defaultTimeout)
 	} else {
 		logger.Println(s.asg.name, "new spot instance", *spotInstanceID, "has disappeared")
 	}

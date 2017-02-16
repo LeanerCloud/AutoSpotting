@@ -38,7 +38,7 @@ func makeInstancesWithCatalog(catalog map[string]*instance) instances {
 func (is *instanceManager) dump() string {
 	is.RLock()
 	defer is.RUnlock()
-	return spew.Sdump(is.instances)
+	return spew.Sdump(is.catalog)
 }
 
 func (is *instanceManager) make() {
@@ -48,6 +48,9 @@ func (is *instanceManager) make() {
 }
 
 func (is *instanceManager) add(inst *instance) {
+	if inst == nil {
+		return
+	}
 	debug.Println(inst)
 	is.Lock()
 	defer is.Unlock()
@@ -110,19 +113,22 @@ func (i *instance) isSpot() bool {
 		*i.InstanceLifecycle == "spot")
 }
 
-func (i *instance) terminate() {
+func (i *instance) terminate() error {
 
-	if _, err := i.region.services.ec2.TerminateInstances(
+	_, err := i.region.services.ec2.TerminateInstances(
 		&ec2.TerminateInstancesInput{
 			InstanceIds: []*string{i.InstanceId},
-		}); err != nil {
-		logger.Println(err.Error())
+		},
+	)
+	if err != nil {
+		logger.Printf("Issue while terminating %s", *i.InstanceId, err.Error())
+		return err
 	}
+	return nil
 }
 
 // We skip it in case we have more than 25% instances of this type already running
 func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformation) bool {
-	fmt.Println("BC5")
 	spotInstanceCount := i.asg.alreadyRunningSpotInstanceTypeCount(
 		spotCandidate.instanceType, *i.Placement.AvailabilityZone)
 
@@ -238,12 +244,16 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 	return chosenSpotType, fmt.Errorf("No cheaper spot instance types could be found")
 }
 
-func (i *instance) tag(tags []*ec2.Tag) {
+func (i *instance) tag(tags []*ec2.Tag, maxIter int) error {
+	var (
+		n   int
+		err error
+	)
 
 	if len(tags) == 0 {
 		logger.Println(i.region.name, "Tagging spot instance", *i.InstanceId,
 			"no tags were defined, skipping...")
-		return
+		return nil
 	}
 
 	svc := i.region.services.ec2
@@ -254,19 +264,20 @@ func (i *instance) tag(tags []*ec2.Tag) {
 
 	logger.Println(i.region.name, "Tagging spot instance", *i.InstanceId)
 
-	for _, err := svc.CreateTags(&params); err != nil; _, err = svc.CreateTags(&params) {
-
+	for n = 0; n < maxIter; n++ {
+		_, err = svc.CreateTags(&params)
+		if err == nil {
+			logger.Println("Instance", *i.InstanceId,
+				"was tagged with the following tags:", tags)
+			break
+		}
 		logger.Println(i.region.name,
 			"Failed to create tags for the spot instance", *i.InstanceId, err.Error())
-
 		logger.Println(i.region.name,
 			"Sleeping for 5 seconds before retrying")
-
 		time.Sleep(5 * time.Second)
 	}
-
-	logger.Println("Instance", *i.InstanceId,
-		"was tagged with the following tags:", tags)
+	return err
 }
 
 // Why the heck isn't this in the Go standard library?
