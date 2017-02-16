@@ -1,7 +1,6 @@
 package autospotting
 
 import (
-	"errors"
 	"reflect"
 	"testing"
 
@@ -111,7 +110,6 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		name  string
 		lc    *launchConfiguration
 		count int
-		err   error
 	}{
 		{
 			name: "empty launchConfiguration",
@@ -121,7 +119,6 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 				},
 			},
 			count: 0,
-			err:   errors.New("launch configuration has no block device mappings"),
 		},
 		{
 			name: "empty BlockDeviceMappings",
@@ -133,7 +130,6 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 				},
 			},
 			count: 0,
-			err:   nil,
 		},
 		{
 			name: "mix of valid and invalid configuration",
@@ -146,7 +142,6 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 				},
 			},
 			count: 1,
-			err:   nil,
 		},
 		{
 			name: "valid configuration",
@@ -159,18 +154,14 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 				},
 			},
 			count: 2,
-			err:   nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			count, err := tc.lc.countLaunchConfigEphemeralVolumes()
+			count := tc.lc.countLaunchConfigEphemeralVolumes()
 			if count != tc.count {
 				t.Errorf("count expected: %d, actual: %d", tc.count, count)
-			}
-			if err != nil && err.Error() != tc.err.Error() {
-				t.Errorf("error expected: %s, actual: %s", tc.err.Error(), err.Error())
 			}
 		})
 	}
