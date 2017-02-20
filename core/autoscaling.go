@@ -596,8 +596,11 @@ func (a *autoScalingGroup) bidForSpotInstance(
 	// happen that the instance is actually tagged in the next run, but the spot
 	// instance request needs to be tagged anyway.
 	err = sr.tag(a.name)
-	logger.Println(a.name, "Can't tag spot instance", err.Error())
 
+	if err != nil {
+		logger.Println(a.name, "Can't tag spot instance request", err.Error())
+		return
+	}
 	// Waiting for the instance to start so that we can then later tag it with
 	// the same tags originally set on the on-demand instances.
 	//
