@@ -5,7 +5,7 @@ need to customize AutoSpotting for your own environment.
 
 You'll need to set up a local environment able to compile Go code, compile the
 binaries locally, upload them to an S3 bucket in your AWS account and update
-your CloudFormation stack to use those new binaries.
+your CloudFormation or Terraform stack to use those new binaries.
 
 ## Dependencies ##
 
