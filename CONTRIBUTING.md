@@ -5,7 +5,7 @@
 The usual GitHub contribution model applies, but if you would like to [raise an
 issue](https://github.com/cristim/autospotting/issues/new) or start working on a
 [pull request](https://github.com/cristim/autospotting/pulls), please get in
-touch on [gitter](https://gitter.im/cristim/autospotting) to discuss it first to
+touch on [gitter](https://gitter.im/cristim/autospotting) to discuss it first so
 we make sure everything is clear and that nobody else is working on it.
 
 Any random questions are also better asked there.
