@@ -138,8 +138,8 @@ During multiple replacements performed on a given group, it only swaps them one
 at a time per Lambda function invocation, in order to not change the group too
 fast, but instances belonging to multiple groups can be replaced concurrently.
 If you find this slow, the Lambda function invocation frequency (defaulting to
-once every 5 minutes) can be changed by updating the CloudFormation stack, which
-has a parameter for it.
+once every 5 minutes) can be changed by updating the stack, which has a
+parameter for it.
 
 In the (so far unlikely) case in which the market price is high enough that
 there are no spot instances that can be launched, (and also in case of software
@@ -151,12 +151,12 @@ succeed again.
 ## Internal components ##
 
 When deployed, the software consists on a number of resources running in your
-Amazon AWS account, created automatically with CloudFormation:
+Amazon AWS account, created automatically with CloudFormation or Terraform:
 
 ### Event generator ###
 
 CloudWatch event source used for triggering the Lambda function. The default
-frequency is every 5 minutes, but it is configurable using CloudFormation.
+frequency is every 5 minutes, but it is configurable using stack parameters.
 
 ### Lambda function ###
 
@@ -168,7 +168,7 @@ frequency is every 5 minutes, but it is configurable using CloudFormation.
 - The permissions are the minimal set required for it to work without the need
   of passing any explicit AWS credentials or access keys.
 - Some algorithm parameters can be configured using Lambda environment
-  variables, based on some of the CloudFormation stack parameters.
+  variables, based on some of the stack parameters.
 - Contains a handler written in Golang, built using the
   [eawsy/aws-lambda-go](https://github.com/eawsy/aws-lambda-go) library, which
   implements a novel aproach that allows Golang code compiled natively to be
@@ -260,15 +260,15 @@ read see the seespot tool's documentation.
 Instances behind an ELB can be graciously
 [removed](https://aws.amazon.com/blogs/aws/elb-connection-draining-remove-instances-from-service-with-care/)
 from the load balancer without losing connections. You should enable the
-connection draining feature, and then you just need to append this snippet to
+connection draining feature, and then you just need to append a snippet to
 your user_data script, assuming your instances have enough IAM role permissions
-to remove themselves from the load balancer:
+to remove themselves from the load balancer.
 
 ### ECS container hosts ###
 
-The container hosts can now be
+The container hosts can be
 [drained](http://docs.aws.amazon.com/AmazonECS/latest/developerguide/container-instance-draining.html)
-in a similar way, migrating all the Docker containers to the other hosts from
+in a similar way, by migrating all the Docker containers to the other hosts from
 your cluster before the spot instance is terminated. This blog
 [post](https://aws.amazon.com/blogs/compute/how-to-automate-container-instance-draining-in-amazon-ecs/)
 explains it in great detail, until AWS hopefully implements this out of the box.
