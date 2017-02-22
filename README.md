@@ -1,5 +1,9 @@
 # AutoSpotting #
 
+<!-- markdownlint-disable MD033 -->
+
+<img src="logo.png" width="150" align="right">
+
 [![BuildStatus](https://travis-ci.org/cristim/autospotting.svg?branch=master)](https://travis-ci.org/cristim/autospotting)
 [![GoReportCard](https://goreportcard.com/badge/github.com/cristim/autospotting)](https://goreportcard.com/report/github.com/cristim/autospotting)
 [![CoverageStatus](https://coveralls.io/repos/github/cristim/autospotting/badge.svg?branch=master)](https://coveralls.io/github/cristim/autospotting?branch=master)
@@ -25,51 +29,43 @@ All this can be seen in action below.
 
 ![Workflow](https://cdn.cloudprowess.com/images/autospotting.gif)
 
-Read [here](./TECHNICAL_DETAILS.md) for more detailed information.
+Read [here](TECHNICAL_DETAILS.md) for more information and implementation
+details.
 
 ## Getting Started ##
 
-Just like in the above animation, it's as easy as running a CloudFormation stack
-and setting one or more tags on your AutoScaling group. It should only take a
-few minutes until you can start saving.
+Just like in the above animation, it's as easy as launching a CloudFormation (or
+[Terraform](https://github.com/cristim/autospotting/tree/master/terraform))
+stack and setting one or more tags on your AutoScaling group. It should only
+take a few minutes to get started.
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
 
-For more detailed information you can read this [document](./START.md)
+For more detailed information you can read this [document](START.md)
 
 ## Compiling and Installing ##
 
-Even though you should normally be fine with the provided binaries, in case you
-have some special needs it's relatively easy to build and install your own
-customized binaries. More details [here](./SETUP.md)
+Even though you should normally be fine with the provided binaries, for local
+development or in case you have some special needs it's relatively easy to
+build, run or install your customized binaries.
+
+More details are available [here](CUSTOM_BUILDS.md)
 
 ## Contributing ##
 
-This project was developed by volunteers in their own spare time, so if it makes
-a difference on your company's bottom line, please consider giving something
-back to ensure further development. You can do it by suggesting improvements,
-contributing some code or documentation, allowing some of your employees to work
-on it for a few hours per week, or even just spreading the word.
+This project was developed by volunteers in their own spare time. If you find it
+useful please consider contributing to its development, any help would be
+greatly appreciated.
 
-The usual GitHub contribution model applies, but if you would like to raise an
-issue or start working on a pull request, please get in touch on
-[gitter](https://gitter.im/cristim/autospotting) to discuss it first. Any
-random questions are also better asked on gitter.
+You can do it by trying it out and giving feedback, reporting bugs, writing
+code, improving the documentation, assigning a colleague to work on it for a few
+hours a week, spreading the word or simply
+[contacting](https://gitter.im/cristim/autospotting) us and telling about your
+setup.
 
-Bug reports should contain enough details to be reproduced, see
-[#83](https://github.com/cristim/autospotting/issues/83): for a relatively good
-example:
+Non-trivial work should be submitted according to the contribution
+[guidelines](CONTRIBUTING.md)
 
-- build number or git commit in case of custom builds
-- error stack trace
-- anonymized launch configuration dump,
-- AWS region
-- environment type (VPC/EC2Classic/DefaultVPC)
+## License ##
 
-Feature requests should explain the issue in detail, and should also be
-discussed on gitter to make sure nothing was lost in translation.
-
-The code contributions need to provide unit tests for the functionality they
-are creating or changing in a meaningful way.
-
-Thanks!
+This software is distributed under the terms of the MIT [license](LICENSE).
