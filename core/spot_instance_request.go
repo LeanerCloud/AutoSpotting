@@ -17,8 +17,7 @@ type spotInstanceRequest struct {
 }
 
 // This function returns an Instance ID
-func (s *spotInstanceRequest) waitForAndTagSpotInstance() {
-
+func (s *spotInstanceRequest) waitForAndTagSpotInstance() error {
 	logger.Println(s.asg.name, "Waiting for spot instance for spot instance request",
 		*s.SpotInstanceRequestId)
 
@@ -31,7 +30,7 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() {
 	err := ec2Client.WaitUntilSpotInstanceRequestFulfilled(&params)
 	if err != nil {
 		logger.Println(s.asg.name, "Error waiting for instance:", err.Error())
-		return
+		return err
 	}
 
 	logger.Println(s.asg.name, "Done waiting for an instance.")
@@ -40,6 +39,7 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() {
 	requestDetails, err := ec2Client.DescribeSpotInstanceRequests(&params)
 	if err != nil {
 		logger.Println(s.asg.name, "Failed to describe spot instance requests")
+		return err
 	}
 
 	// due to the waiter we can now safely assume all this data is available
@@ -63,6 +63,7 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() {
 	} else {
 		logger.Println(s.asg.name, "new spot instance", *spotInstanceID, "has disappeared")
 	}
+	return nil
 }
 
 func (s *spotInstanceRequest) tag(asgName string) error {

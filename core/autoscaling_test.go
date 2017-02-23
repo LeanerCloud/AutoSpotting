@@ -3,9 +3,11 @@ package autospotting
 import (
 	"testing"
 
+	"errors"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"reflect"
 )
 
 func TestGetTagValue(t *testing.T) {
@@ -1043,7 +1045,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 						region: &region{
 							name: "test-region",
 							services: connections{
-								ec2: &mock{},
+								ec2: &mockEC2{},
 							},
 						},
 					},
@@ -1144,6 +1146,642 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 				t.Errorf("needReplaceOnDemandInstances returned: %t expected %t",
 					shouldRun, tt.expectedRun)
 			}
+		})
+	}
+}
+
+func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
+	tests := []struct {
+		name         string
+		instancesASG instances
+		regionASG    *region
+		instanceID   *string
+		expected     error
+	}{
+		{name: "no err during detach nor terminate",
+			instancesASG: makeInstancesWithCatalog(
+				map[string]*instance{
+					"1": &instance{
+						Instance: &ec2.Instance{
+							InstanceId: aws.String("1"),
+						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{tierr: nil},
+							},
+						},
+					},
+				},
+			),
+			regionASG: &region{
+				name: "regionTest",
+				services: connections{
+					autoScaling: mockASG{dierr: nil},
+				},
+			},
+			instanceID: aws.String("1"),
+			expected:   nil,
+		},
+		{name: "err during detach not during terminate",
+			instancesASG: makeInstancesWithCatalog(
+				map[string]*instance{
+					"1": &instance{
+						Instance: &ec2.Instance{
+							InstanceId: aws.String("1"),
+						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{tierr: nil},
+							},
+						},
+					},
+				},
+			),
+			regionASG: &region{
+				name: "regionTest",
+				services: connections{
+					autoScaling: mockASG{dierr: errors.New("detach")},
+				},
+			},
+			instanceID: aws.String("1"),
+			expected:   errors.New("detach"),
+		},
+		{name: "no err during detach but error during terminate",
+			instancesASG: makeInstancesWithCatalog(
+				map[string]*instance{
+					"1": &instance{
+						Instance: &ec2.Instance{
+							InstanceId: aws.String("1"),
+						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{tierr: errors.New("terminate")},
+							},
+						},
+					},
+				},
+			),
+			regionASG: &region{
+				name: "regionTest",
+				services: connections{
+					autoScaling: mockASG{dierr: nil},
+				},
+			},
+			instanceID: aws.String("1"),
+			expected:   errors.New("terminate"),
+		},
+		{name: "errors during detach and terminate",
+			instancesASG: makeInstancesWithCatalog(
+				map[string]*instance{
+					"1": &instance{
+						Instance: &ec2.Instance{
+							InstanceId: aws.String("1"),
+						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{tierr: errors.New("terminate")},
+							},
+						},
+					},
+				},
+			),
+			regionASG: &region{
+				name: "regionTest",
+				services: connections{
+					autoScaling: mockASG{dierr: errors.New("detach")},
+				},
+			},
+			instanceID: aws.String("1"),
+			expected:   errors.New("detach"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := autoScalingGroup{
+				name:      "testASG",
+				region:    tt.regionASG,
+				instances: tt.instancesASG,
+			}
+			err := a.detachAndTerminateOnDemandInstance(tt.instanceID)
+			CheckErrors(t, err, tt.expected)
+		})
+	}
+}
+
+func TestAttachSpotInstance(t *testing.T) {
+	tests := []struct {
+		name       string
+		regionASG  *region
+		instanceID *string
+		expected   error
+	}{
+		{name: "no err during attach",
+			regionASG: &region{
+				name: "regionTest",
+				services: connections{
+					autoScaling: mockASG{aierr: nil},
+				},
+			},
+			instanceID: aws.String("1"),
+			expected:   nil,
+		},
+		{name: "err during attach",
+			regionASG: &region{
+				name: "regionTest",
+				services: connections{
+					autoScaling: mockASG{aierr: errors.New("attach")},
+				},
+			},
+			instanceID: aws.String("1"),
+			expected:   errors.New("attach"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := autoScalingGroup{
+				name:   "testASG",
+				region: tt.regionASG,
+			}
+			err := a.attachSpotInstance(tt.instanceID)
+			CheckErrors(t, err, tt.expected)
+		})
+	}
+}
+
+func TestGetLaunchConfiguration(t *testing.T) {
+	tests := []struct {
+		name       string
+		nameLC     *string
+		regionASG  *region
+		expectedLC *launchConfiguration
+	}{
+		{name: "get nil launch configuration",
+			nameLC: nil,
+			regionASG: &region{
+				services: connections{
+					autoScaling: mockASG{dlcerr: nil},
+				},
+			},
+			expectedLC: nil,
+		},
+		{name: "no err during get launch configuration",
+			nameLC: aws.String("testLC"),
+			regionASG: &region{
+				services: connections{
+					autoScaling: mockASG{
+						dlcerr: nil,
+						dlco: &autoscaling.DescribeLaunchConfigurationsOutput{
+							LaunchConfigurations: []*autoscaling.LaunchConfiguration{
+								{
+									LaunchConfigurationName: aws.String("testLC"),
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedLC: &launchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+					LaunchConfigurationName: aws.String("testLC"),
+				},
+			},
+		},
+		{name: "err during get launch configuration",
+			nameLC: aws.String("testLC"),
+			regionASG: &region{
+				services: connections{
+					autoScaling: mockASG{
+						dlcerr: errors.New("describe"),
+						dlco:   nil,
+					},
+				},
+			},
+			expectedLC: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := autoScalingGroup{
+				region: tt.regionASG,
+				Group: &autoscaling.Group{
+					LaunchConfigurationName: tt.nameLC,
+				},
+			}
+			lc := a.getLaunchConfiguration()
+			if !reflect.DeepEqual(tt.expectedLC, lc) {
+				t.Errorf("LaunchConfig received: %t expected %t", lc, tt.expectedLC)
+			}
+		})
+	}
+}
+
+func TestSetAutoScalingMaxSize(t *testing.T) {
+	tests := []struct {
+		name      string
+		maxSize   int64
+		regionASG *region
+		expected  error
+	}{
+		{name: "err during set autoscaling max size",
+			maxSize: 4,
+			regionASG: &region{
+				services: connections{
+					autoScaling: mockASG{
+						uasgerr: errors.New("update"),
+					},
+				},
+			},
+			expected: errors.New("update"),
+		},
+		{name: "no err during set autoscaling max size",
+			maxSize: 4,
+			regionASG: &region{
+				services: connections{
+					autoScaling: mockASG{
+						uasgerr: nil,
+					},
+				},
+			},
+			expected: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := autoScalingGroup{
+				name:   "testASG",
+				region: tt.regionASG,
+			}
+			err := a.setAutoScalingMaxSize(tt.maxSize)
+			CheckErrors(t, err, tt.expected)
+		})
+	}
+}
+
+// Those various calls are bein mocked in this metdho:
+//
+// rsiX:   request spot instance
+// ctX:    create tag
+// wusirX: wait until spot instance request fulfilled
+// dsirX:  describe spot instance request
+// diX:    describe instance
+//
+func TestBidForSpotInstance(t *testing.T) {
+	tests := []struct {
+		name      string
+		rsls      *ec2.RequestSpotLaunchSpecification
+		regionASG *region
+		expected  error
+	}{
+		{name: "no err during set autoscaling max size",
+			rsls: &ec2.RequestSpotLaunchSpecification{},
+			regionASG: &region{
+				instances: makeInstances(),
+				services: connections{
+					ec2: mockEC2{
+						rsierr: nil,
+						rsio: &ec2.RequestSpotInstancesOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{
+									SpotInstanceRequestId: aws.String("bidTestId"),
+								},
+							},
+						},
+						cto:       nil,
+						cterr:     nil,
+						wusirferr: nil,
+						dsirerr:   nil,
+						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{InstanceId: aws.String("1")},
+							},
+						},
+						dio: &ec2.DescribeInstancesOutput{
+							Reservations: []*ec2.Reservation{{}},
+						},
+					},
+				},
+			},
+			expected: nil,
+		},
+		{name: "err during request spot instances",
+			rsls: &ec2.RequestSpotLaunchSpecification{},
+			regionASG: &region{
+				instances: makeInstances(),
+				services: connections{
+					ec2: mockEC2{
+						rsierr: errors.New("requestSpot"),
+						rsio: &ec2.RequestSpotInstancesOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{
+									SpotInstanceRequestId: aws.String("bidTestId"),
+								},
+							},
+						},
+						cto:       nil,
+						cterr:     nil,
+						wusirferr: nil,
+						dsirerr:   nil,
+						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{InstanceId: aws.String("1")},
+							},
+						},
+						dio: &ec2.DescribeInstancesOutput{
+							Reservations: []*ec2.Reservation{{}},
+						},
+					},
+				},
+			},
+			expected: errors.New("requestSpot"),
+		},
+		{name: "err during create tags",
+			rsls: &ec2.RequestSpotLaunchSpecification{},
+			regionASG: &region{
+				instances: makeInstances(),
+				services: connections{
+					ec2: mockEC2{
+						rsierr: nil,
+						rsio: &ec2.RequestSpotInstancesOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{
+									SpotInstanceRequestId: aws.String("bidTestId"),
+								},
+							},
+						},
+						cto:       nil,
+						cterr:     errors.New("create-tags"),
+						wusirferr: nil,
+						dsirerr:   nil,
+						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{InstanceId: aws.String("1")},
+							},
+						},
+						dio: &ec2.DescribeInstancesOutput{
+							Reservations: []*ec2.Reservation{{}},
+						},
+					},
+				},
+			},
+			expected: errors.New("create-tags"),
+		},
+		{name: "err during wait until spot instance request fulfilled",
+			rsls: &ec2.RequestSpotLaunchSpecification{},
+			regionASG: &region{
+				instances: makeInstances(),
+				services: connections{
+					ec2: mockEC2{
+						rsierr: nil,
+						rsio: &ec2.RequestSpotInstancesOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{
+									SpotInstanceRequestId: aws.String("bidTestId"),
+								},
+							},
+						},
+						cto:       nil,
+						cterr:     nil,
+						wusirferr: errors.New("wait-fulfilled"),
+						dsirerr:   nil,
+						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{InstanceId: aws.String("1")},
+							},
+						},
+						dio: &ec2.DescribeInstancesOutput{
+							Reservations: []*ec2.Reservation{{}},
+						},
+					},
+				},
+			},
+			expected: errors.New("wait-fulfilled"),
+		},
+		{name: "err during describe spot instance request",
+			rsls: &ec2.RequestSpotLaunchSpecification{},
+			regionASG: &region{
+				instances: makeInstances(),
+				services: connections{
+					ec2: mockEC2{
+						rsierr: nil,
+						rsio: &ec2.RequestSpotInstancesOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{
+									SpotInstanceRequestId: aws.String("bidTestId"),
+								},
+							},
+						},
+						cto:       nil,
+						cterr:     nil,
+						wusirferr: nil,
+						dsirerr:   errors.New("describe"),
+						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{InstanceId: aws.String("1")},
+							},
+						},
+						dio: &ec2.DescribeInstancesOutput{
+							Reservations: []*ec2.Reservation{{}},
+						},
+					},
+				},
+			},
+			expected: errors.New("describe"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := autoScalingGroup{
+				name:   "testASG",
+				region: tt.regionASG,
+				Group: &autoscaling.Group{
+					Tags: []*autoscaling.TagDescription{},
+				},
+			}
+			err := a.bidForSpotInstance(tt.rsls, 0.24)
+			CheckErrors(t, err, tt.expected)
+		})
+	}
+}
+
+func TestLoadSpotInstanceRequest(t *testing.T) {
+	tests := []struct {
+		name     string
+		req      *ec2.SpotInstanceRequest
+		region   *region
+		expected *spotInstanceRequest
+	}{
+		{name: "using region name 1",
+			region: &region{name: "1"},
+			req:    &ec2.SpotInstanceRequest{},
+			expected: &spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{},
+				region:              &region{name: "1"},
+				asg: &autoScalingGroup{
+					region: &region{name: "1"},
+				},
+			},
+		},
+		{name: "using region name 2",
+			region: &region{name: "2"},
+			req:    &ec2.SpotInstanceRequest{},
+			expected: &spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{},
+				region:              &region{name: "2"},
+				asg: &autoScalingGroup{
+					region: &region{name: "2"},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				region: tt.region,
+			}
+			sir := a.loadSpotInstanceRequest(tt.req)
+			if !reflect.DeepEqual(tt.expected, sir) {
+				t.Errorf("Request received: %t expected %t", sir, tt.expected)
+			}
+		})
+	}
+
+}
+
+func TestFindSpotInstanceRequests(t *testing.T) {
+	tests := []struct {
+		name     string
+		region   *region
+		expected error
+	}{
+		{name: "multiple spot instance requests found",
+			region: &region{
+				services: connections{
+					ec2: mockEC2{
+						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{InstanceId: aws.String("1")},
+								{InstanceId: aws.String("2")},
+								{InstanceId: aws.String("3")},
+							},
+						},
+						dsirerr: nil,
+					},
+				},
+			},
+			expected: nil,
+		},
+		{name: "no spot instance requests found",
+			region: &region{
+				services: connections{
+					ec2: mockEC2{
+						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{},
+						},
+						dsirerr: nil,
+					},
+				},
+			},
+			expected: nil,
+		},
+		{name: "error during describing spot instance requests",
+			region: &region{
+				services: connections{
+					ec2: mockEC2{
+						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{},
+						},
+						dsirerr: errors.New("describe"),
+					},
+				},
+			},
+			expected: errors.New("describe"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				Group:  &autoscaling.Group{AutoScalingGroupName: aws.String("testASG")},
+				name:   "testASG",
+				region: tt.region,
+			}
+			err := a.findSpotInstanceRequests()
+			CheckErrors(t, err, tt.expected)
+		})
+	}
+}
+
+func TestScanInstances(t *testing.T) {
+	tests := []struct {
+		name            string
+		ec2ASG          *autoscaling.Group
+		regionInstances *region
+	}{
+		{name: "multiple instances to scan",
+			regionInstances: &region{
+				instances: makeInstancesWithCatalog(
+					map[string]*instance{
+						"1": {
+							Instance: &ec2.Instance{
+								InstanceId: aws.String("1"),
+								Placement: &ec2.Placement{
+									AvailabilityZone: aws.String("az-1"),
+								},
+								InstanceLifecycle: aws.String("spot"),
+							},
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 0.5,
+									spot: map[string]float64{
+										"az-1": 0.1,
+										"az-2": 0.2,
+										"az-3": 0.3,
+									},
+								},
+							},
+						},
+						"2": {
+							Instance: &ec2.Instance{
+								InstanceId: aws.String("2"),
+								Placement: &ec2.Placement{
+									AvailabilityZone: aws.String("az-2"),
+								},
+							},
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 0.5,
+									spot: map[string]float64{
+										"az-1": 0.1,
+										"az-2": 0.2,
+										"az-3": 0.3,
+									},
+								},
+							},
+						},
+					},
+				),
+			},
+			ec2ASG: &autoscaling.Group{
+				Instances: []*autoscaling.Instance{
+					{InstanceId: aws.String("1")},
+					{InstanceId: aws.String("2")},
+					{InstanceId: aws.String("3")},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				name:   "testASG",
+				Group:  tt.ec2ASG,
+				region: tt.regionInstances,
+			}
+			a.scanInstances()
 		})
 	}
 }
