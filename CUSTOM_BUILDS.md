@@ -1,11 +1,11 @@
 # AutoSpotting Setup #
 
-It's relatively easy to build and install your own version of this tool's
-binaries, removing your dependency on the author's version, and allowing any
-customizations and improvements your organization needs. You'll need to set up a
-local environment to run Go, compile the binaries locally, upload them to an S3
-bucket in your AWS account, and update the CloudFormation stack to use those new
-binaries.
+It's usually recommended to use the provided binaries, but in some cases you may
+need to customize AutoSpotting for your own environment.
+
+You'll need to set up a local environment able to compile Go code, compile the
+binaries locally, upload them to an S3 bucket in your AWS account and update
+your CloudFormation or Terraform stack to use those new binaries.
 
 ## Dependencies ##
 
