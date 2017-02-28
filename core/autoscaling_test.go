@@ -1369,7 +1369,7 @@ func TestGetLaunchConfiguration(t *testing.T) {
 			}
 			lc := a.getLaunchConfiguration()
 			if !reflect.DeepEqual(tt.expectedLC, lc) {
-				t.Errorf("LaunchConfig received: %t expected %t", lc, tt.expectedLC)
+				t.Errorf("LaunchConfig received: %+v expected %+v", lc, tt.expectedLC)
 			}
 		})
 	}
@@ -1642,7 +1642,7 @@ func TestLoadSpotInstanceRequest(t *testing.T) {
 			}
 			sir := a.loadSpotInstanceRequest(tt.req)
 			if !reflect.DeepEqual(tt.expected, sir) {
-				t.Errorf("Request received: %t expected %t", sir, tt.expected)
+				t.Errorf("Request received: %+v expected %+v", sir, tt.expected)
 			}
 		})
 	}
@@ -1831,7 +1831,7 @@ func TestScanInstances(t *testing.T) {
 				t.Errorf("instances of asg aren't valid - not of type *instanceManager")
 			}
 			if !reflect.DeepEqual(asgInstanceManager.catalog, tt.expectedInstances) {
-				t.Errorf("catalog does not match, received: %t, expected: %t",
+				t.Errorf("catalog does not match, received: %+v, expected: %+v",
 					asgInstanceManager.catalog,
 					tt.expectedInstances)
 			}
@@ -1922,7 +1922,7 @@ func TestPropagatedInstance(t *testing.T) {
 			}
 			tags := a.propagatedInstanceTags()
 			if !reflect.DeepEqual(tags, tt.expectedTags) {
-				t.Errorf("Tags received: %t, expected: %t", tags, tt.expectedTags)
+				t.Errorf("Tags received: %+v, expected: %+v", tags, tt.expectedTags)
 			}
 		})
 	}
@@ -2060,7 +2060,7 @@ func TestGetOnDemandInstanceInAZ(t *testing.T) {
 			}
 			returnedInstance := a.getOnDemandInstanceInAZ(tt.az)
 			if !reflect.DeepEqual(returnedInstance, tt.expected) {
-				t.Errorf("instance does not match, received: %t, expected: %t",
+				t.Errorf("instance does not match, received: %+v, expected: %+v",
 					returnedInstance,
 					tt.expected)
 			}
@@ -2201,16 +2201,15 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var found bool = false
+			var found = false
 
 			a := &autoScalingGroup{
 				instances: tt.asgInstances,
 			}
 			returnedInstance := a.getAnyOnDemandInstance()
 			if len(tt.expected) == 0 && returnedInstance != nil {
-				t.Errorf("instance does not match, received: %t, expected: %t",
-					returnedInstance,
-					nil)
+				t.Errorf("instance does not match, received: %+v, expected: nil",
+					returnedInstance)
 			} else if len(tt.expected) != 0 {
 				for _, i := range tt.expected {
 					if reflect.DeepEqual(returnedInstance, i) {
@@ -2219,7 +2218,7 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 					}
 				}
 				if !found {
-					t.Errorf("instance does not match, received: %t, expected to be in: %t",
+					t.Errorf("instance does not match, received: %+v, expected to be in: %+v",
 						returnedInstance,
 						tt.expected)
 				}
@@ -2361,16 +2360,15 @@ func TestGetAnySpotInstance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var found bool = false
+			var found = false
 
 			a := &autoScalingGroup{
 				instances: tt.asgInstances,
 			}
 			returnedInstance := a.getAnySpotInstance()
 			if len(tt.expected) == 0 && returnedInstance != nil {
-				t.Errorf("instance does not match, received: %t, expected: %t",
-					returnedInstance,
-					nil)
+				t.Errorf("instance does not match, received: %+v, expected: nil",
+					returnedInstance)
 			} else if len(tt.expected) != 0 {
 				for _, i := range tt.expected {
 					if reflect.DeepEqual(returnedInstance, i) {
@@ -2379,7 +2377,7 @@ func TestGetAnySpotInstance(t *testing.T) {
 					}
 				}
 				if !found {
-					t.Errorf("instance does not match, received: %t, expected to be in: %t",
+					t.Errorf("instance does not match, received: %+v, expected to be in: %+v",
 						returnedInstance,
 						tt.expected)
 				}
