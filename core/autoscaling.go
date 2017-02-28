@@ -240,7 +240,7 @@ func (a *autoScalingGroup) findSpotInstanceRequests() error {
 	return nil
 }
 
-func (a *autoScalingGroup) scanInstances() {
+func (a *autoScalingGroup) scanInstances() instances {
 
 	logger.Println("Adding instances to", a.name)
 	a.instances = makeInstances()
@@ -266,38 +266,25 @@ func (a *autoScalingGroup) scanInstances() {
 
 		a.instances.add(i)
 	}
-
+	return a.instances
 }
 
 func (a *autoScalingGroup) propagatedInstanceTags() []*ec2.Tag {
 	var tags []*ec2.Tag
 
 	for _, asgTag := range a.Tags {
-		if *asgTag.PropagateAtLaunch {
+		if *asgTag.PropagateAtLaunch && !strings.HasPrefix(*asgTag.Key, "aws:") {
 			tags = append(tags, &ec2.Tag{
 				Key:   asgTag.Key,
 				Value: asgTag.Value,
 			})
 		}
 	}
-	return filterTags(tags)
-}
-
-// filterTags skips reserved tags, which start with the "aws:" prefix.
-func filterTags(tags []*ec2.Tag) []*ec2.Tag {
-	var filteredTags []*ec2.Tag
-
-	for _, tag := range tags {
-		if !strings.HasPrefix(*tag.Key, "aws:") {
-			filteredTags = append(filteredTags, tag)
-		}
-	}
-
-	return filteredTags
+	return tags
 }
 
 func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
-	spotInstanceID *string) {
+	spotInstanceID *string) error {
 
 	minSize, maxSize := *a.MinSize, *a.MaxSize
 	desiredCapacity := *a.DesiredCapacity
@@ -311,35 +298,35 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 
 	// get the details of our spot instance so we can see its AZ
 	logger.Println(a.name, "Retrieving instance details for ", *spotInstanceID)
-	if spotInst := a.region.instances.get(*spotInstanceID); spotInst != nil {
-
-		az := spotInst.Placement.AvailabilityZone
-
-		logger.Println(a.name, *spotInstanceID, "is in the availability zone",
-			*az, "looking for an on-demand instance there")
-
-		// find an on-demand instance from the same AZ as our spot instance
-		if odInst := a.findOndemandInstanceInAZ(az); odInst != nil {
-
-			logger.Println(a.name, "found on-demand instance", *odInst.InstanceId,
-				"replacing with new spot instance", *spotInst.InstanceId)
-
-			// revert attach/detach order when running on minimum capacity
-			if desiredCapacity == minSize {
-				a.attachSpotInstance(spotInstanceID)
-			} else {
-				defer a.attachSpotInstance(spotInstanceID)
-			}
-
-			a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
-		} else {
-			logger.Println(a.name, "found no on-demand instances that could be",
-				"replaced with the new spot instance", *spotInst.InstanceId,
-				"terminating the spot instance.")
-			spotInst.terminate()
-
-		}
+	spotInst := a.region.instances.get(*spotInstanceID)
+	if spotInst == nil {
+		return errors.New("couldn't find spot instance to use")
 	}
+	az := spotInst.Placement.AvailabilityZone
+
+	logger.Println(a.name, *spotInstanceID, "is in the availability zone",
+		*az, "looking for an on-demand instance there")
+
+	// find an on-demand instance from the same AZ as our spot instance
+	odInst := a.getOnDemandInstanceInAZ(az)
+
+	if odInst == nil {
+		logger.Println(a.name, "found no on-demand instances that could be",
+			"replaced with the new spot instance", *spotInst.InstanceId,
+			"terminating the spot instance.")
+		spotInst.terminate()
+		return errors.New("couldn't find ondemand instance to replace")
+	}
+	logger.Println(a.name, "found on-demand instance", *odInst.InstanceId,
+		"replacing with new spot instance", *spotInst.InstanceId)
+	// revert attach/detach order when running on minimum capacity
+	if desiredCapacity == minSize {
+		a.attachSpotInstance(spotInstanceID)
+	} else {
+		defer a.attachSpotInstance(spotInstanceID)
+	}
+
+	return a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
 }
 
 // Returns the information about the first running instance found in
@@ -377,7 +364,7 @@ func (a *autoScalingGroup) getInstance(
 	return retI
 }
 
-func (a *autoScalingGroup) findOndemandInstanceInAZ(az *string) *instance {
+func (a *autoScalingGroup) getOnDemandInstanceInAZ(az *string) *instance {
 	return a.getInstance(az, true, false)
 }
 
@@ -387,10 +374,6 @@ func (a *autoScalingGroup) getAnyOnDemandInstance() *instance {
 
 func (a *autoScalingGroup) getAnySpotInstance() *instance {
 	return a.getInstance(nil, false, false)
-}
-
-func (a *autoScalingGroup) getAnyInstance() *instance {
-	return a.getInstance(nil, false, true)
 }
 
 // returns an instance ID as *string and a bool that tells us if  we need to
@@ -518,7 +501,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) erro
 	logger.Println("Trying to launch spot instance in", *azToLaunchIn,
 		"first finding an on-demand instance to use as a template")
 
-	baseInstance := a.findOndemandInstanceInAZ(azToLaunchIn)
+	baseInstance := a.getOnDemandInstanceInAZ(azToLaunchIn)
 
 	if baseInstance == nil {
 		logger.Println("Found no on-demand instances, nothing to do here...")
@@ -678,7 +661,6 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID *string) error {
 // but only after it was detached from the autoscaling group
 func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 	instanceID *string) error {
-
 	logger.Println(a.region.name,
 		a.name,
 		"Detaching and terminating instance:",
