@@ -1,13 +1,12 @@
 package autospotting
 
 import (
-	"testing"
-
 	"errors"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"reflect"
+	"testing"
 )
 
 func TestGetTagValue(t *testing.T) {
@@ -1433,7 +1432,7 @@ func TestBidForSpotInstance(t *testing.T) {
 		regionASG *region
 		expected  error
 	}{
-		{name: "no err during set autoscaling max size",
+		{name: "no err during bid for spot instance",
 			rsls: &ec2.RequestSpotLaunchSpecification{},
 			regionASG: &region{
 				instances: makeInstances(),
@@ -1716,9 +1715,10 @@ func TestFindSpotInstanceRequests(t *testing.T) {
 
 func TestScanInstances(t *testing.T) {
 	tests := []struct {
-		name            string
-		ec2ASG          *autoscaling.Group
-		regionInstances *region
+		name              string
+		ec2ASG            *autoscaling.Group
+		regionInstances   *region
+		expectedInstances map[string]*instance
 	}{
 		{name: "multiple instances to scan",
 			regionInstances: &region{
@@ -1752,11 +1752,11 @@ func TestScanInstances(t *testing.T) {
 							},
 							typeInfo: instanceTypeInformation{
 								pricing: prices{
-									onDemand: 0.5,
+									onDemand: 0.8,
 									spot: map[string]float64{
-										"az-1": 0.1,
-										"az-2": 0.2,
-										"az-3": 0.3,
+										"az-1": 0.4,
+										"az-2": 0.5,
+										"az-3": 0.6,
 									},
 								},
 							},
@@ -1771,6 +1771,47 @@ func TestScanInstances(t *testing.T) {
 					{InstanceId: aws.String("3")},
 				},
 			},
+			expectedInstances: map[string]*instance{
+				"1": {
+					Instance: &ec2.Instance{
+						InstanceId: aws.String("1"),
+						Placement: &ec2.Placement{
+							AvailabilityZone: aws.String("az-1"),
+						},
+						InstanceLifecycle: aws.String("spot"),
+					},
+					typeInfo: instanceTypeInformation{
+						pricing: prices{
+							onDemand: 0.5,
+							spot: map[string]float64{
+								"az-1": 0.1,
+								"az-2": 0.2,
+								"az-3": 0.3,
+							},
+						},
+					},
+					price: 0.1,
+				},
+				"2": {
+					Instance: &ec2.Instance{
+						InstanceId: aws.String("2"),
+						Placement: &ec2.Placement{
+							AvailabilityZone: aws.String("az-2"),
+						},
+					},
+					typeInfo: instanceTypeInformation{
+						pricing: prices{
+							onDemand: 0.8,
+							spot: map[string]float64{
+								"az-1": 0.4,
+								"az-2": 0.5,
+								"az-3": 0.6,
+							},
+						},
+					},
+					price: 0.8,
+				},
+			},
 		},
 	}
 
@@ -1781,7 +1822,866 @@ func TestScanInstances(t *testing.T) {
 				Group:  tt.ec2ASG,
 				region: tt.regionInstances,
 			}
-			a.scanInstances()
+			loadedInstances := a.scanInstances()
+			for _, v := range tt.expectedInstances {
+				v.asg, v.region = a, a.region
+			}
+			asgInstanceManager, receivedOk := loadedInstances.(*instanceManager)
+			if !receivedOk {
+				t.Errorf("instances of asg aren't valid - not of type *instanceManager")
+			}
+			if !reflect.DeepEqual(asgInstanceManager.catalog, tt.expectedInstances) {
+				t.Errorf("catalog does not match, received: %t, expected: %t",
+					asgInstanceManager.catalog,
+					tt.expectedInstances)
+			}
+		})
+	}
+}
+
+func TestPropagatedInstance(t *testing.T) {
+	tests := []struct {
+		name         string
+		tagsASG      []*autoscaling.TagDescription
+		expectedTags []*ec2.Tag
+	}{
+		{name: "no tags on asg",
+			tagsASG: []*autoscaling.TagDescription{},
+		},
+		{name: "multiple tags but none to propagate",
+			tagsASG: []*autoscaling.TagDescription{
+				{
+					Key:               aws.String("k1"),
+					Value:             aws.String("v1"),
+					PropagateAtLaunch: aws.Bool(false),
+				},
+				{
+					Key:               aws.String("k2"),
+					Value:             aws.String("v2"),
+					PropagateAtLaunch: aws.Bool(false),
+				},
+				{
+					Key:               aws.String("k3"),
+					Value:             aws.String("v3"),
+					PropagateAtLaunch: aws.Bool(false),
+				},
+			},
+		},
+		{name: "multiple tags but none to propagate",
+			tagsASG: []*autoscaling.TagDescription{
+				{
+					Key:               aws.String("aws:k1"),
+					Value:             aws.String("v1"),
+					PropagateAtLaunch: aws.Bool(true),
+				},
+				{
+					Key:               aws.String("k2"),
+					Value:             aws.String("v2"),
+					PropagateAtLaunch: aws.Bool(false),
+				},
+				{
+					Key:               aws.String("k3"),
+					Value:             aws.String("v3"),
+					PropagateAtLaunch: aws.Bool(false),
+				},
+			},
+		},
+		{name: "multiple tags on asg - only one to propagate",
+			tagsASG: []*autoscaling.TagDescription{
+				{
+					Key:               aws.String("k1"),
+					Value:             aws.String("v1"),
+					PropagateAtLaunch: aws.Bool(false),
+				},
+				{
+					Key:               aws.String("k2"),
+					Value:             aws.String("v2"),
+					PropagateAtLaunch: aws.Bool(true),
+				},
+				{
+					Key:               aws.String("aws:k3"),
+					Value:             aws.String("v3"),
+					PropagateAtLaunch: aws.Bool(true),
+				},
+			},
+			expectedTags: []*ec2.Tag{
+				{
+					Key:   aws.String("k2"),
+					Value: aws.String("v2"),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				Group: &autoscaling.Group{
+					Tags: tt.tagsASG,
+				},
+			}
+			tags := a.propagatedInstanceTags()
+			if !reflect.DeepEqual(tags, tt.expectedTags) {
+				t.Errorf("Tags received: %t, expected: %t", tags, tt.expectedTags)
+			}
+		})
+	}
+}
+
+func TestGetOnDemandInstanceInAZ(t *testing.T) {
+	tests := []struct {
+		name         string
+		asgInstances instances
+		az           *string
+		expected     *instance
+	}{
+		{name: "ASG has no 'running' instance in AZ",
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"spot-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"spot-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"ondemand-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+					"ondemand-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+				},
+			),
+			az: aws.String("1c"),
+		},
+		{name: "ASG has 'running' instance in AZ",
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"spot-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"spot-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"ondemand-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+					"ondemand-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+				},
+			),
+			az: aws.String("1b"),
+			expected: &instance{
+				Instance: &ec2.Instance{
+					State:             &ec2.InstanceState{Name: aws.String("running")},
+					Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+					InstanceLifecycle: aws.String(""),
+				},
+			},
+		},
+		{name: "ASG has no instance in AZ",
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"spot-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"spot-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"ondemand-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+					"ondemand-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+				},
+			),
+			az: aws.String("2a"),
+		},
+		{name: "ASG has no instance at all",
+			asgInstances: makeInstances(),
+			az:           aws.String("1a"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				instances: tt.asgInstances,
+			}
+			returnedInstance := a.getOnDemandInstanceInAZ(tt.az)
+			if !reflect.DeepEqual(returnedInstance, tt.expected) {
+				t.Errorf("instance does not match, received: %t, expected: %t",
+					returnedInstance,
+					tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetAnyOnDemandInstance(t *testing.T) {
+	tests := []struct {
+		name         string
+		asgInstances instances
+		expected     []*instance
+	}{
+		{name: "ASG has no 'running' OnDemand instance",
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"spot-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"spot-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"ondemand-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+				},
+			),
+			expected: []*instance{},
+		},
+		{name: "ASG has one 'running' OnDemand instance",
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"spot-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"spot-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"ondemand-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+					"ondemand-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+				},
+			),
+			expected: []*instance{{
+				Instance: &ec2.Instance{
+					State:             &ec2.InstanceState{Name: aws.String("running")},
+					Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+					InstanceLifecycle: aws.String(""),
+				}},
+			},
+		},
+		{name: "ASG has multiple 'running' OnDemand instances",
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"spot-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"spot-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"ondemand-running1": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+					"ondemand-running2": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+				},
+			),
+			expected: []*instance{
+				{
+					Instance: &ec2.Instance{
+						State:             &ec2.InstanceState{Name: aws.String("running")},
+						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+						InstanceLifecycle: aws.String(""),
+					},
+				},
+				{
+					Instance: &ec2.Instance{
+						State:             &ec2.InstanceState{Name: aws.String("running")},
+						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
+						InstanceLifecycle: aws.String(""),
+					},
+				},
+			},
+		},
+		{name: "ASG has no instance at all",
+			asgInstances: makeInstancesWithCatalog(map[string]*instance{}),
+			expected:     []*instance{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var found bool = false
+
+			a := &autoScalingGroup{
+				instances: tt.asgInstances,
+			}
+			returnedInstance := a.getAnyOnDemandInstance()
+			if len(tt.expected) == 0 && returnedInstance != nil {
+				t.Errorf("instance does not match, received: %t, expected: %t",
+					returnedInstance,
+					nil)
+			} else if len(tt.expected) != 0 {
+				for _, i := range tt.expected {
+					if reflect.DeepEqual(returnedInstance, i) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("instance does not match, received: %t, expected to be in: %t",
+						returnedInstance,
+						tt.expected)
+				}
+			}
+		})
+	}
+}
+
+func TestGetAnySpotInstance(t *testing.T) {
+	tests := []struct {
+		name         string
+		asgInstances instances
+		expected     []*instance
+	}{
+		{name: "ASG has no 'running' Spot instance",
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"spot-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"ondemand-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+					"ondemand-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+				},
+			),
+			expected: []*instance{},
+		},
+		{name: "ASG has one 'running' Spot instance",
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"spot-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"spot-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"ondemand-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+					"ondemand-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+				},
+			),
+			expected: []*instance{{
+				Instance: &ec2.Instance{
+					State:             &ec2.InstanceState{Name: aws.String("running")},
+					Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+					InstanceLifecycle: aws.String("spot"),
+				}},
+			},
+		},
+		{name: "ASG has multiple 'running' Spot instances",
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"spot-running1": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"spot-running2": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+					"ondemand-stopped": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+					"ondemand-running": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+							InstanceLifecycle: aws.String(""),
+						},
+					},
+				},
+			),
+			expected: []*instance{
+				{
+					Instance: &ec2.Instance{
+						State:             &ec2.InstanceState{Name: aws.String("running")},
+						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+						InstanceLifecycle: aws.String("spot"),
+					},
+				},
+				{
+					Instance: &ec2.Instance{
+						State:             &ec2.InstanceState{Name: aws.String("running")},
+						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+						InstanceLifecycle: aws.String("spot"),
+					},
+				},
+			},
+		},
+		{name: "ASG has no instance at all",
+			asgInstances: makeInstancesWithCatalog(map[string]*instance{}),
+			expected:     []*instance{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var found bool = false
+
+			a := &autoScalingGroup{
+				instances: tt.asgInstances,
+			}
+			returnedInstance := a.getAnySpotInstance()
+			if len(tt.expected) == 0 && returnedInstance != nil {
+				t.Errorf("instance does not match, received: %t, expected: %t",
+					returnedInstance,
+					nil)
+			} else if len(tt.expected) != 0 {
+				for _, i := range tt.expected {
+					if reflect.DeepEqual(returnedInstance, i) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("instance does not match, received: %t, expected to be in: %t",
+						returnedInstance,
+						tt.expected)
+				}
+			}
+		})
+	}
+}
+
+func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
+	tests := []struct {
+		name     string
+		asg      *autoScalingGroup
+		spotId   *string
+		expected error
+	}{
+		{name: "ondemand is replaced by spot instance - min/max/des identical",
+			spotId:   aws.String("spot-running"),
+			expected: nil,
+			asg: &autoScalingGroup{
+				name: "test-asg",
+				Group: &autoscaling.Group{
+					MaxSize:         aws.Int64(2),
+					MinSize:         aws.Int64(2),
+					DesiredCapacity: aws.Int64(2),
+				},
+				instances: makeInstancesWithCatalog(
+					map[string]*instance{
+						"ondemand-stopped": {
+							Instance: &ec2.Instance{
+								InstanceId:        aws.String("ondemand-stopped"),
+								State:             &ec2.InstanceState{Name: aws.String("stopped")},
+								Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+								InstanceLifecycle: aws.String(""),
+							},
+							region: &region{
+								services: connections{
+									ec2: &mockEC2{
+										tio:   nil,
+										tierr: nil,
+									},
+									autoScaling: &mockASG{
+										aio:   nil,
+										aierr: nil,
+									},
+								},
+							},
+						},
+						"ondemand-running": {
+							Instance: &ec2.Instance{
+								InstanceId:        aws.String("ondemand-running"),
+								State:             &ec2.InstanceState{Name: aws.String("running")},
+								Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+								InstanceLifecycle: aws.String(""),
+							},
+							region: &region{
+								services: connections{
+									ec2: &mockEC2{
+										tio:   nil,
+										tierr: nil,
+									},
+								},
+							},
+						},
+					},
+				),
+				region: &region{
+					name: "test-region",
+					services: connections{
+						autoScaling: &mockASG{
+							uasgo:   nil,
+							uasgerr: nil,
+							dio:     nil,
+							dierr:   nil,
+						},
+						ec2: &mockEC2{
+							tio:   nil,
+							tierr: nil,
+						},
+					},
+					instances: makeInstancesWithCatalog(
+						map[string]*instance{
+							"spot-running": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("spot-running"),
+									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+									InstanceLifecycle: aws.String("spot"),
+								},
+								region: &region{
+									services: connections{
+										ec2: &mockEC2{
+											tio:   nil,
+											tierr: nil,
+										},
+									},
+								},
+							},
+							"ondemand-stopped": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("ondemand-stopped"),
+									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+									InstanceLifecycle: aws.String(""),
+								},
+								region: &region{
+									services: connections{
+										ec2: &mockEC2{
+											tio:   nil,
+											tierr: nil,
+										},
+									},
+								},
+							},
+							"ondemand-running": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("ondemand-running"),
+									State:             &ec2.InstanceState{Name: aws.String("running")},
+									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+									InstanceLifecycle: aws.String(""),
+								},
+								region: &region{
+									services: connections{
+										ec2: &mockEC2{
+											tio:   nil,
+											tierr: nil,
+										},
+									},
+								},
+							},
+						},
+					),
+				},
+			},
+		},
+		{name: "ondemand is replaced by spot instance - min/max/des different",
+			spotId:   aws.String("spot-running"),
+			expected: nil,
+			asg: &autoScalingGroup{
+				name: "test-asg",
+				Group: &autoscaling.Group{
+					MaxSize:         aws.Int64(4),
+					MinSize:         aws.Int64(1),
+					DesiredCapacity: aws.Int64(2),
+				},
+				instances: makeInstancesWithCatalog(
+					map[string]*instance{
+						"ondemand-running": {
+							Instance: &ec2.Instance{
+								InstanceId:        aws.String("ondemand-running"),
+								State:             &ec2.InstanceState{Name: aws.String("running")},
+								Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+								InstanceLifecycle: aws.String(""),
+							},
+							region: &region{
+								services: connections{
+									ec2: &mockEC2{
+										tio:   nil,
+										tierr: nil,
+									},
+								},
+							},
+						},
+					},
+				),
+				region: &region{
+					name: "test-region",
+					services: connections{
+						autoScaling: &mockASG{
+							uasgo:   nil,
+							uasgerr: nil,
+							dio:     nil,
+							dierr:   nil,
+						},
+						ec2: &mockEC2{
+							tio:   nil,
+							tierr: nil,
+						},
+					},
+					instances: makeInstancesWithCatalog(
+						map[string]*instance{
+							"spot-running": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("spot-running"),
+									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+									InstanceLifecycle: aws.String("spot"),
+								},
+								region: &region{
+									services: connections{
+										ec2: &mockEC2{
+											tio:   nil,
+											tierr: nil,
+										},
+									},
+								},
+							},
+						},
+					),
+				},
+			},
+		},
+		{name: "no spot instances found in region",
+			spotId:   aws.String("spot-not-found"),
+			expected: errors.New("couldn't find spot instance to use"),
+			asg: &autoScalingGroup{
+				name: "test-asg",
+				Group: &autoscaling.Group{
+					MaxSize:         aws.Int64(4),
+					MinSize:         aws.Int64(2),
+					DesiredCapacity: aws.Int64(2),
+				},
+				region: &region{
+					name: "test-region",
+					services: connections{
+						autoScaling: &mockASG{
+							uasgo:   nil,
+							uasgerr: nil,
+							dio:     nil,
+							dierr:   nil,
+						},
+					},
+					instances: makeInstancesWithCatalog(
+						map[string]*instance{
+							"spot-running": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("spot-running"),
+									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+									InstanceLifecycle: aws.String("spot"),
+								},
+							},
+							"ondemand-stopped": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("ondemand-stopped"),
+									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
+									InstanceLifecycle: aws.String(""),
+								},
+							},
+							"ondemand-running": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("ondemand-running"),
+									State:             &ec2.InstanceState{Name: aws.String("running")},
+									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
+									InstanceLifecycle: aws.String(""),
+								},
+							},
+						},
+					),
+				},
+			},
+		},
+		{name: "no ondemand instances found in asg",
+			spotId:   aws.String("spot-running"),
+			expected: errors.New("couldn't find ondemand instance to replace"),
+			asg: &autoScalingGroup{
+				name: "test-asg",
+				Group: &autoscaling.Group{
+					MaxSize:         aws.Int64(4),
+					MinSize:         aws.Int64(1),
+					DesiredCapacity: aws.Int64(2),
+				},
+				instances: makeInstances(),
+				region: &region{
+					name: "test-region",
+					services: connections{
+						autoScaling: &mockASG{
+							uasgo:   nil,
+							uasgerr: nil,
+							dio:     nil,
+							dierr:   nil,
+						},
+					},
+					instances: makeInstancesWithCatalog(
+						map[string]*instance{
+							"spot-running": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("spot-running"),
+									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1z")},
+									InstanceLifecycle: aws.String("spot"),
+								},
+								region: &region{
+									services: connections{
+										ec2: &mockEC2{
+											tio:   nil,
+											tierr: nil,
+										},
+									},
+								},
+							},
+						},
+					),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			returned := tt.asg.replaceOnDemandInstanceWithSpot(tt.spotId)
+			CheckErrors(t, returned, tt.expected)
 		})
 	}
 }
