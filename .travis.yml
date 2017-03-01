@@ -21,6 +21,9 @@ script: go test ./core -covermode=count -coverprofile=profile.cov &&
   goveralls -coverprofile=profile.cov -service=travis-ci &&
   make prepare_upload_data
 
+after_success:
+  - curl --request POST "https://goreportcard.com/checks" --data "repo=github.com/cristim/autospotting"
+
 deploy:
   provider: s3
   access_key_id: AKIAJLFCT4RDMFFFREPA
