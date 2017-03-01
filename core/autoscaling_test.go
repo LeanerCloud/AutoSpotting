@@ -62,9 +62,9 @@ func TestGetTagValue(t *testing.T) {
 			a.Tags = tt.asgTags
 			retValue := a.getTagValue(tt.tagKey)
 			if tt.expected == nil && retValue != tt.expected {
-				t.Errorf("Value received for %s: %s expected %s", tt.tagKey, *retValue, *tt.expected)
+				t.Errorf("getTagValue received for %s: %s expected %s", tt.tagKey, *retValue, *tt.expected)
 			} else if tt.expected != nil && *retValue != *tt.expected {
-				t.Errorf("Value received for %s: %s expected %s", tt.tagKey, *retValue, *tt.expected)
+				t.Errorf("getTagValue received for %s: %s expected %s", tt.tagKey, *retValue, *tt.expected)
 			}
 		})
 	}
@@ -611,9 +611,9 @@ func TestLoadDefaultConf(t *testing.T) {
 			a.region = tt.region
 			done := a.loadDefaultConfig()
 			if tt.loadingExpected != done {
-				t.Errorf("loadConfOnDemand returned: %t expected %t", done, tt.loadingExpected)
+				t.Errorf("loadDefaultConfig returned: %t expected %t", done, tt.loadingExpected)
 			} else if tt.numberExpected != a.minOnDemand {
-				t.Errorf("loadConfOnDemand, minOnDemand value received %d, expected %d",
+				t.Errorf("loadDefaultConfig, minOnDemand value received %d, expected %d",
 					a.minOnDemand, tt.numberExpected)
 			}
 		})
@@ -679,7 +679,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 			a.MaxSize = tt.maxSize
 			done := a.loadConfigFromTags()
 			if tt.loadingExpected != done {
-				t.Errorf("loadConfOnDemand returned: %t expected %t", done, tt.loadingExpected)
+				t.Errorf("loadConfigFromTags returned: %t expected %t", done, tt.loadingExpected)
 			}
 		})
 	}
@@ -1369,7 +1369,7 @@ func TestGetLaunchConfiguration(t *testing.T) {
 			}
 			lc := a.getLaunchConfiguration()
 			if !reflect.DeepEqual(tt.expectedLC, lc) {
-				t.Errorf("LaunchConfig received: %+v expected %+v", lc, tt.expectedLC)
+				t.Errorf("getLaunchConfiguration received: %+v expected %+v", lc, tt.expectedLC)
 			}
 		})
 	}
@@ -1642,7 +1642,7 @@ func TestLoadSpotInstanceRequest(t *testing.T) {
 			}
 			sir := a.loadSpotInstanceRequest(tt.req)
 			if !reflect.DeepEqual(tt.expected, sir) {
-				t.Errorf("Request received: %+v expected %+v", sir, tt.expected)
+				t.Errorf("loadSpotInstanceRequest received: %+v expected %+v", sir, tt.expected)
 			}
 		})
 	}
@@ -1831,7 +1831,7 @@ func TestScanInstances(t *testing.T) {
 				t.Errorf("instances of asg aren't valid - not of type *instanceManager")
 			}
 			if !reflect.DeepEqual(asgInstanceManager.catalog, tt.expectedInstances) {
-				t.Errorf("catalog does not match, received: %+v, expected: %+v",
+				t.Errorf("scanInstances: catalog does not match, received: %+v, expected: %+v",
 					asgInstanceManager.catalog,
 					tt.expectedInstances)
 			}
@@ -1922,7 +1922,7 @@ func TestPropagatedInstance(t *testing.T) {
 			}
 			tags := a.propagatedInstanceTags()
 			if !reflect.DeepEqual(tags, tt.expectedTags) {
-				t.Errorf("Tags received: %+v, expected: %+v", tags, tt.expectedTags)
+				t.Errorf("propagatedInstanceTags received: %+v, expected: %+v", tags, tt.expectedTags)
 			}
 		})
 	}
@@ -2060,7 +2060,7 @@ func TestGetOnDemandInstanceInAZ(t *testing.T) {
 			}
 			returnedInstance := a.getOnDemandInstanceInAZ(tt.az)
 			if !reflect.DeepEqual(returnedInstance, tt.expected) {
-				t.Errorf("instance does not match, received: %+v, expected: %+v",
+				t.Errorf("getOnDemandInstanceInAZ received: %+v, expected: %+v",
 					returnedInstance,
 					tt.expected)
 			}
@@ -2208,7 +2208,7 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 			}
 			returnedInstance := a.getAnyOnDemandInstance()
 			if len(tt.expected) == 0 && returnedInstance != nil {
-				t.Errorf("instance does not match, received: %+v, expected: nil",
+				t.Errorf("getAnyOnDemandInstance received: %+v, expected: nil",
 					returnedInstance)
 			} else if len(tt.expected) != 0 {
 				for _, i := range tt.expected {
@@ -2218,7 +2218,7 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 					}
 				}
 				if !found {
-					t.Errorf("instance does not match, received: %+v, expected to be in: %+v",
+					t.Errorf("getAnyOnDemandInstance received: %+v, expected to be in: %+v",
 						returnedInstance,
 						tt.expected)
 				}
@@ -2367,7 +2367,7 @@ func TestGetAnySpotInstance(t *testing.T) {
 			}
 			returnedInstance := a.getAnySpotInstance()
 			if len(tt.expected) == 0 && returnedInstance != nil {
-				t.Errorf("instance does not match, received: %+v, expected: nil",
+				t.Errorf("getAnySpotInstance received: %+v, expected: nil",
 					returnedInstance)
 			} else if len(tt.expected) != 0 {
 				for _, i := range tt.expected {
@@ -2377,7 +2377,7 @@ func TestGetAnySpotInstance(t *testing.T) {
 					}
 				}
 				if !found {
-					t.Errorf("instance does not match, received: %+v, expected to be in: %+v",
+					t.Errorf("getAnySpotInstance received: %+v, expected to be in: %+v",
 						returnedInstance,
 						tt.expected)
 				}
@@ -2393,7 +2393,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 		spotId   *string
 		expected error
 	}{
-		{name: "ondemand is replaced by spot instance - min/max/des identical",
+		{name: "OnDemand is replaced by spot instance - min/max/des identical",
 			spotId:   aws.String("spot-running"),
 			expected: nil,
 			asg: &autoScalingGroup{
@@ -2512,7 +2512,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 				},
 			},
 		},
-		{name: "ondemand is replaced by spot instance - min/max/des different",
+		{name: "OnDemand is replaced by spot instance - min/max/des different",
 			spotId:   aws.String("spot-running"),
 			expected: nil,
 			asg: &autoScalingGroup{
@@ -2630,7 +2630,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 				},
 			},
 		},
-		{name: "no ondemand instances found in asg",
+		{name: "no OnDemand instances found in asg",
 			spotId:   aws.String("spot-running"),
 			expected: errors.New("couldn't find ondemand instance to replace"),
 			asg: &autoScalingGroup{
