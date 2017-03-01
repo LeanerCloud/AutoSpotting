@@ -1160,7 +1160,7 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 		{name: "no err during detach nor terminate",
 			instancesASG: makeInstancesWithCatalog(
 				map[string]*instance{
-					"1": &instance{
+					"1": {
 						Instance: &ec2.Instance{
 							InstanceId: aws.String("1"),
 						},
@@ -1184,7 +1184,7 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 		{name: "err during detach not during terminate",
 			instancesASG: makeInstancesWithCatalog(
 				map[string]*instance{
-					"1": &instance{
+					"1": {
 						Instance: &ec2.Instance{
 							InstanceId: aws.String("1"),
 						},
@@ -1208,7 +1208,7 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 		{name: "no err during detach but error during terminate",
 			instancesASG: makeInstancesWithCatalog(
 				map[string]*instance{
-					"1": &instance{
+					"1": {
 						Instance: &ec2.Instance{
 							InstanceId: aws.String("1"),
 						},
@@ -1232,7 +1232,7 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 		{name: "errors during detach and terminate",
 			instancesASG: makeInstancesWithCatalog(
 				map[string]*instance{
-					"1": &instance{
+					"1": {
 						Instance: &ec2.Instance{
 							InstanceId: aws.String("1"),
 						},
