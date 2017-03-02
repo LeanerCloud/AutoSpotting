@@ -69,8 +69,8 @@ else
 endif
 
 fmt-check:                                                   ## Verify fmt compliance
-ifneq ($(shell gofmt -l $(GO_FILES) | wc -l), 0)
-	@printf "error\tsome files did not pass go fmt: $(shell gofmt -l $(GO_FILES))\n"; exit 1
+ifneq ($(shell gofmt -l -s $(GO_FILES) | wc -l), 0)
+	@printf "error\tsome files did not pass go fmt: $(shell gofmt -l -s $(GO_FILES))\n"; exit 1
 else
 	@printf "ok\tall files passed go fmt\n"
 endif

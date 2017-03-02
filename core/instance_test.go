@@ -2,11 +2,12 @@ package autospotting
 
 import (
 	"errors"
+	"reflect"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"reflect"
-	"testing"
 )
 
 func TestMake(t *testing.T) {
@@ -29,31 +30,31 @@ func TestAdd(t *testing.T) {
 	}{
 		{name: "map contains a nil pointer",
 			catalog: map[string]*instance{
-				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 				"inst2": nil,
 			},
 			expected: map[string]*instance{
-				"1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 			},
 		},
 		{name: "map has 1 instance",
 			catalog: map[string]*instance{
-				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 			},
 			expected: map[string]*instance{
-				"1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 			},
 		},
 		{name: "map has several instances",
 			catalog: map[string]*instance{
-				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
-				"inst2": &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
-				"inst3": &instance{Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"inst2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
+				"inst3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
 			},
 			expected: map[string]*instance{
-				"1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
-				"2": &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
-				"3": &instance{Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+				"1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
+				"3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
 			},
 		},
 	}
@@ -81,18 +82,18 @@ func TestGet(t *testing.T) {
 	}{
 		{name: "map contains the required instance",
 			catalog: map[string]*instance{
-				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
-				"inst2": &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
-				"inst3": &instance{Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"inst2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
+				"inst3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
 			},
 			idToGet:  "inst2",
 			expected: &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
 		},
 		{name: "catalog doesn't contain the instance",
 			catalog: map[string]*instance{
-				"inst1": &instance{Instance: &ec2.Instance{InstanceId: aws.String("1")}},
-				"inst2": &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
-				"inst3": &instance{Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"inst2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
+				"inst3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
 			},
 			idToGet:  "7",
 			expected: nil,
@@ -661,7 +662,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 	}{
 		{name: "better/cheaper spot instance found",
 			spotInfos: map[string]instanceTypeInformation{
-				"1": instanceTypeInformation{
+				"1": {
 					instanceType: "type1",
 					pricing: prices{
 						spot: map[string]float64{
@@ -677,7 +678,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 					instanceStoreIsSSD:       false,
 					virtualizationTypes:      []string{"PV", "else"},
 				},
-				"2": instanceTypeInformation{
+				"2": {
 					instanceType: "type2",
 					pricing: prices{
 						spot: map[string]float64{
@@ -733,10 +734,10 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			lc: &launchConfiguration{
 				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
-						&autoscaling.BlockDeviceMapping{
+						{
 							VirtualName: aws.String("vn1"),
 						},
-						&autoscaling.BlockDeviceMapping{
+						{
 							VirtualName: aws.String("ephemeral"),
 						},
 					},
@@ -747,7 +748,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 		},
 		{name: "better/cheaper spot instance not found",
 			spotInfos: map[string]instanceTypeInformation{
-				"1": instanceTypeInformation{
+				"1": {
 					instanceType: "type1",
 					pricing: prices{
 						spot: map[string]float64{
@@ -763,7 +764,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 					instanceStoreIsSSD:       false,
 					virtualizationTypes:      []string{"PV", "else"},
 				},
-				"2": instanceTypeInformation{
+				"2": {
 					instanceType: "type2",
 					pricing: prices{
 						spot: map[string]float64{
@@ -820,10 +821,10 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					LaunchConfigurationName: aws.String("test"),
 					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
-						&autoscaling.BlockDeviceMapping{
+						{
 							VirtualName: aws.String("vn1"),
 						},
-						&autoscaling.BlockDeviceMapping{
+						{
 							VirtualName: aws.String("ephemeral"),
 						},
 					},
