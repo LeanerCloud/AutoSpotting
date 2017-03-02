@@ -1,11 +1,11 @@
 package autospotting
 
 import (
+	"fmt"
 	"math"
 	"sync"
 	"time"
 
-	"fmt"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/davecgh/go-spew/spew"
 )
