@@ -8,18 +8,7 @@ sudo: required
 services:
 - docker
 
-before_install:
-- go get github.com/mattn/goveralls
-- go get golang.org/x/tools/cmd/cover
-- docker pull eawsy/aws-lambda-go:latest
-- make prepare_bindata
-
-install:
-- go get ./...
-
-script: go test ./core -covermode=count -coverprofile=profile.cov &&
-  goveralls -coverprofile=profile.cov -service=travis-ci &&
-  make prepare_upload_data
+script: make travisci
 
 after_success:
   - curl --request POST "https://goreportcard.com/checks" --data "repo=github.com/cristim/autospotting"
