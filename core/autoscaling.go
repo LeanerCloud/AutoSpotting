@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"errors"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -229,7 +230,6 @@ func (a *autoScalingGroup) findSpotInstanceRequests() error {
 	if err != nil {
 		return err
 	}
-
 	logger.Println("Spot instance requests were previously created for", a.name)
 
 	for _, req := range resp.SpotInstanceRequests {
@@ -240,7 +240,7 @@ func (a *autoScalingGroup) findSpotInstanceRequests() error {
 	return nil
 }
 
-func (a *autoScalingGroup) scanInstances() {
+func (a *autoScalingGroup) scanInstances() instances {
 
 	logger.Println("Adding instances to", a.name)
 	a.instances = makeInstances()
@@ -266,38 +266,25 @@ func (a *autoScalingGroup) scanInstances() {
 
 		a.instances.add(i)
 	}
-
+	return a.instances
 }
 
 func (a *autoScalingGroup) propagatedInstanceTags() []*ec2.Tag {
 	var tags []*ec2.Tag
 
 	for _, asgTag := range a.Tags {
-		if *asgTag.PropagateAtLaunch {
+		if *asgTag.PropagateAtLaunch && !strings.HasPrefix(*asgTag.Key, "aws:") {
 			tags = append(tags, &ec2.Tag{
 				Key:   asgTag.Key,
 				Value: asgTag.Value,
 			})
 		}
 	}
-	return filterTags(tags)
-}
-
-// filterTags skips reserved tags, which start with the "aws:" prefix.
-func filterTags(tags []*ec2.Tag) []*ec2.Tag {
-	var filteredTags []*ec2.Tag
-
-	for _, tag := range tags {
-		if !strings.HasPrefix(*tag.Key, "aws:") {
-			filteredTags = append(filteredTags, tag)
-		}
-	}
-
-	return filteredTags
+	return tags
 }
 
 func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
-	spotInstanceID *string) {
+	spotInstanceID *string) error {
 
 	minSize, maxSize := *a.MinSize, *a.MaxSize
 	desiredCapacity := *a.DesiredCapacity
@@ -311,35 +298,35 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 
 	// get the details of our spot instance so we can see its AZ
 	logger.Println(a.name, "Retrieving instance details for ", *spotInstanceID)
-	if spotInst := a.region.instances.get(*spotInstanceID); spotInst != nil {
-
-		az := spotInst.Placement.AvailabilityZone
-
-		logger.Println(a.name, *spotInstanceID, "is in the availability zone",
-			*az, "looking for an on-demand instance there")
-
-		// find an on-demand instance from the same AZ as our spot instance
-		if odInst := a.findOndemandInstanceInAZ(az); odInst != nil {
-
-			logger.Println(a.name, "found on-demand instance", *odInst.InstanceId,
-				"replacing with new spot instance", *spotInst.InstanceId)
-
-			// revert attach/detach order when running on minimum capacity
-			if desiredCapacity == minSize {
-				a.attachSpotInstance(spotInstanceID)
-			} else {
-				defer a.attachSpotInstance(spotInstanceID)
-			}
-
-			a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
-		} else {
-			logger.Println(a.name, "found no on-demand instances that could be",
-				"replaced with the new spot instance", *spotInst.InstanceId,
-				"terminating the spot instance.")
-			spotInst.terminate()
-
-		}
+	spotInst := a.region.instances.get(*spotInstanceID)
+	if spotInst == nil {
+		return errors.New("couldn't find spot instance to use")
 	}
+	az := spotInst.Placement.AvailabilityZone
+
+	logger.Println(a.name, *spotInstanceID, "is in the availability zone",
+		*az, "looking for an on-demand instance there")
+
+	// find an on-demand instance from the same AZ as our spot instance
+	odInst := a.getOnDemandInstanceInAZ(az)
+
+	if odInst == nil {
+		logger.Println(a.name, "found no on-demand instances that could be",
+			"replaced with the new spot instance", *spotInst.InstanceId,
+			"terminating the spot instance.")
+		spotInst.terminate()
+		return errors.New("couldn't find ondemand instance to replace")
+	}
+	logger.Println(a.name, "found on-demand instance", *odInst.InstanceId,
+		"replacing with new spot instance", *spotInst.InstanceId)
+	// revert attach/detach order when running on minimum capacity
+	if desiredCapacity == minSize {
+		a.attachSpotInstance(spotInstanceID)
+	} else {
+		defer a.attachSpotInstance(spotInstanceID)
+	}
+
+	return a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
 }
 
 // Returns the information about the first running instance found in
@@ -377,7 +364,7 @@ func (a *autoScalingGroup) getInstance(
 	return retI
 }
 
-func (a *autoScalingGroup) findOndemandInstanceInAZ(az *string) *instance {
+func (a *autoScalingGroup) getOnDemandInstanceInAZ(az *string) *instance {
 	return a.getInstance(az, true, false)
 }
 
@@ -387,10 +374,6 @@ func (a *autoScalingGroup) getAnyOnDemandInstance() *instance {
 
 func (a *autoScalingGroup) getAnySpotInstance() *instance {
 	return a.getInstance(nil, false, false)
-}
-
-func (a *autoScalingGroup) getAnyInstance() *instance {
-	return a.getInstance(nil, false, true)
 }
 
 // returns an instance ID as *string and a bool that tells us if  we need to
@@ -508,21 +491,21 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	return spotInstanceID, false
 }
 
-func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
+func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) error {
 
 	if azToLaunchIn == nil {
 		logger.Println("Can't launch instances in any AZ, nothing to do here...")
-		return
+		return errors.New("invalid availability zone provided")
 	}
 
 	logger.Println("Trying to launch spot instance in", *azToLaunchIn,
 		"first finding an on-demand instance to use as a template")
 
-	baseInstance := a.findOndemandInstanceInAZ(azToLaunchIn)
+	baseInstance := a.getOnDemandInstanceInAZ(azToLaunchIn)
 
 	if baseInstance == nil {
 		logger.Println("Found no on-demand instances, nothing to do here...")
-		return
+		return errors.New("no on-demand instances found")
 	}
 	logger.Println("Found on-demand instance", *baseInstance.InstanceId)
 
@@ -531,7 +514,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 	if err != nil {
 		logger.Println("No cheaper compatible instance type was found, "+
 			"nothing to do here...", err)
-		return
+		return errors.New("no cheaper spot instance found")
 	}
 
 	baseOnDemandPrice := baseInstance.price
@@ -553,7 +536,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) {
 		*azToLaunchIn)
 
 	logger.Println("Bidding for spot instance for ", a.name)
-	a.bidForSpotInstance(spotLS, baseOnDemandPrice)
+	return a.bidForSpotInstance(spotLS, baseOnDemandPrice)
 }
 
 func (a *autoScalingGroup) loadSpotInstanceRequest(
@@ -566,7 +549,7 @@ func (a *autoScalingGroup) loadSpotInstanceRequest(
 
 func (a *autoScalingGroup) bidForSpotInstance(
 	ls *ec2.RequestSpotLaunchSpecification,
-	price float64) {
+	price float64) error {
 
 	svc := a.region.services.ec2
 
@@ -578,7 +561,7 @@ func (a *autoScalingGroup) bidForSpotInstance(
 	if err != nil {
 		logger.Println("Failed to create spot instance request for",
 			a.name, err.Error(), ls)
-		return
+		return err
 	}
 
 	spotRequest := resp.SpotInstanceRequests[0]
@@ -599,7 +582,7 @@ func (a *autoScalingGroup) bidForSpotInstance(
 
 	if err != nil {
 		logger.Println(a.name, "Can't tag spot instance request", err.Error())
-		return
+		return err
 	}
 	// Waiting for the instance to start so that we can then later tag it with
 	// the same tags originally set on the on-demand instances.
@@ -608,10 +591,10 @@ func (a *autoScalingGroup) bidForSpotInstance(
 	// interrupted by the lambda function's timeout, so we also need to check in
 	// the next run if we have any open spot requests with no instances and
 	// resume the wait there.
-	sr.waitForAndTagSpotInstance()
+	return sr.waitForAndTagSpotInstance()
 }
 
-func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) {
+func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 	svc := a.region.services.autoScaling
 
 	_, err := svc.UpdateAutoScalingGroup(
@@ -624,8 +607,9 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) {
 		// Print the error, cast err to awserr.Error to get the Code and
 		// Message from an error.
 		logger.Println(err.Error())
-		return
+		return err
 	}
+	return nil
 }
 
 func (a *autoScalingGroup) getLaunchConfiguration() *launchConfiguration {
@@ -651,7 +635,7 @@ func (a *autoScalingGroup) getLaunchConfiguration() *launchConfiguration {
 	return &launchConfiguration{LaunchConfiguration: resp.LaunchConfigurations[0]}
 }
 
-func (a *autoScalingGroup) attachSpotInstance(spotInstanceID *string) {
+func (a *autoScalingGroup) attachSpotInstance(spotInstanceID *string) error {
 
 	svc := a.region.services.autoScaling
 
@@ -668,20 +652,19 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID *string) {
 		logger.Println(err.Error())
 		// Pretty-print the response data.
 		logger.Println(resp)
+		return err
 	}
-
+	return nil
 }
 
 // Terminates an on-demand instance from the group,
 // but only after it was detached from the autoscaling group
 func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
-	instanceID *string) {
-
+	instanceID *string) error {
 	logger.Println(a.region.name,
 		a.name,
 		"Detaching and terminating instance:",
 		*instanceID)
-
 	// detach the on-demand instance
 	detachParams := autoscaling.DetachInstancesInput{
 		AutoScalingGroupName: aws.String(a.name),
@@ -695,10 +678,10 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 
 	if _, err := asSvc.DetachInstances(&detachParams); err != nil {
 		logger.Println(err.Error())
+		return err
 	}
 
-	a.instances.get(*instanceID).terminate()
-
+	return a.instances.get(*instanceID).terminate()
 }
 
 // Counts the number of already running spot instances.
