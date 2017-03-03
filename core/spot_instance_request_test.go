@@ -23,8 +23,8 @@ func Test_waitForAndTagSpotInstance(t *testing.T) {
 				},
 				region: &region{
 					services: connections{
-						ec2: mock{
-							er: errors.New(""),
+						ec2: mockEC2{
+							wusirferr: errors.New(""),
 						},
 					},
 				},
@@ -41,7 +41,7 @@ func Test_waitForAndTagSpotInstance(t *testing.T) {
 				},
 				region: &region{
 					services: connections{
-						ec2: mock{
+						ec2: mockEC2{
 							dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
 								SpotInstanceRequests: []*ec2.SpotInstanceRequest{
 									{InstanceId: aws.String("")},
@@ -70,13 +70,13 @@ func Test_waitForAndTagSpotInstance(t *testing.T) {
 				},
 				region: &region{
 					services: connections{
-						ec2: mock{
+						ec2: mockEC2{
 							dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
 								SpotInstanceRequests: []*ec2.SpotInstanceRequest{
 									{InstanceId: aws.String("")},
 								},
 							},
-							dsiroer: errors.New(""),
+							dsirerr: errors.New(""),
 							dio: &ec2.DescribeInstancesOutput{
 								Reservations: []*ec2.Reservation{{}},
 							},
@@ -115,8 +115,8 @@ func Test_tag(t *testing.T) {
 				},
 				region: &region{
 					services: connections{
-						ec2: mock{
-							er: errors.New(""),
+						ec2: mockEC2{
+							cterr: errors.New(""),
 						},
 					},
 				},
@@ -132,8 +132,8 @@ func Test_tag(t *testing.T) {
 				},
 				region: &region{
 					services: connections{
-						ec2: mock{
-							er: nil,
+						ec2: mockEC2{
+							cterr: nil,
 						},
 					},
 				},
