@@ -101,5 +101,4 @@ help:                                                                        ## 
 	@printf "Rules:\n"
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
 
-.PHONY: all clean check_dep bindata build_lambda_binary prepare_upload_data build_local upload vet-check fmt-check
-.PHONY: test full-test html-cover help
+.PHONY: all clean check_dep bindata build_lambda_binary prepare_upload_data build_local upload vet-check fmt-check check_deps prepare_bindata test full-test html-cover help travisci-checks travisci-cover travisci
