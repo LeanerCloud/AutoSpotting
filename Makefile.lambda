@@ -35,18 +35,19 @@ ifeq ($(WORKDIR),$(CURDIR))
 endif
 
 docker:
-	@docker run --rm                                                             \
-	  -e HANDLER=$(HANDLER)                                                      \
-	  -e PACKAGE=$(PACKAGE)                                                      \
-	  -v $(GOPATH):/go                                                           \
-	  -v $(CURDIR):/tmp                                                          \
-	  -w $(WORKDIR)                                                              \
+	docker run --rm          \
+	  -e HANDLER=$(HANDLER)   \
+	  -e PACKAGE=$(PACKAGE)   \
+    -e GOFLAGS='$(GOFLAGS)' \
+	  -v $(GOPATH):/go        \
+	  -v $(CURDIR):/tmp       \
+	  -w $(WORKDIR)           \
 	  eawsy/aws-lambda-go-shim:latest make -f Makefile.lambda all
 
 all: build pack perm
 
 build:
-	@go build -buildmode=plugin -ldflags='-w -s' -o $(HANDLER).so
+	go build -buildmode=plugin -ldflags="-w -s $(GOFLAGS)" -o $(HANDLER).so
 
 pack:
 	@pack $(HANDLER) $(HANDLER).so $(PACKAGE).zip

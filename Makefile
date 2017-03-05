@@ -6,13 +6,12 @@ COVER_PROFILE := /tmp/coverage.out
 BUCKET_NAME ?= cloudprowess
 LOCAL_PATH := build/s3/dv
 
-DOCKER_IMG := eawsy/aws-lambda-go
-
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
 
+GOFLAGS='-X main.version=$(BUILD)'
 
-all: fmt-check vet-check build_local test                                                   ## Build the code
+all: fmt-check vet-check build_local test                                   ## Build the code
 .PHONY: all
 
 clean:                                                                      ## Remove installed packages/temporary files
@@ -35,8 +34,8 @@ build_deps:
 	@docker pull eawsy/aws-lambda-go-shim:latest
 .PHONY: build_deps
 
-build_lambda_binary:                                        ## Build lambda binary
-	make -f Makefile.lambda docker
+build_lambda_binary:                                                        ## Build lambda binary
+	GOFLAGS=$(GOFLAGS) make -f Makefile.lambda docker
 .PHONY: build_lambda_binary
 
 prepare_upload_data: build_lambda_binary                                    ## Create archive to be uploaded
@@ -50,8 +49,8 @@ prepare_upload_data: build_lambda_binary                                    ## C
 	@make -f Makefile.lambda clean
 .PHONY: prepare_upload_data
 
-build_local:                                                ## Build binary - local dev
-	go build $(GOFLAGS) -o $(BINARY)
+build_local:                                                                ## Build binary - local dev
+	go build -ldflags=$(GOFLAGS) -o $(BINARY)
 .PHONY: build_local
 
 upload: prepare_upload_data                                                 ## Upload binary
