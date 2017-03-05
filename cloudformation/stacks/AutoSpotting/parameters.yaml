@@ -4,7 +4,7 @@
 
 # This file is handled automatically using the clouds-aws tool. It can be
 # installed using pip, or from https://github.com/elias5000/clouds-aws
-LambdaZipPath: dv/lambda_build_93ee30b.zip
+LambdaZipPath: dv/lambda_build_39d70ab.zip
 LambdaHandlerFunction: handler.Handle
 LambdaS3Bucket: cloudprowess-private
 LambdaMemorySize: '256'
