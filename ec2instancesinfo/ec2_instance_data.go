@@ -1,10 +1,14 @@
-package autospotting
+package ec2instancesinfo
 
 // In this file we generate a raw data structure unmarshaled from the
 // ec2instances.info JSON file, embedded into the binary at build time using go-
 // bindata.
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/pkg/errors"
+)
 
 // AWS Instances JSON Structure Definitions
 type jsonInstance struct {
@@ -48,29 +52,44 @@ type storageConfiguration struct {
 }
 
 type regionPrices struct {
-	Linux struct {
-		// this may contain string encoded numbers or "N/A" in some regions for
-		// regionally unsupported instance types. It needs special parsing later
-		OnDemand string `json:"ondemand"`
-		// ignored for now, not really useful
-		// Reserved interface{} `json:"reserved"`
-	} `json:"linux"`
-
+	Linux Linux `json:"linux"`
 	// ignored for now, not useful
 	// Mswinsqlweb interface{}  `json:"mswinSQLWeb"`
 	// Mswinsql    interface{}  `json:"mswinSQL"`
 	// Mswin       interface{}  `json:"mswin"`
 }
 
+type Linux struct {
+	// this may contain string encoded numbers or "N/A" in some regions for
+	// regionally unsupported instance types. It needs special parsing later
+	OnDemand string `json:"ondemand"`
+	// ignored for now, not really useful
+	// Reserved interface{} `json:"reserved"`
+}
+
 //------------------------------------------------------------------------------
 
-// RawInstanceData is a large data structure containing pricing and hardware
+// InstanceData is a large data structure containing pricing and hardware
 // information about all the EC2 instance types from all AWS regions.
-type RawInstanceData []jsonInstance
+type InstanceData []jsonInstance
 
-// LoadFromAssetContent loads the RawInstanceData object based on a
-// JSON-encoded contents, injected at build time by go-bindata.
-func (ii *RawInstanceData) LoadFromAssetContent(contents []byte) error {
-	err := json.Unmarshal(contents, &ii)
-	return err
+// Load generates the RawInstanceData object based on data sourced from
+// ec2instances.info. The data is shipped as a JSON blob, which is converted
+// into golang source-code by the go-bindata tool and compiled into this
+// library.
+func Data() (*InstanceData, error) {
+
+	var data InstanceData
+
+	raw, err := Asset("instances.json")
+	if err != nil {
+		return nil, errors.Errorf("couldn't read the data asset")
+	}
+
+	err = json.Unmarshal(raw, &data)
+	if err != nil {
+		return nil, errors.Errorf("couldn't read the data asset")
+	}
+
+	return &data, nil
 }
