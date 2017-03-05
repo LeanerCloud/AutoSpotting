@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/cristim/autospotting/core"
+	"github.com/cristim/autospotting/ec2instancesinfo"
 	"github.com/eawsy/aws-lambda-go-core/service/lambda/runtime"
 	"github.com/namsral/flag"
 )
@@ -50,17 +51,16 @@ func Handle(evt json.RawMessage, ctx *runtime.Context) (interface{}, error) {
 // Configuration handling
 func (c *cfgData) initialize() {
 
-	build, instanceInfo := readAssets()
-
 	c.parseCommandLineFlags()
-	c.BuildNumber = build
+	//c.BuildNumber = build
 
 	log.Printf("Current Configuration: %+v\n", c)
 
-	err := c.RawInstanceData.LoadFromAssetContent(instanceInfo)
+	data, err := ec2instancesinfo.Data()
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+	c.InstanceData = data
 }
 
 func (c *cfgData) parseCommandLineFlags() {
@@ -85,20 +85,4 @@ func (c *cfgData) parseCommandLineFlags() {
 	flag.Parse()
 	log.Printf("Parsed command line flags: regions='%s' min_on_demand_number=%d min_on_demand_percentage=%.1f",
 		c.Regions, c.MinOnDemandNumber, c.MinOnDemandPercentage)
-}
-
-func readAssets() (string, []byte) {
-
-	// contains the build number
-	build, err := Asset("data/BUILD")
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	instanceInfo, err := Asset("data/instances.json")
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	return string(build), instanceInfo
 }

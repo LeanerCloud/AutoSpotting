@@ -2,6 +2,8 @@ package autospotting
 
 import (
 	"io"
+
+	"github.com/cristim/autospotting/ec2instancesinfo"
 )
 
 // Config contains a number of flags and static data storing the EC2 instance
@@ -9,7 +11,7 @@ import (
 type Config struct {
 
 	// Static data fetched from ec2instances.info
-	RawInstanceData RawInstanceData
+	InstanceData *ec2instancesinfo.InstanceData
 
 	// Logging
 	LogFile io.Writer
