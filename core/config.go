@@ -17,8 +17,6 @@ type Config struct {
 	LogFile io.Writer
 	LogFlag int
 
-	BuildNumber string
-
 	MinOnDemandNumber     int64
 	MinOnDemandPercentage float64
 	Regions               string

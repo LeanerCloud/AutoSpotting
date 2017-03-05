@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 
@@ -17,12 +18,20 @@ type cfgData struct {
 
 var conf *cfgData
 
+// version stores the build number and is set by the build system using a
+// ldflags parameter.
+var version string
+
 func main() {
 	run()
 }
 
 func run() {
-	log.Print("Starting autospotting agent, build", conf.BuildNumber)
+	log.Println("Starting autospotting agent, build:", version)
+
+	log.Printf("Parsed command line flags: regions='%s' min_on_demand_number=%d min_on_demand_percentage=%.1f",
+		conf.Regions, conf.MinOnDemandNumber, conf.MinOnDemandPercentage)
+
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")
 }
@@ -52,9 +61,6 @@ func Handle(evt json.RawMessage, ctx *runtime.Context) (interface{}, error) {
 func (c *cfgData) initialize() {
 
 	c.parseCommandLineFlags()
-	//c.BuildNumber = build
-
-	log.Printf("Current Configuration: %+v\n", c)
 
 	data, err := ec2instancesinfo.Data()
 	if err != nil {
@@ -82,7 +88,13 @@ func (c *cfgData) parseCommandLineFlags() {
 			autospotting.OnDemandPercentageLong+
 			"\n\tIt is ignored if min_on_demand_number is also set.")
 
+	v := flag.Bool("version", false, "Print version number and exit.")
+
 	flag.Parse()
-	log.Printf("Parsed command line flags: regions='%s' min_on_demand_number=%d min_on_demand_percentage=%.1f",
-		c.Regions, c.MinOnDemandNumber, c.MinOnDemandPercentage)
+
+	if *v {
+		fmt.Println("AutoSpotting build:", version)
+		os.Exit(0)
+	}
+
 }
