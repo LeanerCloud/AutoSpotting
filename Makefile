@@ -8,15 +8,9 @@ LOCAL_PATH := build/s3/dv
 
 DOCKER_IMG := eawsy/aws-lambda-go
 
-BINDATA_DIR := data
-BINDATA_FILE := generated_bindata.go
-
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
 
-# upstream data
-EC2_INSTANCES_INFO_COMMIT_SHA := e655e36660bc617713c4ef9a1409cc65a209cb27
-INSTANCES_URL := "https://raw.githubusercontent.com/powdahound/ec2instances.info/$(EC2_INSTANCES_INFO_COMMIT_SHA)/www/instances.json"
 
 all: fmt-check vet-check build_local test                                                   ## Build the code
 .PHONY: all
@@ -41,17 +35,7 @@ build_deps:
 	@docker pull eawsy/aws-lambda-go-shim:latest
 .PHONY: build_deps
 
-prepare_bindata: check_deps build_deps                                      ## Convert instance data into go file
-	@type go-bindata || go get -u github.com/jteeuwen/go-bindata/...
-	@mkdir -p $(BINDATA_DIR)
-	wget --quiet -nv $(INSTANCES_URL) -O $(BINDATA_DIR)/instances.json
-	@echo $(BUILD) > $(BINDATA_DIR)/BUILD
-	go-bindata -o $(BINDATA_FILE) -nometadata $(BINDATA_DIR)
-	gofmt -l -s -w $(BINDATA_FILE)
-	go get ./...
-.PHONY: prepare_bindata
-
-build_lambda_binary: prepare_bindata                                        ## Build lambda binary
+build_lambda_binary:                                        ## Build lambda binary
 	make -f Makefile.lambda docker
 .PHONY: build_lambda_binary
 
@@ -66,7 +50,7 @@ prepare_upload_data: build_lambda_binary                                    ## C
 	@make -f Makefile.lambda clean
 .PHONY: prepare_upload_data
 
-build_local: prepare_bindata                                                ## Build binary - local dev
+build_local:                                                ## Build binary - local dev
 	go build $(GOFLAGS) -o $(BINARY)
 .PHONY: build_local
 
@@ -115,7 +99,7 @@ travisci-cover: html-cover                                                  ## G
 travisci-checks: fmt-check vet-check                                        ## Pass fmt / vet and calculate test coverage
 .PHONY: travisci-checks
 
-travisci: prepare_bindata travisci-checks prepare_upload_data travisci-cover## Executed by TravisCI
+travisci: travisci-checks prepare_upload_data travisci-cover## Executed by TravisCI
 .PHONY: travisci
 
 help:                                                                       ## Show this help

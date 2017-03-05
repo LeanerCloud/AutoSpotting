@@ -144,7 +144,7 @@ func (r *region) determineInstanceTypeInformation(cfg Config) {
 
 	var info instanceTypeInformation
 
-	for _, it := range cfg.RawInstanceData {
+	for _, it := range *cfg.InstanceData {
 
 		var price prices
 
