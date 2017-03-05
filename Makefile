@@ -29,12 +29,13 @@ check_deps:                                                                 ## V
 .PHONY: check_deps
 
 build_deps:
+	@go get ./...
 	@go get github.com/mattn/goveralls
 	@go get golang.org/x/tools/cmd/cover
 	@docker pull eawsy/aws-lambda-go-shim:latest
 .PHONY: build_deps
 
-build_lambda_binary:                                                        ## Build lambda binary
+build_lambda_binary: build_deps                                             ## Build lambda binary
 	GOFLAGS=$(GOFLAGS) make -f Makefile.lambda docker
 .PHONY: build_lambda_binary
 
