@@ -8,7 +8,7 @@
       "Type": "String"
     },
     "LambdaHandlerFunction": {
-      "Default": "handler.handle",
+      "Default": "handler.Handle",
       "Description": "Handler function for Lambda",
       "Type": "String"
     },
