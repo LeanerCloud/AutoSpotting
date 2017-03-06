@@ -52,14 +52,14 @@ type storageConfiguration struct {
 }
 
 type regionPrices struct {
-	Linux Linux `json:"linux"`
+	Linux linuxPricing `json:"linux"`
 	// ignored for now, not useful
 	// Mswinsqlweb interface{}  `json:"mswinSQLWeb"`
 	// Mswinsql    interface{}  `json:"mswinSQL"`
 	// Mswin       interface{}  `json:"mswin"`
 }
 
-type Linux struct {
+type linuxPricing struct {
 	// this may contain string encoded numbers or "N/A" in some regions for
 	// regionally unsupported instance types. It needs special parsing later
 	OnDemand string `json:"ondemand"`
@@ -73,10 +73,10 @@ type Linux struct {
 // information about all the EC2 instance types from all AWS regions.
 type InstanceData []jsonInstance
 
-// Load generates the RawInstanceData object based on data sourced from
-// ec2instances.info. The data is shipped as a JSON blob, which is converted
-// into golang source-code by the go-bindata tool and compiled into this
-// library.
+// Data generates the InstanceData object based on data sourced from
+// ec2instances.info. The data is delivered to us as a JSON blob, which is
+// converted into golang source-code by the go-bindata tool and unmarshaled into
+// a golang data structure by this library.
 func Data() (*InstanceData, error) {
 
 	var data InstanceData
