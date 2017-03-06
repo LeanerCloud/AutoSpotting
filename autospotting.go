@@ -18,16 +18,16 @@ type cfgData struct {
 
 var conf *cfgData
 
-// version stores the build number and is set by the build system using a
+// Version stores the build number and is set by the build system using a
 // ldflags parameter.
-var version string
+var Version string
 
 func main() {
 	run()
 }
 
 func run() {
-	log.Println("Starting autospotting agent, build:", version)
+	log.Println("Starting autospotting agent, build:", Version)
 
 	log.Printf("Parsed command line flags: regions='%s' min_on_demand_number=%d min_on_demand_percentage=%.1f",
 		conf.Regions, conf.MinOnDemandNumber, conf.MinOnDemandPercentage)
@@ -93,7 +93,7 @@ func (c *cfgData) parseCommandLineFlags() {
 	flag.Parse()
 
 	if *v {
-		fmt.Println("AutoSpotting build:", version)
+		fmt.Println("AutoSpotting build:", Version)
 		os.Exit(0)
 	}
 
