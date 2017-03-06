@@ -27,7 +27,7 @@
 
 HANDLER ?= handler
 PACKAGE ?= $(HANDLER)
-GOPATH  ?= $(HOME)/go
+GOPATH	?= $(HOME)/go
 
 WORKDIR = $(CURDIR:$(GOPATH)%=/go%)
 ifeq ($(WORKDIR),$(CURDIR))
@@ -35,19 +35,22 @@ ifeq ($(WORKDIR),$(CURDIR))
 endif
 
 docker:
-	docker run --rm          \
-	  -e HANDLER=$(HANDLER)   \
-	  -e PACKAGE=$(PACKAGE)   \
-    -e GOFLAGS='$(GOFLAGS)' \
-	  -v $(GOPATH):/go        \
-	  -v $(CURDIR):/tmp       \
-	  -w $(WORKDIR)           \
-	  eawsy/aws-lambda-go-shim:latest make -f Makefile.lambda all
+	docker run --rm						\
+		-e HANDLER=$(HANDLER)				\
+		-e PACKAGE=$(PACKAGE)	 			\
+		-e BUILD_NUMBER='$(BUILD_NUMBER)' 	\
+		-v $(GOPATH):/go					\
+		-v $(CURDIR):/tmp			 		\
+		-w $(WORKDIR)					 	\
+		eawsy/aws-lambda-go-shim:latest make -f Makefile.lambda all
 
 all: build pack perm
 
 build:
-	go build -buildmode=plugin -ldflags="-w -s $(GOFLAGS)" -o $(HANDLER).so
+	go build \
+		-buildmode=plugin \
+		-ldflags="-w -s -pluginpath lambda -X lambda.Version=$(BUILD_NUMBER)" \
+		-o $(HANDLER).so
 
 pack:
 	@pack $(HANDLER) $(HANDLER).so $(PACKAGE).zip
