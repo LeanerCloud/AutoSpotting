@@ -151,8 +151,7 @@ func (r *region) determineInstanceTypeInformation(cfg Config) {
 		debug.Println(it)
 
 		// populate on-demand information
-		price.onDemand, _ = strconv.ParseFloat(
-			it.Pricing[r.name].Linux.OnDemand, 64)
+		price.onDemand = it.Pricing[r.name].Linux.OnDemand
 
 		price.spot = make(spotPriceMap)
 
