@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/cristim/autospotting/core"
-	"github.com/cristim/autospotting/ec2instancesinfo"
+	"github.com/cristim/ec2-instances-info"
 	"github.com/eawsy/aws-lambda-go-core/service/lambda/runtime"
 	"github.com/namsral/flag"
 )
