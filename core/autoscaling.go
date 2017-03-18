@@ -1,12 +1,12 @@
 package autospotting
 
 import (
+	"errors"
 	"math"
 	"strconv"
 	"strings"
 	"time"
 
-	"errors"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"

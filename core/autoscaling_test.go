@@ -2,11 +2,12 @@ package autospotting
 
 import (
 	"errors"
+	"reflect"
+	"testing"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"reflect"
-	"testing"
 )
 
 func TestGetTagValue(t *testing.T) {
