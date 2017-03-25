@@ -19,7 +19,7 @@ func CheckErrors(t *testing.T, err error, expected error) {
 	}
 }
 
-// All fields are composed of the abreviation of their method
+// All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockEC2 struct {
 	ec2iface.EC2API
@@ -28,7 +28,7 @@ type mockEC2 struct {
 	cto   *ec2.CreateTagsOutput
 	cterr error
 
-	// Wait Until Spot Instance Request Fullfilled
+	// Wait Until Spot Instance Request Fulfilled
 	wusirferr error
 
 	// Describe Instance Request
@@ -91,7 +91,7 @@ func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegion
 	return m.dro, m.drerr
 }
 
-// All fields are composed of the abreviation of their method
+// All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockASG struct {
 	autoscalingiface.AutoScalingAPI
