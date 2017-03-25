@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 )
 
 var logger, debug *log.Logger
@@ -22,7 +23,17 @@ func Run(cfg Config) {
 
 	debug.Println(cfg)
 
-	processAllRegions(cfg)
+	// use this only to list all the other regions
+	ec2Conn := connectEC2("us-east-1")
+
+	allRegions, err := getRegions(ec2Conn)
+
+	if err != nil {
+		logger.Println(err.Error())
+		return
+	}
+
+	processRegions(allRegions, cfg)
 
 }
 
@@ -43,16 +54,9 @@ func setupLogging(cfg Config) {
 
 // processAllRegions iterates all regions in parallel, and replaces instances
 // for each of the ASGs tagged with 'spot-enabled=true'.
-func processAllRegions(cfg Config) {
+func processRegions(regions []string, cfg Config) {
 
 	var wg sync.WaitGroup
-
-	regions, err := getRegions()
-
-	if err != nil {
-		logger.Println(err.Error())
-		return
-	}
 
 	for _, r := range regions {
 
@@ -75,24 +79,26 @@ func processAllRegions(cfg Config) {
 	wg.Wait()
 }
 
+func connectEC2(region string) *ec2.EC2 {
+	// This turns out to be much faster when running locally than using region
+	// auto-detection, and anyway due to Lambda limitations we currently only
+	// support running it from this region.
+
+	sess := session.Must(session.NewSession(
+		&aws.Config{
+			Region: aws.String(region),
+		}))
+
+	return ec2.New(sess)
+}
+
 // getRegions generates a list of AWS regions.
-func getRegions() ([]string, error) {
+func getRegions(ec2conn ec2iface.EC2API) ([]string, error) {
 	var output []string
 
 	logger.Println("Scanning for available AWS regions")
 
-	// This turns out to be much faster when running locally than using region
-	// auto-detection, and anyway due to Lambda limitations we currently only
-	// support running it from this region.
-	currentRegion := "us-east-1"
-
-	svc := ec2.New(
-		session.New(
-			&aws.Config{
-				Region: aws.String(currentRegion),
-			}))
-
-	resp, err := svc.DescribeRegions(&ec2.DescribeRegionsInput{})
+	resp, err := ec2conn.DescribeRegions(&ec2.DescribeRegionsInput{})
 
 	if err != nil {
 		logger.Println(err.Error())
