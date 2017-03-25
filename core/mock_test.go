@@ -23,28 +23,40 @@ func CheckErrors(t *testing.T, err error, expected error) {
 // This is useful when methods are doing multiple calls to AWS API
 type mockEC2 struct {
 	ec2iface.EC2API
+
 	// Create tags
 	cto   *ec2.CreateTagsOutput
 	cterr error
+
 	// Wait Until Spot Instance Request Fullfilled
 	wusirferr error
+
 	// Describe Instance Request
 	dsiro   *ec2.DescribeSpotInstanceRequestsOutput
 	dsirerr error
+
 	// Describe Spot Price History
 	dspho   *ec2.DescribeSpotPriceHistoryOutput
 	dspherr error
+
 	// Error in DescribeInstancesPages
 	diperr error
+
 	// Terminate Instance
 	tio   *ec2.TerminateInstancesOutput
 	tierr error
+
 	// Request Spot Instance
 	rsio   *ec2.RequestSpotInstancesOutput
 	rsierr error
+
 	// Describe Spot Instance Requests
 	dspiro   *ec2.DescribeSpotInstanceRequestsOutput
 	dspirerr error
+
+	// Describe Regions
+	dro   *ec2.DescribeRegionsOutput
+	drerr error
 }
 
 func (m mockEC2) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
@@ -73,6 +85,10 @@ func (m mockEC2) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.Terminat
 
 func (m mockEC2) RequestSpotInstances(*ec2.RequestSpotInstancesInput) (*ec2.RequestSpotInstancesOutput, error) {
 	return m.rsio, m.rsierr
+}
+
+func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
+	return m.dro, m.drerr
 }
 
 // All fields are composed of the abreviation of their method
