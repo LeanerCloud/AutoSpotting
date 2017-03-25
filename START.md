@@ -286,7 +286,7 @@ Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
   binary. Make sure you use the following stack parameter on any newer builds:
 
 ```
-LambdaHandlerFunction: handler.handle
+LambdaHandlerFunction: handler.Handle
 ```
 
 ## Uninstallation ##
