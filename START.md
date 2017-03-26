@@ -119,7 +119,7 @@ module "autospotting" {
   lambda_runtime = "200"
   lambda_memory_size = "2048"
   lambda_timeout = "600"
-  lambda_run_frequency = "rate(1 minute)"
+  lambda_run_frequency = "rate(5 minutes)"
 }
 ```
 
