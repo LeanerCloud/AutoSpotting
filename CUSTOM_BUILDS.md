@@ -16,9 +16,12 @@ your CloudFormation or Terraform stack to use those new binaries.
 
 1. Verify that they were properly installed.
 
-   `go version`
+   `go version`, should be at least 1.7
+
    `git version`
+
    `docker version`
+
    `aws --version`
 
 ## Compiling the binaries locally ##
@@ -33,22 +36,18 @@ your CloudFormation or Terraform stack to use those new binaries.
    Optionally add this line to your .bash_profile to persist across console
    sessions.
 
-1. Navigate to your `godev` directory and run the following to bring in the
-   AutoSpotting project:
+1. Run the following command to install the AutoSpotting project into your
+   GOPATH directory:
 
    `go get github.com/cristim/autospotting`
 
-   This will download the source from GitHub as well as pull in any necessary
-   dependencies.
+   This downloads the source from GitHub, pulls in all necessary dependencies,
+   builds it for local execution and deploys the binary into the golang binary
+   directory which you may also want to append to your PATH.
 
 1. Navigate to the root of the AutoSpotting repository:
 
-   `cd src/github.com/cristim/autospotting`
-
-1. Try building and running the code locally to make sure everything works
-   correctly. More details on the available directives below.
-
-   `make test`
+   `cd $GOPATH/src/github.com/cristim/autospotting`
 
 1. (Optional) You may want to make a minor change to the source code so you can
    tell when the tool is running your own custom-built version. If so, add a
@@ -56,7 +55,33 @@ your CloudFormation or Terraform stack to use those new binaries.
 
    `fmt.Println("Running <my organization name> binaries")`
 
-## Using your own binaries in AWS ##
+1. (Optional) Try building and running the test suite locally to make sure
+   everything works correctly:
+
+   `make test`
+
+   Below you can see more details on the other available make directives.
+
+1. Build the code:
+
+   `make build_local` or `go build` should both work, the only difference is the
+   inclusion of versioning information into the binary, which may not matter
+   much anyway.
+
+## Running locally ##
+
+1. Run the code, assuming you have AWS credentials defined in your environment
+   or in the default AWS credentials profile:
+
+   `./autospotting`
+
+   You may also pass some command line flags, see the --help for more
+   information on the available options.
+
+   When you are happy with how your custom build behaves, you can generate a
+   build for AWS Lambda.
+
+## Using your own binaries in AWS Lambda ##
 
 1. Set up an S3 bucket in your AWS account that will host your custom binaries.
 
@@ -72,14 +97,10 @@ your CloudFormation or Terraform stack to use those new binaries.
 1. Build and upload your binaries to the S3 bucket.
    `make upload`
 
-1. If you're already set up to use the tool with the author's binaries, update
+1. If you're already set up to use the tool with the official binaries, update
    your existing CloudFormation stack, and change the `LambdaS3Bucket` field to
-   your S3 bucket name.
-
-   Otherwise, follow the steps in [this blog
-   post](http://blog.cloudprowess.com/autoscaling/aws/ec2/spot/2016/04/26/automatic-replacement-of-autoscaling-nodes-with-equivalent-spot-instances-seeing-it-in-action.html)
-   to get it installed, replacing `cloudprowess` with your S3 bucket name in the
-   `LambdaS3Bucket` field on the Stack Parameters section of the configuration.
+   your S3 bucket name on the Stack Parameters section of the stack
+   configuration.
 
    ![LambdaS3Bucket
    Configuration](https://mcristi.files.wordpress.com/2016/04/installationcloudformation2.png)
@@ -102,7 +123,9 @@ tool:
   * Uploads the generated binaries from `build/s3` to the specified S3 bucket.
 
 * **test**
+  * Runs the test suite.
+
+* **build_local**
   * Compiles the project for local execution.
-  * Runs the tool locally
 
 [Back to the main Readme](./README.md)
