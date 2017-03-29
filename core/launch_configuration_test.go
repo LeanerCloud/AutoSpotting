@@ -348,6 +348,62 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 			},
 		},
 		{
+			name: "classic-nonid-networking",
+			lc: &launchConfiguration{
+				&autoscaling.LaunchConfiguration{
+					SecurityGroups: aws.StringSlice([]string{"non-sgstart", "non-sg"}),
+				},
+			},
+			instance: &instance{
+				Instance: &ec2.Instance{},
+			},
+			spotRequest: &ec2.RequestSpotLaunchSpecification{
+				InstanceType: aws.String(""),
+				Placement: &ec2.SpotPlacement{
+					AvailabilityZone: aws.String(""),
+				},
+				SecurityGroups: aws.StringSlice([]string{"non-sgstart", "non-sg"}),
+			},
+		},
+		{
+			name: "classic-id-networking",
+			lc: &launchConfiguration{
+				&autoscaling.LaunchConfiguration{
+					SecurityGroups: aws.StringSlice([]string{"sg-12345", "sg-4567"}),
+				},
+			},
+			instance: &instance{
+				Instance: &ec2.Instance{},
+			},
+			spotRequest: &ec2.RequestSpotLaunchSpecification{
+				InstanceType:   aws.String(""),
+				SecurityGroups: nil,
+				Placement: &ec2.SpotPlacement{
+					AvailabilityZone: aws.String(""),
+				},
+				SecurityGroupIds: aws.StringSlice([]string{"sg-12345", "sg-4567"}),
+			},
+		},
+		{
+			name: "classic-mixed-networking",
+			lc: &launchConfiguration{
+				&autoscaling.LaunchConfiguration{
+					SecurityGroups: aws.StringSlice([]string{"sg-12345", "non-sg"}),
+				},
+			},
+			instance: &instance{
+				Instance: &ec2.Instance{},
+			},
+			spotRequest: &ec2.RequestSpotLaunchSpecification{
+				InstanceType:   aws.String(""),
+				SecurityGroups: aws.StringSlice([]string{"sg-12345", "non-sg"}),
+				Placement: &ec2.SpotPlacement{
+					AvailabilityZone: aws.String(""),
+				},
+				SecurityGroupIds: nil,
+			},
+		},
+		{
 			name: "full configuration",
 			lc: &launchConfiguration{
 				&autoscaling.LaunchConfiguration{

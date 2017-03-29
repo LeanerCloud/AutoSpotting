@@ -92,8 +92,22 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 			},
 		}
 	} else {
-		// Instances are running in EC2 Classic.
-		spotLS.SecurityGroups = lc.SecurityGroups
+		// Instances are running in EC2 Classic, but maybe by name or ID
+		// depending on your scenario, so testing if start with sg-
+		// note: this doesn't yet cover scenario of mixed mode
+		ids := true
+
+		for i := range lc.SecurityGroups {
+			if !strings.HasPrefix(*(lc.SecurityGroups[i]), "sg-") {
+				ids = false
+			}
+		}
+
+		if ids {
+			spotLS.SecurityGroupIds = lc.SecurityGroups
+		} else {
+			spotLS.SecurityGroups = lc.SecurityGroups
+		}
 	}
 
 	if lc.UserData != nil && *lc.UserData != "" {
