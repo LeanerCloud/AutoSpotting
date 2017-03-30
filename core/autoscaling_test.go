@@ -1456,9 +1456,6 @@ func TestBidForSpotInstance(t *testing.T) {
 								{InstanceId: aws.String("1")},
 							},
 						},
-						dio: &ec2.DescribeInstancesOutput{
-							Reservations: []*ec2.Reservation{{}},
-						},
 					},
 				},
 			},
@@ -1486,9 +1483,6 @@ func TestBidForSpotInstance(t *testing.T) {
 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
 								{InstanceId: aws.String("1")},
 							},
-						},
-						dio: &ec2.DescribeInstancesOutput{
-							Reservations: []*ec2.Reservation{{}},
 						},
 					},
 				},
@@ -1518,9 +1512,6 @@ func TestBidForSpotInstance(t *testing.T) {
 								{InstanceId: aws.String("1")},
 							},
 						},
-						dio: &ec2.DescribeInstancesOutput{
-							Reservations: []*ec2.Reservation{{}},
-						},
 					},
 				},
 			},
@@ -1549,9 +1540,6 @@ func TestBidForSpotInstance(t *testing.T) {
 								{InstanceId: aws.String("1")},
 							},
 						},
-						dio: &ec2.DescribeInstancesOutput{
-							Reservations: []*ec2.Reservation{{}},
-						},
 					},
 				},
 			},
@@ -1579,9 +1567,6 @@ func TestBidForSpotInstance(t *testing.T) {
 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
 								{InstanceId: aws.String("1")},
 							},
-						},
-						dio: &ec2.DescribeInstancesOutput{
-							Reservations: []*ec2.Reservation{{}},
 						},
 					},
 				},
