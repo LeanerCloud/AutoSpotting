@@ -321,7 +321,12 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 		"replacing with new spot instance", *spotInst.InstanceId)
 	// revert attach/detach order when running on minimum capacity
 	if desiredCapacity == minSize {
-		a.attachSpotInstance(spotInstanceID)
+		attach_err := a.attachSpotInstance(spotInstanceID)
+		if attach_err != nil {
+			logger.Println(a.name, "skipping detaching on-demand due to failure to",
+				"attach the new spot instance", *spotInst.InstanceId)
+			return nil
+		}
 	} else {
 		defer a.attachSpotInstance(spotInstanceID)
 	}
@@ -486,6 +491,11 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 		logger.Println("The new spot instance", *spotInstanceID,
 			"is still in the grace period,",
 			"waiting for it to be ready before we can attach it to the group...")
+		return nil, true
+	} else if *instData.State.Name == "pending" {
+		logger.Println("The new spot instance", *spotInstanceID,
+			"is still pending,",
+			"waiting for it to be running before we can attach it to the group...")
 		return nil, true
 	}
 	return spotInstanceID, false
