@@ -1,6 +1,7 @@
 package autospotting
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -10,12 +11,9 @@ import (
 )
 
 func CheckErrors(t *testing.T, err error, expected error) {
-	if err == nil && expected != err {
-		t.Errorf("Error received: %v expected %v", err, expected.Error())
-	} else if err != nil && expected == nil {
-		t.Errorf("Error received: %s expected %s", err.Error(), expected)
-	} else if err != nil && expected != nil && err.Error() != expected.Error() {
-		t.Errorf("Error received: %s expected %s", err.Error(), expected.Error())
+	if err != nil && !reflect.DeepEqual(err, expected) {
+		t.Errorf("Error received: '%v' expected '%v'",
+			err.Error(), expected.Error())
 	}
 }
 

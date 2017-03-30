@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -907,11 +908,12 @@ func TestTerminate(t *testing.T) {
 // Ideally should find a better way to test tagging
 // and avoid having a small wait of 1 timeout
 func TestTag(t *testing.T) {
+
 	tests := []struct {
-		name     string
-		tags     []*ec2.Tag
-		inst     *instance
-		expected error
+		name          string
+		tags          []*ec2.Tag
+		inst          *instance
+		expectedError error
 	}{
 		{
 			name: "no tags without error",
@@ -929,7 +931,7 @@ func TestTag(t *testing.T) {
 					},
 				},
 			},
-			expected: nil,
+			expectedError: nil,
 		},
 		{
 			name: "no tags with error",
@@ -942,12 +944,12 @@ func TestTag(t *testing.T) {
 					name: "test",
 					services: connections{
 						ec2: mockEC2{
-							cterr: errors.New(""),
+							cterr: errors.New("no tags with error"),
 						},
 					},
 				},
 			},
-			expected: errors.New(""),
+			expectedError: errors.New("no tags with error"),
 		},
 		{
 			name: "tags without error",
@@ -968,7 +970,7 @@ func TestTag(t *testing.T) {
 					},
 				},
 			},
-			expected: nil,
+			expectedError: nil,
 		},
 		{
 			name: "tags with error",
@@ -984,20 +986,20 @@ func TestTag(t *testing.T) {
 					name: "test",
 					services: connections{
 						ec2: mockEC2{
-							cterr: errors.New(""),
+							cterr: errors.New("tags with error"),
 						},
 					},
 				},
 			},
-			expected: errors.New(""),
+			expectedError: errors.New("tags with error"),
 		},
 	}
 
+	mockedSleep := func(time.Duration) {}
+
 	for _, tt := range tests {
-		ret := tt.inst.tag(tt.tags, 1)
-		if ret != nil && ret.Error() != tt.expected.Error() {
-			t.Errorf("error actual: %s, expected: %s", ret.Error(), tt.expected.Error())
-		}
+		err := tt.inst.tag(tt.tags, 1, mockedSleep)
+		CheckErrors(t, err, tt.expectedError)
 	}
 }
 
