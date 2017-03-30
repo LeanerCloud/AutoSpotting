@@ -24,7 +24,7 @@ func Run(cfg Config) {
 	debug.Println(cfg)
 
 	// use this only to list all the other regions
-	ec2Conn := connectEC2("us-east-1")
+	ec2Conn := connectEC2(cfg.MainRegion)
 
 	allRegions, err := getRegions(ec2Conn)
 
@@ -80,16 +80,14 @@ func processRegions(regions []string, cfg Config) {
 }
 
 func connectEC2(region string) *ec2.EC2 {
-	// This turns out to be much faster when running locally than using region
-	// auto-detection, and anyway due to Lambda limitations we currently only
-	// support running it from this region.
 
-	sess := session.Must(session.NewSession(
-		&aws.Config{
-			Region: aws.String(region),
-		}))
+	sess, err := session.NewSession()
+	if err != nil {
+		panic(err)
+	}
 
-	return ec2.New(sess)
+	return ec2.New(sess,
+		aws.NewConfig().WithRegion(region))
 }
 
 // getRegions generates a list of AWS regions.

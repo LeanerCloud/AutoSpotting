@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/cristim/autospotting/core"
 	"github.com/cristim/ec2-instances-info"
 	"github.com/eawsy/aws-lambda-go-core/service/lambda/runtime"
@@ -39,11 +40,19 @@ func run() {
 // this is the equivalent of a main for when running from Lambda, but on Lambda
 // the run() is executed within the handler function every time we have an event
 func init() {
+	var region string
+
+	if r := os.Getenv("AWS_REGION"); r != "" {
+		region = r
+	} else {
+		region = endpoints.UsEast1RegionID
+	}
 
 	conf = &cfgData{
 		autospotting.Config{
-			LogFile: os.Stdout,
-			LogFlag: log.Ldate | log.Ltime | log.Lshortfile,
+			LogFile:    os.Stdout,
+			LogFlag:    log.Ldate | log.Ltime | log.Lshortfile,
+			MainRegion: region,
 		},
 	}
 

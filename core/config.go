@@ -17,6 +17,9 @@ type Config struct {
 	LogFile io.Writer
 	LogFlag int
 
+	// The region where the Lambda function is deployed
+	MainRegion string
+
 	MinOnDemandNumber     int64
 	MinOnDemandPercentage float64
 	Regions               string
