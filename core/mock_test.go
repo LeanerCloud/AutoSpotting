@@ -1,11 +1,12 @@
 package autospotting
 
 import (
+	"testing"
+
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"testing"
 )
 
 func CheckErrors(t *testing.T, err error, expected error) {
@@ -33,9 +34,8 @@ type mockEC2 struct {
 	// Describe Spot Price History
 	dspho   *ec2.DescribeSpotPriceHistoryOutput
 	dspherr error
-	// Describe Instance
-	dio   *ec2.DescribeInstancesOutput
-	dierr error
+	// Error in DescribeInstancesPages
+	diperr error
 	// Terminate Instance
 	tio   *ec2.TerminateInstancesOutput
 	tierr error
@@ -63,8 +63,8 @@ func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput)
 	return m.dspho, m.dspherr
 }
 
-func (m mockEC2) DescribeInstances(in *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
-	return m.dio, m.dierr
+func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool) error {
+	return m.diperr
 }
 
 func (m mockEC2) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {

@@ -92,9 +92,8 @@ func (r *region) processRegion() {
 }
 
 func (r *region) scanInstances() error {
-
 	svc := r.services.ec2
-	params := &ec2.DescribeInstancesInput{
+	input := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name: aws.String("instance-state-name"),
@@ -106,23 +105,31 @@ func (r *region) scanInstances() error {
 		},
 	}
 
-	resp, err := svc.DescribeInstances(params)
-	if err != nil {
-		return err
-	}
-
-	debug.Println(resp)
-
 	r.instances = makeInstances()
 
-	if len(resp.Reservations) > 0 &&
-		resp.Reservations[0].Instances != nil {
+	pageNum := 0
+	err := svc.DescribeInstancesPages(
+		input,
+		func(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
+			pageNum++
+			logger.Println("Processing page", pageNum, "of DescribeInstancesPages for", r.name)
 
-		for _, res := range resp.Reservations {
-			for _, inst := range res.Instances {
-				r.addInstance(inst)
+			debug.Println(page)
+			if len(page.Reservations) > 0 &&
+				page.Reservations[0].Instances != nil {
+
+				for _, res := range page.Reservations {
+					for _, inst := range res.Instances {
+						r.addInstance(inst)
+					}
+				}
 			}
-		}
+			return true
+		},
+	)
+
+	if err != nil {
+		return err
 	}
 
 	debug.Println(r.instances.dump())
