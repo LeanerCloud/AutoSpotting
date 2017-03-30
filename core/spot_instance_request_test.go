@@ -47,9 +47,6 @@ func Test_waitForAndTagSpotInstance(t *testing.T) {
 									{InstanceId: aws.String("")},
 								},
 							},
-							dio: &ec2.DescribeInstancesOutput{
-								Reservations: []*ec2.Reservation{{}},
-							},
 						},
 					},
 				},
@@ -77,9 +74,6 @@ func Test_waitForAndTagSpotInstance(t *testing.T) {
 								},
 							},
 							dsirerr: errors.New(""),
-							dio: &ec2.DescribeInstancesOutput{
-								Reservations: []*ec2.Reservation{{}},
-							},
 						},
 					},
 				},
