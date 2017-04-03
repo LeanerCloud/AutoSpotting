@@ -1,6 +1,7 @@
 package autospotting
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -10,41 +11,50 @@ import (
 )
 
 func CheckErrors(t *testing.T, err error, expected error) {
-	if err == nil && expected != err {
-		t.Errorf("Error received: %v expected %v", err, expected.Error())
-	} else if err != nil && expected == nil {
-		t.Errorf("Error received: %s expected %s", err.Error(), expected)
-	} else if err != nil && expected != nil && err.Error() != expected.Error() {
-		t.Errorf("Error received: %s expected %s", err.Error(), expected.Error())
+	if err != nil && !reflect.DeepEqual(err, expected) {
+		t.Errorf("Error received: '%v' expected '%v'",
+			err.Error(), expected.Error())
 	}
 }
 
-// All fields are composed of the abreviation of their method
+// All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockEC2 struct {
 	ec2iface.EC2API
+
 	// Create tags
 	cto   *ec2.CreateTagsOutput
 	cterr error
-	// Wait Until Spot Instance Request Fullfilled
+
+	// Wait Until Spot Instance Request Fulfilled
 	wusirferr error
+
 	// Describe Instance Request
 	dsiro   *ec2.DescribeSpotInstanceRequestsOutput
 	dsirerr error
+
 	// Describe Spot Price History
 	dspho   *ec2.DescribeSpotPriceHistoryOutput
 	dspherr error
+
 	// Error in DescribeInstancesPages
 	diperr error
+
 	// Terminate Instance
 	tio   *ec2.TerminateInstancesOutput
 	tierr error
+
 	// Request Spot Instance
 	rsio   *ec2.RequestSpotInstancesOutput
 	rsierr error
+
 	// Describe Spot Instance Requests
 	dspiro   *ec2.DescribeSpotInstanceRequestsOutput
 	dspirerr error
+
+	// Describe Regions
+	dro   *ec2.DescribeRegionsOutput
+	drerr error
 }
 
 func (m mockEC2) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
@@ -75,7 +85,11 @@ func (m mockEC2) RequestSpotInstances(*ec2.RequestSpotInstancesInput) (*ec2.Requ
 	return m.rsio, m.rsierr
 }
 
-// All fields are composed of the abreviation of their method
+func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
+	return m.dro, m.drerr
+}
+
+// All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockASG struct {
 	autoscalingiface.AutoScalingAPI

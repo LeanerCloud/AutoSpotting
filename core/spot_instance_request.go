@@ -1,6 +1,8 @@
 package autospotting
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
@@ -59,7 +61,7 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() error {
 	i := s.region.instances.get(*spotInstanceID)
 
 	if i != nil {
-		i.tag(tags, defaultTimeout)
+		i.tag(tags, defaultTimeout, time.Sleep)
 	} else {
 		logger.Println(s.asg.name, "new spot instance", *spotInstanceID, "has disappeared")
 	}
