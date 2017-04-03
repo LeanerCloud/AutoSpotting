@@ -19,16 +19,18 @@ type connections struct {
 	region      string
 }
 
+func (c *connections) setSession(region string) {
+	c.session = session.Must(
+		session.NewSession(&aws.Config{Region: aws.String(region)}))
+}
+
 func (c *connections) connect(region string) {
 
 	logger.Println("Creating Service connections in", region)
 
-	// concurrently connect to all the services we need
-
-	c.session = session.New(
-		&aws.Config{
-			Region: aws.String(region)},
-	)
+	if c.session == nil {
+		c.setSession(region)
+	}
 
 	asConn := make(chan *autoscaling.AutoScaling)
 	ec2Conn := make(chan *ec2.EC2)
