@@ -66,6 +66,16 @@ setup.
 Non-trivial work should be submitted according to the contribution
 [guidelines](CONTRIBUTING.md)
 
+## Support ##
+
+Community support is available on the
+[gitter](https://gitter.im/cristim/autospotting) chat room on a best effort
+basis.
+
+The main author also offers paid enterprise-grade support, sponsored feature
+development as well as AWS-related consulting. For more information on pricing,
+terms and conditions feel free to [get in touch](https://gitter.im/cristim).
+
 ## License ##
 
 This software is distributed under the terms of the MIT [license](LICENSE).
