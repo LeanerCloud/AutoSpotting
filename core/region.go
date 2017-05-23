@@ -2,10 +2,10 @@ package autospotting
 
 import (
 	"errors"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -42,13 +42,17 @@ func (r *region) enabled() bool {
 	var enabledRegions []string
 
 	if r.conf.Regions != "" {
-		enabledRegions = strings.Split(r.conf.Regions, ",")
+		// Allow both space- and comma-separated values for the region list.
+		csv := strings.Replace(r.conf.Regions, " ", ",", -1)
+		enabledRegions = strings.Split(csv, ",")
 	} else {
 		return true
 	}
 
 	for _, region := range enabledRegions {
-		if region == r.name {
+
+		// glob matching for region names
+		if match, _ := filepath.Match(region, r.name); match {
 			return true
 		}
 	}
@@ -75,7 +79,10 @@ func (r *region) processRegion() {
 		debug.Println(spew.Sdump(r.instanceTypeInformation))
 
 		logger.Println("Scanning instances in", r.name)
-		r.scanInstances()
+		err := r.scanInstances()
+		if err != nil {
+			logger.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
+		}
 
 		logger.Println("Processing enabled AutoScaling groups in", r.name)
 		r.processEnabledAutoScalingGroups()
@@ -86,7 +93,7 @@ func (r *region) processRegion() {
 
 func (r *region) scanInstances() error {
 	svc := r.services.ec2
-	params := &ec2.DescribeInstancesInput{
+	input := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name: aws.String("instance-state-name"),
@@ -98,33 +105,44 @@ func (r *region) scanInstances() error {
 		},
 	}
 
-	resp, err := svc.DescribeInstances(params)
+	r.instances = makeInstances()
+
+	pageNum := 0
+	err := svc.DescribeInstancesPages(
+		input,
+		func(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
+			pageNum++
+			logger.Println("Processing page", pageNum, "of DescribeInstancesPages for", r.name)
+
+			debug.Println(page)
+			if len(page.Reservations) > 0 &&
+				page.Reservations[0].Instances != nil {
+
+				for _, res := range page.Reservations {
+					for _, inst := range res.Instances {
+						r.addInstance(inst)
+					}
+				}
+			}
+			return true
+		},
+	)
+
 	if err != nil {
 		return err
 	}
 
-	debug.Println(resp)
+	debug.Println(r.instances.dump())
 
-	r.instances.catalog = make(map[string]*instance)
-
-	if len(resp.Reservations) > 0 &&
-		resp.Reservations[0].Instances != nil {
-
-		for _, res := range resp.Reservations {
-			for _, inst := range res.Instances {
-
-				i := instance{
-					Instance: inst,
-					typeInfo: r.instanceTypeInformation[*inst.InstanceType],
-				}
-				debug.Println("Type Info:", *inst.InstanceType, spew.Sdump(i.typeInfo))
-				r.instances.add(&i)
-
-			}
-		}
-	}
-	debug.Println(spew.Sdump(r.instances))
 	return nil
+}
+
+func (r *region) addInstance(inst *ec2.Instance) {
+	r.instances.add(&instance{
+		Instance: inst,
+		typeInfo: r.instanceTypeInformation[*inst.InstanceType],
+		region:   r,
+	})
 }
 
 func (r *region) determineInstanceTypeInformation(cfg Config) {
@@ -133,15 +151,14 @@ func (r *region) determineInstanceTypeInformation(cfg Config) {
 
 	var info instanceTypeInformation
 
-	for _, it := range cfg.RawInstanceData {
+	for _, it := range *cfg.InstanceData {
 
 		var price prices
 
 		debug.Println(it)
 
 		// populate on-demand information
-		price.onDemand, _ = strconv.ParseFloat(
-			it.Pricing[r.name].Linux.OnDemand, 64)
+		price.onDemand = it.Pricing[r.name].Linux.OnDemand
 
 		price.spot = make(spotPriceMap)
 
@@ -220,8 +237,10 @@ func (r *region) requestSpotPrices() error {
 	return nil
 }
 
-func (r *region) scanForEnabledAutoScalingGroupsByTag(asgs *[]*string) {
+func (r *region) scanForEnabledAutoScalingGroupsByTag() []*string {
 	svc := r.services.autoScaling
+
+	var asgs []*string
 
 	input := autoscaling.DescribeTagsInput{
 		Filters: []*autoscaling.Filter{
@@ -237,7 +256,7 @@ func (r *region) scanForEnabledAutoScalingGroupsByTag(asgs *[]*string) {
 			logger.Println("Processing page", pageNum, "of DescribeTagsPages for", r.name)
 			for _, tag := range page.Tags {
 				logger.Println(r.name, "has enabled ASG:", *tag.ResourceId)
-				*asgs = append(*asgs, tag.ResourceId)
+				asgs = append(asgs, tag.ResourceId)
 			}
 			return true
 		},
@@ -246,14 +265,13 @@ func (r *region) scanForEnabledAutoScalingGroupsByTag(asgs *[]*string) {
 		logger.Println("Failed to describe AutoScaling tags in",
 			r.name,
 			err.Error())
-		return
 	}
+	return asgs
 }
 
 func (r *region) scanForEnabledAutoScalingGroups() {
-	asgNames := []*string{}
 
-	r.scanForEnabledAutoScalingGroupsByTag(&asgNames)
+	asgNames := r.scanForEnabledAutoScalingGroupsByTag()
 
 	if len(asgNames) == 0 {
 		return
@@ -288,7 +306,6 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 			err.Error())
 		return
 	}
-
 }
 
 func (r *region) hasEnabledAutoScalingGroups() bool {
@@ -306,36 +323,4 @@ func (r *region) processEnabledAutoScalingGroups() {
 		}(asg)
 	}
 	r.wg.Wait()
-}
-
-func (r *region) tagInstance(instanceID *string, tags []*ec2.Tag) {
-
-	if len(tags) == 0 {
-		logger.Println(r.name, "Tagging spot instance", *instanceID,
-			"no tags were defined, skipping...")
-		return
-	}
-
-	svc := r.services.ec2
-	params := ec2.CreateTagsInput{
-		Resources: []*string{instanceID},
-		Tags:      tags,
-	}
-
-	logger.Println(r.name, "Tagging spot instance", *instanceID)
-
-	for _, err := svc.CreateTags(&params); err != nil; _, err =
-		svc.CreateTags(&params) {
-
-		logger.Println(r.name,
-			"Failed to create tags for the spot instance", *instanceID, err.Error())
-
-		logger.Println(r.name,
-			"Sleeping for 5 seconds before retrying")
-
-		time.Sleep(5 * time.Second)
-	}
-
-	logger.Println("Instance", *instanceID,
-		"was tagged with the following tags:", tags)
 }

@@ -67,15 +67,19 @@ func (s *spotPrices) average(az string, instanceType string) (float64, error) {
 
 	data := s.filterData(az, instanceType)
 
-	//fmt.Println(data)
+	debug.Println(data)
 
 	if len(data) == 0 {
-		return -1, errors.New("Can't determine average, missing spot data")
+		return -1, errors.New("can't determine average, missing spot data")
 	}
 
 	if len(data) == 1 {
-		price, _ := strconv.Atoi(*data[0].SpotPrice)
-		return float64(price), nil
+
+		price, err := strconv.ParseFloat(*data[0].SpotPrice, 64)
+		if err != nil {
+			return -1, err
+		}
+		return price, nil
 	}
 
 	// start with the first item
@@ -88,7 +92,7 @@ func (s *spotPrices) average(az string, instanceType string) (float64, error) {
 
 		sum += int64(prevPrice) * timediff
 
-		// fmt.Println(prevTimestamp.String(), prevPrice, timediff, sum)
+		debug.Println(prevTimestamp.String(), prevPrice, timediff, sum)
 
 		prevPrice, _ = strconv.Atoi(*p.SpotPrice)
 		prevTimestamp = *p.Timestamp

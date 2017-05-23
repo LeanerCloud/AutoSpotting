@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 )
 
 var logger, debug *log.Logger
@@ -18,6 +19,29 @@ var logger, debug *log.Logger
 // compatible and cheaper spot instances.
 func Run(cfg Config) {
 
+	setupLogging(cfg)
+
+	debug.Println(cfg)
+
+	// use this only to list all the other regions
+	ec2Conn := connectEC2(cfg.MainRegion)
+
+	allRegions, err := getRegions(ec2Conn)
+
+	if err != nil {
+		logger.Println(err.Error())
+		return
+	}
+
+	processRegions(allRegions, cfg)
+
+}
+
+func disableLogging() {
+	setupLogging(Config{LogFile: ioutil.Discard})
+}
+
+func setupLogging(cfg Config) {
 	logger = log.New(cfg.LogFile, "", cfg.LogFlag)
 
 	if os.Getenv("AUTOSPOTTING_DEBUG") == "true" {
@@ -26,24 +50,13 @@ func Run(cfg Config) {
 		debug = log.New(ioutil.Discard, "", 0)
 	}
 
-	debug.Println(cfg)
-
-	processAllRegions(cfg)
-
 }
 
 // processAllRegions iterates all regions in parallel, and replaces instances
 // for each of the ASGs tagged with 'spot-enabled=true'.
-func processAllRegions(cfg Config) {
+func processRegions(regions []string, cfg Config) {
 
 	var wg sync.WaitGroup
-
-	regions, err := getRegions()
-
-	if err != nil {
-		logger.Println(err.Error())
-		return
-	}
 
 	for _, r := range regions {
 
@@ -56,7 +69,8 @@ func processAllRegions(cfg Config) {
 				logger.Printf("Enabled to run in %s, processing region.\n", r.name)
 				r.processRegion()
 			} else {
-				logger.Println("Not enabled to run in", r.name, "\nList of enabled regions:", regions)
+				debug.Println("Not enabled to run in", r.name)
+				debug.Println("List of enabled regions:", cfg.Regions)
 			}
 
 			wg.Done()
@@ -65,24 +79,24 @@ func processAllRegions(cfg Config) {
 	wg.Wait()
 }
 
+func connectEC2(region string) *ec2.EC2 {
+
+	sess, err := session.NewSession()
+	if err != nil {
+		panic(err)
+	}
+
+	return ec2.New(sess,
+		aws.NewConfig().WithRegion(region))
+}
+
 // getRegions generates a list of AWS regions.
-func getRegions() ([]string, error) {
+func getRegions(ec2conn ec2iface.EC2API) ([]string, error) {
 	var output []string
 
 	logger.Println("Scanning for available AWS regions")
 
-	// This turns out to be much faster when running locally than using region
-	// auto-detection, and anyway due to Lambda limitations we currently only
-	// support running it from this region.
-	currentRegion := "us-east-1"
-
-	svc := ec2.New(
-		session.New(
-			&aws.Config{
-				Region: aws.String(currentRegion),
-			}))
-
-	resp, err := svc.DescribeRegions(&ec2.DescribeRegionsInput{})
+	resp, err := ec2conn.DescribeRegions(&ec2.DescribeRegionsInput{})
 
 	if err != nil {
 		logger.Println(err.Error())
@@ -94,7 +108,7 @@ func getRegions() ([]string, error) {
 	for _, r := range resp.Regions {
 
 		if r != nil && r.RegionName != nil {
-			logger.Println("Found region", *r.RegionName)
+			debug.Println("Found region", *r.RegionName)
 			output = append(output, *r.RegionName)
 		}
 	}

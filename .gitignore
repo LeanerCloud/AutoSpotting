@@ -1,10 +1,10 @@
 build
 debug
-data
 autospotting
 coverage.out
-lambda/BUILD
-lambda/autospotting_lambda
-lambda/instances.json
 .vscode/
 handler.zip
+*.coverprofile
+.idea/
+terraform/.terraform/
+terraform.tfstate*

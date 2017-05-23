@@ -1,25 +1,17 @@
 language: go
 
 go:
-- 1.7
+- 1.8
 
 sudo: required
 
 services:
 - docker
 
-before_install:
-- go get github.com/mattn/goveralls
-- go get golang.org/x/tools/cmd/cover
-- docker pull eawsy/aws-lambda-go:latest
-- make bindata
+script: make travisci
 
-install:
-- go get ./...
-
-script: go test ./core -covermode=count -coverprofile=profile.cov &&
-  goveralls -coverprofile=profile.cov -service=travis-ci &&
-  make prepare_upload_data
+after_success:
+  - curl --request POST "https://goreportcard.com/checks" --data "repo=github.com/cristim/autospotting"
 
 deploy:
   provider: s3
@@ -32,6 +24,16 @@ deploy:
   acl: public_read
   on:
     repo: cristim/autospotting
+
+notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/73346abd21785c9a053c
+    # options: [always|never|change] default: always
+    on_success: change
+    on_failure: always
+    on_start: never
+
 addons:
   code_climate:
     repo_token:
