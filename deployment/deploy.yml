@@ -35,11 +35,12 @@
         source_bucket: "{{s3_bucket}}"
         source_filename: "{{filename}}"
         s3_bucket: "prod-{{s3_bucket}}"
+        source_prefix: "{{s3_prefix}}"
       when: environ == 'prod'
 
 
     - name: copy/promote binary
-      shell: aws s3 cp s3://{{source_bucket}}/{{s3_prefix}}/{{source_filename}} s3://{{s3_bucket}}/{{s3_prefix}}/{{filename}}
+      shell: aws s3 cp s3://{{source_bucket}}/{{source_prefix}}/{{source_filename}} s3://{{s3_bucket}}/{{s3_prefix}}/{{filename}}
 
     - name: Create Cloudformation Stack
       cloudformation:
