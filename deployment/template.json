@@ -1,0 +1,160 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling",
+  "Parameters": {
+    "ExecutionFrequency": {
+      "Default": "rate(5 minutes)",
+      "Description": "Frequency of executing the Lambda function, influences the speed of replacing your instances. Can accept any value documented at http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html",
+      "Type": "String"
+    },
+    "LambdaHandlerFunction": {
+      "Default": "handler.Handle",
+      "Description": "Handler function for Lambda",
+      "Type": "String"
+    },
+    "LambdaMemorySize": {
+      "Default": "256",
+      "Description": "Memory allocated to the Lambda function",
+      "Type": "Number"
+    },
+    "LambdaS3Bucket": {
+      "Description": "S3 bucket that contains the function",
+      "Type": "String"
+    },
+    "LambdaZipPath": {
+      "Description": "Path to the Lambda function zip file inside the S3 bucket. Can be used to update to a more recent version, such as 'dv/lambda_build_57.zip'. Build numbers can be taken from TravisCI: https://travis-ci.org/cristim/autospotting/builds",
+      "Type": "String"
+    },
+    "LogRetentionPeriod": {
+      "Default": "7",
+      "Description": "Number of days to keep the Lambda function logs in CloudWatch.",
+      "Type": "Number"
+    },
+    "MinOnDemandNumber": {
+      "Description": "Minimum on-demand instances (absolute number) to be kept in each of your groups. It is a global default value that can be overridden on a per-group basis using the autospotting_on_demand_number tag. It takes precedence over MinOnDemandPercentage, so it doesn't make sense to pass both of them.",
+      "Type": "Number"
+    },
+    "MinOnDemandPercentage": {
+      "Description": "Minimum on-demand instances (percentage of the instances currently running in each group) that will be kept when replacing with spot instances. It is also a global default value that can be overridden on a per-group basis using the autospotting_on_demand_percentage tag. MinOnDemandNumber takes precedence if both these parameters are passed",
+      "Type": "Number"
+    },
+    "Regions": {
+      "Default": "",
+      "Description": "Space separated list of regions where it should run (supports globs), in case you may want to limit it to a smaller set of regions. If unset it will run against all available regions. Example: 'us-east-1 eu-*'",
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "LambdaExecutionRole": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [ "lambda.amazonaws.com" ]
+              }
+            }
+          ]
+        },
+        "Path": "/lambda/"
+      },
+      "Type": "AWS::IAM::Role"
+    },
+    "LambdaFunction": {
+      "Properties": {
+        "Code": {
+          "S3Bucket": { "Ref": "LambdaS3Bucket" },
+          "S3Key": { "Ref": "LambdaZipPath" }
+        },
+        "Description": "Implements SPOT instance automation",
+        "Environment": {
+          "Variables": {
+            "MIN_ON_DEMAND_NUMBER": { "Ref": "MinOnDemandNumber" },
+            "MIN_ON_DEMAND_PERCENTAGE": { "Ref": "MinOnDemandPercentage" },
+            "REGIONS": { "Ref": "Regions" }
+          }
+        },
+        "Handler": { "Ref": "LambdaHandlerFunction" },
+        "MemorySize": { "Ref": "LambdaMemorySize" },
+        "Role": { "Fn::GetAtt": [ "LambdaExecutionRole", "Arn" ] },
+        "Runtime": "python2.7",
+        "Timeout": "300"
+      },
+      "Type": "AWS::Lambda::Function"
+    },
+    "LambdaPolicy": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "autoscaling:DescribeAutoScalingGroups",
+                "autoscaling:DescribeLaunchConfigurations",
+                "autoscaling:AttachInstances",
+                "autoscaling:DetachInstances",
+                "autoscaling:DescribeTags",
+                "autoscaling:UpdateAutoScalingGroup",
+                "ec2:CreateTags",
+                "ec2:DescribeInstances",
+                "ec2:DescribeRegions",
+                "ec2:DescribeSpotInstanceRequests",
+                "ec2:DescribeSpotPriceHistory",
+                "ec2:RequestSpotInstances",
+                "ec2:TerminateInstances",
+                "iam:PassRole",
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+            }
+          ]
+        },
+        "PolicyName": "LambdaPolicy",
+        "Roles": [ { "Ref": "LambdaExecutionRole" } ]
+      },
+      "Type": "AWS::IAM::Policy"
+    },
+    "LogGroup": {
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Join": [
+            "",
+            [
+              "/aws/lambda/",
+              { "Ref": "LambdaFunction" }
+            ]
+          ]
+        },
+        "RetentionInDays": { "Ref": "LogRetentionPeriod" }
+      },
+      "Type": "AWS::Logs::LogGroup"
+    },
+    "PermissionForEventsToInvokeLambda": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": { "Ref": "LambdaFunction" },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": { "Fn::GetAtt": [ "ScheduledRule", "Arn" ] }
+      },
+      "Type": "AWS::Lambda::Permission"
+    },
+    "ScheduledRule": {
+      "Properties": {
+        "Description": "ScheduledRule for launching the AutoSpotting Lambda function",
+        "ScheduleExpression": { "Ref": "ExecutionFrequency" },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": { "Fn::GetAtt": [ "LambdaFunction", "Arn" ] },
+            "Id": "AutoSpottingEventGenerator"
+          }
+        ]
+      },
+      "Type": "AWS::Events::Rule"
+    }
+  }
+}

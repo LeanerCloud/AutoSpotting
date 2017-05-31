@@ -1,6 +1,63 @@
 ---
 - hosts: localhost
   gather_facts: False
+  vars:
+
+    unit: techops
+    product: cloud-engineering
+    subproduct: bdp
+    owner: "cloudengineering@spscommerce.com"
+    stackname: "bdp-autospotting-{{aws_region}}"
+    aws_region: "{{ lookup('env', 'aws_region')}}"
+    s3_bucket: sps-build-deploy
+    s3_prefix: techops/dev/autospotting/dv
+    source_bucket: cloudprowess
+    source_prefix: dv
+    source_filename: lambda.zip
+    min_on_demand_int: 0
+    min_on_demand_percentage: 0.0
+
   tasks:
-    - name: hi
-      shell: echo "hi"
+    - name: git sha
+      shell: git rev-parse HEAD
+      register: sha
+
+    - name: get git sha
+      set_fact:
+        git_ref: "{{sha.stdout}}"
+
+    - name: set the proper bucket if necessary
+      set_fact:
+        source_bucket: "prod-{{s3_bucket}}"
+        source_prefix: "{{s3_prefix}}"
+        source_filename: "{{git_ref}}.zip"
+      when: environ == 'prod'
+
+    - name: set filename
+      set_fact:
+        filename: "{{git_ref}}.zip"
+
+    - debug: var=filename
+
+    - name: copy/promote binary
+      shell: aws s3 cp s3://{{source_bucket}}/{{source_prefix}}/{{source_filename}} s3://{{s3_bucket}}/{{s3_prefix}}/{{filename}}
+
+    - name: Create Cloudformation Stack
+      cloudformation:
+        region: "{{ aws_region }}"
+        state: present
+        stack_name: "{{stackname}}"
+        template: template.json
+        tags:
+          sps:unit: "{{unit}}"
+          sps:product: "{{product}}"
+          sps:subproduct: "{{subproduct}}"
+          sps:owner: "{{owner}}"
+          sps:env: "{{ environ }}"
+
+        template_parameters:
+          LambdaZipPath: "{{s3_prefix}}/{{git_ref}}.zip"
+          LambdaS3Bucket: "{{ s3_bucket }}"
+          MinOnDemandNumber: "{{ min_on_demand_int }}"
+          MinOnDemandPercentage: "{{ min_on_demand_percentage }}"
+          Regions: "{{ aws_region }}"
