@@ -9,14 +9,22 @@
     owner: "cloudengineering@spscommerce.com"
     stackname: "bdp-autospotting-{{aws_region}}"
     aws_region: "{{ lookup('env', 'aws_region')}}"
-    s3_bucket: sps-build-deploy
+
+
+    s3_buckets:
+      us-east-1:
+        dev: sps-build-deploy
+        prod: prod-sps-build-deploy
+      us-west-2:
+        dev: west-sps-build-deploy
+
+    s3_bucket: "{{ s3_buckets[aws_region][environ] }}"
     s3_prefix: techops/dev/autospotting/dv
     source_bucket: cloudprowess
     source_prefix: dv
     source_filename: lambda.zip
     min_on_demand_int: 0
     min_on_demand_percentage: 0.0
-
   tasks:
     - name: git sha
       shell: git rev-parse HEAD
@@ -34,9 +42,10 @@
       set_fact:
         source_bucket: "{{s3_bucket}}"
         source_filename: "{{filename}}"
-        s3_bucket: "prod-{{s3_bucket}}"
+        s3_bucket: "{{s3_bucket}}"
         source_prefix: "{{s3_prefix}}"
       when: environ == 'prod'
+
 
 
     - name: copy/promote binary
