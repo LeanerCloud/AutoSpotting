@@ -26,21 +26,20 @@
       set_fact:
         git_ref: "{{sha.stdout}}"
 
-    - name: set the proper bucket if necessary
-      set_fact:
-        source_bucket: "prod-{{s3_bucket}}"
-        source_prefix: "{{s3_prefix}}"
-        source_filename: "{{git_ref}}.zip"
-      when: environ == 'prod'
-
     - name: set filename
       set_fact:
         filename: "{{git_ref}}.zip"
 
-    - debug: var=filename
+    - name: set the proper bucket if necessary
+      set_fact:
+        source_bucket: "{{s3_bucket}}"
+        source_filename: "{{filename}}"
+        s3_bucket: "prod-{{s3_bucket}}"
+      when: environ == 'prod'
+
 
     - name: copy/promote binary
-      shell: aws s3 cp s3://{{source_bucket}}/{{source_prefix}}/{{source_filename}} s3://{{s3_bucket}}/{{s3_prefix}}/{{filename}}
+      shell: aws s3 cp s3://{{source_bucket}}/{{s3_prefix}}/{{source_filename}} s3://{{s3_bucket}}/{{s3_prefix}}/{{filename}}
 
     - name: Create Cloudformation Stack
       cloudformation:
