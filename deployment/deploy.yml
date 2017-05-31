@@ -46,7 +46,7 @@
         source_prefix: "{{s3_prefix}}"
       when: environ == 'prod'
 
-
+    - debug: var=s3_bucket
 
     - name: copy/promote binary
       shell: aws s3 cp s3://{{source_bucket}}/{{source_prefix}}/{{source_filename}} s3://{{s3_bucket}}/{{s3_prefix}}/{{filename}}
