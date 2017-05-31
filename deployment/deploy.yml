@@ -1,6 +1,0 @@
----
-- hosts: localhost
-  gather_facts: False
-  tasks:
-    - name: hi
-      shell: echo "hi"
