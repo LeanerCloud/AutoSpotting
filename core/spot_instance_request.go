@@ -1,6 +1,7 @@
 package autospotting
 
 import (
+	"errors"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -70,24 +71,33 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() error {
 
 func (s *spotInstanceRequest) tag(asgName string) error {
 	svc := s.region.services.ec2
-
-	_, err := svc.CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{s.SpotInstanceRequestId},
-		Tags: []*ec2.Tag{
-			{
-				Key:   aws.String("launched-for-asg"),
-				Value: aws.String(asgName),
-			},
+	tags := []*ec2.Tag{
+		{
+			Key:   aws.String("launched-for-asg"),
+			Value: aws.String(asgName),
 		},
-	})
+	}
 
-	if err != nil {
-		// Print the error, cast err to awserr.Error to get the Code and
-		// Message from an error.
-		logger.Println(asgName,
-			"Failed to create tags for the spot instance request",
-			err.Error())
-		return err
+	for count, err := 0, errors.New("dummy"); err != nil; _, err = svc.CreateTags(&ec2.CreateTagsInput{
+		Resources: []*string{s.SpotInstanceRequestId},
+		Tags:      tags,
+	}) {
+
+		if err != nil {
+			if count > 10 {
+				logger.Println(asgName,
+					"Failed to create tags for the spot instance request",
+					err.Error())
+				return err
+
+			}
+			logger.Println(asgName,
+				"Failed to create tags for the spot instance request",
+				*s.SpotInstanceRequestId, "retrying in 5 seconds...")
+			count = count + 1
+			time.Sleep(5 * time.Second)
+
+		}
 	}
 
 	logger.Println(asgName, "successfully tagged spot instance request",
