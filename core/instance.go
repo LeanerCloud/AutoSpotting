@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/davecgh/go-spew/spew"
@@ -242,42 +241,6 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 		return chosenSpotType, nil
 	}
 	return chosenSpotType, fmt.Errorf("No cheaper spot instance types could be found")
-}
-
-func (i *instance) tag(tags []*ec2.Tag, maxIter int, sleepFunc func(d time.Duration)) error {
-	var (
-		n   int
-		err error
-	)
-
-	if len(tags) == 0 {
-		logger.Println(i.region.name, "Tagging spot instance", *i.InstanceId,
-			"no tags were defined, skipping...")
-		return nil
-	}
-
-	svc := i.region.services.ec2
-	params := ec2.CreateTagsInput{
-		Resources: []*string{i.InstanceId},
-		Tags:      tags,
-	}
-
-	logger.Println(i.region.name, "Tagging spot instance", *i.InstanceId)
-
-	for n = 0; n < maxIter; n++ {
-		_, err = svc.CreateTags(&params)
-		if err == nil {
-			logger.Println("Instance", *i.InstanceId,
-				"was tagged with the following tags:", tags)
-			break
-		}
-		logger.Println(i.region.name,
-			"Failed to create tags for the spot instance", *i.InstanceId, err.Error())
-		logger.Println(i.region.name,
-			"Sleeping for 5 seconds before retrying")
-		sleepFunc(5 * time.Second)
-	}
-	return err
 }
 
 // Why the heck isn't this in the Go standard library?
