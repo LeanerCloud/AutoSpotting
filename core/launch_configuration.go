@@ -35,7 +35,7 @@ func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() int {
 
 func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 	baseInstance *instance,
-	instanceType string,
+	newInstance *instanceTypeInformation,
 	az string) *ec2.RequestSpotLaunchSpecification {
 
 	var spotLS ec2.RequestSpotLaunchSpecification
@@ -45,6 +45,11 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 
 	if lc.EbsOptimized != nil {
 		spotLS.EbsOptimized = lc.EbsOptimized
+	}
+
+	if *lc.EbsOptimized == false && newInstance.hasEBSOptimization && newInstance.pricing.ebsSurcharge == 0.0 {
+		logger.Println("EBS Optimization is free for this instance type turning on...")
+		spotLS.SetEbsOptimized(true)
 	}
 
 	// The launch configuration's IamInstanceProfile field can store either a
@@ -64,7 +69,7 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 
 	spotLS.ImageId = lc.ImageId
 
-	spotLS.InstanceType = &instanceType
+	spotLS.InstanceType = &newInstance.instanceType
 
 	// these ones should NOT be copied, they break the SpotLaunchSpecification,
 	// so that it can't be launched
