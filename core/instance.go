@@ -106,6 +106,7 @@ type instanceTypeInformation struct {
 	instanceStoreDeviceSize  float32
 	instanceStoreDeviceCount int
 	instanceStoreIsSSD       bool
+	hasEBSOptimization       bool
 }
 
 func (i *instance) isSpot() bool {
@@ -144,10 +145,13 @@ func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformatio
 func (i *instance) isPriceCompatible(spotCandidate instanceTypeInformation, bestPrice float64) bool {
 	spotPrice := spotCandidate.pricing.spot[*i.Placement.AvailabilityZone]
 
+	if *i.EbsOptimized {
+		spotPrice += spotCandidate.pricing.ebsSurcharge
+	}
+
 	debug.Println("Comparing price spot/instance:")
 	debug.Println("\tSpot price: ", spotPrice)
 	debug.Println("\tInstance price: ", i.price)
-
 	return spotPrice != 0 && spotPrice <= i.price && spotPrice <= bestPrice
 }
 
@@ -215,6 +219,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 	// device mappings, this number is used later when comparing with each
 	// instance type.
 	lc := i.asg.getLaunchConfiguration()
+
 	if lc != nil {
 		lcMappings := lc.countLaunchConfigEphemeralVolumes()
 		attachedVolumesNumber = min(lcMappings, current.instanceStoreDeviceCount)
