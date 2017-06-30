@@ -237,6 +237,9 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
 			bestPrice = candidate.pricing.spot[*i.Placement.AvailabilityZone]
+			if i.EbsOptimized != nil && *i.EbsOptimized {
+				bestPrice += candidate.pricing.ebsSurcharge
+			}
 			chosenSpotType = candidate.instanceType
 			debug.Println("Best option is now: ", chosenSpotType, " at ", bestPrice)
 		} else if chosenSpotType != "" {
