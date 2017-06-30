@@ -35,7 +35,7 @@ func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() int {
 
 func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 	baseInstance *instance,
-	newInstance *instanceTypeInformation,
+	newInstance instanceTypeInformation,
 	az string) *ec2.RequestSpotLaunchSpecification {
 
 	var spotLS ec2.RequestSpotLaunchSpecification
@@ -47,8 +47,7 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 		spotLS.EbsOptimized = lc.EbsOptimized
 	}
 
-	if *lc.EbsOptimized == false && newInstance.hasEBSOptimization && newInstance.pricing.ebsSurcharge == 0.0 {
-		logger.Println("EBS Optimization is free for this instance type turning on...")
+	if newInstance.hasEBSOptimization && newInstance.pricing.ebsSurcharge == 0.0 {
 		spotLS.SetEbsOptimized(true)
 	}
 

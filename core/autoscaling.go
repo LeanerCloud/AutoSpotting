@@ -543,7 +543,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) erro
 
 	spotLS := lc.convertLaunchConfigurationToSpotSpecification(
 		baseInstance,
-		&newInstance,
+		newInstance,
 		*azToLaunchIn)
 
 	logger.Println("Bidding for spot instance for ", a.name)
