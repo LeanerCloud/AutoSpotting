@@ -145,7 +145,7 @@ func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformatio
 func (i *instance) isPriceCompatible(spotCandidate instanceTypeInformation, bestPrice float64) bool {
 	spotPrice := spotCandidate.pricing.spot[*i.Placement.AvailabilityZone]
 
-	if *i.EbsOptimized {
+	if i.EbsOptimized != nil {
 		spotPrice += spotCandidate.pricing.ebsSurcharge
 	}
 

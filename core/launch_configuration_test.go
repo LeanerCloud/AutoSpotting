@@ -172,7 +172,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 		name         string
 		lc           *launchConfiguration
 		instance     *instance
-		instanceType string
+		instanceType instanceTypeInformation
 		az           string
 		spotRequest  *ec2.RequestSpotLaunchSpecification
 	}{
@@ -190,6 +190,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 					AvailabilityZone: aws.String(""),
 				},
 			},
+			instanceType: instanceTypeInformation{},
 		},
 		{
 			name: "empty structs, but with az and instanceType",
@@ -205,8 +206,10 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 					AvailabilityZone: aws.String("zone"),
 				},
 			},
-			az:           "zone",
-			instanceType: "instance",
+			az: "zone",
+			instanceType: instanceTypeInformation{
+				instanceType: "instance",
+			},
 		},
 		{
 			name: "ESB optimized",
@@ -224,6 +227,48 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				Placement: &ec2.SpotPlacement{
 					AvailabilityZone: aws.String(""),
 				},
+			},
+			instanceType: instanceTypeInformation{
+				pricing: prices{
+					onDemand: 0.5,
+					spot: map[string]float64{
+						"az-1": 0.1,
+						"az-2": 0.2,
+						"az-3": 0.3,
+					},
+					ebsSurcharge: 3.0,
+				},
+				hasEBSOptimization: true,
+			},
+		},
+		{
+			name: "ESB optimized for free",
+			lc: &launchConfiguration{
+				&autoscaling.LaunchConfiguration{
+					EbsOptimized: aws.Bool(false),
+				},
+			},
+			instance: &instance{
+				Instance: &ec2.Instance{},
+			},
+			spotRequest: &ec2.RequestSpotLaunchSpecification{
+				EbsOptimized: aws.Bool(true),
+				InstanceType: aws.String(""),
+				Placement: &ec2.SpotPlacement{
+					AvailabilityZone: aws.String(""),
+				},
+			},
+			instanceType: instanceTypeInformation{
+				pricing: prices{
+					onDemand: 0.5,
+					spot: map[string]float64{
+						"az-1": 0.1,
+						"az-2": 0.2,
+						"az-3": 0.3,
+					},
+					ebsSurcharge: 0.0,
+				},
+				hasEBSOptimization: true,
 			},
 		},
 		{
