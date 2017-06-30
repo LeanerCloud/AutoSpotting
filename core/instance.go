@@ -166,6 +166,13 @@ func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool
 	return spotCandidate.vCPU >= current.vCPU && spotCandidate.memory >= current.memory
 }
 
+func (i *instance) isEBSCompatible(spotCandidate instanceTypeInformation) bool {
+	if i.EbsOptimized != nil && *i.EbsOptimized && !spotCandidate.hasEBSOptimization {
+		return false
+	}
+	return true
+}
+
 // Here we check the storage compatibility, with the following evaluation
 // criteria:
 // - speed: don't accept spinning disks when we used to have SSDs
@@ -233,6 +240,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 
 		if i.isSpotQuantityCompatible(candidate) &&
 			i.isPriceCompatible(candidate, bestPrice) &&
+			i.isEBSCompatible(candidate) &&
 			i.isClassCompatible(candidate) &&
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
