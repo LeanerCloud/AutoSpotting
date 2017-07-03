@@ -30,8 +30,9 @@ type region struct {
 }
 
 type prices struct {
-	onDemand float64
-	spot     spotPriceMap
+	onDemand     float64
+	spot         spotPriceMap
+	ebsSurcharge float64
 }
 
 // The key in this map is the availavility zone
@@ -159,8 +160,8 @@ func (r *region) determineInstanceTypeInformation(cfg Config) {
 
 		// populate on-demand information
 		price.onDemand = it.Pricing[r.name].Linux.OnDemand
-
 		price.spot = make(spotPriceMap)
+		price.ebsSurcharge = it.Pricing[r.name].EBSSurcharge
 
 		// if at this point the instance price is still zero, then that
 		// particular instance type doesn't even exist in the current
@@ -174,6 +175,7 @@ func (r *region) determineInstanceTypeInformation(cfg Config) {
 				memory:              it.Memory,
 				pricing:             price,
 				virtualizationTypes: it.LinuxVirtualizationTypes,
+				hasEBSOptimization:  it.EBSOptimized,
 			}
 
 			if it.Storage != nil {
