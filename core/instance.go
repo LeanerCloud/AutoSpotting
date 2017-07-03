@@ -109,6 +109,20 @@ type instanceTypeInformation struct {
 	hasEBSOptimization       bool
 }
 
+func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64 {
+	spotPrice := spotCandidate.pricing.spot[*i.Placement.AvailabilityZone]
+	debug.Println("Comparing price spot/instance:")
+
+	if i.EbsOptimized != nil && *i.EbsOptimized {
+		spotPrice += spotCandidate.pricing.ebsSurcharge
+		debug.Println("\tEBS Surcharge : ", spotCandidate.pricing.ebsSurcharge)
+	}
+
+	debug.Println("\tSpot price: ", spotPrice)
+	debug.Println("\tInstance price: ", i.price)
+	return spotPrice
+}
+
 func (i *instance) isSpot() bool {
 	return (i.InstanceLifecycle != nil &&
 		*i.InstanceLifecycle == "spot")
@@ -142,18 +156,8 @@ func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformatio
 	return spotInstanceCount == 0 || *i.asg.DesiredCapacity/spotInstanceCount > 4
 }
 
-func (i *instance) isPriceCompatible(spotCandidate instanceTypeInformation, bestPrice float64) (bool, float64) {
-	spotPrice := spotCandidate.pricing.spot[*i.Placement.AvailabilityZone]
-	debug.Println("Comparing price spot/instance:")
-
-	if i.EbsOptimized != nil && *i.EbsOptimized {
-		spotPrice += spotCandidate.pricing.ebsSurcharge
-		debug.Println("\tEBS Surcharge : ", spotCandidate.pricing.ebsSurcharge)
-	}
-
-	debug.Println("\tSpot price: ", spotPrice)
-	debug.Println("\tInstance price: ", i.price)
-	return spotPrice != 0 && spotPrice <= i.price && spotPrice <= bestPrice, spotPrice
+func (i *instance) isPriceCompatible(spotPrice float64, bestPrice float64) bool {
+	return spotPrice != 0 && spotPrice <= i.price && spotPrice <= bestPrice
 }
 
 func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool {
@@ -238,10 +242,10 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 		logger.Println("Comparing ", candidate.instanceType, " with ",
 			current.instanceType)
 
-		isPriceCompatible, currentPrice := i.isPriceCompatible(candidate, bestPrice)
+		currentPrice := i.calculatePrice(candidate)
 
 		if i.isSpotQuantityCompatible(candidate) &&
-			isPriceCompatible &&
+			i.isPriceCompatible(currentPrice, bestPrice) &&
 			i.isEBSCompatible(candidate) &&
 			i.isClassCompatible(candidate) &&
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&

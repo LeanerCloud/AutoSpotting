@@ -321,7 +321,8 @@ func TestIsPriceCompatible(t *testing.T) {
 			}
 			candidate := instanceTypeInformation{pricing: prices{}}
 			candidate.pricing = tt.spotPrices
-			retValue, _ := i.isPriceCompatible(candidate, tt.bestPrice)
+			spotPrice := i.calculatePrice(candidate)
+			retValue := i.isPriceCompatible(spotPrice, tt.bestPrice)
 			if retValue != tt.expected {
 				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
 			}
