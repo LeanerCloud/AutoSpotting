@@ -142,7 +142,7 @@ func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformatio
 	return spotInstanceCount == 0 || *i.asg.DesiredCapacity/spotInstanceCount > 4
 }
 
-func (i *instance) isPriceCompatible(spotCandidate instanceTypeInformation, bestPrice float64) bool {
+func (i *instance) isPriceCompatible(spotCandidate instanceTypeInformation, bestPrice float64) (bool, float64) {
 	spotPrice := spotCandidate.pricing.spot[*i.Placement.AvailabilityZone]
 	debug.Println("Comparing price spot/instance:")
 
@@ -153,7 +153,7 @@ func (i *instance) isPriceCompatible(spotCandidate instanceTypeInformation, best
 
 	debug.Println("\tSpot price: ", spotPrice)
 	debug.Println("\tInstance price: ", i.price)
-	return spotPrice != 0 && spotPrice <= i.price && spotPrice <= bestPrice
+	return spotPrice != 0 && spotPrice <= i.price && spotPrice <= bestPrice, spotPrice
 }
 
 func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool {
@@ -238,16 +238,15 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 		logger.Println("Comparing ", candidate.instanceType, " with ",
 			current.instanceType)
 
+		isPriceCompatible, currentPrice := i.isPriceCompatible(candidate, bestPrice)
+
 		if i.isSpotQuantityCompatible(candidate) &&
-			i.isPriceCompatible(candidate, bestPrice) &&
+			isPriceCompatible &&
 			i.isEBSCompatible(candidate) &&
 			i.isClassCompatible(candidate) &&
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
-			bestPrice = candidate.pricing.spot[*i.Placement.AvailabilityZone]
-			if i.EbsOptimized != nil && *i.EbsOptimized {
-				bestPrice += candidate.pricing.ebsSurcharge
-			}
+			bestPrice = currentPrice
 			chosenSpotType = candidate.instanceType
 			debug.Println("Best option is now: ", chosenSpotType, " at ", bestPrice)
 		} else if chosenSpotType != "" {
