@@ -89,7 +89,7 @@ func Test_waitForAndTagSpotInstance(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc.req.waitForAndTagSpotInstance()
+		tc.req.waitForSpotInstance()
 	}
 }
 

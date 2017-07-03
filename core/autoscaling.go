@@ -419,7 +419,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 			// function timeout when waiting for the instances would break the loop,
 			// because the subsequent run would find a failed spot request instead
 			// of an open one.
-			req.waitForAndTagSpotInstance()
+			req.waitForSpotInstance()
 			activeSpotInstanceRequest = req
 		}
 
@@ -451,7 +451,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 				} else {
 					logger.Println(a.name, "Active bid was found, with no running "+
 						"instances, waiting for an instance to start ...")
-					req.waitForAndTagSpotInstance()
+					req.waitForSpotInstance()
 					activeSpotInstanceRequest = req
 				}
 			}
@@ -575,34 +575,28 @@ func (a *autoScalingGroup) bidForSpotInstance(
 		return err
 	}
 
+	// Fetching all required tags prior to launching the SpotRequest
 	spotRequest := resp.SpotInstanceRequests[0]
-	sr := spotInstanceRequest{SpotInstanceRequest: spotRequest,
-		region: a.region,
-		asg:    a,
+	spotRequest.Tags = a.propagatedInstanceTags()
+	spotRequest.Tags = append(spotRequest.Tags, &ec2.Tag{
+		Key:   aws.String("launched-for-asg"),
+		Value: aws.String(a.name),
+	})
+	sr := spotInstanceRequest{
+		SpotInstanceRequest: spotRequest,
+		region:              a.region,
+		asg:                 a,
 	}
 
 	srID := sr.SpotInstanceRequestId
 
 	logger.Println(a.name, "Created spot instance request", *srID)
 
-	// tag the spot instance request to associate it with the current ASG, so we
-	// know where to attach the instance later. In case the waiter failed, it may
-	// happen that the instance is actually tagged in the next run, but the spot
-	// instance request needs to be tagged anyway.
-	err = sr.tag(a.name)
-
-	if err != nil {
-		logger.Println(a.name, "Can't tag spot instance request", err.Error())
-		return err
-	}
-	// Waiting for the instance to start so that we can then later tag it with
-	// the same tags originally set on the on-demand instances.
-	//
 	// This waiter only returns after the instance was found and it may be
 	// interrupted by the lambda function's timeout, so we also need to check in
 	// the next run if we have any open spot requests with no instances and
 	// resume the wait there.
-	return sr.waitForAndTagSpotInstance()
+	return sr.waitForSpotInstance()
 }
 
 func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {

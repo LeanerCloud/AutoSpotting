@@ -4,7 +4,6 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -966,104 +965,6 @@ func TestTerminate(t *testing.T) {
 		if ret != nil && ret.Error() != tt.expected.Error() {
 			t.Errorf("error actual: %s, expected: %s", ret.Error(), tt.expected.Error())
 		}
-	}
-}
-
-// Ideally should find a better way to test tagging
-// and avoid having a small wait of 1 timeout
-func TestTag(t *testing.T) {
-
-	tests := []struct {
-		name          string
-		tags          []*ec2.Tag
-		inst          *instance
-		expectedError error
-	}{
-		{
-			name: "no tags without error",
-			tags: []*ec2.Tag{},
-			inst: &instance{
-				Instance: &ec2.Instance{
-					InstanceId: aws.String("id1"),
-				},
-				region: &region{
-					name: "test",
-					services: connections{
-						ec2: mockEC2{
-							cterr: nil,
-						},
-					},
-				},
-			},
-			expectedError: nil,
-		},
-		{
-			name: "no tags with error",
-			tags: []*ec2.Tag{},
-			inst: &instance{
-				Instance: &ec2.Instance{
-					InstanceId: aws.String("id1"),
-				},
-				region: &region{
-					name: "test",
-					services: connections{
-						ec2: mockEC2{
-							cterr: errors.New("no tags with error"),
-						},
-					},
-				},
-			},
-			expectedError: errors.New("no tags with error"),
-		},
-		{
-			name: "tags without error",
-			tags: []*ec2.Tag{
-				{Key: aws.String("proj"), Value: aws.String("test")},
-				{Key: aws.String("x"), Value: aws.String("3")},
-			},
-			inst: &instance{
-				Instance: &ec2.Instance{
-					InstanceId: aws.String("id1"),
-				},
-				region: &region{
-					name: "test",
-					services: connections{
-						ec2: mockEC2{
-							cterr: nil,
-						},
-					},
-				},
-			},
-			expectedError: nil,
-		},
-		{
-			name: "tags with error",
-			tags: []*ec2.Tag{
-				{Key: aws.String("proj"), Value: aws.String("test")},
-				{Key: aws.String("x"), Value: aws.String("3")},
-			},
-			inst: &instance{
-				Instance: &ec2.Instance{
-					InstanceId: aws.String("id1"),
-				},
-				region: &region{
-					name: "test",
-					services: connections{
-						ec2: mockEC2{
-							cterr: errors.New("tags with error"),
-						},
-					},
-				},
-			},
-			expectedError: errors.New("tags with error"),
-		},
-	}
-
-	mockedSleep := func(time.Duration) {}
-
-	for _, tt := range tests {
-		err := tt.inst.tag(tt.tags, 1, mockedSleep)
-		CheckErrors(t, err, tt.expectedError)
 	}
 }
 
