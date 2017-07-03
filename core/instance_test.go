@@ -234,6 +234,69 @@ func TestIsSpot(t *testing.T) {
 		})
 	}
 }
+func TestIsEBSCompatible(t *testing.T) {
+	tests := []struct {
+		name         string
+		spotInfo     instanceTypeInformation
+		instanceInfo instance
+		expected     bool
+	}{
+		{name: "EBS not Optimized Spot not Optimized",
+			spotInfo: instanceTypeInformation{
+				hasEBSOptimization: false,
+			},
+			instanceInfo: instance{
+				Instance: &ec2.Instance{
+					EbsOptimized: nil,
+				},
+			},
+			expected: true,
+		},
+		{name: "EBS Optimized Spot Optimized",
+			spotInfo: instanceTypeInformation{
+				hasEBSOptimization: true,
+			},
+			instanceInfo: instance{
+				Instance: &ec2.Instance{
+					EbsOptimized: &[]bool{true}[0],
+				},
+			},
+			expected: true,
+		},
+		{name: "EBS Optimized Spot not Optimized",
+			spotInfo: instanceTypeInformation{
+				hasEBSOptimization: false,
+			},
+			instanceInfo: instance{
+				Instance: &ec2.Instance{
+					EbsOptimized: &[]bool{true}[0],
+				},
+			},
+			expected: false,
+		},
+		{name: "EBS not Optimized Spot Optimized",
+			spotInfo: instanceTypeInformation{
+				hasEBSOptimization: true,
+			},
+			instanceInfo: instance{
+				Instance: &ec2.Instance{
+					EbsOptimized: &[]bool{false}[0],
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i := &tt.instanceInfo
+			retValue := i.isEBSCompatible(tt.spotInfo)
+			if retValue != tt.expected {
+				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
+			}
+		})
+	}
+}
 
 func TestIsPriceCompatible(t *testing.T) {
 	tests := []struct {
@@ -321,7 +384,8 @@ func TestIsPriceCompatible(t *testing.T) {
 			}
 			candidate := instanceTypeInformation{pricing: prices{}}
 			candidate.pricing = tt.spotPrices
-			retValue := i.isPriceCompatible(candidate, tt.bestPrice)
+			spotPrice := i.calculatePrice(candidate)
+			retValue := i.isPriceCompatible(spotPrice, tt.bestPrice)
 			if retValue != tt.expected {
 				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
 			}

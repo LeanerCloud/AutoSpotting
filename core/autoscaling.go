@@ -527,10 +527,11 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) erro
 		return errors.New("no cheaper spot instance found")
 	}
 
+	newInstance := a.region.instanceTypeInformation[newInstanceType]
+
 	baseOnDemandPrice := baseInstance.price
 
-	currentSpotPrice := a.region.
-		instanceTypeInformation[newInstanceType].pricing.spot[*azToLaunchIn]
+	currentSpotPrice := newInstance.pricing.spot[*azToLaunchIn]
 
 	logger.Println("Finished searching for best spot instance in ", *azToLaunchIn)
 	logger.Println("Replacing an on-demand", *baseInstance.InstanceType,
@@ -542,7 +543,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) erro
 
 	spotLS := lc.convertLaunchConfigurationToSpotSpecification(
 		baseInstance,
-		newInstanceType,
+		newInstance,
 		*azToLaunchIn)
 
 	logger.Println("Bidding for spot instance for ", a.name)

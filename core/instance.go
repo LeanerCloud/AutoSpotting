@@ -106,6 +106,21 @@ type instanceTypeInformation struct {
 	instanceStoreDeviceSize  float32
 	instanceStoreDeviceCount int
 	instanceStoreIsSSD       bool
+	hasEBSOptimization       bool
+}
+
+func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64 {
+	spotPrice := spotCandidate.pricing.spot[*i.Placement.AvailabilityZone]
+	debug.Println("Comparing price spot/instance:")
+
+	if i.EbsOptimized != nil && *i.EbsOptimized {
+		spotPrice += spotCandidate.pricing.ebsSurcharge
+		debug.Println("\tEBS Surcharge : ", spotCandidate.pricing.ebsSurcharge)
+	}
+
+	debug.Println("\tSpot price: ", spotPrice)
+	debug.Println("\tInstance price: ", i.price)
+	return spotPrice
 }
 
 func (i *instance) isSpot() bool {
@@ -141,13 +156,7 @@ func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformatio
 	return spotInstanceCount == 0 || *i.asg.DesiredCapacity/spotInstanceCount > 4
 }
 
-func (i *instance) isPriceCompatible(spotCandidate instanceTypeInformation, bestPrice float64) bool {
-	spotPrice := spotCandidate.pricing.spot[*i.Placement.AvailabilityZone]
-
-	debug.Println("Comparing price spot/instance:")
-	debug.Println("\tSpot price: ", spotPrice)
-	debug.Println("\tInstance price: ", i.price)
-
+func (i *instance) isPriceCompatible(spotPrice float64, bestPrice float64) bool {
 	return spotPrice != 0 && spotPrice <= i.price && spotPrice <= bestPrice
 }
 
@@ -159,6 +168,13 @@ func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool
 	debug.Println("\tInstance CPU/memory: ", current.vCPU, " / ", current.memory)
 
 	return spotCandidate.vCPU >= current.vCPU && spotCandidate.memory >= current.memory
+}
+
+func (i *instance) isEBSCompatible(spotCandidate instanceTypeInformation) bool {
+	if i.EbsOptimized != nil && *i.EbsOptimized && !spotCandidate.hasEBSOptimization {
+		return false
+	}
+	return true
 }
 
 // Here we check the storage compatibility, with the following evaluation
@@ -215,6 +231,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 	// device mappings, this number is used later when comparing with each
 	// instance type.
 	lc := i.asg.getLaunchConfiguration()
+
 	if lc != nil {
 		lcMappings := lc.countLaunchConfigEphemeralVolumes()
 		attachedVolumesNumber = min(lcMappings, current.instanceStoreDeviceCount)
@@ -225,12 +242,15 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 		logger.Println("Comparing ", candidate.instanceType, " with ",
 			current.instanceType)
 
+		candidatePrice := i.calculatePrice(candidate)
+
 		if i.isSpotQuantityCompatible(candidate) &&
-			i.isPriceCompatible(candidate, bestPrice) &&
+			i.isPriceCompatible(candidatePrice, bestPrice) &&
+			i.isEBSCompatible(candidate) &&
 			i.isClassCompatible(candidate) &&
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
-			bestPrice = candidate.pricing.spot[*i.Placement.AvailabilityZone]
+			bestPrice = candidatePrice
 			chosenSpotType = candidate.instanceType
 			debug.Println("Best option is now: ", chosenSpotType, " at ", bestPrice)
 		} else if chosenSpotType != "" {
