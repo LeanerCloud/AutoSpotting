@@ -17,7 +17,7 @@ import (
 type region struct {
 	name string
 
-	conf Config
+	conf *Config
 	// The key in this map is the instance type.
 	instanceTypeInformation map[string]instanceTypeInformation
 
@@ -146,7 +146,7 @@ func (r *region) addInstance(inst *ec2.Instance) {
 	})
 }
 
-func (r *region) determineInstanceTypeInformation(cfg Config) {
+func (r *region) determineInstanceTypeInformation(cfg *Config) {
 
 	r.instanceTypeInformation = make(map[string]instanceTypeInformation)
 

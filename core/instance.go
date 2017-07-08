@@ -264,7 +264,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 	return chosenSpotType, fmt.Errorf("No cheaper spot instance types could be found")
 }
 
-func (i *instance) tag(tags []*ec2.Tag, maxIter int, sleepFunc func(d time.Duration)) error {
+func (i *instance) tag(tags []*ec2.Tag, maxIter int) error {
 	var (
 		n   int
 		err error
@@ -295,7 +295,7 @@ func (i *instance) tag(tags []*ec2.Tag, maxIter int, sleepFunc func(d time.Durat
 			"Failed to create tags for the spot instance", *i.InstanceId, err.Error())
 		logger.Println(i.region.name,
 			"Sleeping for 5 seconds before retrying")
-		sleepFunc(5 * time.Second)
+		time.Sleep(5 * time.Second * i.region.conf.SleepMultiplier)
 	}
 	return err
 }

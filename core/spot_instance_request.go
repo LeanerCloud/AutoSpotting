@@ -62,7 +62,7 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() error {
 	i := s.region.instances.get(*spotInstanceID)
 
 	if i != nil {
-		i.tag(tags, defaultTimeout, time.Sleep)
+		i.tag(tags, defaultTimeout)
 	} else {
 		logger.Println(s.asg.name, "new spot instance", *spotInstanceID, "has disappeared")
 	}
@@ -83,11 +83,24 @@ func (s *spotInstanceRequest) tag(asgName string) error {
 		Tags:      tags,
 	}) {
 
+		// after failing to tag it for 10 retries, terminate its instance and cancel
+		// the spot instance request in order to avoid any orphaned instances
+		// created by spot requests which failed to be tagged.
 		if err != nil {
 			if count > 10 {
 				logger.Println(asgName,
-					"Failed to create tags for the spot instance request",
-					err.Error())
+					"Failed to create tags for the spot instance request after 10 retries",
+					"cancelling the spot instance request, error: ", err.Error())
+				s.reload()
+
+				svc.TerminateInstances(&ec2.TerminateInstancesInput{
+					InstanceIds: []*string{s.InstanceId},
+				})
+
+				svc.CancelSpotInstanceRequests(
+					&ec2.CancelSpotInstanceRequestsInput{
+						SpotInstanceRequestIds: []*string{s.SpotInstanceRequestId},
+					})
 				return err
 
 			}
@@ -95,7 +108,7 @@ func (s *spotInstanceRequest) tag(asgName string) error {
 				"Failed to create tags for the spot instance request",
 				*s.SpotInstanceRequestId, "retrying in 5 seconds...")
 			count = count + 1
-			time.Sleep(5 * time.Second)
+			time.Sleep(5 * time.Second * s.region.conf.SleepMultiplier)
 
 		}
 	}
@@ -104,4 +117,23 @@ func (s *spotInstanceRequest) tag(asgName string) error {
 		*s.SpotInstanceRequestId)
 
 	return nil
+}
+
+func (s *spotInstanceRequest) reload() error {
+
+	resp, err := s.region.services.ec2.DescribeSpotInstanceRequests(
+		&ec2.DescribeSpotInstanceRequestsInput{
+			SpotInstanceRequestIds: []*string{s.SpotInstanceRequestId},
+		})
+
+	if err != nil {
+		return err
+	}
+
+	if resp != nil && len(resp.SpotInstanceRequests) == 1 {
+		s.SpotInstanceRequest = resp.SpotInstanceRequests[0]
+		return nil
+	}
+	return errors.New("spot instance request not found")
+
 }
