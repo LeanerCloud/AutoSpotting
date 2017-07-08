@@ -55,6 +55,10 @@ type mockEC2 struct {
 	// Describe Regions
 	dro   *ec2.DescribeRegionsOutput
 	drerr error
+
+	//Cancel Spot instance request
+	csiro   *ec2.CancelSpotInstanceRequestsOutput
+	csirerr error
 }
 
 func (m mockEC2) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
@@ -83,6 +87,10 @@ func (m mockEC2) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.Terminat
 
 func (m mockEC2) RequestSpotInstances(*ec2.RequestSpotInstancesInput) (*ec2.RequestSpotInstancesOutput, error) {
 	return m.rsio, m.rsierr
+}
+
+func (m mockEC2) CancelSpotInstanceRequests(*ec2.CancelSpotInstanceRequestsInput) (*ec2.CancelSpotInstanceRequestsOutput, error) {
+	return m.csiro, m.csirerr
 }
 
 func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {

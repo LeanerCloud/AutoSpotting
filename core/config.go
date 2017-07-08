@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"io"
+	"time"
 
 	"github.com/cristim/ec2-instances-info"
 )
@@ -23,4 +24,9 @@ type Config struct {
 	MinOnDemandNumber     int64
 	MinOnDemandPercentage float64
 	Regions               string
+
+	// This is only here for tests, where we want to be able to somehow mock
+	// time.Sleep without actually sleeping. While testing it defaults to 0 (which won't sleep at all), in
+	// real-world usage it's expected to be set to 1
+	SleepMultiplier time.Duration
 }
