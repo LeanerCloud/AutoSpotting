@@ -4,7 +4,6 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -988,6 +987,7 @@ func TestTag(t *testing.T) {
 				},
 				region: &region{
 					name: "test",
+					conf: &Config{},
 					services: connections{
 						ec2: mockEC2{
 							cterr: nil,
@@ -1006,6 +1006,7 @@ func TestTag(t *testing.T) {
 				},
 				region: &region{
 					name: "test",
+					conf: &Config{},
 					services: connections{
 						ec2: mockEC2{
 							cterr: errors.New("no tags with error"),
@@ -1027,6 +1028,7 @@ func TestTag(t *testing.T) {
 				},
 				region: &region{
 					name: "test",
+					conf: &Config{},
 					services: connections{
 						ec2: mockEC2{
 							cterr: nil,
@@ -1048,6 +1050,7 @@ func TestTag(t *testing.T) {
 				},
 				region: &region{
 					name: "test",
+					conf: &Config{},
 					services: connections{
 						ec2: mockEC2{
 							cterr: errors.New("tags with error"),
@@ -1059,10 +1062,8 @@ func TestTag(t *testing.T) {
 		},
 	}
 
-	mockedSleep := func(time.Duration) {}
-
 	for _, tt := range tests {
-		err := tt.inst.tag(tt.tags, 1, mockedSleep)
+		err := tt.inst.tag(tt.tags, 1)
 		CheckErrors(t, err, tt.expectedError)
 	}
 }

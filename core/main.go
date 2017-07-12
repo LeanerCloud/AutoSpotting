@@ -17,11 +17,11 @@ var logger, debug *log.Logger
 // Run starts processing all AWS regions looking for AutoScaling groups
 // enabled and taking action by replacing more pricy on-demand instances with
 // compatible and cheaper spot instances.
-func Run(cfg Config) {
+func Run(cfg *Config) {
 
 	setupLogging(cfg)
 
-	debug.Println(cfg)
+	debug.Println(*cfg)
 
 	// use this only to list all the other regions
 	ec2Conn := connectEC2(cfg.MainRegion)
@@ -38,10 +38,10 @@ func Run(cfg Config) {
 }
 
 func disableLogging() {
-	setupLogging(Config{LogFile: ioutil.Discard})
+	setupLogging(&Config{LogFile: ioutil.Discard})
 }
 
-func setupLogging(cfg Config) {
+func setupLogging(cfg *Config) {
 	logger = log.New(cfg.LogFile, "", cfg.LogFlag)
 
 	if os.Getenv("AUTOSPOTTING_DEBUG") == "true" {
@@ -54,7 +54,7 @@ func setupLogging(cfg Config) {
 
 // processAllRegions iterates all regions in parallel, and replaces instances
 // for each of the ASGs tagged with 'spot-enabled=true'.
-func processRegions(regions []string, cfg Config) {
+func processRegions(regions []string, cfg *Config) {
 
 	var wg sync.WaitGroup
 

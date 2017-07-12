@@ -416,7 +416,7 @@ func TestLoadDefaultConf(t *testing.T) {
 	}{
 		{name: "No configuration given",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     0,
 					MinOnDemandPercentage: 0.0,
 				},
@@ -428,7 +428,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		},
 		{name: "Percentage value out of range (0-100)",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     0,
 					MinOnDemandPercentage: 142.2,
 				},
@@ -440,7 +440,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		},
 		{name: "Percentage value out of range - negative (0-100)",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     0,
 					MinOnDemandPercentage: -22.2,
 				},
@@ -452,7 +452,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		},
 		{name: "Percentage equals 33.0%",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     0,
 					MinOnDemandPercentage: 33.0,
 				},
@@ -470,7 +470,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		},
 		{name: "Percentage equals 75.0%",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     0,
 					MinOnDemandPercentage: 75.0,
 				},
@@ -488,7 +488,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		},
 		{name: "Percentage equals 100.0%",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     0,
 					MinOnDemandPercentage: 100,
 				},
@@ -506,7 +506,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		},
 		{name: "Number passed out of range (negative)",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     -4,
 					MinOnDemandPercentage: 0,
 				},
@@ -518,7 +518,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		},
 		{name: "Number superior to ASG size",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     50,
 					MinOnDemandPercentage: 0,
 				},
@@ -536,7 +536,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		},
 		{name: "Number is valid 1",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     1,
 					MinOnDemandPercentage: 0,
 				},
@@ -554,7 +554,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		},
 		{name: "Number has priority on percentage value",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     2,
 					MinOnDemandPercentage: 75,
 				},
@@ -573,7 +573,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		},
 		{name: "Number is invalid so percentage value is used",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     -20,
 					MinOnDemandPercentage: 75.0,
 				},
@@ -592,7 +592,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		},
 		{name: "Both number and percentage are invalid",
 			region: &region{
-				conf: Config{
+				conf: &Config{
 					MinOnDemandNumber:     -10,
 					MinOnDemandPercentage: 142.2,
 				},
@@ -1437,6 +1437,7 @@ func TestBidForSpotInstance(t *testing.T) {
 			rsls: &ec2.RequestSpotLaunchSpecification{},
 			regionASG: &region{
 				instances: makeInstances(),
+				conf:      &Config{},
 				services: connections{
 					ec2: mockEC2{
 						rsierr: nil,
@@ -1465,6 +1466,7 @@ func TestBidForSpotInstance(t *testing.T) {
 			rsls: &ec2.RequestSpotLaunchSpecification{},
 			regionASG: &region{
 				instances: makeInstances(),
+				conf:      &Config{},
 				services: connections{
 					ec2: mockEC2{
 						rsierr: errors.New("requestSpot"),
@@ -1493,6 +1495,7 @@ func TestBidForSpotInstance(t *testing.T) {
 			rsls: &ec2.RequestSpotLaunchSpecification{},
 			regionASG: &region{
 				instances: makeInstances(),
+				conf:      &Config{},
 				services: connections{
 					ec2: mockEC2{
 						rsierr: nil,
@@ -1521,6 +1524,7 @@ func TestBidForSpotInstance(t *testing.T) {
 			rsls: &ec2.RequestSpotLaunchSpecification{},
 			regionASG: &region{
 				instances: makeInstances(),
+				conf:      &Config{},
 				services: connections{
 					ec2: mockEC2{
 						rsierr: nil,
@@ -1548,6 +1552,7 @@ func TestBidForSpotInstance(t *testing.T) {
 		{name: "err during describe spot instance request",
 			rsls: &ec2.RequestSpotLaunchSpecification{},
 			regionASG: &region{
+				conf:      &Config{},
 				instances: makeInstances(),
 				services: connections{
 					ec2: mockEC2{
@@ -2376,11 +2381,11 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 	tests := []struct {
 		name     string
 		asg      *autoScalingGroup
-		spotId   *string
+		spotID   *string
 		expected error
 	}{
 		{name: "OnDemand is replaced by spot instance - min/max/des identical",
-			spotId:   aws.String("spot-running"),
+			spotID:   aws.String("spot-running"),
 			expected: nil,
 			asg: &autoScalingGroup{
 				name: "test-asg",
@@ -2499,7 +2504,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 			},
 		},
 		{name: "OnDemand is replaced by spot instance - min/max/des different",
-			spotId:   aws.String("spot-running"),
+			spotID:   aws.String("spot-running"),
 			expected: nil,
 			asg: &autoScalingGroup{
 				name: "test-asg",
@@ -2566,7 +2571,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 			},
 		},
 		{name: "no spot instances found in region",
-			spotId:   aws.String("spot-not-found"),
+			spotID:   aws.String("spot-not-found"),
 			expected: errors.New("couldn't find spot instance to use"),
 			asg: &autoScalingGroup{
 				name: "test-asg",
@@ -2617,7 +2622,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 			},
 		},
 		{name: "no OnDemand instances found in asg",
-			spotId:   aws.String("spot-running"),
+			spotID:   aws.String("spot-running"),
 			expected: errors.New("couldn't find ondemand instance to replace"),
 			asg: &autoScalingGroup{
 				name: "test-asg",
@@ -2664,7 +2669,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			returned := tt.asg.replaceOnDemandInstanceWithSpot(tt.spotId)
+			returned := tt.asg.replaceOnDemandInstanceWithSpot(tt.spotID)
 			CheckErrors(t, returned, tt.expected)
 		})
 	}

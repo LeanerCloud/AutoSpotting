@@ -91,7 +91,7 @@ func Test_region_enabled(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &region{
 				name: tt.region,
-				conf: Config{
+				conf: &Config{
 					Regions: tt.allowed,
 				},
 			}

@@ -476,7 +476,13 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	debug.Println(instData)
 
 	if instData == nil || instData.LaunchTime == nil {
-		logger.Println("Apparently", *spotInstanceID, "is no longer running, moving on...")
+		logger.Println("Apparently", *spotInstanceID, "is no longer running, ",
+			"cancelling the spot instance request which created it...")
+
+		a.region.services.ec2.CancelSpotInstanceRequests(
+			&ec2.CancelSpotInstanceRequestsInput{
+				SpotInstanceRequestIds: []*string{activeSpotInstanceRequest.SpotInstanceRequestId},
+			})
 		return nil, true
 	}
 
@@ -501,7 +507,8 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	return spotInstanceID, false
 }
 
-func (a *autoScalingGroup) launchCheapestSpotInstance(azToLaunchIn *string) error {
+func (a *autoScalingGroup) launchCheapestSpotInstance(
+	azToLaunchIn *string) error {
 
 	if azToLaunchIn == nil {
 		logger.Println("Can't launch instances in any AZ, nothing to do here...")
@@ -560,7 +567,8 @@ func (a *autoScalingGroup) loadSpotInstanceRequest(
 
 func (a *autoScalingGroup) bidForSpotInstance(
 	ls *ec2.RequestSpotLaunchSpecification,
-	price float64) error {
+	price float64,
+) error {
 
 	svc := a.region.services.ec2
 
