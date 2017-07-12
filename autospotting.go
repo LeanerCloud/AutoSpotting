@@ -14,7 +14,7 @@ import (
 )
 
 type cfgData struct {
-	autospotting.Config
+	*autospotting.Config
 }
 
 var conf *cfgData
@@ -49,10 +49,11 @@ func init() {
 	}
 
 	conf = &cfgData{
-		autospotting.Config{
-			LogFile:    os.Stdout,
-			LogFlag:    log.Ldate | log.Ltime | log.Lshortfile,
-			MainRegion: region,
+		&autospotting.Config{
+			LogFile:         os.Stdout,
+			LogFlag:         log.Ldate | log.Ltime | log.Lshortfile,
+			MainRegion:      region,
+			SleepMultiplier: 1,
 		},
 	}
 
