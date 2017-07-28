@@ -510,6 +510,11 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 func (a *autoScalingGroup) launchCheapestSpotInstance(
 	azToLaunchIn *string) error {
 
+	var (
+		newInstanceType string
+		err             error
+	)
+
 	if azToLaunchIn == nil {
 		logger.Println("Can't launch instances in any AZ, nothing to do here...")
 		return errors.New("invalid availability zone provided")
@@ -526,8 +531,14 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 	}
 	logger.Println("Found on-demand instance", *baseInstance.InstanceId)
 
-	newInstanceType, err := baseInstance.getCheapestCompatibleSpotInstanceType()
-
+	// Check option to keep instance type
+	// If we keep the instance type we don't need to calculate the
+	// compatible instance type.
+	if a.region.conf.KeepInstanceType {
+		newInstanceType = *baseInstance.InstanceId
+	} else {
+		newInstanceType, err = baseInstance.getCheapestCompatibleSpotInstanceType()
+	}
 	if err != nil {
 		logger.Println("No cheaper compatible instance type was found, "+
 			"nothing to do here...", err)
