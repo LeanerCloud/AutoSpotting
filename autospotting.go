@@ -106,8 +106,8 @@ func (c *cfgData) parseCommandLineFlags() {
 			"\n\tIt is ignored if min_on_demand_number is also set.")
 
 	flag.BoolVar(&c.KeepInstanceType, "keep_instance_type", false,
-		"If specified the instance type of the on-demains instances "+
-			"is matched")
+		"If specified, the spot instances will have the same instance type "+
+			"as the initial on-demand instances")
 	v := flag.Bool("version", false, "Print version number and exit.")
 
 	flag.Parse()

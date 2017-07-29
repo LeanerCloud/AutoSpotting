@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
@@ -334,6 +335,47 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 	return a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
 }
 
+func (a *autoScalingGroup) getInstanceTypeByTagInASG() (string, error) {
+	svc := a.region.services.autoScaling
+	input := &autoscaling.DescribeTagsInput{
+		Filters: []*autoscaling.Filter{
+			{
+				Name: aws.String("instance-type"),
+			},
+		},
+	}
+	output, err := svc.DescribeTags(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case autoscaling.ErrCodeInvalidNextToken:
+				logger.Println(autoscaling.ErrCodeInvalidNextToken, aerr.Error())
+			case autoscaling.ErrCodeResourceContentionFault:
+				logger.Println(autoscaling.ErrCodeResourceContentionFault, aerr.Error())
+			default:
+				logger.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			logger.Println(err.Error())
+		}
+		return "", err
+	}
+
+	instanceTypes, err := a.region.requestSpotInstanceTypes()
+	if err != nil {
+		logger.Println(err.Error())
+		return "", err
+	}
+	for _, it := range instanceTypes {
+		if *output.Tags[0].Value == it {
+			return *output.Tags[0].Value, nil
+		}
+	}
+	return "", nil
+}
+
 // Returns the information about the first running instance found in
 // the group, while iterating over all instances from the
 // group. It can also filter by AZ and Lifecycle.
@@ -531,18 +573,27 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 	}
 	logger.Println("Found on-demand instance", *baseInstance.InstanceId)
 
+	newInstanceType, err = a.getInstanceTypeByTagInASG()
+	if err != nil {
+		logger.Println("Errors while trying to fetch tags for instance type...")
+		return errors.New("Errors while trying to fetch tags")
+	}
+
 	// Check option to keep instance type
 	// If we keep the instance type we don't need to calculate the
 	// compatible instance type.
-	if a.region.conf.KeepInstanceType {
-		newInstanceType = *baseInstance.InstanceId
-	} else {
-		newInstanceType, err = baseInstance.getCheapestCompatibleSpotInstanceType()
-	}
-	if err != nil {
-		logger.Println("No cheaper compatible instance type was found, "+
-			"nothing to do here...", err)
-		return errors.New("no cheaper spot instance found")
+	// Also ignore if it's already specified in the instance-type tag
+	if newInstanceType == "" {
+		if a.region.conf.KeepInstanceType {
+			newInstanceType = *baseInstance.InstanceType
+		} else {
+			newInstanceType, err = baseInstance.getCheapestCompatibleSpotInstanceType()
+		}
+		if err != nil {
+			logger.Println("No cheaper compatible instance type was found, "+
+				"nothing to do here...", err)
+			return errors.New("no cheaper spot instance found")
+		}
 	}
 
 	newInstance := a.region.instanceTypeInformation[newInstanceType]
