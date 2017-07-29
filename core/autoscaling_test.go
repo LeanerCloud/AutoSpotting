@@ -2675,7 +2675,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 	}
 }
 
-func TestgetInstanceTypeByTagInASG(t *testing.T) {
+func TestGetInstanceTypeByTagInASG(t *testing.T) {
 	tests := []struct {
 		name     string
 		asgTags  []*autoscaling.TagDescription
