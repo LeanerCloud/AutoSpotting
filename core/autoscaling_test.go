@@ -2674,3 +2674,68 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 		})
 	}
 }
+
+func TestgetInstanceTypeByTagInASG(t *testing.T) {
+	tests := []struct {
+		name     string
+		asgTags  []*autoscaling.TagDescription
+		tagKey   string
+		expected *string
+	}{
+		{name: "Tag can't be found in ASG (no tags)",
+			asgTags:  []*autoscaling.TagDescription{},
+			tagKey:   "spot-enabled",
+			expected: aws.String(""),
+		},
+		{name: "Tag can't be found in ASG (many tags)",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+				{
+					Key:   aws.String("env"),
+					Value: aws.String("prod"),
+				},
+			},
+			tagKey:   "spot-enabled",
+			expected: aws.String(""),
+		},
+		{name: "Tag can be found in ASG (many tags)",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+				{
+					Key:   aws.String("env"),
+					Value: aws.String("prod"),
+				},
+				{
+					Key:   aws.String("spot-enabled"),
+					Value: aws.String("true"),
+				},
+				{
+					Key:   aws.String("instance-type"),
+					Value: aws.String("m3.large"),
+				},
+			},
+			tagKey:   "instance-type",
+			expected: aws.String("m3.large"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := autoScalingGroup{Group: &autoscaling.Group{}}
+			a.Tags = tt.asgTags
+			retValue, _ := a.getInstanceTypeByTagInASG()
+			if tt.expected == nil && retValue != *tt.expected {
+				t.Errorf("getTagValue received for %s: %s expected %s", tt.tagKey, retValue, *tt.expected)
+			} else if tt.expected != nil && retValue != *tt.expected {
+				t.Errorf("getTagValue received for %s: %s expected %s", tt.tagKey, retValue, *tt.expected)
+			}
+		})
+	}
+
+}
