@@ -2794,6 +2794,7 @@ func TestGetInstanceTypeByTagInASG(t *testing.T) {
 						dterr: errors.New("Describe Tags Error"),
 					},
 					ec2: mockEC2{
+						// Placeholder
 						dspho:   &ec2.DescribeSpotPriceHistoryOutput{},
 						dspherr: errors.New("Describe Spot History Error"),
 					},
@@ -2811,6 +2812,32 @@ func TestGetInstanceTypeByTagInASG(t *testing.T) {
 					autoScaling: mockASG{
 						dto:   &autoscaling.DescribeTagsOutput{},
 						dterr: awserr.New("10", "Describe Tags Error", errors.New("Massive E")),
+					},
+					ec2: mockEC2{
+						dspho:   &ec2.DescribeSpotPriceHistoryOutput{},
+						dspherr: nil,
+					},
+				},
+			},
+		},
+		{name: "Returns an error in Request Spot Instance Price",
+			asgTags:   []*autoscaling.TagDescription{},
+			tagKey:    "instance-type",
+			expectedE: errors.New("Couldn't fetch spot prices in "),
+			regionASG: &region{
+				instances: makeInstances(),
+				conf:      &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dto: &autoscaling.DescribeTagsOutput{
+							Tags: []*autoscaling.TagDescription{
+								{
+									Key:   aws.String("instance-type"),
+									Value: aws.String("m3.large"),
+								},
+							},
+						},
+						dterr: nil,
 					},
 					ec2: mockEC2{
 						dspho:   &ec2.DescribeSpotPriceHistoryOutput{},
