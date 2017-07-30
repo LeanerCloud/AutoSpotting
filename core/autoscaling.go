@@ -347,14 +347,7 @@ func (a *autoScalingGroup) getInstanceTypeByTagInASG() (string, error) {
 	output, err := svc.DescribeTags(input)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case autoscaling.ErrCodeInvalidNextToken:
-				logger.Println(autoscaling.ErrCodeInvalidNextToken, aerr.Error())
-			case autoscaling.ErrCodeResourceContentionFault:
-				logger.Println(autoscaling.ErrCodeResourceContentionFault, aerr.Error())
-			default:
-				logger.Println(aerr.Error())
-			}
+			logger.Println("Error code:", aerr.Code(), "Error:", aerr.Error())
 		} else {
 			// Print the error, cast err to awserr.Error to get the Code and
 			// Message from an error.
@@ -584,8 +577,10 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 	// compatible instance type.
 	// Also ignore if it's already specified in the instance-type tag
 	if newInstanceType == "" {
-		if a.region.conf.KeepInstanceType {
+		if a.region.conf.KeepInstanceType == "current" {
 			newInstanceType = *baseInstance.InstanceType
+		} else if a.region.conf.KeepInstanceType != "" {
+			newInstanceType = a.region.conf.KeepInstanceType
 		} else {
 			newInstanceType, err = baseInstance.getCheapestCompatibleSpotInstanceType()
 		}

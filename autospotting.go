@@ -105,9 +105,10 @@ func (c *cfgData) parseCommandLineFlags() {
 			autospotting.OnDemandPercentageLong+
 			"\n\tIt is ignored if min_on_demand_number is also set.")
 
-	flag.BoolVar(&c.KeepInstanceType, "keep_instance_type", false,
-		"If specified, the spot instances will have the same instance type "+
-			"as the initial on-demand instances")
+	flag.StringVar(&c.KeepInstanceType, "keep_instance_type", "",
+		"If specified, the spot instances will have a specific instance type:\n"+
+			"\tcurrent: the same as iniial on-demand instances\n"+
+			"\t<instance-type>: the actual instance type to use")
 	v := flag.Bool("version", false, "Print version number and exit.")
 
 	flag.Parse()
