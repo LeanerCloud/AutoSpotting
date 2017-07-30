@@ -2677,63 +2677,120 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 
 func TestGetInstanceTypeByTagInASG(t *testing.T) {
 	tests := []struct {
-		name     string
-		asgTags  []*autoscaling.TagDescription
-		tagKey   string
-		expected *string
+		name      string
+		asgTags   []*autoscaling.TagDescription
+		tagKey    string
+		expected  *string
+		regionASG *region
 	}{
 		{name: "Tag can't be found in ASG (no tags)",
 			asgTags:  []*autoscaling.TagDescription{},
-			tagKey:   "spot-enabled",
+			tagKey:   "instance-type",
 			expected: aws.String(""),
-		},
-		{name: "Tag can't be found in ASG (many tags)",
-			asgTags: []*autoscaling.TagDescription{
-				{
-					Key:   aws.String("Name"),
-					Value: aws.String("asg-test"),
-				},
-				{
-					Key:   aws.String("env"),
-					Value: aws.String("prod"),
+			regionASG: &region{
+				instances: makeInstances(),
+				conf:      &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dto: &autoscaling.DescribeTagsOutput{
+							Tags: []*autoscaling.TagDescription{
+								{
+									Key:   aws.String("bogus-tag"),
+									Value: aws.String("bogus-value"),
+								},
+							},
+						},
+						dterr: nil},
+					ec2: mockEC2{
+						dspho: &ec2.DescribeSpotPriceHistoryOutput{
+							SpotPriceHistory: []*ec2.SpotPrice{
+								{
+									InstanceType: aws.String("m3.large"),
+									SpotPrice:    aws.String("1"),
+								},
+							},
+						},
+						dspherr: nil,
+					},
 				},
 			},
-			tagKey:   "spot-enabled",
-			expected: aws.String(""),
 		},
-		{name: "Tag can be found in ASG (many tags)",
-			asgTags: []*autoscaling.TagDescription{
-				{
-					Key:   aws.String("Name"),
-					Value: aws.String("asg-test"),
-				},
-				{
-					Key:   aws.String("env"),
-					Value: aws.String("prod"),
-				},
-				{
-					Key:   aws.String("spot-enabled"),
-					Value: aws.String("true"),
-				},
-				{
-					Key:   aws.String("instance-type"),
-					Value: aws.String("m3.large"),
-				},
-			},
+		{name: "Tag is found in ASG and Tag is valid",
+			asgTags:  []*autoscaling.TagDescription{},
 			tagKey:   "instance-type",
 			expected: aws.String("m3.large"),
+			regionASG: &region{
+				instances: makeInstances(),
+				conf:      &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dto: &autoscaling.DescribeTagsOutput{
+							Tags: []*autoscaling.TagDescription{
+								{
+									Key:   aws.String("instance-type"),
+									Value: aws.String("m3.large"),
+								},
+							},
+						},
+						dterr: nil},
+					ec2: mockEC2{
+						dspho: &ec2.DescribeSpotPriceHistoryOutput{
+							SpotPriceHistory: []*ec2.SpotPrice{
+								{
+									InstanceType: aws.String("m3.large"),
+									SpotPrice:    aws.String("1"),
+								},
+							},
+						},
+						dspherr: nil,
+					},
+				},
+			},
+		},
+		{name: "Tag is found in ASG and Tag is invalid",
+			asgTags:  []*autoscaling.TagDescription{},
+			tagKey:   "instance-type",
+			expected: aws.String(""),
+			regionASG: &region{
+				instances: makeInstances(),
+				conf:      &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dto: &autoscaling.DescribeTagsOutput{
+							Tags: []*autoscaling.TagDescription{
+								{
+									Key:   aws.String("instance-type"),
+									Value: aws.String("m3.largekaboom"),
+								},
+							},
+						},
+						dterr: nil},
+					ec2: mockEC2{
+						dspho: &ec2.DescribeSpotPriceHistoryOutput{
+							SpotPriceHistory: []*ec2.SpotPrice{
+								{
+									InstanceType: aws.String("m3.large"),
+									SpotPrice:    aws.String("1"),
+								},
+							},
+						},
+						dspherr: nil,
+					},
+				},
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := autoScalingGroup{Group: &autoscaling.Group{}}
-			a.Tags = tt.asgTags
+			a := autoScalingGroup{
+				name:   "testASG",
+				region: tt.regionASG}
 			retValue, _ := a.getInstanceTypeByTagInASG()
 			if tt.expected == nil && retValue != *tt.expected {
-				t.Errorf("getTagValue received for %s: %s expected %s", tt.tagKey, retValue, *tt.expected)
+				t.Errorf("getInstanceTypeByTagInASG received for %s: %s expected %s", tt.tagKey, retValue, *tt.expected)
 			} else if tt.expected != nil && retValue != *tt.expected {
-				t.Errorf("getTagValue received for %s: %s expected %s", tt.tagKey, retValue, *tt.expected)
+				t.Errorf("getInstanceTypeByTagInASG received for %s: %s expected %s", tt.tagKey, retValue, *tt.expected)
 			}
 		})
 	}
