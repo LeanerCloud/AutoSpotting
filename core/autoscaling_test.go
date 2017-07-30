@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
@@ -2681,6 +2682,7 @@ func TestGetInstanceTypeByTagInASG(t *testing.T) {
 		asgTags   []*autoscaling.TagDescription
 		tagKey    string
 		expected  *string
+		expectedE error
 		regionASG *region
 	}{
 		{name: "Tag can't be found in ASG (no tags)",
@@ -2779,6 +2781,44 @@ func TestGetInstanceTypeByTagInASG(t *testing.T) {
 				},
 			},
 		},
+		{name: "Returns an error in Autoscaling",
+			asgTags:   []*autoscaling.TagDescription{},
+			tagKey:    "instance-type",
+			expectedE: errors.New("Describe Tags Error"),
+			regionASG: &region{
+				instances: makeInstances(),
+				conf:      &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dto:   &autoscaling.DescribeTagsOutput{},
+						dterr: errors.New("Describe Tags Error"),
+					},
+					ec2: mockEC2{
+						dspho:   &ec2.DescribeSpotPriceHistoryOutput{},
+						dspherr: errors.New("Describe Spot History Error"),
+					},
+				},
+			},
+		},
+		{name: "AWS Returns an error in Autoscaling",
+			asgTags:   []*autoscaling.TagDescription{},
+			tagKey:    "instance-type",
+			expectedE: awserr.New("10", "Describe Tags Error", errors.New("Massive E")),
+			regionASG: &region{
+				instances: makeInstances(),
+				conf:      &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dto:   &autoscaling.DescribeTagsOutput{},
+						dterr: awserr.New("10", "Describe Tags Error", errors.New("Massive E")),
+					},
+					ec2: mockEC2{
+						dspho:   &ec2.DescribeSpotPriceHistoryOutput{},
+						dspherr: awserr.New("2", "Describe Spot History Error", errors.New("Massive E")),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -2786,11 +2826,15 @@ func TestGetInstanceTypeByTagInASG(t *testing.T) {
 			a := autoScalingGroup{
 				name:   "testASG",
 				region: tt.regionASG}
-			retValue, _ := a.getInstanceTypeByTagInASG()
-			if tt.expected == nil && retValue != *tt.expected {
-				t.Errorf("getInstanceTypeByTagInASG received for %s: %s expected %s", tt.tagKey, retValue, *tt.expected)
-			} else if tt.expected != nil && retValue != *tt.expected {
-				t.Errorf("getInstanceTypeByTagInASG received for %s: %s expected %s", tt.tagKey, retValue, *tt.expected)
+			retValue, err := a.getInstanceTypeByTagInASG()
+			if err == nil {
+				if tt.expected == nil && retValue != *tt.expected {
+					t.Errorf("getInstanceTypeByTagInASG received for %s: %s expected %s", tt.tagKey, retValue, *tt.expected)
+				} else if tt.expected != nil && retValue != *tt.expected {
+					t.Errorf("getInstanceTypeByTagInASG received for %s: %s expected %s", tt.tagKey, retValue, *tt.expected)
+				}
+			} else {
+				CheckErrors(t, err, tt.expectedE)
 			}
 		})
 	}
