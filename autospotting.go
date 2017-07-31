@@ -107,7 +107,7 @@ func (c *cfgData) parseCommandLineFlags() {
 
 	flag.StringVar(&c.KeepInstanceType, "keep_instance_type", "",
 		"If specified, the spot instances will have a specific instance type:\n"+
-			"\tcurrent: the same as iniial on-demand instances\n"+
+			"\tcurrent: the same as initial on-demand instances\n"+
 			"\t<instance-type>: the actual instance type to use")
 	v := flag.Bool("version", false, "Print version number and exit.")
 
