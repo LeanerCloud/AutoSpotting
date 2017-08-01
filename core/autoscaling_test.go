@@ -2674,3 +2674,34 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 		})
 	}
 }
+
+func TestAllowedInstaceTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		allowed  string
+		expected []string
+	}{
+		{name: "Single Type",
+			allowed:  "c2.xlarge",
+			expected: []string{"c2.xlarge"},
+		},
+		{name: "Multiple Types",
+			allowed:  "c2.xlarge,c2.2xlarge,c3.2xlarge",
+			expected: []string{"c2.xlarge", "c2.2xlarge", "c3.2xlarge"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				name: "testASG",
+			}
+			allowed := tt.allowed
+			allowedList := a.allowedInstanceTypes(allowed)
+			if !reflect.DeepEqual(allowedList, tt.expected) {
+				t.Errorf("Allowed Instance Types does not match, received: %+v, expected: %+v",
+					allowedList, tt.expected)
+			}
+		})
+	}
+}
