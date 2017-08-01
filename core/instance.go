@@ -221,7 +221,19 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 	return false
 }
 
-func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
+func (i *instance) isAllowed(instanceType string, allowedList []string) bool {
+	if allowedList != nil {
+		for _, a := range allowedList {
+			if a == instanceType {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
+func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string) (string, error) {
 	current := i.typeInfo
 	bestPrice := math.MaxFloat64
 	chosenSpotType := ""
@@ -249,7 +261,8 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 			i.isEBSCompatible(candidate) &&
 			i.isClassCompatible(candidate) &&
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
-			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
+			i.isVirtualizationCompatible(candidate.virtualizationTypes) &&
+			i.isAllowed(candidate.instanceType, allowedList) {
 			bestPrice = candidatePrice
 			chosenSpotType = candidate.instanceType
 			debug.Println("Best option is now: ", chosenSpotType, " at ", bestPrice)
