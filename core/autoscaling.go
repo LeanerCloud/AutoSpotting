@@ -39,6 +39,7 @@ type autoScalingGroup struct {
 	// spot instance requests generated for the current group
 	spotInstanceRequests []*spotInstanceRequest
 	minOnDemand          int64
+	baseInstance         *instance
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -507,15 +508,39 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	return spotInstanceID, false
 }
 
-func (a *autoScalingGroup) allowedInstanceTypes(allowed string) []string {
-	return strings.Split(allowed, ",")
+func (a *autoScalingGroup) allowedInstanceTypes() (string, error) {
+
+	var allowed, allowedInstanceTypesTag string
+
+	// Check option of allowed instance types
+	// If we have that option we don't need to calculate the compatible instance type.
+	// Also ignore if it's already specified in the allowed-instance-types tag
+	if tagValue := a.getTagValue("allowed-instance-types"); tagValue != nil {
+		allowedInstanceTypesTag = strings.Replace(*tagValue, " ", ",", -1)
+	}
+	allowedInstanceTypes := strings.Replace(a.region.conf.AllowedInstanceTypes, " ", ",", -1)
+
+	// Command line config has a priority
+	if allowedInstanceTypes != "" {
+		allowed = allowedInstanceTypes
+	} else {
+		allowed = allowedInstanceTypesTag
+	}
+
+	if allowed == "current" {
+		return *a.baseInstance.InstanceType, nil
+	} else if allowed != "" {
+		return allowed, nil
+	} else {
+		return a.baseInstance.getCheapestCompatibleSpotInstanceType(strings.Split(allowed, ","))
+	}
+
 }
 
 func (a *autoScalingGroup) launchCheapestSpotInstance(
 	azToLaunchIn *string) error {
 
 	var (
-		allowed         string
 		newInstanceType string
 		err             error
 	)
@@ -528,35 +553,16 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 	logger.Println("Trying to launch spot instance in", *azToLaunchIn,
 		"first finding an on-demand instance to use as a template")
 
-	baseInstance := a.getOnDemandInstanceInAZ(azToLaunchIn)
+	a.baseInstance = a.getOnDemandInstanceInAZ(azToLaunchIn)
 
-	if baseInstance == nil {
+	if a.baseInstance == nil {
 		logger.Println("Found no on-demand instances, nothing to do here...")
 		return errors.New("no on-demand instances found")
 	}
-	logger.Println("Found on-demand instance", *baseInstance.InstanceId)
+	logger.Println("Found on-demand instance", a.baseInstance.InstanceId)
 
-	// Check option of allowed instance types
-	// If we have that option we don't need to calculate the compatible instance type.
-	// Also ignore if it's already specified in the allowed-instance-types tag
-	allowedInstanceTypesTag := strings.Replace(*a.getTagValue("allowed-instance-types"), " ", ",", -1)
-	allowedInstanceTypes := strings.Replace(a.region.conf.AllowedInstanceTypes, " ", ",", -1)
-
-	// Command line config has a priority
-	if allowedInstanceTypes != "" {
-		allowed = allowedInstanceTypes
-	} else {
-		allowed = allowedInstanceTypesTag
-	}
-
-	if allowed == "current" {
-		newInstanceType = *baseInstance.InstanceType
-	} else if allowed != "" {
-		newInstanceType = allowed
-	} else {
-		newInstanceType, err =
-			baseInstance.getCheapestCompatibleSpotInstanceType(a.allowedInstanceTypes(allowed))
-	}
+	// a.baseInstance needs to be set in the ASG before we call this
+	newInstanceType, err = a.allowedInstanceTypes()
 	if err != nil {
 		logger.Println("No cheaper compatible instance type was found, "+
 			"nothing to do here...", err)
@@ -565,12 +571,12 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 
 	newInstance := a.region.instanceTypeInformation[newInstanceType]
 
-	baseOnDemandPrice := baseInstance.price
+	baseOnDemandPrice := a.baseInstance.price
 
 	currentSpotPrice := newInstance.pricing.spot[*azToLaunchIn]
 
 	logger.Println("Finished searching for best spot instance in ", *azToLaunchIn)
-	logger.Println("Replacing an on-demand", *baseInstance.InstanceType,
+	logger.Println("Replacing an on-demand", *a.baseInstance.InstanceType,
 		"instance having the ondemand price", baseOnDemandPrice)
 	logger.Println("Launching best compatible instance:", newInstanceType,
 		"with current spot price:", currentSpotPrice)
@@ -578,7 +584,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 	lc := a.getLaunchConfiguration()
 
 	spotLS := lc.convertLaunchConfigurationToSpotSpecification(
-		baseInstance,
+		a.baseInstance,
 		newInstance,
 		*azToLaunchIn)
 

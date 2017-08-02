@@ -2677,30 +2677,83 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 
 func TestAllowedInstaceTypes(t *testing.T) {
 	tests := []struct {
-		name     string
-		allowed  string
-		expected []string
+		name         string
+		allowed      string
+		expected     string
+		instanceInfo *instance
+		asg          *autoScalingGroup
+		asgtags      []*autoscaling.TagDescription
+		//regionASG    *region
+		lc *launchConfiguration
 	}{
-		{name: "Single Type",
-			allowed:  "c2.xlarge",
-			expected: []string{"c2.xlarge"},
-		},
-		{name: "Multiple Types",
-			allowed:  "c2.xlarge,c2.2xlarge,c3.2xlarge",
-			expected: []string{"c2.xlarge", "c2.2xlarge", "c3.2xlarge"},
+		{name: "Single Type c2.xlarge",
+			expected: "c2.xlarge",
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+					vCPU:         10,
+					memory:       2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+				},
+				price:  0.75,
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "",
+					},
+					services: connections{
+						autoScaling: mockASG{
+							dlcerr: nil,
+							dlco: &autoscaling.DescribeLaunchConfigurationsOutput{
+								LaunchConfigurations: []*autoscaling.LaunchConfiguration{
+									{
+										LaunchConfigurationName: aws.String("testLC"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity:         aws.Int64(4),
+					LaunchConfigurationName: aws.String("testLC"),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("allowed-instance-types"),
+					Value: aws.String("c2.xlarge"),
+				},
+			},
+			lc: &launchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+						{
+							VirtualName: aws.String("vn1"),
+						},
+						{
+							VirtualName: aws.String("ephemeral"),
+						},
+					},
+				},
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &autoScalingGroup{
-				name: "testASG",
-			}
-			allowed := tt.allowed
-			allowedList := a.allowedInstanceTypes(allowed)
-			if !reflect.DeepEqual(allowedList, tt.expected) {
+			a := tt.asg
+			a.baseInstance = tt.instanceInfo
+			a.Tags = tt.asgtags
+			allowed, _ := a.allowedInstanceTypes()
+			if !reflect.DeepEqual(allowed, tt.expected) {
 				t.Errorf("Allowed Instance Types does not match, received: %+v, expected: %+v",
-					allowedList, tt.expected)
+					allowed, tt.expected)
 			}
 		})
 	}
