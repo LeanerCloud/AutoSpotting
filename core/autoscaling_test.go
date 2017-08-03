@@ -2678,13 +2678,13 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 func TestGetAllowedInstaceTypes(t *testing.T) {
 	tests := []struct {
 		name         string
-		expected     string
+		expected     []string
 		instanceInfo *instance
 		asg          *autoScalingGroup
 		asgtags      []*autoscaling.TagDescription
 	}{
 		{name: "Single Type Tag c2.xlarge",
-			expected: "c2.xlarge",
+			expected: []string{"c2.xlarge"},
 			instanceInfo: &instance{
 				typeInfo: instanceTypeInformation{
 					instanceType: "typeX",
@@ -2710,7 +2710,7 @@ func TestGetAllowedInstaceTypes(t *testing.T) {
 			},
 		},
 		{name: "Single Type Cmd Line c2.xlarge",
-			expected: "c2.xlarge",
+			expected: []string{"c2.xlarge"},
 			instanceInfo: &instance{
 				typeInfo: instanceTypeInformation{
 					instanceType: "typeX",
@@ -2731,7 +2731,7 @@ func TestGetAllowedInstaceTypes(t *testing.T) {
 			asgtags: []*autoscaling.TagDescription{},
 		},
 		{name: "Single Type from Base c2.xlarge",
-			expected: "c2.xlarge",
+			expected: []string{"c2.xlarge"},
 			instanceInfo: &instance{
 				typeInfo: instanceTypeInformation{
 					instanceType: "c2.xlarge",
@@ -2752,7 +2752,7 @@ func TestGetAllowedInstaceTypes(t *testing.T) {
 			asgtags: []*autoscaling.TagDescription{},
 		},
 		{name: "Command line precedence on c2.xlarge",
-			expected: "c2.xlarge",
+			expected: []string{"c2.xlarge"},
 			instanceInfo: &instance{
 				typeInfo: instanceTypeInformation{
 					instanceType: "typeX",

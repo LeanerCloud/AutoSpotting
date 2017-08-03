@@ -507,7 +507,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	return spotInstanceID, false
 }
 
-func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) string {
+func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) []string {
 
 	var allowed, allowedInstanceTypesTag string
 
@@ -526,9 +526,9 @@ func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) strin
 	}
 
 	if allowed == "current" {
-		return baseInstance.typeInfo.instanceType
+		return []string{baseInstance.typeInfo.instanceType}
 	}
-	return allowed
+	return strings.Split(allowed, ",")
 
 }
 
@@ -551,7 +551,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 	}
 	logger.Println("Found on-demand instance", baseInstance.InstanceId)
 
-	allowedInstances := strings.Split(a.getAllowedInstanceTypes(baseInstance), ",")
+	allowedInstances := a.getAllowedInstanceTypes(baseInstance)
 
 	newInstanceType, err := baseInstance.getCheapestCompatibleSpotInstanceType(allowedInstances)
 	if err != nil {
