@@ -222,7 +222,7 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 }
 
 func (i *instance) isAllowed(instanceType string, allowedList []string) bool {
-	if allowedList != nil {
+	if allowedList != nil && allowedList[0] != "" {
 		for _, a := range allowedList {
 			if a == instanceType {
 				return true

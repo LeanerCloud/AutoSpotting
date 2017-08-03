@@ -2675,29 +2675,20 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 	}
 }
 
-func TestAllowedInstaceTypes(t *testing.T) {
+func TestGetAllowedInstaceTypes(t *testing.T) {
 	tests := []struct {
 		name         string
-		allowed      string
 		expected     string
 		instanceInfo *instance
 		asg          *autoScalingGroup
 		asgtags      []*autoscaling.TagDescription
-		//regionASG    *region
-		lc *launchConfiguration
 	}{
-		{name: "Single Type c2.xlarge",
+		{name: "Single Type Tag c2.xlarge",
 			expected: "c2.xlarge",
 			instanceInfo: &instance{
 				typeInfo: instanceTypeInformation{
 					instanceType: "typeX",
-					vCPU:         10,
-					memory:       2.5,
-					instanceStoreDeviceCount: 1,
-					instanceStoreDeviceSize:  50.0,
-					instanceStoreIsSSD:       false,
 				},
-				price:  0.75,
 				region: &region{},
 			},
 			asg: &autoScalingGroup{
@@ -2706,22 +2697,9 @@ func TestAllowedInstaceTypes(t *testing.T) {
 					conf: &Config{
 						AllowedInstanceTypes: "",
 					},
-					services: connections{
-						autoScaling: mockASG{
-							dlcerr: nil,
-							dlco: &autoscaling.DescribeLaunchConfigurationsOutput{
-								LaunchConfigurations: []*autoscaling.LaunchConfiguration{
-									{
-										LaunchConfigurationName: aws.String("testLC"),
-									},
-								},
-							},
-						},
-					},
 				},
 				Group: &autoscaling.Group{
-					DesiredCapacity:         aws.Int64(4),
-					LaunchConfigurationName: aws.String("testLC"),
+					DesiredCapacity: aws.Int64(4),
 				},
 			},
 			asgtags: []*autoscaling.TagDescription{
@@ -2730,16 +2708,72 @@ func TestAllowedInstaceTypes(t *testing.T) {
 					Value: aws.String("c2.xlarge"),
 				},
 			},
-			lc: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
-					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
-						{
-							VirtualName: aws.String("vn1"),
-						},
-						{
-							VirtualName: aws.String("ephemeral"),
-						},
+		},
+		{name: "Single Type Cmd Line c2.xlarge",
+			expected: "c2.xlarge",
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "c2.xlarge",
 					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{},
+		},
+		{name: "Single Type from Base c2.xlarge",
+			expected: "c2.xlarge",
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "c2.xlarge",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "current",
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{},
+		},
+		{name: "Command line precedence on c2.xlarge",
+			expected: "c2.xlarge",
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "c2.xlarge",
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("allowed-instance-types"),
+					Value: aws.String("c4.4xlarge"),
 				},
 			},
 		},
@@ -2748,9 +2782,9 @@ func TestAllowedInstaceTypes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := tt.asg
-			a.baseInstance = tt.instanceInfo
 			a.Tags = tt.asgtags
-			allowed, _ := a.allowedInstanceTypes()
+			baseInstance := tt.instanceInfo
+			allowed := a.getAllowedInstanceTypes(baseInstance)
 			if !reflect.DeepEqual(allowed, tt.expected) {
 				t.Errorf("Allowed Instance Types does not match, received: %+v, expected: %+v",
 					allowed, tt.expected)
