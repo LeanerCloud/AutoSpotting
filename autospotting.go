@@ -30,8 +30,15 @@ func main() {
 func run() {
 	log.Println("Starting autospotting agent, build:", Version)
 
-	log.Printf("Parsed command line flags: regions='%s' min_on_demand_number=%d min_on_demand_percentage=%.1f",
-		conf.Regions, conf.MinOnDemandNumber, conf.MinOnDemandPercentage)
+	log.Printf("Parsed command line flags: "+
+		"regions='%s' "+
+		"min_on_demand_number=%d "+
+		"min_on_demand_percentage=%.1f "+
+		"allowed_instance_types=%t",
+		conf.Regions,
+		conf.MinOnDemandNumber,
+		conf.MinOnDemandPercentage,
+		conf.AllowedInstanceTypes)
 
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")
@@ -98,6 +105,10 @@ func (c *cfgData) parseCommandLineFlags() {
 			autospotting.OnDemandPercentageLong+
 			"\n\tIt is ignored if min_on_demand_number is also set.")
 
+	flag.StringVar(&c.AllowedInstanceTypes, "allowed_instance_types", "",
+		"If specified, the spot instances will have a specific instance type:\n"+
+			"\tcurrent: the same as initial on-demand instances\n"+
+			"\t<instance-type>: the actual instance type to use")
 	v := flag.Bool("version", false, "Print version number and exit.")
 
 	flag.Parse()

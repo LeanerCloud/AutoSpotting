@@ -2674,3 +2674,121 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAllowedInstaceTypes(t *testing.T) {
+	tests := []struct {
+		name         string
+		expected     []string
+		instanceInfo *instance
+		asg          *autoScalingGroup
+		asgtags      []*autoscaling.TagDescription
+	}{
+		{name: "Single Type Tag c2.xlarge",
+			expected: []string{"c2.xlarge"},
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "",
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("allowed-instance-types"),
+					Value: aws.String("c2.xlarge"),
+				},
+			},
+		},
+		{name: "Single Type Cmd Line c2.xlarge",
+			expected: []string{"c2.xlarge"},
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "c2.xlarge",
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{},
+		},
+		{name: "Single Type from Base c2.xlarge",
+			expected: []string{"c2.xlarge"},
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "c2.xlarge",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "current",
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{},
+		},
+		{name: "Command line precedence on c2.xlarge",
+			expected: []string{"c2.xlarge"},
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "c2.xlarge",
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("allowed-instance-types"),
+					Value: aws.String("c4.4xlarge"),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := tt.asg
+			a.Tags = tt.asgtags
+			baseInstance := tt.instanceInfo
+			allowed := a.getAllowedInstanceTypes(baseInstance)
+			if !reflect.DeepEqual(allowed, tt.expected) {
+				t.Errorf("Allowed Instance Types does not match, received: %+v, expected: %+v",
+					allowed, tt.expected)
+			}
+		})
+	}
+}

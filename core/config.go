@@ -24,6 +24,7 @@ type Config struct {
 	MinOnDemandNumber     int64
 	MinOnDemandPercentage float64
 	Regions               string
+	AllowedInstanceTypes  string
 
 	// This is only here for tests, where we want to be able to somehow mock
 	// time.Sleep without actually sleeping. While testing it defaults to 0 (which won't sleep at all), in

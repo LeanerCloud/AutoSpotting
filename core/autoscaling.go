@@ -507,6 +507,31 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	return spotInstanceID, false
 }
 
+func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) []string {
+
+	var allowed, allowedInstanceTypesTag string
+
+	// Check option of allowed instance types
+	// If we have that option we don't need to calculate the compatible instance type.
+	if tagValue := a.getTagValue("allowed-instance-types"); tagValue != nil {
+		allowedInstanceTypesTag = strings.Replace(*tagValue, " ", ",", -1)
+	}
+	allowedInstanceTypes := strings.Replace(a.region.conf.AllowedInstanceTypes, " ", ",", -1)
+
+	// Command line config has a priority
+	if allowedInstanceTypes != "" {
+		allowed = allowedInstanceTypes
+	} else {
+		allowed = allowedInstanceTypesTag
+	}
+
+	if allowed == "current" {
+		return []string{baseInstance.typeInfo.instanceType}
+	}
+	return strings.Split(allowed, ",")
+
+}
+
 func (a *autoScalingGroup) launchCheapestSpotInstance(
 	azToLaunchIn *string) error {
 
@@ -524,10 +549,11 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 		logger.Println("Found no on-demand instances, nothing to do here...")
 		return errors.New("no on-demand instances found")
 	}
-	logger.Println("Found on-demand instance", *baseInstance.InstanceId)
+	logger.Println("Found on-demand instance", baseInstance.InstanceId)
 
-	newInstanceType, err := baseInstance.getCheapestCompatibleSpotInstanceType()
+	allowedInstances := a.getAllowedInstanceTypes(baseInstance)
 
+	newInstanceType, err := baseInstance.getCheapestCompatibleSpotInstanceType(allowedInstances)
 	if err != nil {
 		logger.Println("No cheaper compatible instance type was found, "+
 			"nothing to do here...", err)

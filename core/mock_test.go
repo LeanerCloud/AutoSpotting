@@ -56,7 +56,7 @@ type mockEC2 struct {
 	dro   *ec2.DescribeRegionsOutput
 	drerr error
 
-	//Cancel Spot instance request
+	// Cancel Spot instance request
 	csiro   *ec2.CancelSpotInstanceRequestsOutput
 	csirerr error
 }
@@ -113,6 +113,9 @@ type mockASG struct {
 	// Update AutoScaling Group
 	uasgo   *autoscaling.UpdateAutoScalingGroupOutput
 	uasgerr error
+	// Describe Tags
+	dto   *autoscaling.DescribeTagsOutput
+	dterr error
 }
 
 func (m mockASG) DetachInstances(*autoscaling.DetachInstancesInput) (*autoscaling.DetachInstancesOutput, error) {
@@ -129,4 +132,8 @@ func (m mockASG) DescribeLaunchConfigurations(*autoscaling.DescribeLaunchConfigu
 
 func (m mockASG) UpdateAutoScalingGroup(*autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
 	return m.uasgo, m.uasgerr
+}
+
+func (m mockASG) DescribeTags(*autoscaling.DescribeTagsInput) (*autoscaling.DescribeTagsOutput, error) {
+	return m.dto, m.dterr
 }

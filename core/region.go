@@ -208,7 +208,7 @@ func (r *region) requestSpotPrices() error {
 	err := s.fetch("Linux/UNIX", 0, nil, nil)
 
 	if err != nil {
-		return errors.New("Couldn't fetch spot prices in" + r.name)
+		return errors.New("Couldn't fetch spot prices in " + r.name)
 	}
 
 	// logger.Println("Spot Price list in ", r.name, ":\n", s.data)
@@ -237,6 +237,27 @@ func (r *region) requestSpotPrices() error {
 	}
 
 	return nil
+}
+
+func (r *region) requestSpotInstanceTypes() ([]string, error) {
+
+	var instTypes []string
+
+	s := spotPrices{conn: r.services}
+
+	// Retrieve all current spot prices from the current region.
+	// TODO: add support for other OSes
+	err := s.fetch("Linux/UNIX", 0, nil, nil)
+
+	if err != nil {
+		return nil, errors.New("Couldn't fetch spot prices in " + r.name)
+	}
+
+	for _, priceInfo := range s.data {
+		instTypes = append(instTypes, *priceInfo.InstanceType)
+	}
+
+	return instTypes, nil
 }
 
 func (r *region) scanForEnabledAutoScalingGroupsByTag() []*string {
