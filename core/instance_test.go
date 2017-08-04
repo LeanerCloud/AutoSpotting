@@ -723,6 +723,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 		lc             *launchConfiguration
 		expectedString string
 		expectedError  error
+		allowedList    []string
 	}{
 		{name: "better/cheaper spot instance found",
 			spotInfos: map[string]instanceTypeInformation{
@@ -904,7 +905,8 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			i := tt.instanceInfo
 			i.region.instanceTypeInformation = tt.spotInfos
 			i.asg = tt.asg
-			retValue, err := i.getCheapestCompatibleSpotInstanceType()
+			allowedList := tt.allowedList
+			retValue, err := i.getCheapestCompatibleSpotInstanceType(allowedList)
 			if err == nil && tt.expectedError != err {
 				t.Errorf("Error received: %v expected %v", err, tt.expectedError.Error())
 			} else if err != nil && tt.expectedError == nil {
