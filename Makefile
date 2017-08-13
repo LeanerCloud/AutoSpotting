@@ -83,7 +83,11 @@ test:                                                        ## Test go code and
 	@go test -covermode=count -coverprofile=$(COVER_PROFILE) $(BINARY_PKG)
 .PHONY: test
 
-full-test: fmt-check vet-check test                          ## Pass test / fmt / vet
+lint:
+	@golint -set_exit_status=1 ./...
+.PHONY: lint
+
+full-test: fmt-check vet-check test lint                     ## Pass test / fmt / vet / lint
 .PHONY: full-test
 
 html-cover: test                                             ## Display coverage in HTML
