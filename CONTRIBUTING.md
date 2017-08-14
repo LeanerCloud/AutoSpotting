@@ -30,8 +30,9 @@ they can be merged, in order to ensure the high quality of the software and the
 maintainability of the codebase.
 
 As part of the review process the maintainers will often just verify that the
-patch meets the requirements listed in the pull request checklist, but they may
-also suggest other improvements they think may be appropriate.
+patch meets the requirements listed in the pull request
+[checklist](.github/PULL_REQUEST_TEMPLATE.md), but they may also suggest other
+changes deemed appropriate.
 
 Be prepared to iterate your pull request until it is ready to be approved. This
 may take a while for bigger contributions, don't be discouraged if this may take
