@@ -99,6 +99,7 @@ type instance struct {
 type instanceTypeInformation struct {
 	instanceType             string
 	vCPU                     int
+	GPU                      int
 	pricing                  prices
 	memory                   float32
 	virtualizationTypes      []string
@@ -164,10 +165,14 @@ func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool
 	current := i.typeInfo
 
 	debug.Println("Comparing class spot/instance:")
-	debug.Println("\tSpot CPU/memory: ", spotCandidate.vCPU, " / ", spotCandidate.memory)
-	debug.Println("\tInstance CPU/memory: ", current.vCPU, " / ", current.memory)
+	debug.Println("\tSpot CPU/memory/GPU: ", spotCandidate.vCPU,
+		" / ", spotCandidate.memory, " / ", spotCandidate.GPU)
+	debug.Println("\tInstance CPU/memory/GPU: ", current.vCPU,
+		" / ", current.memory, " / ", current.GPU)
 
-	return spotCandidate.vCPU >= current.vCPU && spotCandidate.memory >= current.memory
+	return spotCandidate.vCPU >= current.vCPU &&
+		spotCandidate.memory >= current.memory &&
+		spotCandidate.GPU >= current.GPU
 }
 
 func (i *instance) isEBSCompatible(spotCandidate instanceTypeInformation) bool {
