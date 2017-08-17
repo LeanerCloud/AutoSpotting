@@ -34,10 +34,17 @@ patch meets the requirements listed in the pull request
 [checklist](.github/PULL_REQUEST_TEMPLATE.md), but they may also suggest other
 changes deemed appropriate.
 
-Be prepared to iterate your pull request until it is ready to be approved. This
-may take a while for bigger contributions, don't be discouraged if this may take
-longer than you initially expected.
+Anyone is more than welcome to review the content of any issues labelled as
+'review wanted', but only project maintainers can approve reviews for being
+merged.
+
+You can usually make the process faster by submitting smaller changes, larger
+reviews can also be sped up by asking for review on Gitter, we try to be as
+responsive as possible, but be prepared to iterate your pull request a number of
+times until it is ready to be approved. This may take a while for big
+contributions, so don't be discouraged if this may take longer than you
+initially expected.
 
 You can submit iterations as additional commits to make the review process
-easier, but the reviewer may be squash them into a single big commit at merge
-time, in order to clean up the mainline commit history.
+easier, but the reviewer may squash them into a single big commit at merge time,
+in order to clean up the mainline commit history.
