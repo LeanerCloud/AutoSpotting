@@ -76,6 +76,26 @@ The main author also offers paid enterprise-grade support, sponsored feature
 development as well as AWS-related consulting. For more information on pricing,
 terms and conditions feel free to [get in touch](https://gitter.im/cristim).
 
+## Users ##
+
+Autospotting is already used by hundreds of individuals and companies around the
+world, such as:
+
+- www.cycloid.io
+- www.fassos.io
+- www.fractalanalytics.com
+- www.here.com
+- www.ibibogroup.com
+- www.icap.com
+- www.news.co.uk
+- www.parkassist.com
+- www.qualcomm.com
+- www.quantiphi.com
+- www.realestate.co.nz
+- www.roames.com
+- www.spscommerce.com
+- www.taitradio.com
+
 ## License ##
 
 This software is distributed under the terms of the MIT [license](LICENSE).
