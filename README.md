@@ -82,7 +82,6 @@ Autospotting is already used by hundreds of individuals and companies around the
 world, such as:
 
 - www.cycloid.io
-- www.fassos.io
 - www.fractalanalytics.com
 - www.here.com
 - www.ibibogroup.com
