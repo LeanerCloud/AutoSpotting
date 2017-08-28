@@ -34,7 +34,7 @@ func run() {
 		"regions='%s' "+
 		"min_on_demand_number=%d "+
 		"min_on_demand_percentage=%.1f "+
-		"allowed_instance_types=%t",
+		"allowed_instance_types=%v",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
