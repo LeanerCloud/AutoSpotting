@@ -27,24 +27,31 @@
 
 HANDLER ?= handler
 PACKAGE ?= $(HANDLER)
-GOPATH	?= $(HOME)/go
 
-WORKDIR = $(CURDIR:$(GOPATH)%=/go%)
-ifeq ($(WORKDIR),$(CURDIR))
-	WORKDIR = /tmp
+ifeq ($(OS),Windows_NT)
+	GOPATH ?= $(USERPROFILE)/go
+	GOPATH := /$(subst ;,:/,$(subst \,/,$(subst :,,$(GOPATH))))
+	CURDIR := /$(subst :,,$(CURDIR))
+else
+	GOPATH ?= $(HOME)/go
 endif
 
 docker:
-	docker run --rm						\
-		-e HANDLER=$(HANDLER)				\
-		-e PACKAGE=$(PACKAGE)	 			\
-		-e BUILD_NUMBER='$(BUILD_NUMBER)' 	\
-		-v $(GOPATH):/go					\
-		-v $(CURDIR):/tmp			 		\
-		-w $(WORKDIR)					 	\
-		eawsy/aws-lambda-go-shim:latest make -f Makefile.lambda all
+	@docker run --rm\
+	  -e HANDLER=$(HANDLER)\
+	  -e PACKAGE=$(PACKAGE)\
+	  -e GOPATH=$(GOPATH)\
+      -e BUILD_NUMBER='$(BUILD_NUMBER)' 	\
+	  -v $(CURDIR):$(CURDIR)\
+	  $(foreach GP,$(subst :, ,$(GOPATH)),-v $(GP):$(GP))\
+	  -w $(CURDIR)\
+	  eawsy/aws-lambda-go-shim:latest make -f Makefile.lambda all
+
+.PHONY: docker
 
 all: build pack perm
+
+.PHONY: all
 
 build:
 	go build \
@@ -52,13 +59,19 @@ build:
 		-ldflags="-w -s -pluginpath lambda -X lambda.Version=$(BUILD_NUMBER)" \
 		-o $(HANDLER).so
 
+.PHONY: build
+
 pack:
 	@pack $(HANDLER) $(HANDLER).so $(PACKAGE).zip
+
+.PHONY: pack
 
 perm:
 	@chown $(shell stat -c '%u:%g' .) $(HANDLER).so $(PACKAGE).zip
 
-clean:
-	@rm -rf $(HANDLER) $(HANDLER).so $(PACKAGE).zip
+.PHONY: perm
 
-.PHONY: docker all build pack perm clean
+clean:
+	@rm -rf $(HANDLER).so $(PACKAGE).zip
+
+.PHONY: clean
