@@ -37,7 +37,7 @@ build_deps:
 .PHONY: build_deps
 
 build_lambda_binary: build_deps                              ## Build lambda binary
-	LDFLAGS='$(LDFLAGS)' make -f Makefile.lambda docker
+	LDFLAGS=$(LDFLAGS) make -f Makefile.lambda docker
 .PHONY: build_lambda_binary
 
 prepare_upload_data: build_lambda_binary                     ## Create archive to be uploaded
