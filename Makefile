@@ -9,6 +9,8 @@ LOCAL_PATH := build/s3/dv
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
 
+LDFLAGS="-pluginpath lambda -X lambda.Version=$(BUILD)"
+
 all: fmt-check vet-check build_local test                    ## Build the code
 .PHONY: all
 
@@ -31,10 +33,11 @@ build_deps:
 	@go get github.com/mattn/goveralls
 	@go get golang.org/x/tools/cmd/cover
 	@docker pull eawsy/aws-lambda-go-shim:latest
+	wget -O Makefile.lambda https://git.io/vytH8
 .PHONY: build_deps
 
 build_lambda_binary: build_deps                              ## Build lambda binary
-	BUILD_NUMBER=$(BUILD) make -f Makefile.lambda docker
+	LDFLAGS='$(LDFLAGS)' make -f Makefile.lambda docker
 .PHONY: build_lambda_binary
 
 prepare_upload_data: build_lambda_binary                     ## Create archive to be uploaded
