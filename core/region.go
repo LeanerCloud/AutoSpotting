@@ -173,6 +173,7 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 				instanceType:        it.InstanceType,
 				vCPU:                it.VCPU,
 				memory:              it.Memory,
+				GPU:                 it.GPU,
 				pricing:             price,
 				virtualizationTypes: it.LinuxVirtualizationTypes,
 				hasEBSOptimization:  it.EBSOptimized,
