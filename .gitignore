@@ -8,3 +8,4 @@ handler.zip
 .idea/
 terraform/.terraform/
 terraform.tfstate*
+Makefile.lambda
