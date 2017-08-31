@@ -18,8 +18,8 @@ market](https://aws.amazon.com/ec2/spot).
 Once enabled on an existing on-demand AutoScaling group, it launches an EC2 spot
 instance that is cheaper, at least as large and configured identically to your
 current on-demand instances. As soon as the new instance is ready, it is added
-to the group and an on-demand instance is detached from the group
-and terminated.
+to the group and an on-demand instance is detached from the group and
+terminated.
 
 It continuously applies this process, gradually replacing any on-demand
 instances with spot instances until the group only consists of spot instances,
@@ -31,6 +31,13 @@ All this can be seen in action below.
 
 Read [here](TECHNICAL_DETAILS.md) for more information and implementation
 details.
+
+Frequently asked questions about the project are answered in the [FAQ](FAQ.md),
+*please read this first before asking for support*.
+
+If you have additional questions not covered there, they can be easily added to
+the [crowdsourced source of the FAQ](https://etherpad.net/p/AutoSpotting_FAQ)
+and we'll do our best to answer them either there or on Gitter.
 
 ## Getting Started ##
 
