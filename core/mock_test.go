@@ -104,6 +104,7 @@ type mockASG struct {
 	// Detach Instances
 	dio   *autoscaling.DetachInstancesOutput
 	dierr error
+
 	// Attach Instances
 	aio   *autoscaling.AttachInstancesOutput
 	aierr error
@@ -116,10 +117,10 @@ type mockASG struct {
 	// Describe Tags
 	dto   *autoscaling.DescribeTagsOutput
 	dterr error
-}
 
-func (m mockASG) DetachInstances(*autoscaling.DetachInstancesInput) (*autoscaling.DetachInstancesOutput, error) {
-	return m.dio, m.dierr
+	// Terminate Instance in ASG
+	tiiasgo *autoscaling.TerminateInstanceInAutoScalingGroupOutput
+	tierr   error
 }
 
 func (m mockASG) AttachInstances(*autoscaling.AttachInstancesInput) (*autoscaling.AttachInstancesOutput, error) {
@@ -136,4 +137,8 @@ func (m mockASG) UpdateAutoScalingGroup(*autoscaling.UpdateAutoScalingGroupInput
 
 func (m mockASG) DescribeTags(*autoscaling.DescribeTagsInput) (*autoscaling.DescribeTagsOutput, error) {
 	return m.dto, m.dterr
+}
+
+func (m mockASG) TerminateInstanceInAutoScalingGroup(*autoscaling.TerminateInstanceInAutoScalingGroupInput) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error) {
+	return m.tiiasgo, m.tierr
 }
