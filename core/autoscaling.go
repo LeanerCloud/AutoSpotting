@@ -710,23 +710,15 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 		a.name,
 		"Detaching and terminating instance:",
 		*instanceID)
-	// detach the on-demand instance
-	detachParams := autoscaling.DetachInstancesInput{
-		AutoScalingGroupName: aws.String(a.name),
-		InstanceIds: []*string{
-			instanceID,
-		},
-		ShouldDecrementDesiredCapacity: aws.Bool(true),
-	}
 
 	asSvc := a.region.services.autoScaling
+	_, err := asSvc.TerminateInstanceInAutoScalingGroup(
+		&autoscaling.TerminateInstanceInAutoScalingGroupInput{
+			InstanceId:                     instanceID,
+			ShouldDecrementDesiredCapacity: aws.Bool(true),
+		})
 
-	if _, err := asSvc.DetachInstances(&detachParams); err != nil {
-		logger.Println(err.Error())
-		return err
-	}
-
-	return a.instances.get(*instanceID).terminate()
+	return err
 }
 
 // Counts the number of already running spot instances.
