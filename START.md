@@ -190,12 +190,12 @@ One good way to automate is using CloudFormation, using this example snippet:
 
 ### Testing configuration ###
 
-The algorithm of autospotting can have custom CLI configurations. It can use
-pre-selected default regions, as well as default on-demand instances to keep in
-the auto-scaling groups. This is particularly useful when used during testing,
-in order to limit the scope of action and/or general configurations.
+Normally AutoSPotting runs from AWS Lambda, but for testing purposes it can also 
+be compiled and executed locally as a command-line tool, which can be very useful
+for implementing and testing new functionality.
 
-To select those testing options from the command line:
+The algorithm can use custom command-line flags. Much like many other command-line
+tools, you can use the `-h` command line flag to see all the available options:
 
 ```
 $ ./autospotting -h
@@ -215,17 +215,20 @@ Usage of ./autospotting:
 The value of `-min_on_demand_number` has a higher priority than
 `-min_on_demand_percentage`, so if you specify both options in the command line,
 percentage will NOT be taken into account. It would be taken into account, ONLY
-if the `-min_on_demand_number` is invalid (negativ, above the max number, etc).
+if the `-min_on_demand_number` is invalid (negative, above the max number, etc).
 
-The value of `-regions` impact the scope within which autospotting run, while
-the options of `-min_on_demand_number` and `-min_on_demand_percentage` would impact
-all auto-scaling groups within the regions.
+The value of `-regions` controls the scope within which autospotting run, this is 
+particularly useful when used during testing, in order to limit the scope of
+action and reduce the risk when evaluating it or experimenting with new 
+functionality.
 
-All the flags are also exposed as environment variables, for example using the
--region CLI flag is equivalent to using the REGION environment variable.
+All the flags are also exposed as environment variables, expected in ALL_CAPS.
+For example using the `-region` command-line flag is equivalent to using the
+`REGION` environment variable.
 
 **Note**: These configurations are also implemented when running from Lambda,
-passed as environment variables set by CloudFormation for the Lambda function.
+where they are actually passed as environment variables set by CloudFormation
+in the Lambda function's configuration.
 
 ### Running configuration ###
 
@@ -270,11 +273,12 @@ parameter to a value that looks like `dv/lambda_build_45.zip`.
 
 Git commit SHAs(truncated to 7 characters) are also accepted instead of the
 build numbers, so for example `dv/lambda_build_f7f395d.zip` should also be a
-valid parameter, as long as that build is available in the author's
-[S3 bucket](http://s3.amazonaws.com/cloudprowess).
+valid parameter, as long as that build is available in the author's S3 bucket.
+The full list of the objects available in the bucker can be seen
+[here](http://s3.amazonaws.com/cloudprowess/index.html).
 
-The full list of builds and their respective git commits can be seen on the
-Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
+The full list of TravisCI builds and their respective git commits can be seen 
+on the Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
 
 ### Compatibility notices ###
 
