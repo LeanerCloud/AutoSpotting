@@ -30,14 +30,14 @@ gradually replacing your on-demand instances with much cheaper spot instances.
 For your peace of mind, you can also configure it to keep running a configurable
 number of on-demand instances, given as percentage or absolute number.
 
-Your groups will then monitor and use these spot instances just like it would 
-do with your on-demand ones. They will automatically join your load balancer
+Your groups will then monitor and use these spot instances just like they would 
+do with your on-demand instances. They will automatically join your load balancer
 and start receiving traffic once passing the health checks.
 
 The installation takes just a few minutes and the existing groups can be enabled
 and configured individually by using a few additional tags.
 
-This can be seen in action below.
+This can be seen in action below, you can click to expand the animation:
 
 ![Workflow](https://cdn.cloudprowess.com/images/autospotting.gif)
 
@@ -55,7 +55,8 @@ and we'll do our best to answer them either there or on Gitter.
 
 Just like in the above animation, it's as easy as launching a CloudFormation (or
 [Terraform](https://github.com/cristim/autospotting/tree/master/terraform))
-stack and setting one or more tags on your AutoScaling group.
+stack and setting the `spot-enabled` tag on the AutoScaling groups where 
+you want it enabled to `true`.
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
 
@@ -112,6 +113,18 @@ world, such as:
 - www.roames.com
 - www.spscommerce.com
 - www.taitradio.com
+
+## Uninstall ##
+
+You just need to remove the AutoSpotting CloudFormation or Terraform stack.
+
+The groups will eventually revert to the original state once the spot market price
+fluctuations terminate all the spot instances. In some cases this may take months,
+so you can also terminate them sooner yourself.
+
+Fine-grained control on a per group level can be achieved by removing or setting
+the `spot-enabled` tag to any other value. AutoSpotting only touches groups where
+this tag is set to `true`.
 
 ## License ##
 
