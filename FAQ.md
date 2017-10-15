@@ -233,9 +233,11 @@ with the instance's uptime.
 
 If the spot instance is past its grace period, AutoSpotting will attach it to
 the group and immediately detach and terminate an on-demand instance from the
-same availability zone. The terminated on-demand instance is not necessarily the
-same used initially, just in case that may have been terminated by some scaling
-operations or for failing health checks.
+same availability zone. Note that if draining connection is configured on ELB 
+then Auto Scaling waits for in-flight requests to complete before detaching 
+the instance. The terminated on-demand instance is not necessarily the same used
+initially, just in case that may have been terminated by some scaling operations
+or for failing health checks.
 
 ## What happens in the event of spot instance terminations?
 
