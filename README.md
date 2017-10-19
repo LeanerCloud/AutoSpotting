@@ -12,20 +12,32 @@
 [![ChatOnGitter](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 A simple and easy to use tool designed to significantly lower your Amazon AWS
-costs by automating the use of the [spot
-market](https://aws.amazon.com/ec2/spot).
+costs by automating the use of [spot](https://aws.amazon.com/ec2/spot) instances.
 
-Once enabled on an existing on-demand AutoScaling group, it launches an EC2 spot
-instance that is cheaper, at least as large and configured identically to your
-current on-demand instances. As soon as the new instance is ready, it is added
-to the group and an on-demand instance is detached from the group and
-terminated.
+![Savings](https://cdn.cloudprowess.com/images/savings.png)
 
-It continuously applies this process, gradually replacing any on-demand
-instances with spot instances until the group only consists of spot instances,
-but it can also be configured to keep some on-demand instances running.
+## How does it work?
 
-All this can be seen in action below.
+When installed and enabled on an existing on-demand AutoScaling group, 
+AutoSpotting clones one of your on-demand instances from the group with a spot 
+instance that is cheaper, at least as large (automatically considering memory,
+CPU cores and disk volumes) and configured identically to it. Once the new spot
+instance is ready, it is attached to the group and an on-demand instance is
+detached and terminated, to keep the group at constant capacity.    
+
+It continuously applies this process, across all enabled groups from all regions,
+gradually replacing your on-demand instances with much cheaper spot instances.
+For your peace of mind, you can also configure it to keep running a configurable
+number of on-demand instances, given as percentage or absolute number.
+
+Your groups will then monitor and use these spot instances just like they would 
+do with your on-demand instances. They will automatically join your load balancer
+and start receiving traffic once passing the health checks.
+
+The installation takes just a few minutes and the existing groups can be enabled
+and configured individually by using a few additional tags.
+
+This can be seen in action below, you can click to expand the animation:
 
 ![Workflow](https://cdn.cloudprowess.com/images/autospotting.gif)
 
@@ -43,8 +55,8 @@ and we'll do our best to answer them either there or on Gitter.
 
 Just like in the above animation, it's as easy as launching a CloudFormation (or
 [Terraform](https://github.com/cristim/autospotting/tree/master/terraform))
-stack and setting one or more tags on your AutoScaling group. It should only
-take a few minutes to get started.
+stack and setting the `spot-enabled` tag on the AutoScaling groups where 
+you want it enabled to `true`.
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
 
@@ -54,7 +66,7 @@ For more detailed information you can read this [document](START.md)
 
 Even though you should normally be fine with the provided binaries, for local
 development or in case you have some special needs it's relatively easy to
-build, run or install your customized binaries.
+build and run your customized binaries.
 
 More details are available [here](CUSTOM_BUILDS.md)
 
@@ -65,12 +77,12 @@ useful please consider contributing to its development, any help would be
 greatly appreciated.
 
 You can do it by trying it out and giving feedback, reporting bugs, writing
-code, improving the documentation, assigning a colleague to work on it for a few
+code, improving the documentation, assigning someone to work on it for a few
 hours a week, spreading the word or simply
 [contacting](https://gitter.im/cristim/autospotting) us and telling about your
 setup.
 
-Non-trivial work should be submitted according to the contribution
+Non-trivial code should be submitted according to the contribution
 [guidelines](CONTRIBUTING.md)
 
 ## Support ##
@@ -79,9 +91,9 @@ Community support is available on the
 [gitter](https://gitter.im/cristim/autospotting) chat room on a best effort
 basis.
 
-The main author also offers paid enterprise-grade support, sponsored feature
-development as well as AWS-related consulting. For more information on pricing,
-terms and conditions feel free to [get in touch](https://gitter.im/cristim).
+The main author also offers enterprise-grade support, feature development
+as well as AWS-related consulting for a fee. For more information feel free 
+to [get in touch on gitter](https://gitter.im/cristim).
 
 ## Users ##
 
@@ -101,6 +113,18 @@ world, such as:
 - www.roames.com
 - www.spscommerce.com
 - www.taitradio.com
+
+## Uninstall ##
+
+You just need to remove the AutoSpotting CloudFormation or Terraform stack.
+
+The groups will eventually revert to the original state once the spot market price
+fluctuations terminate all the spot instances. In some cases this may take months,
+so you can also terminate them sooner yourself.
+
+Fine-grained control on a per group level can be achieved by removing or setting
+the `spot-enabled` tag to any other value. AutoSpotting only touches groups where
+this tag is set to `true`.
 
 ## License ##
 
