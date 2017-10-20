@@ -973,6 +973,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 		minOnDemand     int64
 		desiredCapacity *int64
 		expectedRun     bool
+		regionASG       *region
 	}{
 		{name: "ASG has no instance at all - 1 on-demand required",
 			asgInstances:    makeInstances(),
@@ -1062,6 +1063,12 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 			minOnDemand:     2,
 			desiredCapacity: aws.Int64(0),
 			expectedRun:     false,
+			regionASG: &region{
+				name: "regionTest",
+				services: connections{
+					autoScaling: mockASG{},
+				},
+			},
 		},
 		{name: "ASG has just enough on-demand instances running",
 			asgInstances: makeInstancesWithCatalog(
@@ -1141,6 +1148,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 			a.DesiredCapacity = tt.desiredCapacity
 			a.instances = tt.asgInstances
 			a.minOnDemand = tt.minOnDemand
+			a.region = tt.regionASG
 			shouldRun := a.needReplaceOnDemandInstances()
 			if tt.expectedRun != shouldRun {
 				t.Errorf("needReplaceOnDemandInstances returned: %t expected %t",
@@ -1150,7 +1158,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 	}
 }
 
-func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
+func TestTerminateInstanceInAutoScalingGroup(t *testing.T) {
 	tests := []struct {
 		name         string
 		instancesASG instances
@@ -1158,7 +1166,7 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 		instanceID   *string
 		expected     error
 	}{
-		{name: "no err during detach nor terminate",
+		{name: "no err during terminate",
 			instancesASG: makeInstancesWithCatalog(
 				map[string]*instance{
 					"1": {
@@ -1167,7 +1175,7 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 						},
 						region: &region{
 							services: connections{
-								ec2: mockEC2{tierr: nil},
+								ec2: mockEC2{},
 							},
 						},
 					},
@@ -1176,13 +1184,13 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 			regionASG: &region{
 				name: "regionTest",
 				services: connections{
-					autoScaling: mockASG{dierr: nil},
+					autoScaling: mockASG{tiiasgerr: nil},
 				},
 			},
 			instanceID: aws.String("1"),
 			expected:   nil,
 		},
-		{name: "err during detach not during terminate",
+		{name: "errors during terminate",
 			instancesASG: makeInstancesWithCatalog(
 				map[string]*instance{
 					"1": {
@@ -1191,7 +1199,7 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 						},
 						region: &region{
 							services: connections{
-								ec2: mockEC2{tierr: nil},
+								ec2: mockEC2{},
 							},
 						},
 					},
@@ -1200,59 +1208,11 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 			regionASG: &region{
 				name: "regionTest",
 				services: connections{
-					autoScaling: mockASG{dierr: errors.New("detach")},
+					autoScaling: mockASG{tiiasgerr: errors.New("terminate-asg")},
 				},
 			},
 			instanceID: aws.String("1"),
-			expected:   errors.New("detach"),
-		},
-		{name: "no err during detach but error during terminate",
-			instancesASG: makeInstancesWithCatalog(
-				map[string]*instance{
-					"1": {
-						Instance: &ec2.Instance{
-							InstanceId: aws.String("1"),
-						},
-						region: &region{
-							services: connections{
-								ec2: mockEC2{tierr: errors.New("terminate")},
-							},
-						},
-					},
-				},
-			),
-			regionASG: &region{
-				name: "regionTest",
-				services: connections{
-					autoScaling: mockASG{dierr: nil},
-				},
-			},
-			instanceID: aws.String("1"),
-			expected:   errors.New("terminate"),
-		},
-		{name: "errors during detach and terminate",
-			instancesASG: makeInstancesWithCatalog(
-				map[string]*instance{
-					"1": {
-						Instance: &ec2.Instance{
-							InstanceId: aws.String("1"),
-						},
-						region: &region{
-							services: connections{
-								ec2: mockEC2{tierr: errors.New("terminate")},
-							},
-						},
-					},
-				},
-			),
-			regionASG: &region{
-				name: "regionTest",
-				services: connections{
-					autoScaling: mockASG{dierr: errors.New("detach")},
-				},
-			},
-			instanceID: aws.String("1"),
-			expected:   errors.New("detach"),
+			expected:   errors.New("terminate-asg"),
 		},
 	}
 
@@ -1263,7 +1223,7 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 				region:    tt.regionASG,
 				instances: tt.instancesASG,
 			}
-			err := a.detachAndTerminateOnDemandInstance(tt.instanceID)
+			err := a.terminateInstanceInAutoScalingGroup(tt.instanceID)
 			CheckErrors(t, err, tt.expected)
 		})
 	}
@@ -2438,10 +2398,10 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 					name: "test-region",
 					services: connections{
 						autoScaling: &mockASG{
-							uasgo:   nil,
-							uasgerr: nil,
-							dio:     nil,
-							dierr:   nil,
+							uasgo:     nil,
+							uasgerr:   nil,
+							tiiasgo:   nil,
+							tiiasgerr: nil,
 						},
 						ec2: &mockEC2{
 							tio:   nil,
@@ -2537,10 +2497,10 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 					name: "test-region",
 					services: connections{
 						autoScaling: &mockASG{
-							uasgo:   nil,
-							uasgerr: nil,
-							dio:     nil,
-							dierr:   nil,
+							uasgo:     nil,
+							uasgerr:   nil,
+							tiiasgo:   nil,
+							tiiasgerr: nil,
 						},
 						ec2: &mockEC2{
 							tio:   nil,
@@ -2584,10 +2544,10 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 					name: "test-region",
 					services: connections{
 						autoScaling: &mockASG{
-							uasgo:   nil,
-							uasgerr: nil,
-							dio:     nil,
-							dierr:   nil,
+							uasgo:     nil,
+							uasgerr:   nil,
+							tiiasgo:   nil,
+							tiiasgerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(
@@ -2636,10 +2596,10 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 					name: "test-region",
 					services: connections{
 						autoScaling: &mockASG{
-							uasgo:   nil,
-							uasgerr: nil,
-							dio:     nil,
-							dierr:   nil,
+							uasgo:     nil,
+							uasgerr:   nil,
+							tiiasgo:   nil,
+							tiiasgerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(
