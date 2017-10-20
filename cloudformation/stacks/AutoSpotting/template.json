@@ -97,7 +97,7 @@
                 "autoscaling:DescribeAutoScalingGroups",
                 "autoscaling:DescribeLaunchConfigurations",
                 "autoscaling:AttachInstances",
-                "autoscaling:DetachInstances",
+                "autoscaling:TerminateInstanceInAutoScalingGroup",
                 "autoscaling:DescribeTags",
                 "autoscaling:UpdateAutoScalingGroup",
                 "ec2:CreateTags",
