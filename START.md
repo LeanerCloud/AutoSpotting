@@ -135,7 +135,6 @@ as such, and would function. But you might want to tweak at least the default
 on-demand values and/or the regions in which autospotting runs.
 The extra parameters can also be overridden to suit your needs.
 
-
 ## Enable autospotting ##
 
 ### For an AutoScaling group ###
