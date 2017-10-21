@@ -4,12 +4,14 @@ BINARY := autospotting
 BINARY_PKG := ./core
 COVER_PROFILE := /tmp/coverage.out
 BUCKET_NAME ?= cloudprowess
-LOCAL_PATH := build/s3/dv
+FLAVOR ?= nightly
+LOCAL_PATH := build/s3/$(FLAVOR)
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
+EXPIRATION := $(shell ./expiration_date.sh $(FLAVOR))
 
-LDFLAGS="-pluginpath lambda -X lambda.Version=$(BUILD)"
+LDFLAGS="-pluginpath lambda -X lambda.Version=$(FLAVOR)-$(BUILD) -X lambda.Expiration=$(EXPIRATION)"
 
 all: fmt-check vet-check build_local test                    ## Build the code
 .PHONY: all
@@ -52,7 +54,7 @@ prepare_upload_data: build_lambda_binary                     ## Create archive t
 .PHONY: prepare_upload_data
 
 build_local:                                                 ## Build binary - local dev
-	go build -ldflags='-X main.Version=$(BUILD)' -o $(BINARY)
+	go build -ldflags='-X main.Version=$(FLAVOR)-$(BUILD) -X main.ExpirationDate=$(EXPIRATION)' -o $(BINARY)
 .PHONY: build_local
 
 upload: prepare_upload_data                                  ## Upload binary

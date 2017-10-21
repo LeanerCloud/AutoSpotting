@@ -18,19 +18,19 @@ costs by automating the use of [spot](https://aws.amazon.com/ec2/spot) instances
 
 ## How does it work?
 
-When installed and enabled on an existing on-demand AutoScaling group, 
-AutoSpotting clones one of your on-demand instances from the group with a spot 
+When installed and enabled on an existing on-demand AutoScaling group,
+AutoSpotting clones one of your on-demand instances from the group with a spot
 instance that is cheaper, at least as large (automatically considering memory,
 CPU cores and disk volumes) and configured identically to it. Once the new spot
 instance is ready, it is attached to the group and an on-demand instance is
-detached and terminated, to keep the group at constant capacity.    
+detached and terminated, to keep the group at constant capacity.
 
 It continuously applies this process, across all enabled groups from all regions,
 gradually replacing your on-demand instances with much cheaper spot instances.
 For your peace of mind, you can also configure it to keep running a configurable
 number of on-demand instances, given as percentage or absolute number.
 
-Your groups will then monitor and use these spot instances just like they would 
+Your groups will then monitor and use these spot instances just like they would
 do with your on-demand instances. They will automatically join your load balancer
 and start receiving traffic once passing the health checks.
 
@@ -55,18 +55,30 @@ and we'll do our best to answer them either there or on Gitter.
 
 Just like in the above animation, it's as easy as launching a CloudFormation (or
 [Terraform](https://github.com/cristim/autospotting/tree/master/terraform))
-stack and setting the `spot-enabled` tag on the AutoScaling groups where 
+stack and setting the `spot-enabled` tag on the AutoScaling groups where
 you want it enabled to `true`.
-
-[![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
 
 For more detailed information you can read this [document](START.md)
 
+[![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/dv/template.json)
+
+Note: this installs the latest nightly build, generated automatically from the
+ code after each commit. Even though it's generally stable, it is meant to be
+ used for evaluation purposes and is **not recommended for production use**. It
+ expires after two months from the date in which the binary was built and comes
+ with no support or warranty.
+
+Stable, carefully tested and supported builds are available from the original
+author for a fee. Using these builds you are also helping the further
+development of the software. Please get in touch on
+[gitter](https://gitter.im/cristim) if you are interested in purchasing a stable
+build.
+
 ## Compiling and Installing ##
 
-Even though you should normally be fine with the provided binaries, for local
-development or in case you have some special needs it's relatively easy to
-build and run your customized binaries.
+Even though it's recommended to use the provided stable binaries, in case you
+have some special needs, you can tweak the software, then build and run your
+customized binaries which for example can be configured not to expire.
 
 More details are available [here](CUSTOM_BUILDS.md)
 
@@ -89,11 +101,14 @@ Non-trivial code should be submitted according to the contribution
 
 Community support is available on the
 [gitter](https://gitter.im/cristim/autospotting) chat room on a best effort
-basis.
+basis, and people may help you solve issues with the nightly/evaluation
+binaries.
 
-The main author also offers enterprise-grade support, feature development
-as well as AWS-related consulting for a fee. For more information feel free 
-to [get in touch on gitter](https://gitter.im/cristim).
+For the stable AutoSpotting builds, the main author also offers enterprise-grade
+support and will do as much as possible to help you out with any issues you may
+have. In addition, custom feature development as well as AWS-related
+consulting are available for a fee. For more information feel free to get in
+touch on [gitter](https://gitter.im/cristim).
 
 ## Users ##
 
