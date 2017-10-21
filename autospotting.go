@@ -19,16 +19,21 @@ type cfgData struct {
 
 var conf *cfgData
 
-// Version stores the build number and is set by the build system using a
-// ldflags parameter.
+//These variables are set by the build system using some ldflags parameters.
 var Version string
+var ExpirationDate string
 
 func main() {
 	run()
 }
 
 func run() {
-	log.Println("Starting autospotting agent, build:", Version)
+	log.Println("Starting autospotting agent, build ", Version, "expiring on", ExpirationDate)
+
+	if isExpired(ExpirationDate) {
+		log.Fatalln("Autospotting expired, please install a newer version.")
+		return
+	}
 
 	log.Printf("Parsed command line flags: "+
 		"regions='%s' "+
