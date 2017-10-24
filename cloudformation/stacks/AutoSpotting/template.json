@@ -23,8 +23,8 @@
       "Type": "String"
     },
     "LambdaZipPath": {
-      "Default": "dv/lambda.zip",
-      "Description": "Path to the Lambda function zip file inside the S3 bucket. Can be used to update to a more recent version, such as 'dv/lambda_build_57.zip'. Build numbers can be taken from TravisCI: https://travis-ci.org/cristim/autospotting/builds",
+      "Default": "nightly/lambda.zip",
+      "Description": "Path to the Lambda function zip file inside the S3 bucket. Can be used to update to a more recent version, such as 'nightly/lambda_build_57.zip'. Build numbers can be taken from TravisCI: https://travis-ci.org/cristim/autospotting/builds",
       "Type": "String"
     },
     "LogRetentionPeriod": {
