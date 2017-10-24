@@ -17,7 +17,7 @@ variable "asg_regions_enabled" {
 # Lambda configuration
 variable "lambda_zipname" {
   description = "Name of the archive"
-  default = "../build/s3/dv/lambda.zip"
+  default = "../build/s3/nightly/lambda.zip"
 }
 
 variable "lambda_runtime" {
