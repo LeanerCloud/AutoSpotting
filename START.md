@@ -163,9 +163,9 @@ create-or-update-tags \
 --tags ResourceId=my-auto-scaling-group,ResourceType=auto-scaling-group,Key=spot-enabled,Value=true,PropagateAtLaunch=false
 ```
 
-**Note:** the above instructions use the eu-west-1 AWS region as an example. Depending
-on where your groups are defined, you may need to use a different region,
-since as mentioned before, your environments may be located anywhere.
+**Note:** the above instructions use the eu-west-1 AWS region as an example.
+Depending on where your groups are defined, you may need to use a different
+region, since as mentioned before, your environments may be located anywhere.
 
 This needs to be done for every single AutoScaling group where you want it
 enabled, otherwise the group is ignored. If you have lots of groups you may
@@ -198,11 +198,12 @@ One good way to automate is using CloudFormation, using this example snippet:
 ### Testing configuration ###
 
 Normally AutoSPotting runs from AWS Lambda, but for testing purposes it can also
-be compiled and executed locally as a command-line tool, which can be very useful
-for implementing and testing new functionality.
+be compiled and executed locally as a command-line tool, which can be very
+useful for implementing and testing new functionality.
 
-The algorithm can use custom command-line flags. Much like many other command-line
-tools, you can use the `-h` command line flag to see all the available options:
+The algorithm can use custom command-line flags. Much like many other
+command-line tools, you can use the `-h` command line flag to see all the
+available options:
 
 ```
 $ ./autospotting -h
@@ -224,8 +225,8 @@ The value of `-min_on_demand_number` has a higher priority than
 percentage will NOT be taken into account. It would be taken into account, ONLY
 if the `-min_on_demand_number` is invalid (negative, above the max number, etc).
 
-The value of `-regions` controls the scope within which autospotting run, this is
-particularly useful when used during testing, in order to limit the scope of
+The value of `-regions` controls the scope within which autospotting run, this
+is particularly useful when used during testing, in order to limit the scope of
 action and reduce the risk when evaluating it or experimenting with new
 functionality.
 
@@ -279,13 +280,14 @@ CloudFormation stack update in which you change the "LambdaZipPath" stack
 parameter to a value that looks like `nightly/lambda_build_45.zip`.
 
 Git commit SHAs(truncated to 7 characters) are also accepted instead of the
-build numbers, so for example `nightly/lambda_build_f7f395d.zip` should also be a
-valid parameter, as long as that build is available in the author's S3 bucket.
-The full list of the objects available in the bucker can be seen
+build numbers, so for example `nightly/lambda_build_f7f395d.zip` should also be
+a valid parameter, as long as that build is available in the author's S3 bucket.
+
+The full list of the objects available in the bucket can be seen
 [here](http://s3.amazonaws.com/cloudprowess/index.html).
 
-The full list of TravisCI builds and their respective git commits can be seen
-on the Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
+The full list of TravisCI builds and their respective git commits can be seen on
+the Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
 
 ### Compatibility notices ###
 
