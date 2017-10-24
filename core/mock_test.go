@@ -101,9 +101,9 @@ func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegion
 // This is useful when methods are doing multiple calls to AWS API
 type mockASG struct {
 	autoscalingiface.AutoScalingAPI
-	// Terminate Instances
-	tiiasgo   *autoscaling.TerminateInstanceInAutoScalingGroupOutput
-	tiiasgerr error
+	// Detach Instances
+	dio   *autoscaling.DetachInstancesOutput
+	dierr error
 	// Attach Instances
 	aio   *autoscaling.AttachInstancesOutput
 	aierr error
@@ -118,8 +118,8 @@ type mockASG struct {
 	dterr error
 }
 
-func (m mockASG) TerminateInstanceInAutoScalingGroup(*autoscaling.TerminateInstanceInAutoScalingGroupInput) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error) {
-	return m.tiiasgo, m.tiiasgerr
+func (m mockASG) DetachInstances(*autoscaling.DetachInstancesInput) (*autoscaling.DetachInstancesOutput, error) {
+	return m.dio, m.dierr
 }
 
 func (m mockASG) AttachInstances(*autoscaling.AttachInstancesInput) (*autoscaling.AttachInstancesOutput, error) {

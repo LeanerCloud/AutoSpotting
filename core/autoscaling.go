@@ -152,13 +152,13 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 		logger.Println("Currently OnDemand running equals to the required number, skipping run")
 		return false
 	}
-	logger.Println("Currently fewer OnDemand instances than required !")
+	logger.Println("Currently less OnDemand instances than required !")
 	if a.allInstanceRunning() && a.instances.count64() >= *a.DesiredCapacity {
 		logger.Println("All instances are running and desired capacity is satisfied")
 		if randomSpot := a.getAnySpotInstance(); randomSpot != nil {
 			logger.Println("Terminating a random spot instance",
 				*randomSpot.Instance.InstanceId)
-			a.terminateInstanceInAutoScalingGroup(randomSpot.Instance.InstanceId)
+			randomSpot.terminate()
 		}
 	}
 	return false
@@ -331,7 +331,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 		defer a.attachSpotInstance(spotInstanceID)
 	}
 
-	return a.terminateInstanceInAutoScalingGroup(odInst.InstanceId)
+	return a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
 }
 
 // Returns the information about the first running instance found in
@@ -704,25 +704,29 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID *string) error {
 
 // Terminates an on-demand instance from the group,
 // but only after it was detached from the autoscaling group
-func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
+func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 	instanceID *string) error {
 	logger.Println(a.region.name,
 		a.name,
 		"Detaching and terminating instance:",
 		*instanceID)
 	// detach the on-demand instance
-	terminateParams := autoscaling.TerminateInstanceInAutoScalingGroupInput{
-		InstanceId:                     instanceID,
+	detachParams := autoscaling.DetachInstancesInput{
+		AutoScalingGroupName: aws.String(a.name),
+		InstanceIds: []*string{
+			instanceID,
+		},
 		ShouldDecrementDesiredCapacity: aws.Bool(true),
 	}
 
 	asSvc := a.region.services.autoScaling
-	if _, err := asSvc.TerminateInstanceInAutoScalingGroup(&terminateParams); err != nil {
+
+	if _, err := asSvc.DetachInstances(&detachParams); err != nil {
 		logger.Println(err.Error())
 		return err
 	}
 
-	return nil
+	return a.instances.get(*instanceID).terminate()
 }
 
 // Counts the number of already running spot instances.
