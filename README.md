@@ -115,6 +115,7 @@ touch on [gitter](https://gitter.im/cristim).
 Autospotting is already used by hundreds of individuals and companies around the
 world, such as:
 
+- www.remind.com
 - www.cycloid.io
 - www.fractalanalytics.com
 - www.here.com
