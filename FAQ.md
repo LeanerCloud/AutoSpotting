@@ -408,7 +408,7 @@ These groups are quite resilient because they are usually spread over multiple
 spot instance types, so it's quite unlikely that the price will surge on all of
 them at once. But much like the default AutoScaling spot mechanism they are also
 unable to fall back to on-demand capacity in case the prices surge across all
-their instance types. AutoScptting will also try to avoid using all instances of
+their instance types. AutoSpotting will also try to avoid using all instances of
 the same type, in many cases, with enough capacity by spreading over three or
 four different spot market price graphs, which in addition to the on-demand
 fallback capability should be also quite resilient in the event of spot
