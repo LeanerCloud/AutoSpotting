@@ -114,6 +114,7 @@ module "autospotting" {
   autospotting_min_on_demand_number = "0"
   autospotting_min_on_demand_percentage = "50.0"
   autospotting_regions_enabled = "eu*,us*"
+  on_demand_price_multiplier = "1.0"
 
   lambda_zipname = "./lambda.zip"
   lambda_runtime = "python2.7"
@@ -215,6 +216,10 @@ Usage of ./autospotting:
         of instances in the group) ensured to be running in each of your groups.
         Can be overridden on a per-group basis using the tag autospotting_on_demand_percentage
         It is ignored if min_on_demand_number is also set.
+  -on_demand_price_multiplier float
+	Multiplier for the on-demand price. This is useful for volume discounts or if you want to
+	set your bid price to be higher than the on demand price to reduce the chances that your
+	spot instances will be terminated. (default 1)
   -regions="": Regions where it should be activated (comma or whitespace separated
         list, also supports globs), by default it runs on all regions.
         Example: ./autospotting -regions 'eu-*,us-east-1'

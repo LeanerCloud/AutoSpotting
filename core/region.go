@@ -159,7 +159,7 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 		debug.Println(it)
 
 		// populate on-demand information
-		price.onDemand = it.Pricing[r.name].Linux.OnDemand
+		price.onDemand = it.Pricing[r.name].Linux.OnDemand * cfg.OnDemandPriceMultiplier
 		price.spot = make(spotPriceMap)
 		price.ebsSurcharge = it.Pricing[r.name].EBSSurcharge
 
