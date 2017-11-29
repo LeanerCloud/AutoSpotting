@@ -1086,6 +1086,22 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 			desiredCapacity: aws.Int64(0),
 			expectedRun:     false,
 		},
+		{name: "ASG has only one remaining instance, less than enough on-demand",
+			asgInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"id-1": {
+						Instance: &ec2.Instance{
+							State:             &ec2.InstanceState{Name: aws.String("running")},
+							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+							InstanceLifecycle: aws.String("spot"),
+						},
+					},
+				},
+			),
+			minOnDemand:     1,
+			desiredCapacity: aws.Int64(1),
+			expectedRun:     false,
+		},
 		{name: "ASG has more than enough on-demand instances running but not desired capacity",
 			asgInstances: makeInstancesWithCatalog(
 				map[string]*instance{
