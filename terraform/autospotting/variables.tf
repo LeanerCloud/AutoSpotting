@@ -7,6 +7,10 @@ variable "autospotting_min_on_demand_percentage" {
   description = "Minimum on-demand instances to keep in percentage"
 }
 
+variable "autospotting_on_demand_price_multiplier" {
+  description = "Multiplier for the on-demand price"
+}
+
 variable "autospotting_regions_enabled" {
   description = "Regions that autospotting is watching"
 }

@@ -39,11 +39,13 @@ func run() {
 		"regions='%s' "+
 		"min_on_demand_number=%d "+
 		"min_on_demand_percentage=%.1f "+
-		"allowed_instance_types=%v",
+		"allowed_instance_types=%v "+
+		"on_demand_price_multiplier=%.2f",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
-		conf.AllowedInstanceTypes)
+		conf.AllowedInstanceTypes,
+		conf.OnDemandPriceMultiplier)
 
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")
@@ -114,6 +116,12 @@ func (c *cfgData) parseCommandLineFlags() {
 		"If specified, the spot instances will have a specific instance type:\n"+
 			"\tcurrent: the same as initial on-demand instances\n"+
 			"\t<instance-type>: the actual instance type to use")
+
+	flag.Float64Var(&c.OnDemandPriceMultiplier, "on_demand_price_multiplier", 1.0,
+		"Multiplier for the on-demand price. This is useful for volume discounts or if you want to\n"+
+			"\tset your bid price to be higher than the on demand price to reduce the chances that your\n"+
+			"\tspot instances will be terminated.")
+
 	v := flag.Bool("version", false, "Print version number and exit.")
 
 	flag.Parse()

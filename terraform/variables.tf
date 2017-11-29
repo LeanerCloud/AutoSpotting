@@ -9,6 +9,11 @@ variable "asg_min_on_demand_percentage" {
   default = "0.0"
 }
 
+variable "asg_on_demand_price_multiplier" {
+  description = "Multiplier for the on-demand price"
+  default = "1.0"
+}
+
 variable "asg_regions_enabled" {
   description = "Regions in which autospotting is enabled"
   default = ""
