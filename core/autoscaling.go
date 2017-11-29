@@ -143,7 +143,7 @@ func (a *autoScalingGroup) loadDefaultConfig() bool {
 }
 
 func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
-	onDemandRunning, _ := a.alreadyRunningInstanceCount(false, "")
+	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, "")
 	if onDemandRunning > a.minOnDemand {
 		logger.Println("Currently more than enough OnDemand instances running")
 		return true
@@ -156,9 +156,13 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 	if a.allInstanceRunning() && a.instances.count64() >= *a.DesiredCapacity {
 		logger.Println("All instances are running and desired capacity is satisfied")
 		if randomSpot := a.getAnySpotInstance(); randomSpot != nil {
-			logger.Println("Terminating a random spot instance",
-				*randomSpot.Instance.InstanceId)
-			randomSpot.terminate()
+			if totalRunning == 1 {
+				logger.Println("Warning: blocking replacement of very last instance - consider raising ASG to >= 2")
+			} else {
+				logger.Println("Terminating a random spot instance",
+					*randomSpot.Instance.InstanceId)
+				randomSpot.terminate()
+			}
 		}
 	}
 	return false
