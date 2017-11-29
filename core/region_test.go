@@ -1,11 +1,13 @@
 package autospotting
 
 import (
+	"math"
 	"reflect"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/cristim/ec2-instances-info"
 )
 
 func Test_region_enabled(t *testing.T) {
@@ -190,5 +192,60 @@ func TestRequestSpotInstanceTypes(t *testing.T) {
 				t.Errorf("region.requestSpotInstanceTypes() = %v, want %v", instanceTypes, tt.want)
 			}
 		})
+	}
+}
+
+func TestOnDemandPriceMultiplier(t *testing.T) {
+	tests := []struct {
+		multiplier float64
+		want       float64
+	}{
+		{
+			multiplier: 1.0,
+			want:       0.044,
+		},
+		{
+			multiplier: 2.0,
+			want:       0.088,
+		},
+		{
+			multiplier: 0.99,
+			want:       0.04356,
+		},
+	}
+	for _, tt := range tests {
+		cfg := &Config{
+			InstanceData: &ec2instancesinfo.InstanceData{
+				0: {
+					InstanceType: "m1.small",
+					Pricing: map[string]ec2instancesinfo.RegionPrices{
+						"us-east-1": {
+							Linux: ec2instancesinfo.LinuxPricing{
+								OnDemand: 0.044,
+							},
+						},
+					},
+				},
+			},
+			OnDemandPriceMultiplier: tt.multiplier,
+		}
+		r := region{
+			name: "us-east-1",
+			conf: cfg,
+			services: connections{
+				ec2: mockEC2{
+					dspho: &ec2.DescribeSpotPriceHistoryOutput{
+						SpotPriceHistory: []*ec2.SpotPrice{},
+					},
+					dspherr: nil,
+				},
+			}}
+		r.determineInstanceTypeInformation(cfg)
+
+		actualPrice := r.instanceTypeInformation["m1.small"].pricing.onDemand
+		if math.Abs(actualPrice-tt.want) > 0.000001 {
+			t.Errorf("multiplier = %.2f, pricing.onDemand = %.5f, want %.5f",
+				tt.multiplier, actualPrice, tt.want)
+		}
 	}
 }

@@ -3,6 +3,7 @@ module "autospotting" {
 
   autospotting_min_on_demand_number = "${var.asg_min_on_demand_number}"
   autospotting_min_on_demand_percentage = "${var.asg_min_on_demand_percentage}"
+  autospotting_on_demand_price_multiplier = "${var.asg_on_demand_price_multiplier}"
   autospotting_regions_enabled = "${var.asg_regions_enabled}"
 
   lambda_zipname = "${var.lambda_zipname}"
