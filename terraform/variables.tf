@@ -14,6 +14,16 @@ variable "asg_on_demand_price_multiplier" {
   default     = "1.0"
 }
 
+variable "asg_spot_price_buffer_percentage" {
+  description = "Percentage above the current spot price to place the bid"
+  default     = "10.0"
+}
+
+variable "asg_bidding_policy" {
+  description = "Choice of bidding policy for the spot instance"
+  default     = "normal"
+}
+
 variable "asg_regions_enabled" {
   description = "Regions in which autospotting is enabled"
   default     = ""

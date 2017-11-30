@@ -21,11 +21,13 @@ type Config struct {
 	// The region where the Lambda function is deployed
 	MainRegion string
 
-	MinOnDemandNumber       int64
-	MinOnDemandPercentage   float64
-	Regions                 string
-	AllowedInstanceTypes    string
-	OnDemandPriceMultiplier float64
+	MinOnDemandNumber         int64
+	MinOnDemandPercentage     float64
+	Regions                   string
+	AllowedInstanceTypes      string
+	OnDemandPriceMultiplier   float64
+	SpotPriceBufferPercentage float64
+	BiddingPolicy             string
 
 	// This is only here for tests, where we want to be able to somehow mock
 	// time.Sleep without actually sleeping. While testing it defaults to 0 (which won't sleep at all), in

@@ -125,6 +125,8 @@ module "autospotting" {
   autospotting_min_on_demand_percentage = "50.0"
   autospotting_regions_enabled = "eu*,us*"
   on_demand_price_multiplier = "1.0"
+  spot_price_buffer_percentage = "10.0"
+  bidding_policy = "normal"
 
   lambda_zipname = "./lambda.zip"
   lambda_runtime = "python2.7"
@@ -224,6 +226,17 @@ Usage of ./autospotting:
         or if you want to set your bid price to be higher than the on demand
         price to reduce the chances that your spot instances will be terminated.
         (default 1)
+  -spot_price_buffer_percentage float
+        Percentage Value of the bid above the current spot price. A spot
+        bid would be placed at a value
+        current_spot_price * [1 + (spot_price_buffer_percentage/100.0)] .
+        The main benefit is that it protects the group from running spot instances
+        that got significantly more expensive than when they were initially launched,
+        but still somewhat less than the on-demand price. (default 10.0)
+  -bidding_policy string
+        Policy choice for spot bid. If set to 'normal', we bid at the
+        on-demand price. If set to 'aggressive', we bid at a multiple of
+        the spot price. (default "normal")
   -regions="": Regions where it should be activated (comma or whitespace separated
         list, also supports globs), by default it runs on all regions.
         Example: ./autospotting -regions 'eu-*,us-east-1'
