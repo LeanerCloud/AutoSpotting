@@ -42,12 +42,16 @@ func run() {
 		"min_on_demand_number=%d "+
 		"min_on_demand_percentage=%.1f "+
 		"allowed_instance_types=%v "+
-		"on_demand_price_multiplier=%.2f",
+		"on_demand_price_multiplier=%.2f"+
+		"spot_price_buffer_percentage=%.3f"+
+		"bidding_policy=%s",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
 		conf.AllowedInstanceTypes,
-		conf.OnDemandPriceMultiplier)
+		conf.OnDemandPriceMultiplier,
+		conf.SpotPriceBufferPercentage,
+		conf.BiddingPolicy)
 
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")
@@ -123,6 +127,18 @@ func (c *cfgData) parseCommandLineFlags() {
 		"Multiplier for the on-demand price. This is useful for volume discounts or if you want to\n"+
 			"\tset your bid price to be higher than the on demand price to reduce the chances that your\n"+
 			"\tspot instances will be terminated.")
+
+	flag.Float64Var(&c.SpotPriceBufferPercentage, "spot_price_buffer_percentage", 10,
+		"Percentage Value of the bid above the current spot price. A spot bid would be placed at a value :\n"+
+			"\tcurrent_spot_price * [1 + (spot_price_buffer_percentage/100.0)]. The main benefit is that\n"+
+			"\tit protects the group from running spot instances that got significantly more expensive than\n"+
+			"\twhen they were initially launched, but still somewhat less than the on-demand price. Can be\n"+
+			"\tenforced using the tag: "+autospotting.SpotPriceBufferPercentageTag+". If the bid exceeds\n"+
+			"\tthe on-demand price, we place a bid at on-demand price itself.")
+
+	flag.StringVar(&c.BiddingPolicy, "bidding_policy", "normal",
+		"Policy choice for spot bid. If set to 'normal', we bid at the on-demand price. If set to 'aggressive',\n"+
+			"\twe bid at a percentage value above the spot price. ")
 
 	v := flag.Bool("version", false, "Print version number and exit.")
 

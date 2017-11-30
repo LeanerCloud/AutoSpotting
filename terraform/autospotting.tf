@@ -1,10 +1,12 @@
 module "autospotting" {
   source = "./autospotting"
 
-  autospotting_min_on_demand_number       = "${var.asg_min_on_demand_number}"
-  autospotting_min_on_demand_percentage   = "${var.asg_min_on_demand_percentage}"
-  autospotting_on_demand_price_multiplier = "${var.asg_on_demand_price_multiplier}"
-  autospotting_regions_enabled            = "${var.asg_regions_enabled}"
+  autospotting_min_on_demand_number         = "${var.asg_min_on_demand_number}"
+  autospotting_min_on_demand_percentage     = "${var.asg_min_on_demand_percentage}"
+  autospotting_on_demand_price_multiplier   = "${var.asg_on_demand_price_multiplier}"
+  autospotting_spot_price_buffer_percentage = "${var.asg_spot_price_buffer_percentage}"
+  autospotting_bidding_policy               = "${var.asg_bidding_policy}"
+  autospotting_regions_enabled              = "${var.asg_regions_enabled}"
 
   lambda_zipname       = "${var.lambda_zipname}"
   lambda_runtime       = "${var.lambda_runtime}"
