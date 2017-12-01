@@ -51,6 +51,11 @@
       "Default": "",
       "Description": "Space separated list of regions where it should run (supports globs), in case you may want to limit it to a smaller set of regions. If unset it will run against all available regions. Example: 'us-east-1 eu-*'",
       "Type": "String"
+    },
+    "AllowedInstanceTypes": {
+      "Default": "",
+      "Description": "Comma separated list of allowd instance types for spot, in case you may want to limit it to a smaller set of instance types. If unset instances will be choosen by autospotting's algorithm. Example: 'm4.xlarge,r4.xlarge'",
+      "Type": "String"
     }
   },
   "Resources": {
@@ -83,7 +88,8 @@
             "MIN_ON_DEMAND_NUMBER": { "Ref": "MinOnDemandNumber" },
             "MIN_ON_DEMAND_PERCENTAGE": { "Ref": "MinOnDemandPercentage" },
             "ON_DEMAND_PRICE_MULTIPLIER": { "Ref": "OnDemandPriceMultiplier" },
-            "REGIONS": { "Ref": "Regions" }
+            "REGIONS": { "Ref": "Regions" },
+            "ALLOWED_INSTANCE_TYPES": { "Ref": "AllowedInstanceTypes" }
           }
         },
         "Handler": { "Ref": "LambdaHandlerFunction" },
