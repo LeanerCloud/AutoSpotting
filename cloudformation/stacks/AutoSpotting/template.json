@@ -54,7 +54,7 @@
     },
     "AllowedInstanceTypes": {
       "Default": "",
-      "Description": "Comma separated list of allowd instance types for spot, in case you may want to limit it to a smaller set of instance types. If unset instances will be choosen by autospotting's algorithm. Example: 'm4.xlarge,r4.xlarge'",
+      "Description": "Comma separated list of allowed instance types for spot, in case you may want to limit it to a smaller set of instance types. If unset, instances will be chosen by autospotting's algorithm. Example: 'm4.xlarge,r4.xlarge'",
       "Type": "String"
     }
   },
