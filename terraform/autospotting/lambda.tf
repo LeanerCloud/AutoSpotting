@@ -22,6 +22,7 @@ resource "aws_iam_role" "autospotting_role" {
   name = "autospotting"
   path = "/lambda/"
   assume_role_policy = "${file("${path.module}/lambda-policy.json")}"
+  force_detach_policies = true
 }
 
 resource "aws_iam_role_policy" "autospotting_policy" {
