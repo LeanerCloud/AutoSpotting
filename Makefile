@@ -34,6 +34,7 @@ check_deps:                                                  ## Verify the syste
 build_deps:
 	@go get ./...
 	@go get github.com/mattn/goveralls
+	@go get github.com/golang/lint/golint
 	@go get golang.org/x/tools/cmd/cover
 	@docker pull eawsy/aws-lambda-go-shim:latest
 	wget -O Makefile.lambda https://git.io/vytH8
@@ -100,14 +101,14 @@ html-cover: test                                             ## Display coverage
 	@go tool cover -html=$(COVER_PROFILE)
 .PHONY: html-cover
 
-travisci-cover: html-cover                                   ## Generate coverage in the TravisCI format, fails unless executed from TravisCI
+travisci-cover: html-cover                                   ## Test & generate coverage in the TravisCI format, fails unless executed from TravisCI
 	@goveralls -coverprofile=$(COVER_PROFILE) -service=travis-ci
 .PHONY: travisci-cover
 
-travisci-checks: fmt-check vet-check                         ## Pass fmt / vet and calculate test coverage
+travisci-checks: fmt-check vet-check lint                    ## Pass fmt / vet & lint format
 .PHONY: travisci-checks
 
-travisci: travisci-checks prepare_upload_data travisci-cover ## Executed by TravisCI
+travisci: prepare_upload_data travisci-checks travisci-cover ## Executed by TravisCI
 .PHONY: travisci
 
 help:                                                        ## Show this help

@@ -19,8 +19,10 @@ type cfgData struct {
 
 var conf *cfgData
 
-//These variables are set by the build system using some ldflags parameters.
+// Version represents the build version being used
 var Version string
+
+// ExpirationDate represents the date at which the version will expire
 var ExpirationDate string
 
 func main() {
