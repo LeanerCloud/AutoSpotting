@@ -13,6 +13,7 @@
     * [Testing configuration](#testing-configuration)
     * [Running configuration](#running-configuration)
       * [Minimum on-demand configuration](#minimum-on-demand-configuration)
+    * [Debug autospotting](#debug-autospotting)
   * [Updates and Downgrades](#updates-and-downgrades)
     * [Compatibility notices](#compatibility-notices)
   * [Uninstallation](#uninstallation)
@@ -275,6 +276,21 @@ still understand that you want 0 instances, because `0.16 * 3` is equal to
 (or more than 16.66667%) then the algorithm understands that you want at least
 one instance (`0.17 * 3 = 0.51`). All in all it should work as you expect, but
 this was just to explain some more the functionning of the percentage's math.
+
+### Debug autospotting ###
+
+In certain situations you might want to add verbosity to the project in order
+to understand a bit better what its doing. If you want to do so please run it
+with the following environment variable `AUTOSPOTTING_DEBUG`.
+
+You can do it locally with some custom binary:
+```bash
+ AUTOSPOTTING_DEBUG=true ./autospotting
+```
+
+Or you can do it via the Lambda console under the `Environment variables`
+section. Please note those variables aren't exposed via Cloudformation nor via
+terraform.
 
 ## Updates and Downgrades ##
 
