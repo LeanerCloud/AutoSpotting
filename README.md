@@ -129,6 +129,7 @@ world, such as:
 - www.roames.com
 - www.spscommerce.com
 - www.taitradio.com
+- www.branch.io
 
 ## Uninstall ##
 
