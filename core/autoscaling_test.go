@@ -2,12 +2,12 @@ package autospotting
 
 import (
 	"errors"
-	"reflect"
-	"testing"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"math"
+	"reflect"
+	"testing"
 )
 
 func TestGetTagValue(t *testing.T) {
@@ -639,6 +639,14 @@ func TestLoadConfigFromTags(t *testing.T) {
 					Key:   aws.String(OnDemandPercentageLong),
 					Value: aws.String("text"),
 				},
+				{
+					Key:   aws.String(BiddingPolicyTag),
+					Value: aws.String("Autospotting"),
+				},
+				{
+					Key:   aws.String(SpotPriceBufferPercentageTag),
+					Value: aws.String("-15.0"),
+				},
 			},
 			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
@@ -658,6 +666,14 @@ func TestLoadConfigFromTags(t *testing.T) {
 					Key:   aws.String(OnDemandNumberLong),
 					Value: aws.String("-2"),
 				},
+				{
+					Key:   aws.String(BiddingPolicyTag),
+					Value: aws.String("normal"),
+				},
+				{
+					Key:   aws.String(SpotPriceBufferPercentageTag),
+					Value: aws.String("15.0"),
+				},
 			},
 			asgInstances: makeInstancesWithCatalog(
 				map[string]*instance{
@@ -674,15 +690,223 @@ func TestLoadConfigFromTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := autoScalingGroup{Group: &autoscaling.Group{}}
+			cfg := &Config{
+				BiddingPolicy:             "normal",
+				SpotPriceBufferPercentage: 10.0,
+			}
+			a := autoScalingGroup{Group: &autoscaling.Group{},
+				region: &region{
+					name: "us-east-1",
+					conf: cfg,
+				},
+			}
 			a.Tags = tt.asgTags
 			a.instances = tt.asgInstances
 			a.MaxSize = tt.maxSize
+
 			done := a.loadConfigFromTags()
 			if tt.loadingExpected != done {
 				t.Errorf("loadConfigFromTags returned: %t expected %t", done, tt.loadingExpected)
 			}
 		})
+	}
+}
+
+func TestLoadSpotPriceBufferPercentage(t *testing.T) {
+	tests := []struct {
+		name            string
+		tagValue        *string
+		loadingExpected bool
+		valueExpected   float64
+	}{
+		{
+			tagValue:        aws.String("5.0"),
+			valueExpected:   5.0,
+			loadingExpected: true,
+		},
+		{
+			tagValue:        aws.String("TEST"),
+			valueExpected:   10.0,
+			loadingExpected: false,
+		},
+		{
+			tagValue:        aws.String("-10.0"),
+			valueExpected:   10.0,
+			loadingExpected: false,
+		},
+	}
+	for _, tt := range tests {
+		a := autoScalingGroup{Group: &autoscaling.Group{}}
+		value, loading := a.loadSpotPriceBufferPercentage(tt.tagValue)
+
+		if value != tt.valueExpected || loading != tt.loadingExpected {
+			t.Errorf("LoadBiddingPolicy returned: %f, expected: %f", value, tt.valueExpected)
+		}
+
+	}
+}
+
+func TestLoadBiddingPolicy(t *testing.T) {
+	tests := []struct {
+		name          string
+		tagValue      *string
+		valueExpected string
+	}{
+		{name: "Loading a false tag",
+			tagValue:      aws.String("aggressive"),
+			valueExpected: "aggressive",
+		},
+		{name: "Loading a true tag",
+			tagValue:      aws.String("normal"),
+			valueExpected: "normal",
+		},
+		{name: "Loading a fake tag",
+			tagValue:      aws.String("autospotting"),
+			valueExpected: "normal",
+		},
+	}
+	for _, tt := range tests {
+		a := autoScalingGroup{Group: &autoscaling.Group{}}
+		value, _ := a.loadBiddingPolicy(tt.tagValue)
+
+		if value != tt.valueExpected {
+			t.Errorf("LoadBiddingPolicy returned: %s, expected: %s", value, tt.valueExpected)
+		}
+
+	}
+}
+
+func TestLoadConfSpot(t *testing.T) {
+	tests := []struct {
+		name            string
+		asgTags         []*autoscaling.TagDescription
+		loadingExpected bool
+		valueExpected   string
+	}{
+		{name: "Loading a fake tag",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+			},
+			loadingExpected: false,
+			valueExpected:   "normal",
+		},
+		{name: "Loading a false tag",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+				{
+					Key:   aws.String(BiddingPolicyTag),
+					Value: aws.String("aggressive"),
+				},
+			},
+			loadingExpected: true,
+			valueExpected:   "aggressive",
+		},
+		{name: "Loading a true tag",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+				{
+					Key:   aws.String(BiddingPolicyTag),
+					Value: aws.String("normal"),
+				},
+			},
+			loadingExpected: false,
+			valueExpected:   "normal",
+		},
+	}
+	for _, tt := range tests {
+		cfg := &Config{
+			BiddingPolicy: "normal",
+		}
+		a := autoScalingGroup{Group: &autoscaling.Group{},
+			region: &region{
+				name: "us-east-1",
+				conf: cfg,
+			},
+		}
+		a.Tags = tt.asgTags
+		done := a.loadConfSpot()
+		if tt.loadingExpected != done {
+			t.Errorf("LoadSpotConf retured: %t expected %t", done, tt.loadingExpected)
+		} else if tt.valueExpected != a.region.conf.BiddingPolicy {
+			t.Errorf("LoadSpotConf loaded: %s expected %s", a.region.conf.BiddingPolicy, tt.valueExpected)
+		}
+
+	}
+}
+
+func TestLoadConfSpotPrice(t *testing.T) {
+	tests := []struct {
+		name            string
+		asgTags         []*autoscaling.TagDescription
+		loadingExpected bool
+		valueExpected   float64
+	}{
+		{name: "Loading a fake tag",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+			},
+			loadingExpected: false,
+			valueExpected:   10.0,
+		},
+		{name: "Loading the right tag",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+				{
+					Key:   aws.String(SpotPriceBufferPercentageTag),
+					Value: aws.String("15.0"),
+				},
+			},
+			loadingExpected: true,
+			valueExpected:   15.0,
+		},
+		{name: "Loading a false tag",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+				{
+					Key:   aws.String(SpotPriceBufferPercentageTag),
+					Value: aws.String("-50.0"),
+				},
+			},
+			loadingExpected: false,
+			valueExpected:   10.0,
+		},
+	}
+	for _, tt := range tests {
+		cfg := &Config{
+			SpotPriceBufferPercentage: 10.0,
+		}
+		a := autoScalingGroup{Group: &autoscaling.Group{},
+			region: &region{
+				name: "us-east-1",
+				conf: cfg,
+			},
+		}
+		a.Tags = tt.asgTags
+		done := a.loadConfSpotPrice()
+		if tt.loadingExpected != done {
+			t.Errorf("LoadSpotConf retured: %t expected %t", done, tt.loadingExpected)
+		} else if tt.valueExpected != a.region.conf.SpotPriceBufferPercentage {
+			t.Errorf("LoadSpotConf loaded: %f expected %f", a.region.conf.SpotPriceBufferPercentage, tt.valueExpected)
+		}
+
 	}
 }
 
@@ -2806,5 +3030,64 @@ func TestGetAllowedInstaceTypes(t *testing.T) {
 					allowed, tt.expected)
 			}
 		})
+	}
+}
+
+func TestGetPricetoBid(t *testing.T) {
+	tests := []struct {
+		spotPercentage       float64
+		currentSpotPrice     float64
+		currentOnDemandPrice float64
+		policy               string
+		want                 float64
+	}{
+		{
+			spotPercentage:       50.0,
+			currentSpotPrice:     0.0216,
+			currentOnDemandPrice: 0.0464,
+			policy:               "aggressive",
+			want:                 0.0324,
+		},
+		{
+			spotPercentage:       79.0,
+			currentSpotPrice:     0.0216,
+			currentOnDemandPrice: 0.0464,
+			policy:               "aggressive",
+			want:                 0.038664,
+		},
+		{
+			spotPercentage:       79.0,
+			currentSpotPrice:     0.0216,
+			currentOnDemandPrice: 0.0464,
+			policy:               "normal",
+			want:                 0.0464,
+		},
+		{
+			spotPercentage:       200.0,
+			currentSpotPrice:     0.0216,
+			currentOnDemandPrice: 0.0464,
+			policy:               "aggressive",
+			want:                 0.0464,
+		},
+	}
+	for _, tt := range tests {
+		cfg := &Config{
+			SpotPriceBufferPercentage: tt.spotPercentage,
+			BiddingPolicy:             tt.policy,
+		}
+		asg := &autoScalingGroup{
+			region: &region{
+				name: "us-east-1",
+				conf: cfg,
+			},
+		}
+
+		currentSpotPrice := tt.currentSpotPrice
+		currentOnDemandPrice := tt.currentOnDemandPrice
+		actualPrice := asg.getPricetoBid(currentOnDemandPrice, currentSpotPrice)
+		if math.Abs(actualPrice-tt.want) > 0.000001 {
+			t.Errorf("percentage = %.2f, policy = %s, expected price = %.5f, want %.5f, currentSpotPrice = %.5f",
+				tt.spotPercentage, tt.policy, actualPrice, tt.want, currentSpotPrice)
+		}
 	}
 }
