@@ -11,6 +11,14 @@ variable "autospotting_on_demand_price_multiplier" {
   description = "Multiplier for the on-demand price"
 }
 
+variable "autospotting_spot_price_buffer_percentage" {
+  description = "Percentage above the current spot price to place the bid"
+}
+
+variable "autospotting_bidding_policy" {
+  description = "Bidding policy for the spot bid"
+}
+
 variable "autospotting_regions_enabled" {
   description = "Regions that autospotting is watching"
 }

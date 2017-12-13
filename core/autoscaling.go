@@ -2,14 +2,13 @@ package autospotting
 
 import (
 	"errors"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"math"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
 const (
@@ -23,9 +22,24 @@ const (
 	// absolute number.
 	OnDemandNumberLong = "autospotting_on_demand_number"
 
+	// BiddingPolicyTag stores the bidding policy for the spot instance
+	BiddingPolicyTag = "autospotting_bidding_policy"
+
+	// SpotPriceBufferPercentageTag stores percentage value above the
+	// current spot price to place the bid
+	SpotPriceBufferPercentageTag = "spot_price_buffer_percentage"
+
 	// DefaultMinOnDemandValue stores the default on-demand capacity to be kept
 	// running in a group managed by autospotting.
 	DefaultMinOnDemandValue = 0
+
+	// DefaultSpotPriceBufferPercentage stores the default percentage value
+	// above the current spot price to place a bid
+	DefaultSpotPriceBufferPercentage = 10.0
+
+	// DefaultBiddingPolicy stores the default bidding policy for
+	// the spot bid on a per-group level
+	DefaultBiddingPolicy = "normal"
 )
 
 type autoScalingGroup struct {
@@ -60,6 +74,21 @@ func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool
 	return DefaultMinOnDemandValue, false
 }
 
+func (a *autoScalingGroup) loadSpotPriceBufferPercentage(tagValue *string) (float64, bool) {
+	spotPriceBufferPercentage, err := strconv.ParseFloat(*tagValue, 64)
+
+	if err != nil {
+		logger.Printf("Error with ParseFloat: %s\n", err.Error())
+		return DefaultSpotPriceBufferPercentage, false
+	} else if spotPriceBufferPercentage <= 0 {
+		logger.Printf("Ignoring out of range value : %f\n", spotPriceBufferPercentage)
+		return DefaultSpotPriceBufferPercentage, false
+	}
+
+	logger.Printf("Loaded SpotPriceBufferPercentage value to %f from tag %s\n", spotPriceBufferPercentage, SpotPriceBufferPercentageTag)
+	return spotPriceBufferPercentage, true
+}
+
 func (a *autoScalingGroup) loadNumberOnDemand(tagValue *string) (int64, bool) {
 	onDemand, err := strconv.Atoi(*tagValue)
 	if err != nil {
@@ -88,18 +117,72 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 					return done
 				}
 			}
-		} else {
-			debug.Println("Couldn't find tag", tagKey)
 		}
+		debug.Println("Couldn't find tag", tagKey)
 	}
 	return false
+}
+
+func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
+	biddingPolicy := *tagValue
+	if biddingPolicy != "aggressive" {
+		return DefaultBiddingPolicy, false
+	}
+
+	logger.Printf("Loaded BiddingPolicy value with %s from tag %s\n", biddingPolicy, BiddingPolicyTag)
+	return biddingPolicy, true
+}
+
+func (a *autoScalingGroup) loadConfSpot() bool {
+	tagValue := a.getTagValue(BiddingPolicyTag)
+	if tagValue == nil {
+		debug.Println("Couldn't find tag", BiddingPolicyTag)
+		return false
+	}
+	if newValue, done := a.loadBiddingPolicy(tagValue); done {
+		a.region.conf.BiddingPolicy = newValue
+		logger.Println("BiddingPolicy =", a.region.conf.BiddingPolicy)
+		return done
+	}
+	return false
+}
+
+func (a *autoScalingGroup) loadConfSpotPrice() bool {
+
+	tagValue := a.getTagValue(SpotPriceBufferPercentageTag)
+	if tagValue == nil {
+		return false
+	}
+
+	newValue, done := a.loadSpotPriceBufferPercentage(tagValue)
+	if !done {
+		debug.Println("Couldn't find tag", SpotPriceBufferPercentageTag)
+		return false
+	}
+
+	a.region.conf.SpotPriceBufferPercentage = newValue
+	return done
 }
 
 // Add configuration of other elements here: prices, whitelisting, etc
 func (a *autoScalingGroup) loadConfigFromTags() bool {
 
-	if a.loadConfOnDemand() {
+	resOnDemandConf := a.loadConfOnDemand()
+
+	resSpotConf := a.loadConfSpot()
+
+	resSpotPriceConf := a.loadConfSpotPrice()
+
+	if resOnDemandConf {
 		logger.Println("Found and applied configuration for OnDemand value")
+	}
+	if resSpotConf {
+		logger.Println("Found and applied configuration for Spot Bid")
+	}
+	if resSpotPriceConf {
+		logger.Println("Found and applied configuration for Spot Price")
+	}
+	if resOnDemandConf || resSpotConf || resSpotPriceConf {
 		return true
 	}
 	return false
@@ -130,6 +213,10 @@ func (a *autoScalingGroup) loadDefaultConfigPercentage() (int64, bool) {
 func (a *autoScalingGroup) loadDefaultConfig() bool {
 	done := false
 	a.minOnDemand = DefaultMinOnDemandValue
+
+	if a.region.conf.SpotPriceBufferPercentage <= 0 {
+		a.region.conf.SpotPriceBufferPercentage = DefaultSpotPriceBufferPercentage
+	}
 
 	if a.region.conf.MinOnDemandNumber != 0 {
 		a.minOnDemand, done = a.loadDefaultConfigNumber()
@@ -536,6 +623,20 @@ func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) []str
 
 }
 
+func (a *autoScalingGroup) getPricetoBid(
+	baseOnDemandPrice float64, currentSpotPrice float64) float64 {
+
+	logger.Println("BiddingPolicy: ", a.region.conf.BiddingPolicy)
+
+	if a.region.conf.BiddingPolicy == DefaultBiddingPolicy {
+		logger.Println("Launching spot instance with a bid =", baseOnDemandPrice)
+		return baseOnDemandPrice
+	}
+
+	logger.Println("Launching spot instance with a bid =", math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+a.region.conf.SpotPriceBufferPercentage/100.0)))
+	return math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+a.region.conf.SpotPriceBufferPercentage/100.0))
+}
+
 func (a *autoScalingGroup) launchCheapestSpotInstance(
 	azToLaunchIn *string) error {
 
@@ -569,12 +670,11 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 	baseOnDemandPrice := baseInstance.price
 
 	currentSpotPrice := newInstance.pricing.spot[*azToLaunchIn]
-
 	logger.Println("Finished searching for best spot instance in ", *azToLaunchIn)
 	logger.Println("Replacing an on-demand", *baseInstance.InstanceType,
 		"instance having the ondemand price", baseOnDemandPrice)
 	logger.Println("Launching best compatible instance:", newInstanceType,
-		"with current spot price:", currentSpotPrice)
+		"with the current spot price:", currentSpotPrice)
 
 	lc := a.getLaunchConfiguration()
 
@@ -584,7 +684,7 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 		*azToLaunchIn)
 
 	logger.Println("Bidding for spot instance for ", a.name)
-	return a.bidForSpotInstance(spotLS, baseOnDemandPrice)
+	return a.bidForSpotInstance(spotLS, a.getPricetoBid(baseOnDemandPrice, currentSpotPrice))
 }
 
 func (a *autoScalingGroup) loadSpotInstanceRequest(
