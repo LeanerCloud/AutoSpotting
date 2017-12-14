@@ -1,7 +1,8 @@
-DEPS := "wget git go docker"
+DEPS := "wget git go docker golint"
 
 BINARY := autospotting
 BINARY_PKG := ./core
+GOFILES := $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 COVER_PROFILE := /tmp/coverage.out
 BUCKET_NAME ?= cloudprowess
 FLAVOR ?= nightly
@@ -64,22 +65,18 @@ upload: prepare_upload_data                                  ## Upload binary
 .PHONY: upload
 
 vet-check:                                                   ## Verify vet compliance
-ifeq ($(shell go tool vet -all -shadow=true . 2>&1 | wc -l), 0)
+ifeq ($(shell go tool vet -all -shadow=true $(GOFILES) 2>&1 | wc -l), 0)
 	@printf "ok\tall files passed go vet\n"
 else
 	@printf "error\tsome files did not pass go vet\n"
-	@go tool vet -all -shadow=true . 2>&1
+	@go tool vet -all -shadow=true $(GOFILES) 2>&1
 endif
 .PHONY: vet-check
 
-fmt:
-	gofmt -l -s -w .
-.PHONY: fmt
-
 fmt-check:                                                   ## Verify fmt compliance
-ifneq ($(shell gofmt -l -s . | wc -l), 0)
+ifneq ($(shell gofmt -l -s $(GOFILES) | wc -l), 0)
 	@printf "error\tsome files did not pass go fmt, fix the following formatting diff or run 'make fmt'\n"
-	@gofmt -l -s -d .
+	@gofmt -l -s -d $(GOFILES)
 	@exit 1
 else
 	@printf "ok\tall files passed go fmt\n"
@@ -91,7 +88,8 @@ test:                                                        ## Test go code and
 .PHONY: test
 
 lint:
-	@golint -set_exit_status=1 ./...
+	@golint -set_exit_status $(BINARY_PKG)
+	@golint -set_exit_status .
 .PHONY: lint
 
 full-test: fmt-check vet-check test lint                     ## Pass test / fmt / vet / lint
