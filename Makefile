@@ -25,9 +25,8 @@ clean:                                                       ## Remove installed
 .PHONY: clean
 
 check_deps:                                                  ## Verify the system has all dependencies installed
-	@for DEP in $(shell echo "$(DEPS)"); do \
-		command -v "$$DEP" &>/dev/null \
-		|| (echo "Error: dependency '$$DEP' is absent" ; exit 1); \
+	@for DEP in "$(DEPS)"; do \
+		if ! command -v "$$DEP" >/dev/null ; then echo "Error: dependency '$$DEP' is absent" ; exit 1; fi; \
 	done
 	@echo "all dependencies satisifed: $(DEPS)"
 .PHONY: check_deps
