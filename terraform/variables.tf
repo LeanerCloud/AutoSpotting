@@ -1,4 +1,14 @@
 # Autospotting configuration
+variable "asg_allowed_instance_types" {
+  description = <<EOF
+If specified, the spot instances will have a specific instance type:
+
+current: the same as initial on-demand instances
+<instance-type>: the actual instance type to use
+EOF
+  default     = ""
+}
+
 variable "asg_min_on_demand_number" {
   description = "Minimum on demand number for all ASG enabled"
   default     = "0"
