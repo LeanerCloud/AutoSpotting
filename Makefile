@@ -5,7 +5,7 @@ BINARY_PKG := ./core
 GOFILES := $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 COVER_PROFILE := /tmp/coverage.out
 BUCKET_NAME ?= cloudprowess
-FLAVOR ?= nightly
+FLAVOR ?= custom
 LOCAL_PATH := build/s3/$(FLAVOR)
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)

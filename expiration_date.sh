@@ -5,6 +5,7 @@ FORMAT='%d-%b-%Y'
 if [ "$1" = 'nightly' ]
 then
   echo `date +$FORMAT -d "+2 months"`
-else
-  echo `date +$FORMAT -d "+1 year"`
+elif [ "$1" = 'custom' ]
+then
+  echo `date +$FORMAT -d "+100 years"`
 fi
