@@ -629,6 +629,11 @@ func TestIsVirtualizationCompatible(t *testing.T) {
 			instanceVirtualizationType: aws.String("hvm"),
 			expected:                   false,
 		},
+		{name: "Spot's virtualization is empty",
+			spotVirtualizationTypes:    []string{},
+			instanceVirtualizationType: aws.String("hvm"),
+			expected:                   true,
+		},
 	}
 
 	for _, tt := range tests {

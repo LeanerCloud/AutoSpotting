@@ -217,6 +217,12 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 	debug.Println("\tSpot virtualization: ", spotVirtualizationTypes)
 	debug.Println("\tInstance virtualization: ", current)
 
+	// c5.* instances do not have virtualization types, in this case
+	// we ignore this check and allow it to proceed.
+	if len(spotVirtualizationTypes) == 0 {
+		return true
+	}
+
 	for _, avt := range spotVirtualizationTypes {
 		if (avt == "PV") && (current == "paravirtual") ||
 			(avt == "HVM") && (current == "hvm") {
