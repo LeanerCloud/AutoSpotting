@@ -8,6 +8,11 @@ sudo: required
 services:
 - docker
 
+env:
+  # options: nightly, custom, stable
+  # default: custom
+  - FLAVOR=nightly
+
 script: make travisci
 
 after_success:
