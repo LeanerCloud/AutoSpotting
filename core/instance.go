@@ -3,6 +3,7 @@ package autospotting
 import (
 	"fmt"
 	"math"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -226,19 +227,32 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 	return false
 }
 
-func (i *instance) isAllowed(instanceType string, allowedList []string) bool {
+func (i *instance) isAllowed(instanceType string, allowedList []string, disallowedList []string) bool {
+	debug.Println("Checking allowed/disallowed list")
+
 	if allowedList != nil && allowedList[0] != "" {
 		for _, a := range allowedList {
 			if a == instanceType {
 				return true
 			}
 		}
+		debug.Println("Instance has been excluded since it was not in the allowed instance types list")
 		return false
+	} else if disallowedList != nil && disallowedList[0] != "" {
+		for _, a := range disallowedList {
+			// glob matching
+			if match, _ := filepath.Match(a, instanceType); match {
+				debug.Println("Instance has been excluded since it was in the disallowed instance types list")
+				return false
+			}
+		}
+		return true
 	}
+
 	return true
 }
 
-func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string) (string, error) {
+func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, disallowedList []string) (string, error) {
 	current := i.typeInfo
 	bestPrice := math.MaxFloat64
 	chosenSpotType := ""
@@ -267,7 +281,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string) (
 			i.isClassCompatible(candidate) &&
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) &&
-			i.isAllowed(candidate.instanceType, allowedList) {
+			i.isAllowed(candidate.instanceType, allowedList, disallowedList) {
 			bestPrice = candidatePrice
 			chosenSpotType = candidate.instanceType
 			debug.Println("Best option is now: ", chosenSpotType, " at ", bestPrice)

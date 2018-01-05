@@ -42,6 +42,7 @@ func run() {
 		"min_on_demand_number=%d "+
 		"min_on_demand_percentage=%.1f "+
 		"allowed_instance_types=%v "+
+		"disallowed_instance_types=%v "+
 		"on_demand_price_multiplier=%.2f"+
 		"spot_price_buffer_percentage=%.3f"+
 		"bidding_policy=%s",
@@ -49,6 +50,7 @@ func run() {
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
 		conf.AllowedInstanceTypes,
+		conf.DisallowedInstanceTypes,
 		conf.OnDemandPriceMultiplier,
 		conf.SpotPriceBufferPercentage,
 		conf.BiddingPolicy)
@@ -122,6 +124,12 @@ func (c *cfgData) parseCommandLineFlags() {
 		"If specified, the spot instances will have a specific instance type:\n"+
 			"\tcurrent: the same as initial on-demand instances\n"+
 			"\t<instance-type>: the actual instance type to use")
+
+	flag.StringVar(&c.DisallowedInstanceTypes, "disallowed_instance_types", "",
+		"If specified, the spot instances will _never_ be of this type. "+
+			"This should be a list of instance types (comma or whitespace separated, "+
+			"also supports globs).\n\t"+
+			"Example: ./autospotting -disallowed_instance_types 't2.*,c4.xlarge'")
 
 	flag.Float64Var(&c.OnDemandPriceMultiplier, "on_demand_price_multiplier", 1.0,
 		"Multiplier for the on-demand price. This is useful for volume discounts or if you want to\n"+
