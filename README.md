@@ -16,7 +16,7 @@ costs by automating the use of [spot](https://aws.amazon.com/ec2/spot) instances
 
 ![Savings](https://cdn.cloudprowess.com/images/savings.png)
 
-## How does it work?
+## How does it work? ##
 
 When installed and enabled on an existing on-demand AutoScaling group,
 AutoSpotting clones one of your on-demand instances from the group with a spot
@@ -69,10 +69,11 @@ Note: this installs the latest nightly build, generated automatically from the
  with no support or warranty.
 
 Stable, carefully tested and supported builds are available from the original
-author for a fee. Using these builds you are also helping the further
-development of the software. Please get in touch on
-[gitter](https://gitter.im/cristim) if you are interested in purchasing a stable
-build.
+author, and given to major [Patrons](https://www.patreon.com/cristim). Using
+these builds you are also helping the further development of the software.
+
+Please get in touch on [gitter](https://gitter.im/cristim) if you are a Patron
+interested in getting a stable build.
 
 ## Compiling and Installing ##
 

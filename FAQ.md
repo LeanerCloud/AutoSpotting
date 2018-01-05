@@ -108,8 +108,8 @@ set of regions.
 
  ## How much does it cost me to run it?
 
- AutoSpotting is designed to have minimal footprint, and it will only cost you a
- few pennies monthly.
+AutoSpotting is designed to have minimal footprint, and it will only cost you a
+few pennies monthly.
 
 It is based on AWS Lambda, and it should be well within the monthly free tier,
 so you will only pay a bit for logging and network traffic performed against AWS
@@ -130,15 +130,21 @@ any other values.
 ## How about the software costs?
 
 The software itself is free and open source so there is no monthly subscription
-fee. But if you find it useful you can always donate some money to the authors,
-to sponsor and encourage further development.
+fee if you use the open source code straight from trunk. The software itself is
+largely community-supported, well-documented and is designed to be easy to set
+up so it shouldn't need much support.
 
-The software is mainly community-supported, well-documented and is designed to
-be easy to set up so it shouldn't need much support.
+But if you really find it useful please consider giving a recurring tip on
+[Patreon](https://www.patreon.com/cristim) to encourage further development.
 
-Nevertheless, custom development and customized deployment support can also be
-performed on demand by the original author for a fee, feel free to get in touch
-if you need any help.
+If your tip is over 5% of the money it saves you monthly, you will get access to
+stable builds that were carefully tested by the author and should be more
+reliable for production use cases, and if you have any issues they will be
+handled with higher urgency by the author.
+
+The author also offers custom feature development and deployment support for a
+fee, feel free to [get in touch](https://gitter.im/cristim) if you need any
+help.
 
  ## How do I enable it?
 
@@ -233,8 +239,8 @@ with the instance's uptime.
 
 If the spot instance is past its grace period, AutoSpotting will attach it to
 the group and immediately detach and terminate an on-demand instance from the
-same availability zone. Note that if draining connection is configured on ELB 
-then Auto Scaling waits for in-flight requests to complete before detaching 
+same availability zone. Note that if draining connection is configured on ELB
+then Auto Scaling waits for in-flight requests to complete before detaching
 the instance. The terminated on-demand instance is not necessarily the same used
 initially, just in case that may have been terminated by some scaling operations
 or for failing health checks.
@@ -266,15 +272,14 @@ normal replacement process which can be seen above.
 
 ## What bidding price does AutoSpotting use?
 
-Currently AutoSpotting is placing spot bids with the hourly price of your
+By default AutoSpotting is placing spot bids with the hourly price of your
 original on-demand instances, so you never pay more than that in the event of
-price surges. This is subject to change later, once more bidding strategies are
-implemented.
+price surges.
 
-As mentioned before, your spot instances would be terminated and replaced by
-AutoScaling with on-demand instances as initially configured on the group's
-Launch configuration.
-
+Another bidding strategy is placing bids based on the current spot price, with a
+bit of buffer (default 10%) on top of the current spot price. This will
+terminate your spot instances on significant price increases, to give the
+algorithm the chance to search for better priced instance types.
 
 ## What are the goals and design principles of AutoSpotting?
 
@@ -337,25 +342,25 @@ the draining action.
 
 Anything that doesn't really match the above cases.
 
-#### Groups that have no redundancy
+### Groups that have no redundancy
 
 If you have a single instance in the group, spot terminations may often leave
 your group without any nodes. If this is a problem, you should not run
 AutoSpotting in such groups, but instead use reserved instances, maybe of T2
 burstable instance types if your application works well on those.
 
-#### Instances which can't be drained quickly
+### Instances which can't be drained quickly
 
 If your application is expected to serve long-running requests, without timing
 out after longer than a couple of minutes, AutoSpotting(or any spot automation)
 may not be for you, and you should be running reserved instances.
 
-#### Cases in which the order of processing queued items is strict
+### Cases in which the order of processing queued items is strict
 
 Spot instance termination may impact such use cases, you should be running them
 on on-demand or reserved instances.
 
-#### Stateful workloads
+### Stateful workloads
 
 AutoSpotting doesn't support stateful workloads out of the box, particularly in
 case certain EBS persistent volumes need to be attached to running instances.
@@ -391,7 +396,6 @@ On top of that, Autospotting allows you to configure the number or percentage of
 spot instance that you tolerate in your ASG, while the integration of AWS would
 try to replace them all, causing potential downtime if they were to disapear at
 the same time.
-
 
 ## How does AutoSpotting compare to the the spot fleet AWS offering?
 
@@ -440,7 +444,7 @@ have to be roughly of the same size. The original on-demand price used for spot
 instance bidding will also constrain the spot instance types to a relatively
 narrow range, which is not the case for SpotFleets.
 
-## How does AutoSpotting compare to commercial offerings such as SpotInst or Batchly?
+## How does AutoSpotting compare to commercial offerings such as SpotInst?
 
 Many of these commercial offerings have in common a number of things:
 - SaaS model, requiring admin-like privileges and cross-account access to all
@@ -481,7 +485,6 @@ Many of these commercial offerings have in common a number of things:
   polished than both AWS Spot Fleets and AutoSpotting, and they may be
   cloud-provider-agnostic, but their price tag is huge.
 
-
 ## Does AutoSpotting continuously search and use cheaper spot instances?
 
 If I attach autospotting to a auto scaling group that is 100% spot instances,
@@ -499,7 +502,6 @@ This behavior may be changed once implementing
 [#119](https://github.com/cristim/autospotting/issues/119), in which we may
 implement a strategy bidding closer to the current spot price in order to avoid
 running that spot instance after significant spot price increases.
-
 
 ## The lambda function was launched but nothing happens. What may cause this?
 
@@ -519,6 +521,54 @@ consider [contributing](CONTRIBUTING.md) a fix.
 
 Other cases may need to be reported as additional issues.
 
+# Which IAM permissions are granted to the AutoSpotting CloudFormation Stack and why are they needed?
+
+Just like users who pipe curl output into their shell for installing software
+should carefully review those installation scripts, users should pay attention
+and audit the infrastructure code when launching CloudFormation or Terraform
+stacks available on the Internet, especially in case they are given significant
+permissions against the AWS infrastructure.
+
+AWS is quite helpful and by default it forbids installation of stacks which have
+the potential to be used for escalation of privileges, but it turns out
+AutoSpotting needs such permissions in order to work.
+
+In order to launch the AutoSpotting stack, you will need to have admin-like
+permissions in the target AWS account and you need to give the stack a special
+permission, called `CAPABILITY_IAM`, which is needed because the stack creates
+additional IAM resources which could in theory be abused for privilege
+escalation. You can read more about this in the official AWS
+[documentation](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-iam-template.html#using-iam-capabilities)
+
+The AutoSpotting stack needs this capability in order to create a custom IAM
+role that allows the Lambda function to perform all the instance replacement
+actions against your instances and autoscaling groups.
+
+This configuration was carefully crafted to contain the minimum amount of
+permissions needed for the instance replacement and logging its actions. The
+full list can be seen in the Cloudformation stack
+[template](https://github.com/cristim/autospotting/blob/master/cloudformation/stacks/AutoSpotting/template.json#L91),
+but it basically boils down to the following:
+- describing the resources you have in order to decide what needs to be done
+  (things such as regions, instances, spot prices, existing spot requests,
+  AutoScaling groups, etc.)
+- launching spot instances
+- attaching and detaching instances to/from Autoscaling groups
+- terminating detached instances
+- logging all actions to CloudWatch Logs
+
+In addition to these, for similar privileges escalation concerns, the
+AutoSpotting Lambda function's IAM role also needs another special IAM
+permission called `iam:passRole`, which is needed in order to be able to clone
+the IAM roles used by the on demand instances when launching the replacement
+spot instances. This requirement is also pretty well
+[documented](https://aws.amazon.com/blogs/security/granting-permission-to-launch-ec2-instances-with-iam-roles-passrole-permission/)
+by AWS.
+
+Since AutoSpotting is open source software, you can audit it and see exactly how
+all these capabilities are being used, and if you notice any issues you can
+improve it yourself and you are more than welcome to contribute such fixes so
+anyone else can benefit from them.
 
 ## Is the project going to be discontinued anytime soon?
 
@@ -538,3 +588,5 @@ one-man-show open source hobby project.
 ## Shall I contribute to Autospotting code?
 
 Of course, all contributions are welcome :)
+
+For detais on how to contribute have a look [here](CONTRIBUTING.md)
