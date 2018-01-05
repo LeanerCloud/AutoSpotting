@@ -3,15 +3,47 @@
 
 [[projects]]
   name = "github.com/aws/aws-sdk-go"
-  packages = ["aws","aws/awserr","aws/awsutil","aws/client","aws/client/metadata","aws/corehandlers","aws/credentials","aws/credentials/ec2rolecreds","aws/credentials/endpointcreds","aws/credentials/stscreds","aws/defaults","aws/ec2metadata","aws/endpoints","aws/request","aws/session","aws/signer/v4","internal/shareddefaults","private/protocol","private/protocol/ec2query","private/protocol/query","private/protocol/query/queryutil","private/protocol/rest","private/protocol/xml/xmlutil","service/autoscaling","service/autoscaling/autoscalingiface","service/ec2","service/ec2/ec2iface","service/sts"]
-  revision = "a9c63ac6fd79402f91191c2e0a1348d0b8968e6c"
-  version = "v1.12.41"
+  packages = [
+    "aws",
+    "aws/awserr",
+    "aws/awsutil",
+    "aws/client",
+    "aws/client/metadata",
+    "aws/corehandlers",
+    "aws/credentials",
+    "aws/credentials/ec2rolecreds",
+    "aws/credentials/endpointcreds",
+    "aws/credentials/stscreds",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/endpoints",
+    "aws/request",
+    "aws/session",
+    "aws/signer/v4",
+    "internal/shareddefaults",
+    "private/protocol",
+    "private/protocol/ec2query",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/xml/xmlutil",
+    "service/autoscaling",
+    "service/autoscaling/autoscalingiface",
+    "service/ec2",
+    "service/ec2/ec2iface",
+    "service/sts"
+  ]
+  revision = "f62f7b7c5425f2b1a630932617477bdeac6dc371"
+  version = "v1.12.55"
 
 [[projects]]
   branch = "master"
   name = "github.com/cristim/ec2-instances-info"
-  packages = [".","data"]
-  revision = "b32893db2ad6aa3d06bccf5e73f99f8f0c40c6bf"
+  packages = [
+    ".",
+    "data"
+  ]
+  revision = "6680051af974c54d19c3fbc2f45597deae73b111"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -51,6 +83,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0293aaaa32b2ed740e5c5d3edbfbb9ff37cd06013ebb49043f0c6c0cc6ed702b"
+  inputs-digest = "6a95029ee5e4e4faf00947e22e515c448b223586ec6d3fd94580229fe3a7edda"
   solver-name = "gps-cdcl"
   solver-version = 1
