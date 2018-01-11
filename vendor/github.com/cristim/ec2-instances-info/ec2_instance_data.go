@@ -13,9 +13,10 @@ import (
 
 // AWS Instances JSON Structure Definitions
 type jsonInstance struct {
-	Family             string                  `json:"family"`
-	EnhancedNetworking bool                    `json:"enhanced_networking"`
-	VCPU               int                     `json:"vCPU"`
+	Family             string          `json:"family"`
+	EnhancedNetworking bool            `json:"enhanced_networking"`
+	VCPURaw            json.RawMessage `json:"vCPU"`
+	VCPU               int
 	Generation         string                  `json:"generation"`
 	EBSIOPS            float32                 `json:"ebs_iops"`
 	NetworkPerformance string                  `json:"network_performance"`
@@ -90,6 +91,14 @@ func Data() (*InstanceData, error) {
 	err = json.Unmarshal(raw, &d)
 	if err != nil {
 		return nil, errors.Errorf("couldn't read the data asset: %s", err.Error())
+	}
+
+	// Handle "N/A" values in the VCPU field for i3.metal instance type
+	for i := range d {
+		var n int
+		if err = json.Unmarshal(d[i].VCPURaw, &n); err == nil {
+			d[i].VCPU = n
+		}
 	}
 
 	return &d, nil

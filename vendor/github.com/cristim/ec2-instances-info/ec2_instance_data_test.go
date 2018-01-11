@@ -13,6 +13,7 @@ func TestData(t *testing.T) {
 			instance: jsonInstance{
 				InstanceType: "t2.nano",
 				Memory:       0.5,
+				VCPU:         1,
 				Pricing: map[string]RegionPrices{
 					"us-east-1": {
 						Linux: LinuxPricing{
@@ -29,6 +30,7 @@ func TestData(t *testing.T) {
 			instance: jsonInstance{
 				InstanceType: "m3.2xlarge",
 				Memory:       30.0,
+				VCPU:         8,
 				Pricing: map[string]RegionPrices{
 					"us-east-1": {
 						Linux: LinuxPricing{
@@ -45,6 +47,7 @@ func TestData(t *testing.T) {
 			instance: jsonInstance{
 				InstanceType: "p2.16xlarge",
 				Memory:       732.0,
+				VCPU:         64,
 				GPU:          16,
 				Pricing: map[string]RegionPrices{
 					"us-east-1": {
@@ -73,6 +76,11 @@ func TestData(t *testing.T) {
 				if i.Memory != tt.instance.Memory {
 					t.Errorf("Data(): %v, want memory %v, got %v",
 						tt.instance.InstanceType, tt.instance.Memory, i.Memory)
+				}
+
+				if i.VCPU != tt.instance.VCPU {
+					t.Errorf("Data(): %v, want CPUs %v, got %v",
+						tt.instance.InstanceType, tt.instance.VCPU, i.VCPU)
 				}
 
 				if i.Pricing["us-east-1"].Linux.OnDemand != tt.instance.Pricing["us-east-1"].Linux.OnDemand {
