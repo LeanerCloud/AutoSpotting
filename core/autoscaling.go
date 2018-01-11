@@ -599,6 +599,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 }
 
 func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) []string {
+
 	var allowed, allowedInstanceTypesTag string
 
 	// Check option of allowed instance types
@@ -619,26 +620,7 @@ func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) []str
 		return []string{baseInstance.typeInfo.instanceType}
 	}
 	return strings.Split(allowed, ",")
-}
 
-func (a *autoScalingGroup) getDisallowedInstanceTypes(baseInstance *instance) []string {
-	var disallowed, disallowedInstanceTypesTag string
-
-	// Check option of allowed instance types
-	// If we have that option we don't need to calculate the compatible instance type.
-	if tagValue := a.getTagValue("disallowed-instance-types"); tagValue != nil {
-		disallowedInstanceTypesTag = strings.Replace(*tagValue, " ", ",", -1)
-	}
-	disallowedInstanceTypes := strings.Replace(a.region.conf.DisallowedInstanceTypes, " ", ",", -1)
-
-	// Command line config has a priority
-	if disallowedInstanceTypes != "" {
-		disallowed = disallowedInstanceTypes
-	} else {
-		disallowed = disallowedInstanceTypesTag
-	}
-
-	return strings.Split(disallowed, ",")
 }
 
 func (a *autoScalingGroup) getPricetoBid(
@@ -675,9 +657,8 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 	logger.Println("Found on-demand instance", baseInstance.InstanceId)
 
 	allowedInstances := a.getAllowedInstanceTypes(baseInstance)
-	disallowedInstances := a.getDisallowedInstanceTypes(baseInstance)
 
-	newInstanceType, err := baseInstance.getCheapestCompatibleSpotInstanceType(allowedInstances, disallowedInstances)
+	newInstanceType, err := baseInstance.getCheapestCompatibleSpotInstanceType(allowedInstances)
 	if err != nil {
 		logger.Println("No cheaper compatible instance type was found, "+
 			"nothing to do here...", err)

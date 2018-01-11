@@ -25,7 +25,6 @@ type Config struct {
 	MinOnDemandPercentage     float64
 	Regions                   string
 	AllowedInstanceTypes      string
-	DisallowedInstanceTypes   string
 	OnDemandPriceMultiplier   float64
 	SpotPriceBufferPercentage float64
 	BiddingPolicy             string

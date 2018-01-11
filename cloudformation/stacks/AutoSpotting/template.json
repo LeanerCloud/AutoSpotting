@@ -66,11 +66,6 @@
       "Default": "",
       "Description": "Comma separated list of allowed instance types for spot, in case you may want to limit it to a smaller set of instance types. If unset, instances will be chosen by autospotting's algorithm. Example: 'm4.xlarge,r4.xlarge'",
       "Type": "String"
-    },
-    "DisallowedInstanceTypes": {
-      "Default": "",
-      "Description": "Comma separated list of disallowed instance types for spot, in case you want to exclude specific types (also support globs). Example: 't2.*,m4.large'",
-      "Type": "String"
     }
   },
   "Resources": {
@@ -106,8 +101,7 @@
             "SPOT_PRICE_BUFFER_PERCENTAGE": { "Ref": "SpotPricePercentageBuffer"},
             "BIDDING_POLICY": { "Ref": "BiddingPolicy"},
             "REGIONS": { "Ref": "Regions" },
-            "ALLOWED_INSTANCE_TYPES": { "Ref": "AllowedInstanceTypes" },
-            "DISALLOWED_INSTANCE_TYPES": { "Ref": "DisallowedInstanceTypes" }
+            "ALLOWED_INSTANCE_TYPES": { "Ref": "AllowedInstanceTypes" }
           }
         },
         "Handler": { "Ref": "LambdaHandlerFunction" },
