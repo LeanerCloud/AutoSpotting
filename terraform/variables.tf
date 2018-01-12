@@ -1,4 +1,14 @@
 # Autospotting configuration
+variable "asg_disallowed_instance_types" {
+  description = <<EOF
+Comma separated list of disallowed instance types for spot requests,
+in case you want to exclude specific types (also support globs).
+
+Example: 't2.*,m4.large'
+EOF
+  default = ""
+}
+
 variable "asg_min_on_demand_number" {
   description = "Minimum on demand number for all ASG enabled"
   default     = "0"
