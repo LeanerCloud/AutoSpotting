@@ -1,5 +1,54 @@
 # Technical Details #
 
+## Summary of supported features & options ##
+
+| Option  | Status | Override via ASG conf |
+| ------- | :----: | :-------------------: |
+| Run on multiple regions | :white_check_mark: | :heavy_minus_sign: |
+| [Keep a fixed minimum percentage of on-demand](https://github.com/cristim/autospotting/blob/master/START.md#minimum-on-demand-configuration) | :white_check_mark: | :white_check_mark: |
+| [Keep a fixed minimum number of on-demand](https://github.com/cristim/autospotting/blob/master/START.md#minimum-on-demand-configuration) | :white_check_mark: | :white_check_mark: |
+| Can bid at a certain percentage of the on-demand price | :white_check_mark: | :white_check_mark: |
+| Can bid the current spot price plus a certain percentage | :white_check_mark: | :white_check_mark: |
+| Whitelisting of certain instance types | [:beetle:](https://github.com/cristim/autospotting/pull/120#issuecomment-321856920) | :heavy_minus_sign: |
+| Blacklisting of certain instance types | :white_check_mark: | :white_check_mark: |
+
+For the options not directly linked to any specific part of the doc, please
+check the
+[configuration](https://github.com/cristim/autospotting/blob/master/START.md#configuration-of-autospotting)page.
+
+| Feature | Status |
+| ------- | :----: |
+| [Install via Cloudformation](https://github.com/cristim/autospotting/blob/master/START.md#install-via-cloudformation) | :white_check_mark: |
+| [Install via Terraform](https://github.com/cristim/autospotting/blob/master/START.md#install-via-terraform) | :white_check_mark: |
+| Works with code deploy | :white_check_mark: :wrench: |
+| [Works with beanstalk](https://github.com/cristim/autospotting/blob/053135e97082511fb99b689dce4a7a7830f3327c/START.md#for-elastic-beanstalk) | :white_check_mark: |
+| Support AWS VPC| :white_check_mark: |
+| Support AWS EC2Classic|[:beetle:](https://github.com/cristim/autospotting/issues/48) :pencil: |
+| Support AWS DefaultVPC|[:beetle: :pencil:](https://github.com/cristim/autospotting/issues/48#issuecomment-322123359) |
+| [Rancher compliance](http://rancher.com/reducing-aws-spend/) | :white_check_mark: |
+| Lambda X-Ray support | :x: |
+| Graphing savings | :x: :wrench: |
+| Windows support | :x: :pencil: |
+| Handle spot termination's signal | :x: :wrench: |
+| SNS notifications on success/failure | :x: |
+
+### Meaning of the above icons ##
+
+- :white_check_mark: - supported and known to work well so far
+- :x: - not supported but its implementation has been considered or is awaiting
+  code contributions
+- :heavy_minus_sign: - not applicable, or already part of the default behavior.
+- :beetle: - implemented but experimental or known to be buggy
+- :wrench: - may require some workarounds, for example it may be done with
+  external tooling or may need additional configuration on your infrastructure
+- :pencil: - a workaround or complete fix can be implemented in a
+  custom/hardcoded fork with relatively little effort, but a proper fix ready to
+  be upstreamed needs more work.
+
+Some of them can be clicked for more information, you can see if you hover them
+with your mouse pointer, but if you have any questions you can always get in
+touch on [Gitter](https://gitter.im/cristim/autospotting).
+
 ## Features and Benefits ##
 
 - **Significant cost savings compared to on-demand or reserved instances**
