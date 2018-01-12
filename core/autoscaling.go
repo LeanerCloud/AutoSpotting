@@ -2,13 +2,14 @@ package autospotting
 
 import (
 	"errors"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"math"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
 const (
@@ -622,23 +623,26 @@ func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) []str
 }
 
 func (a *autoScalingGroup) getDisallowedInstanceTypes(baseInstance *instance) []string {
-	var disallowed, disallowedInstanceTypesTag string
+	var disallowedInstanceTypesTag string
 
-	// Check option of allowed instance types
+	// By default take the command line parameter
+	disallowed := strings.Replace(a.region.conf.DisallowedInstanceTypes, " ", ",", -1)
+
+	// Check option of disallowed instance types
 	// If we have that option we don't need to calculate the compatible instance type.
 	if tagValue := a.getTagValue("disallowed-instance-types"); tagValue != nil {
 		disallowedInstanceTypesTag = strings.Replace(*tagValue, " ", ",", -1)
 	}
-	disallowedInstanceTypes := strings.Replace(a.region.conf.DisallowedInstanceTypes, " ", ",", -1)
 
-	// Command line config has a priority
-	if disallowedInstanceTypes != "" {
-		disallowed = disallowedInstanceTypes
-	} else {
+	// ASG Tag config has a priority to override
+	if disallowedInstanceTypesTag != "" {
 		disallowed = disallowedInstanceTypesTag
 	}
 
-	return strings.Split(disallowed, ",")
+	// Simple trick to avoid returning list with empty elements
+	return strings.FieldsFunc(disallowed, func(c rune) bool {
+		return c == ','
+	})
 }
 
 func (a *autoScalingGroup) getPricetoBid(
