@@ -584,6 +584,18 @@ Since it's open source anyone can participate in the development, contribute
 fixes and improvements benefitting anyone else, so it's no longer a tiny
 one-man-show open source hobby project.
 
+## How do I Uninstall it?
+
+You just need to remove the AutoSpotting CloudFormation or Terraform stack.
+
+The groups will eventually revert to the original state once the spot market
+price fluctuations terminate all the spot instances. In some cases this may take
+months, so you can also terminate them immediately, the best way to achieve this
+is by configuring autospotting to use 100% on-demand capacity.
+
+Fine-grained control on a per group level can be achieved by removing or setting
+the `spot-enabled` tag to any other value. AutoSpotting only touches groups
+where this tag is set to `true`.
 
 ## Shall I contribute to Autospotting code?
 
