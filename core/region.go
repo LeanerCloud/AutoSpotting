@@ -330,6 +330,9 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 }
 
 func containsString(list []*string, a string) bool {
+	if list == nil || len(list) == 0 {
+		return false
+	}
 	for _, b := range list {
 		if *b == a {
 			return true
