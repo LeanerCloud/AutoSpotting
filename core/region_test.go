@@ -249,3 +249,45 @@ func TestOnDemandPriceMultiplier(t *testing.T) {
 		}
 	}
 }
+
+func TestContainsString(t *testing.T) {
+	tests := []struct {
+		name string
+		key  string
+		list []*string
+		want bool
+	}{
+		{
+			name: "Test successful match",
+			key:  "test_key",
+			list: []*string{aws.String("test_key"), aws.String("test_key1")},
+			want: true,
+		},
+		{
+			name: "Test zero match",
+			key:  "not_found",
+			list: []*string{aws.String("test_key"), aws.String("test_key1")},
+			want: false,
+		},
+		{
+			name: "Test empty array",
+			key:  "not_found",
+			list: []*string{},
+			want: false,
+		},
+		{
+			name: "Test nil array",
+			key:  "not_found",
+			list: nil,
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			received := containsString(tt.list, tt.key)
+			if tt.want != received {
+				t.Errorf("region.containsString() = %v, want %v", received, tt.want)
+			}
+		})
+	}
+}
