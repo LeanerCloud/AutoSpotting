@@ -52,7 +52,7 @@ variable "lambda_runtime" {
 
 variable "lambda_memory_size" {
   description = "Memory size allocated to the lambda run"
-  default     = 256
+  default     = 1024
 }
 
 variable "lambda_timeout" {
