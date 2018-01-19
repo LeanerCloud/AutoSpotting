@@ -95,7 +95,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("text"),
 				},
 			},
@@ -111,7 +111,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("142.2"),
 				},
 			},
@@ -127,7 +127,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("-22"),
 				},
 			},
@@ -143,7 +143,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("0"),
 				},
 			},
@@ -162,7 +162,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("33.0"),
 				},
 			},
@@ -184,7 +184,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("75.0"),
 				},
 			},
@@ -206,7 +206,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("100.0"),
 				},
 			},
@@ -320,7 +320,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("75"),
 				},
 				{
@@ -347,7 +347,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("75"),
 				},
 				{
@@ -374,7 +374,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("-75"),
 				},
 				{
@@ -637,7 +637,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("text"),
 				},
 				{
@@ -660,7 +660,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandPercentageLong),
+					Key:   aws.String(OnDemandPercentageTag),
 					Value: aws.String("75"),
 				},
 				{
@@ -2945,7 +2945,7 @@ func TestGetAllowedInstaceTypes(t *testing.T) {
 			},
 			asgtags: []*autoscaling.TagDescription{
 				{
-					Key:   aws.String("allowed-instance-types"),
+					Key:   aws.String("autospotting_allowed_instance_types"),
 					Value: aws.String("c2.xlarge"),
 				},
 			},
@@ -3063,7 +3063,7 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 			},
 			asgtags: []*autoscaling.TagDescription{
 				{
-					Key:   aws.String("disallowed-instance-types"),
+					Key:   aws.String("autospotting_disallowed_instance_types"),
 					Value: aws.String("c2.xlarge"),
 				},
 			},
@@ -3110,7 +3110,7 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 			},
 			asgtags: []*autoscaling.TagDescription{
 				{
-					Key:   aws.String("disallowed-instance-types"),
+					Key:   aws.String("autospotting_disallowed_instance_types"),
 					Value: aws.String("c4.4xlarge"),
 				},
 			},

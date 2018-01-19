@@ -13,22 +13,39 @@ import (
 )
 
 const (
-	// OnDemandPercentageLong is the name of a tag that can be defined on a
+	// The tag names below allow overriding global setting on a per-group level.
+	// They should follow the format below:
+	// "autospotting_${overridden_command_line_parameter_name}"
+
+	// For example the tag named "autospotting_min_on_demand_number" will override
+	// the command-line option named "min_on_demand_number", and so on.
+
+	// OnDemandPercentageTag is the name of a tag that can be defined on a
 	// per-group level for overriding maintained on-demand capacity given as a
 	// percentage of the group's running instances.
-	OnDemandPercentageLong = "autospotting_on_demand_percentage"
+	OnDemandPercentageTag = "autospotting_min_on_demand_percentage"
 
 	// OnDemandNumberLong is the name of a tag that can be defined on a
 	// per-group level for overriding maintained on-demand capacity given as an
 	// absolute number.
-	OnDemandNumberLong = "autospotting_on_demand_number"
+	OnDemandNumberLong = "autospotting_min_on_demand_number"
 
 	// BiddingPolicyTag stores the bidding policy for the spot instance
 	BiddingPolicyTag = "autospotting_bidding_policy"
 
 	// SpotPriceBufferPercentageTag stores percentage value above the
 	// current spot price to place the bid
-	SpotPriceBufferPercentageTag = "spot_price_buffer_percentage"
+	SpotPriceBufferPercentageTag = "autospotting_spot_price_buffer_percentage"
+
+	// AllowedInstanceTypesTag is the name of a tag that can indicate which
+	// instance types are allowed in the current group
+	AllowedInstanceTypesTag = "autospotting_allowed_instance_types"
+
+	// DisallowedInstanceTypesTag is the name of a tag that can indicate which
+	// instance types are not allowed in the current group
+	DisallowedInstanceTypesTag = "autospotting_disallowed_instance_types"
+
+	// Default constant values should be defined below:
 
 	// DefaultMinOnDemandValue stores the default on-demand capacity to be kept
 	// running in a group managed by autospotting.
@@ -61,12 +78,12 @@ func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool
 	if err != nil {
 		logger.Printf("Error with ParseFloat: %s\n", err.Error())
 	} else if percentage == 0 {
-		logger.Printf("Loaded MinOnDemand value to %f from tag %s\n", percentage, OnDemandPercentageLong)
+		logger.Printf("Loaded MinOnDemand value to %f from tag %s\n", percentage, OnDemandPercentageTag)
 		return int64(percentage), true
 	} else if percentage > 0 && percentage <= 100 {
 		instanceNumber := float64(a.instances.count())
 		onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
-		logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandPercentageLong)
+		logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandPercentageTag)
 		return onDemand, true
 	}
 
@@ -104,10 +121,10 @@ func (a *autoScalingGroup) loadNumberOnDemand(tagValue *string) (int64, bool) {
 }
 
 func (a *autoScalingGroup) loadConfOnDemand() bool {
-	tagList := [2]string{OnDemandNumberLong, OnDemandPercentageLong}
+	tagList := [2]string{OnDemandNumberLong, OnDemandPercentageTag}
 	loadDyn := map[string]func(*string) (int64, bool){
-		OnDemandPercentageLong: a.loadPercentageOnDemand,
-		OnDemandNumberLong:     a.loadNumberOnDemand,
+		OnDemandPercentageTag: a.loadPercentageOnDemand,
+		OnDemandNumberLong:    a.loadNumberOnDemand,
 	}
 
 	for _, tagKey := range tagList {
@@ -604,7 +621,7 @@ func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) []str
 
 	// Check option of allowed instance types
 	// If we have that option we don't need to calculate the compatible instance type.
-	if tagValue := a.getTagValue("allowed-instance-types"); tagValue != nil {
+	if tagValue := a.getTagValue(AllowedInstanceTypesTag); tagValue != nil {
 		allowedInstanceTypesTag = strings.Replace(*tagValue, " ", ",", -1)
 	}
 	allowedInstanceTypes := strings.Replace(a.region.conf.AllowedInstanceTypes, " ", ",", -1)
@@ -630,7 +647,7 @@ func (a *autoScalingGroup) getDisallowedInstanceTypes(baseInstance *instance) []
 
 	// Check option of disallowed instance types
 	// If we have that option we don't need to calculate the compatible instance type.
-	if tagValue := a.getTagValue("disallowed-instance-types"); tagValue != nil {
+	if tagValue := a.getTagValue(DisallowedInstanceTypesTag); tagValue != nil {
 		disallowedInstanceTypesTag = strings.Replace(*tagValue, " ", ",", -1)
 	}
 
