@@ -238,7 +238,7 @@ func (i *instance) isAllowed(instanceType string, allowedList []string, disallow
 		}
 		debug.Println("Instance has been excluded since it was not in the allowed instance types list")
 		return false
-	} else if disallowedList != nil && disallowedList[0] != "" {
+	} else if len(disallowedList) > 0 {
 		for _, a := range disallowedList {
 			// glob matching
 			if match, _ := filepath.Match(a, instanceType); match {

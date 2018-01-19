@@ -121,6 +121,7 @@ use the module directly:
 module "autospotting" {
   source = "github.com/cristim/autospotting/terraform/autospotting"
 
+  autospotting_disallowed_instance_types = "t2.*"
   autospotting_min_on_demand_number = "0"
   autospotting_min_on_demand_percentage = "50.0"
   autospotting_regions_enabled = "eu*,us*"

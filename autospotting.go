@@ -117,7 +117,7 @@ func (c *cfgData) parseCommandLineFlags() {
 		"On-demand capacity (percentage of the total number of instances in the group) "+
 			"ensured to be running in each of your groups.\n\t"+
 			"Can be overridden on a per-group basis using the tag "+
-			autospotting.OnDemandPercentageLong+
+			autospotting.OnDemandPercentageTag+
 			"\n\tIt is ignored if min_on_demand_number is also set.")
 
 	flag.StringVar(&c.AllowedInstanceTypes, "allowed_instance_types", "",
