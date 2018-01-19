@@ -7,6 +7,7 @@ current: the same as initial on-demand instances
 <instance-type>: the actual instance type to use
 EOF
   default     = ""
+}
 
 variable "asg_disallowed_instance_types" {
   description = <<EOF
