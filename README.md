@@ -12,7 +12,8 @@
 [![ChatOnGitter](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 A simple and easy to use tool designed to significantly lower your Amazon AWS
-costs by automating the use of [spot](https://aws.amazon.com/ec2/spot) instances.
+costs by automating the use of [spot](https://aws.amazon.com/ec2/spot)
+instances.
 
 ![Savings](https://cdn.cloudprowess.com/images/savings.png)
 
@@ -25,14 +26,15 @@ CPU cores and disk volumes) and configured identically to it. Once the new spot
 instance is ready, it is attached to the group and an on-demand instance is
 detached and terminated, to keep the group at constant capacity.
 
-It continuously applies this process, across all enabled groups from all regions,
-gradually replacing your on-demand instances with much cheaper spot instances.
-For your peace of mind, you can also configure it to keep running a configurable
-number of on-demand instances, given as percentage or absolute number.
+It continuously applies this process, across all enabled groups from all
+regions, gradually replacing your on-demand instances with much cheaper spot
+instances. For your peace of mind, you can also configure it to keep running a
+configurable number of on-demand instances, given as percentage or absolute
+number.
 
 Your groups will then monitor and use these spot instances just like they would
-do with your on-demand instances. They will automatically join your load balancer
-and start receiving traffic once passing the health checks.
+do with your on-demand instances. They will automatically join your load
+balancer and start receiving traffic once passing the health checks.
 
 The installation takes just a few minutes and the existing groups can be enabled
 and configured individually by using a few additional tags.
@@ -79,7 +81,7 @@ interested in getting a stable build.
 
 Even though it's recommended to use the provided stable binaries, in case you
 have some special needs, you can tweak the software, then build and run your
-customized binaries which for example can be configured not to expire.
+customized binaries, since these do not expire.
 
 More details are available [here](CUSTOM_BUILDS.md)
 
@@ -98,6 +100,13 @@ setup.
 Non-trivial code should be submitted according to the contribution
 [guidelines](CONTRIBUTING.md)
 
+You can also contribute financially, we gladly accept tips on
+[Patreon](https://www.patreon.com/cristim) or
+[Paypal](https://paypal.me/cristim). Even a small percentage, 1 to 5% cut of the
+generated monthly savings would make a huge difference to the development of the
+project, please convince your organization to invest in it, they will reap the
+benefits of any further improvements.
+
 ## Support ##
 
 Community support is available on the
@@ -105,45 +114,29 @@ Community support is available on the
 basis, and people may help you solve issues with the nightly/evaluation
 binaries.
 
-For the stable AutoSpotting builds, the main author also offers enterprise-grade
-support and will do as much as possible to help you out with any issues you may
-have. In addition, custom feature development as well as AWS-related
-consulting are available for a fee. For more information feel free to get in
-touch on [gitter](https://gitter.im/cristim).
+The main author also offers enterprise-grade support and will do as much as
+possible to help you out with any issues you may have. Custom feature
+development as well as AWS-related consulting are also available for a fee,
+often proportional to just a month worth of savings. For more information feel
+free to get in touch on [gitter](https://gitter.im/cristim).
 
 ## Users ##
 
-Autospotting is already used by hundreds of individuals and companies around the
-world, such as:
+Autospotting is already used by hundreds of individuals and organizations around
+the world, some of them we know of are mentioned in the [list](USERS.md) of
+notable users.
 
-- www.remind.com
-- www.cycloid.io
-- www.fractalanalytics.com
-- www.here.com
-- www.ibibogroup.com
-- www.icap.com
-- www.news.co.uk
-- www.parkassist.com
-- www.qualcomm.com
-- www.quantiphi.com
-- www.realestate.co.nz
-- www.roames.com
-- www.spscommerce.com
-- www.taitradio.com
+The following deserve a special mention for contributing significantly to the
+development effort (listed in alphabetical order):
+
 - www.branch.io
-
-## Uninstall ##
-
-You just need to remove the AutoSpotting CloudFormation or Terraform stack.
-
-The groups will eventually revert to the original state once the spot market price
-fluctuations terminate all the spot instances. In some cases this may take months,
-so you can also terminate them sooner yourself.
-
-Fine-grained control on a per group level can be achieved by removing or setting
-the `spot-enabled` tag to any other value. AutoSpotting only touches groups where
-this tag is set to `true`.
+- www.cs.utexas.edu
+- www.cycloid.io
+- www.here.com
+- www.spscommerce.com
+- www.timber.io
 
 ## License ##
 
 This software is distributed under the terms of the MIT [license](LICENSE).
+If you want it to stay like this forever, please consider contributing.

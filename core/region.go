@@ -301,14 +301,9 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 		return
 	}
 
-	svc := r.services.autoScaling
-
-	input := autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: asgNames,
-	}
 	pageNum := 0
-	err := svc.DescribeAutoScalingGroupsPages(
-		&input,
+	err := r.services.autoScaling.DescribeAutoScalingGroupsPages(
+		&autoscaling.DescribeAutoScalingGroupsInput{},
 		func(page *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
 			pageNum++
 			logger.Println("Processing page", pageNum, "of DescribeAutoScalingGroupsPages for", r.name)
@@ -318,7 +313,9 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 					name:   *asg.AutoScalingGroupName,
 					region: r,
 				}
-				r.enabledASGs = append(r.enabledASGs, group)
+				if containsString(asgNames, group.name) {
+					r.enabledASGs = append(r.enabledASGs, group)
+				}
 			}
 			return true
 		},
@@ -330,6 +327,18 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 			err.Error())
 		return
 	}
+}
+
+func containsString(list []*string, a string) bool {
+	if list == nil || len(list) == 0 {
+		return false
+	}
+	for _, b := range list {
+		if *b == a {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *region) hasEnabledAutoScalingGroups() bool {
