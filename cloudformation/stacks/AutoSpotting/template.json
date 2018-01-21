@@ -8,7 +8,7 @@
       "Type": "String"
     },
     "LambdaHandlerFunction": {
-      "Default": "handler.Handle",
+      "Default": "autospotting",
       "Description": "Handler function for Lambda",
       "Type": "String"
     },
@@ -113,7 +113,7 @@
         "Handler": { "Ref": "LambdaHandlerFunction" },
         "MemorySize": { "Ref": "LambdaMemorySize" },
         "Role": { "Fn::GetAtt": [ "LambdaExecutionRole", "Arn" ] },
-        "Runtime": "python2.7",
+        "Runtime": "go1.x",
         "Timeout": "300"
       },
       "Type": "AWS::Lambda::Function"

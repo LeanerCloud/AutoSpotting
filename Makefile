@@ -12,16 +12,14 @@ SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
 EXPIRATION := $(shell ./expiration_date.sh $(FLAVOR))
 
-LDFLAGS="-pluginpath lambda -X lambda.Version=$(FLAVOR)-$(BUILD) -X lambda.ExpirationDate=$(EXPIRATION)"
 LOCAL_LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD) -X main.ExpirationDate=$(EXPIRATION)"
 
-all: fmt-check vet-check build_local test                    ## Build the code
+all: fmt-check vet-check build test upload                   ## Build the code
 .PHONY: all
 
 clean:                                                       ## Remove installed packages/temporary files
 	go clean ./...
-	rm -rf $(BINDATA_DIR) $(BINDATA_FILE)
-	make -f Makefile.lambda clean
+	rm -rf $(BINDATA_DIR) $(LOCAL_PATH)
 .PHONY: clean
 
 check_deps:                                                  ## Verify the system has all dependencies installed
@@ -32,34 +30,26 @@ check_deps:                                                  ## Verify the syste
 .PHONY: check_deps
 
 build_deps:
-	@go get ./...
 	@go get github.com/mattn/goveralls
 	@go get github.com/golang/lint/golint
 	@go get golang.org/x/tools/cmd/cover
-	@docker pull eawsy/aws-lambda-go-shim:latest
-	wget -O Makefile.lambda https://git.io/vytH8
 .PHONY: build_deps
 
-build_lambda_binary: build_deps                              ## Build lambda binary
-	LDFLAGS=$(LDFLAGS) make -f Makefile.lambda docker
-.PHONY: build_lambda_binary
+build: build_deps                                            ## Build autospotting binary
+	GOOS=linux go build -ldflags=$(LOCAL_LDFLAGS) -o $(BINARY)
+.PHONY: build
 
-prepare_upload_data: build_lambda_binary                     ## Create archive to be uploaded
+archive: build                                               ## Create archive to be uploaded
 	@rm -rf $(LOCAL_PATH)
 	@mkdir -p $(LOCAL_PATH)
-	@mv handler.zip $(LOCAL_PATH)/lambda.zip
+	@zip $(LOCAL_PATH)/lambda.zip $(BINARY)
 	@cp -f cloudformation/stacks/AutoSpotting/template.json $(LOCAL_PATH)/template.json
 	@cp -f cloudformation/stacks/AutoSpotting/template.json $(LOCAL_PATH)/template_build_$(BUILD).json
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(BUILD).zip
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(SHA).zip
-	@make -f Makefile.lambda clean
-.PHONY: prepare_upload_data
+.PHONY: archive
 
-build_local:                                                 ## Build binary - local dev
-	go build -ldflags=$(LOCAL_LDFLAGS) -o $(BINARY)
-.PHONY: build_local
-
-upload: prepare_upload_data                                  ## Upload binary
+upload: archive                                              ## Upload binary
 	aws s3 sync build/s3/ s3://$(BUCKET_NAME)/
 .PHONY: upload
 
@@ -105,7 +95,7 @@ travisci-cover: html-cover                                   ## Test & generate 
 travisci-checks: fmt-check vet-check lint                    ## Pass fmt / vet & lint format
 .PHONY: travisci-checks
 
-travisci: prepare_upload_data travisci-checks travisci-cover ## Executed by TravisCI
+travisci: archive travisci-checks travisci-cover             ## Executed by TravisCI
 .PHONY: travisci
 
 help:                                                        ## Show this help
