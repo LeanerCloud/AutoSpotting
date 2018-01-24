@@ -2,47 +2,21 @@
 
 
 [[projects]]
+  name = "github.com/aws/aws-lambda-go"
+  packages = ["events","lambda","lambda/messages","lambdacontext"]
+  revision = "6e2e37798efbb1dfd8e9c6681702e683a6046517"
+  version = "v1.0.1"
+
+[[projects]]
   name = "github.com/aws/aws-sdk-go"
-  packages = [
-    "aws",
-    "aws/awserr",
-    "aws/awsutil",
-    "aws/client",
-    "aws/client/metadata",
-    "aws/corehandlers",
-    "aws/credentials",
-    "aws/credentials/ec2rolecreds",
-    "aws/credentials/endpointcreds",
-    "aws/credentials/stscreds",
-    "aws/defaults",
-    "aws/ec2metadata",
-    "aws/endpoints",
-    "aws/request",
-    "aws/session",
-    "aws/signer/v4",
-    "internal/shareddefaults",
-    "private/protocol",
-    "private/protocol/ec2query",
-    "private/protocol/query",
-    "private/protocol/query/queryutil",
-    "private/protocol/rest",
-    "private/protocol/xml/xmlutil",
-    "service/autoscaling",
-    "service/autoscaling/autoscalingiface",
-    "service/ec2",
-    "service/ec2/ec2iface",
-    "service/sts"
-  ]
+  packages = ["aws","aws/awserr","aws/awsutil","aws/client","aws/client/metadata","aws/corehandlers","aws/credentials","aws/credentials/ec2rolecreds","aws/credentials/endpointcreds","aws/credentials/stscreds","aws/defaults","aws/ec2metadata","aws/endpoints","aws/request","aws/session","aws/signer/v4","internal/shareddefaults","private/protocol","private/protocol/ec2query","private/protocol/query","private/protocol/query/queryutil","private/protocol/rest","private/protocol/xml/xmlutil","service/autoscaling","service/autoscaling/autoscalingiface","service/ec2","service/ec2/ec2iface","service/sts"]
   revision = "f62f7b7c5425f2b1a630932617477bdeac6dc371"
   version = "v1.12.55"
 
 [[projects]]
   branch = "master"
   name = "github.com/cristim/ec2-instances-info"
-  packages = [
-    ".",
-    "data"
-  ]
+  packages = [".","data"]
   revision = "6680051af974c54d19c3fbc2f45597deae73b111"
 
 [[projects]]
@@ -50,12 +24,6 @@
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/eawsy/aws-lambda-go-core"
-  packages = ["service/lambda/runtime"]
-  revision = "e26eed6aa244a3d45aa693816a9c5faf39390fcd"
 
 [[projects]]
   name = "github.com/go-ini/ini"
@@ -83,6 +51,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6a95029ee5e4e4faf00947e22e515c448b223586ec6d3fd94580229fe3a7edda"
+  inputs-digest = "bf8355830da4455c4dc5fb4e943f82de7f7566d0112b13412f27d5705d0ea3a1"
   solver-name = "gps-cdcl"
   solver-version = 1

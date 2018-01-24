@@ -1,5 +1,7 @@
 # Technical Details #
 
+<!-- markdownlint-disable MD013 -->
+
 ## Summary of supported features & options ##
 
 | Option  | Status | Override via ASG conf |

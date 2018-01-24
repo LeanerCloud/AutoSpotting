@@ -5,7 +5,7 @@ resource "aws_lambda_function" "autospotting" {
   role             = "${aws_iam_role.autospotting_role.arn}"
   runtime          = "${var.lambda_runtime}"
   timeout          = "${var.lambda_timeout}"
-  handler          = "handler.Handle"
+  handler          = "autospotting"
   memory_size      = "${var.lambda_memory_size}"
 
   environment {

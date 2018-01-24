@@ -47,7 +47,7 @@ variable "lambda_zipname" {
 
 variable "lambda_runtime" {
   description = "Environment the lambda function runs in"
-  default     = "python2.7"
+  default     = "go1.x"
 }
 
 variable "lambda_memory_size" {

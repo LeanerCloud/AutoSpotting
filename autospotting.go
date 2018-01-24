@@ -1,15 +1,15 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/cristim/autospotting/core"
 	"github.com/cristim/ec2-instances-info"
-	"github.com/eawsy/aws-lambda-go-core/service/lambda/runtime"
 	"github.com/namsral/flag"
 )
 
@@ -26,7 +26,11 @@ var Version string
 var ExpirationDate string
 
 func main() {
-	run()
+	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
+		lambda.Start(Handler)
+	} else {
+		run()
+	}
 }
 
 func run() {
@@ -43,8 +47,8 @@ func run() {
 		"min_on_demand_percentage=%.1f "+
 		"allowed_instance_types=%v "+
 		"disallowed_instance_types=%v "+
-		"on_demand_price_multiplier=%.2f"+
-		"spot_price_buffer_percentage=%.3f"+
+		"on_demand_price_multiplier=%.2f "+
+		"spot_price_buffer_percentage=%.3f "+
 		"bidding_policy=%s",
 		conf.Regions,
 		conf.MinOnDemandNumber,
@@ -83,10 +87,9 @@ func init() {
 
 }
 
-// Handle implements the AWS Lambda handler
-func Handle(evt json.RawMessage, ctx *runtime.Context) (interface{}, error) {
+// Handler implements the AWS Lambda handler
+func Handler(request events.APIGatewayProxyRequest) {
 	run()
-	return nil, nil
 }
 
 // Configuration handling

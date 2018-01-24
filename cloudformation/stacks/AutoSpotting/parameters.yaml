@@ -4,8 +4,8 @@
 
 # This file is handled automatically using the clouds-aws tool. It can be
 # installed using pip, or from https://github.com/elias5000/clouds-aws
-LambdaZipPath: nightly/lambda_build_584.zip
-LambdaHandlerFunction: handler.Handle
+LambdaZipPath: nightly/lambda.zip
+LambdaHandlerFunction: autospotting
 LambdaS3Bucket: cloudprowess
 LambdaMemorySize: '1024'
 ExecutionFrequency: "rate(1 minute)"

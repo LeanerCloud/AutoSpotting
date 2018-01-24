@@ -1,6 +1,6 @@
 # AutoSpotting #
 
-<!-- markdownlint-disable MD033 -->
+<!-- markdownlint-disable MD026 MD033 -->
 
 <img src="logo.png" width="150" align="right">
 
