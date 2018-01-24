@@ -1,5 +1,50 @@
 # ChangeLog
 
+## 24 January 2018, build 622
+
+A lot of time passed since the previous Changelog update, so this is a really
+beefy entry, we should definitely do this more often.
+
+There were a lot of contributions from many individuals, thank you all for
+helping improve this project!
+
+Special thanks once again to @xlr-8 who contributed a lot throughout the
+previous year, and is now a very active co-maintainer of the project.
+
+### New features since the last update
+
+- Consider GPUs in the instance compatbility checks
+- Instance type updates and regional expansions
+- Aggressive bidding strategy based on the current spot price, by @kartik894
+- Prevent termination of last instance, by @universam1
+- Support volume discounts (think Reserved Instance), by @masneyb
+- Instance type whitelisting, by @raravena80
+- Instance type blacklisting, by @binarylogic
+- Consider the EBS pricing surcharge, by @vecchp
+- Deploy using Terraform, by @xlr-8
+
+### Under the hood changes
+
+- Significant refactorings, especially done by @xlr-8
+- We're now using the native Lambda Go runtime, again thanks to @xlr-8
+- Scalability fixes: concurrency by @thebigjc, API pagination by @ahaverbuch,
+  support handling more than 50 AutoScaling groups concurrently, by @chaner
+- Much more unit test coverage, thanks to @xlr-8 and @artemnikitin
+- Buildsystem changes, we now also have automated lint and vet checks
+- Dependency vendoring, by @xlr-8
+- Lots of bugfixes, special thanks to @xlr-8
+- Countless documentation updates by too many individuals to mention here
+
+### Breaking changes
+
+- The CloudFormation stack needs to be updated after build 633, because of the
+  change to the Go Lambda runtime
+- Some of the AutoScaling group tags used to override the global configuration
+  were renamed to be more consistent, please refer to the current state of the
+  documentation.
+
+~Cristian
+
 ## 29 December 2016, build 158
 
 I forgot to update this in a while, so this is a quite big changelog entry.
