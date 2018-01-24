@@ -14,7 +14,7 @@ EXPIRATION := $(shell ./expiration_date.sh $(FLAVOR))
 
 LOCAL_LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD) -X main.ExpirationDate=$(EXPIRATION)"
 
-all: fmt-check vet-check build test upload                   ## Build the code
+all: fmt-check vet-check build test                          ## Build the code
 .PHONY: all
 
 clean:                                                       ## Remove installed packages/temporary files
