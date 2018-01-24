@@ -13,7 +13,7 @@
       "Type": "String"
     },
     "LambdaMemorySize": {
-      "Default": "256",
+      "Default": "1024",
       "Description": "Memory allocated to the Lambda function",
       "Type": "Number"
     },
