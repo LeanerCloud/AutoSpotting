@@ -261,6 +261,63 @@ func (r *region) requestSpotInstanceTypes() ([]string, error) {
 	return instTypes, nil
 }
 
+func (r *region) scanForMatchingAutoScalingGroupsByTagValues(asgNames []*string) []*string {
+	svc := r.services.autoScaling
+
+	input := autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: asgNames,
+	}
+
+	var asgs []*string
+
+	numberOfTagsToMatch := len(r.conf.FilterByTag)
+	var tagsToMatch map[string]string
+	tagsToMatch = make(map[string]string)
+
+	for _, tagAndValue := range r.conf.FilterByTag {
+		splitTagAndValue := strings.Split(tagAndValue, "=")
+		if len(splitTagAndValue) > 1 {
+			tagsToMatch[splitTagAndValue[0]] = splitTagAndValue[1]
+		}
+	}
+
+	pageNum := 0
+	err := svc.DescribeAutoScalingGroupsPages(
+		&input,
+		func(page *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
+			pageNum++
+			logger.Println("Processing page", pageNum, "of DescribeAutoScalingGroupsPages for", r.name)
+			for _, group := range page.AutoScalingGroups {
+				matchedTags := 0
+
+				for _, tag := range group.Tags {
+					if val, ok := tagsToMatch[*tag.Key]; ok {
+						if val == *tag.Value {
+							matchedTags++
+						}
+					}
+				}
+
+				if matchedTags >= numberOfTagsToMatch {
+					logger.Println(r.name, "has enabled ASG:", *group.AutoScalingGroupName)
+					asgs = append(asgs, group.AutoScalingGroupName)
+				}
+
+			}
+			return true
+		},
+	)
+
+	if err != nil {
+		logger.Println("Failed to describe AutoScaling tags in",
+			r.name,
+			err.Error())
+		return make([]*string, 0)
+	}
+
+	return asgs
+}
+
 func (r *region) scanForEnabledAutoScalingGroupsByTag() []*string {
 	svc := r.services.autoScaling
 
@@ -296,6 +353,14 @@ func (r *region) scanForEnabledAutoScalingGroupsByTag() []*string {
 func (r *region) scanForEnabledAutoScalingGroups() {
 
 	asgNames := r.scanForEnabledAutoScalingGroupsByTag()
+
+	if len(asgNames) == 0 {
+		return
+	}
+
+	if len(r.conf.FilterByTag) > 0 {
+		asgNames = r.scanForMatchingAutoScalingGroupsByTagValues(asgNames)
+	}
 
 	if len(asgNames) == 0 {
 		return
