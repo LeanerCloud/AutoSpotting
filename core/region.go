@@ -278,10 +278,9 @@ func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch map[string]string
 	matchedTags := 0
 
 	for _, tag := range asg.Tags {
-		if val, ok := tagsToMatch[*tag.Key]; ok {
-			if val == *tag.Value {
-				matchedTags++
-			}
+		val, matchingTag := tagsToMatch[*tag.Key]
+		if matchingTag && val == *tag.Value {
+			matchedTags++
 		}
 	}
 
@@ -295,15 +294,13 @@ func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch map[string]string
 func (r *region) scanForMatchingAutoScalingGroupsByTagValues(asgNames []*string) []*string {
 	svc := r.services.autoScaling
 
-	input := autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: asgNames}
-
 	var asgs []*string
 
 	tagsToMatch := r.buildTagWithValuesMap()
 
 	pageNum := 0
 	err := svc.DescribeAutoScalingGroupsPages(
-		&input,
+		&autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: asgNames},
 		func(page *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
 			pageNum++
 			logger.Println("Processing page", pageNum, "of DescribeAutoScalingGroupsPages for", r.name)
