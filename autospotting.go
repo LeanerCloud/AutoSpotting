@@ -58,8 +58,7 @@ func run() {
 		conf.DisallowedInstanceTypes,
 		conf.OnDemandPriceMultiplier,
 		conf.SpotPriceBufferPercentage,
-		conf.BiddingPolicy,
-		conf.FilterByTag)
+		conf.BiddingPolicy, conf.FilterByTag)
 
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")
@@ -154,7 +153,7 @@ func (c *cfgData) parseCommandLineFlags() {
 			"\twe bid at a percentage value above the spot price. ")
 
 	flag.Var(&c.FilterByTag, "filter_by_tag_values", "Extra set of tags to filter the ASGs on.\n\t"+
-		"Example: ./autospotting -filter_by_tag_values 'Environment=dev'")
+		"Example: ./autospotting -filter_by_tag_values 'Environment=dev' -filter_by_tag_values 'Team=vision'")
 
 	v := flag.Bool("version", false, "Print version number and exit.")
 

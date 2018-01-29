@@ -8,17 +8,23 @@ import (
 	"github.com/cristim/ec2-instances-info"
 )
 
-func (i *ArrayOfTagKeyValues) String() string {
+// String formats the ArrayOfStrings type string[]
+// into a string
+func (i *ArrayOfStrings) String() string {
 	return fmt.Sprintf("%v", *i)
 }
 
-func (i *ArrayOfTagKeyValues) Set(value string) error {
+// Set supports the multiple command line options with the same
+// name
+func (i *ArrayOfStrings) Set(value string) error {
 	*i = append(*i, value)
 	return nil
 }
 
-// An array of key=value string
-type ArrayOfTagKeyValues []string
+// ArrayOfStrings allows the support for multiple
+// command line options with the same name
+// i.e -tag x -tag y
+type ArrayOfStrings []string
 
 // Config contains a number of flags and static data storing the EC2 instance
 // information.
@@ -50,5 +56,5 @@ type Config struct {
 
 	// Filter on extra ASG tags in addition to finding those
 	// ASGs with spot-enabled=true
-	FilterByTag ArrayOfTagKeyValues
+	FilterByTag ArrayOfStrings
 }
