@@ -291,6 +291,18 @@ func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch map[string]string
 	return false
 }
 
+func findMatchingASGsInPageOfResults(groups []*autoscaling.Group, tagsToMatch map[string]string) []*string {
+	var asgs []*string
+
+	for _, group := range groups {
+		if isASGWithMatchingTags(group, tagsToMatch) {
+			asgs = append(asgs, group.AutoScalingGroupName)
+		}
+	}
+
+	return asgs
+}
+
 func (r *region) scanForMatchingAutoScalingGroupsByTagValues(asgNames []*string) []*string {
 	svc := r.services.autoScaling
 
@@ -304,13 +316,8 @@ func (r *region) scanForMatchingAutoScalingGroupsByTagValues(asgNames []*string)
 		func(page *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
 			pageNum++
 			logger.Println("Processing page", pageNum, "of DescribeAutoScalingGroupsPages for", r.name)
-			for _, group := range page.AutoScalingGroups {
-
-				if isASGWithMatchingTags(group, tagsToMatch) {
-					asgs = append(asgs, group.AutoScalingGroupName)
-				}
-
-			}
+			matchingAsgs := findMatchingASGsInPageOfResults(page.AutoScalingGroups, tagsToMatch)
+			asgs = append(asgs, matchingAsgs...)
 			return true
 		},
 	)
