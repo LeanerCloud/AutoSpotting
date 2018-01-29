@@ -317,7 +317,6 @@ func (r *region) scanForMatchingAutoScalingGroupsByTagValues(asgNames []*string)
 
 	if err != nil {
 		logger.Println("Failed to describe AutoScalingGroups in", r.name, err.Error())
-		return make([]*string, 0)
 	}
 
 	return asgs
