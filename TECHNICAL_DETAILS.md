@@ -40,7 +40,7 @@
 
 - **Compatible out of the box with most AWS services that integrate
     with AutoScaling groups**
-  - services such as ELB, ALB, CodeDeploy, CloudWatch, etc. should work out of
+  - services such as ELB, ALB, [CodeDeploy](CODEDEPLOY.md), CloudWatch, etc. should work out of
     the box or at most require minimal configuration changes.
   - as long as they support instances attached later to existing groups.
   - any other 3rd party services that run on top of AutoScaling groups should

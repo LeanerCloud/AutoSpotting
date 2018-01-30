@@ -22,7 +22,7 @@ This method is to allow for AutoSpotting and SPOT instances to work around the l
 ### get-meta 
 
 -   This file will be sourced into our deployment script 
-    -   <https://gist.github.com/sc-chad/99ba78a7cb1e7b5573ea131cf2015cad> 
+    -   [get-meta](https://gist.github.com/sc-chad/99ba78a7cb1e7b5573ea131cf2015cad)
     -   Save this file to /usr/bin/get-meta on the SPOT AMI to be used 
 
 
@@ -30,6 +30,6 @@ This method is to allow for AutoSpotting and SPOT instances to work around the l
 
 -   A simple version of a deployment script that is ran on-boot 
 -   This file will need to be deployed to the same SPOT AMI 
-    -   <https://gist.github.com/sc-chad/ae0f4acbb5b7283a2dc0b25a3277cf50> 
+    -   [check-codedeploy](https://gist.github.com/sc-chad/ae0f4acbb5b7283a2dc0b25a3277cf50)
 -   If you are using Amazon Linux saving this file to `/etc/rc3.d/S99deploycode` 
     -   This will make run it after all networking components are available
