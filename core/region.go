@@ -265,11 +265,8 @@ func (r *region) buildTagWithValuesMap() map[string]string {
 	var tagsToMatch map[string]string
 	tagsToMatch = make(map[string]string)
 
-	for _, tagAndValue := range r.conf.FilterByTag {
-		splitTagAndValue := strings.Split(tagAndValue, "=")
-		if len(splitTagAndValue) > 1 {
-			tagsToMatch[splitTagAndValue[0]] = splitTagAndValue[1]
-		}
+	for _, tag := range r.conf.FilterByTag {
+		tagsToMatch[tag.Key] = tag.Value
 	}
 	return tagsToMatch
 }

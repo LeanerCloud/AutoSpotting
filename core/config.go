@@ -3,6 +3,7 @@ package autospotting
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/cristim/ec2-instances-info"
@@ -10,21 +11,29 @@ import (
 
 // String formats the ArrayOfStrings type string[]
 // into a string
-func (i *ArrayOfStrings) String() string {
+func (i *Tags) String() string {
 	return fmt.Sprintf("%v", *i)
 }
 
 // Set supports the multiple command line options with the same
 // name
-func (i *ArrayOfStrings) Set(value string) error {
-	*i = append(*i, value)
+func (i *Tags) Set(value string) error {
+	splitTagAndValue := strings.Split(value, "=")
+	if len(splitTagAndValue) > 1 {
+		*i = append(*i, tag{Key: splitTagAndValue[0], Value: splitTagAndValue[1]})
+	}
 	return nil
 }
 
 // ArrayOfStrings allows the support for multiple
 // command line options with the same name
 // i.e -tag x -tag y
-type ArrayOfStrings []string
+type Tags []tag
+
+type tag struct {
+	Key   string
+	Value string
+}
 
 // Config contains a number of flags and static data storing the EC2 instance
 // information.
@@ -56,5 +65,5 @@ type Config struct {
 
 	// Filter on extra ASG tags in addition to finding those
 	// ASGs with spot-enabled=true
-	FilterByTag ArrayOfStrings
+	FilterByTag Tags
 }

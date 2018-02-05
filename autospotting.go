@@ -152,8 +152,8 @@ func (c *cfgData) parseCommandLineFlags() {
 		"Policy choice for spot bid. If set to 'normal', we bid at the on-demand price. If set to 'aggressive',\n"+
 			"\twe bid at a percentage value above the spot price. ")
 
-	flag.Var(&c.FilterByTag, "filter_by_tag_values", "Extra set of tags to filter the ASGs on.\n\t"+
-		"Example: ./autospotting -filter_by_tag_values 'Environment=dev' -filter_by_tag_values 'Team=vision'")
+	flag.Var(&c.FilterByTag, "filter_by_tag", "Set of tags to filter the ASGs on.\n\t"+
+		"Example: ./autospotting -filter_by_tag 'Environment=dev' -filter_by_tag 'Team=vision'")
 
 	v := flag.Bool("version", false, "Print version number and exit.")
 
