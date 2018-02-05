@@ -26,6 +26,8 @@ func Run(cfg *Config) {
 	// use this only to list all the other regions
 	ec2Conn := connectEC2(cfg.MainRegion)
 
+	addDefaultFilter(cfg)
+
 	allRegions, err := getRegions(ec2Conn)
 
 	if err != nil {
@@ -35,6 +37,12 @@ func Run(cfg *Config) {
 
 	processRegions(allRegions, cfg)
 
+}
+
+func addDefaultFilter(cfg *Config) {
+	if len(cfg.FilterByTags) == 0 {
+		cfg.FilterByTags = []Tag{{Key: "spot-enabled", Value: "true"}}
+	}
 }
 
 func disableLogging() {

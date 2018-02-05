@@ -26,6 +26,9 @@ type region struct {
 	enabledASGs []autoScalingGroup
 	services    connections
 
+	primaryTagToFilterASGsBy    Tag
+	secondaryTagsToFilterASGsBy []Tag
+
 	wg sync.WaitGroup
 }
 
@@ -67,6 +70,9 @@ func (r *region) processRegion() {
 	r.services.connect(r.name)
 	// only process the regions where we have AutoScaling groups set to be handled
 
+	// setup the filters for asg matching
+	r.setupAsgFilters()
+
 	logger.Println("Scanning for enabled AutoScaling groups in ", r.name)
 	r.scanForEnabledAutoScalingGroups()
 
@@ -89,6 +95,22 @@ func (r *region) processRegion() {
 		r.processEnabledAutoScalingGroups()
 	} else {
 		logger.Println(r.name, "has no enabled AutoScaling groups")
+	}
+}
+
+func (r *region) setupAsgFilters() {
+	var tags []Tag
+	numberOfTags := 0
+	for _, tagToFilterBy := range r.conf.FilterByTags {
+		tags = append(tags, Tag{Key: tagToFilterBy.Key, Value: tagToFilterBy.Value})
+		numberOfTags++
+	}
+
+	if numberOfTags > 1 {
+		r.primaryTagToFilterASGsBy = tags[0]
+		r.secondaryTagsToFilterASGsBy = tags[1:]
+	} else {
+		r.primaryTagToFilterASGsBy = tags[0]
 	}
 }
 
@@ -261,23 +283,14 @@ func (r *region) requestSpotInstanceTypes() ([]string, error) {
 	return instTypes, nil
 }
 
-func (r *region) buildTagWithValuesMap() map[string]string {
-	var tagsToMatch map[string]string
-	tagsToMatch = make(map[string]string)
-
-	for _, tag := range r.conf.FilterByTag {
-		tagsToMatch[tag.Key] = tag.Value
-	}
-	return tagsToMatch
-}
-
-func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch map[string]string) bool {
+func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch []Tag) bool {
 	matchedTags := 0
 
-	for _, tag := range asg.Tags {
-		val, matchingTag := tagsToMatch[*tag.Key]
-		if matchingTag && val == *tag.Value {
-			matchedTags++
+	for _, tag := range tagsToMatch {
+		for _, asgTag := range asg.Tags {
+			if *asgTag.Key == tag.Key && *asgTag.Value == tag.Value {
+				matchedTags++
+			}
 		}
 	}
 
@@ -288,33 +301,45 @@ func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch map[string]string
 	return false
 }
 
-func findMatchingASGsInPageOfResults(groups []*autoscaling.Group, tagsToMatch map[string]string) []*string {
-	var asgs []*string
+func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group, tagsToMatch []Tag, asgNames map[string]*string) []autoScalingGroup {
+
+	var asgs []autoScalingGroup
 
 	for _, group := range groups {
-		if isASGWithMatchingTags(group, tagsToMatch) {
-			asgs = append(asgs, group.AutoScalingGroupName)
+		asgName := *group.AutoScalingGroupName
+		_, ok := asgNames[asgName]
+		if ok && isASGWithMatchingTags(group, tagsToMatch) {
+			asgs = append(asgs, autoScalingGroup{
+				Group:  group,
+				name:   asgName,
+				region: r,
+			})
 		}
 	}
 
 	return asgs
 }
 
-func (r *region) scanForMatchingAutoScalingGroupsByTagValues(asgNames []*string) []*string {
+func sliceToMap(slice []*string) map[string]*string {
+	names := make(map[string]*string)
+	for _, slice := range slice {
+		names[*slice] = slice
+	}
+	return names
+}
+
+func (r *region) scanForMatchingAutoScalingGroupsByTagValues(asgNames []*string) {
 	svc := r.services.autoScaling
-
-	var asgs []*string
-
-	tagsToMatch := r.buildTagWithValuesMap()
+	asgNamesAsMap := sliceToMap(asgNames)
 
 	pageNum := 0
 	err := svc.DescribeAutoScalingGroupsPages(
-		&autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: asgNames},
+		&autoscaling.DescribeAutoScalingGroupsInput{},
 		func(page *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
 			pageNum++
 			logger.Println("Processing page", pageNum, "of DescribeAutoScalingGroupsPages for", r.name)
-			matchingAsgs := findMatchingASGsInPageOfResults(page.AutoScalingGroups, tagsToMatch)
-			asgs = append(asgs, matchingAsgs...)
+			matchingAsgs := r.findMatchingASGsInPageOfResults(page.AutoScalingGroups, r.secondaryTagsToFilterASGsBy, asgNamesAsMap)
+			r.enabledASGs = append(r.enabledASGs, matchingAsgs...)
 			return true
 		},
 	)
@@ -322,8 +347,6 @@ func (r *region) scanForMatchingAutoScalingGroupsByTagValues(asgNames []*string)
 	if err != nil {
 		logger.Println("Failed to describe AutoScalingGroups in", r.name, err.Error())
 	}
-
-	return asgs
 }
 
 func (r *region) scanForEnabledAutoScalingGroupsByTag() []*string {
@@ -333,8 +356,8 @@ func (r *region) scanForEnabledAutoScalingGroupsByTag() []*string {
 
 	input := autoscaling.DescribeTagsInput{
 		Filters: []*autoscaling.Filter{
-			{Name: aws.String("key"), Values: []*string{aws.String("spot-enabled")}},
-			{Name: aws.String("value"), Values: []*string{aws.String("true")}},
+			{Name: aws.String("key"), Values: []*string{aws.String(r.primaryTagToFilterASGsBy.Key)}},
+			{Name: aws.String("value"), Values: []*string{aws.String(r.primaryTagToFilterASGsBy.Value)}},
 		},
 	}
 	pageNum := 0
@@ -366,13 +389,13 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 		return
 	}
 
-	if len(r.conf.FilterByTag) > 0 {
-		asgNames = r.scanForMatchingAutoScalingGroupsByTagValues(asgNames)
-	}
-
-	if len(asgNames) == 0 {
+	// set the region's asg in secondary filtering, if specified
+	if len(r.secondaryTagsToFilterASGsBy) != 0 {
+		r.scanForMatchingAutoScalingGroupsByTagValues(asgNames)
 		return
 	}
+
+	asgNamesAsMap := sliceToMap(asgNames)
 
 	pageNum := 0
 	err := r.services.autoScaling.DescribeAutoScalingGroupsPages(
@@ -381,14 +404,15 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 			pageNum++
 			logger.Println("Processing page", pageNum, "of DescribeAutoScalingGroupsPages for", r.name)
 			for _, asg := range page.AutoScalingGroups {
-				group := autoScalingGroup{
-					Group:  asg,
-					name:   *asg.AutoScalingGroupName,
-					region: r,
+				_, ok := asgNamesAsMap[*asg.AutoScalingGroupName]
+				if ok {
+					r.enabledASGs = append(r.enabledASGs, autoScalingGroup{
+						Group:  asg,
+						name:   *asg.AutoScalingGroupName,
+						region: r,
+					})
 				}
-				if containsString(asgNames, group.name) {
-					r.enabledASGs = append(r.enabledASGs, group)
-				}
+
 			}
 			return true
 		},

@@ -20,17 +20,18 @@ func (i *Tags) String() string {
 func (i *Tags) Set(value string) error {
 	splitTagAndValue := strings.Split(value, "=")
 	if len(splitTagAndValue) > 1 {
-		*i = append(*i, tag{Key: splitTagAndValue[0], Value: splitTagAndValue[1]})
+		*i = append(*i, Tag{Key: splitTagAndValue[0], Value: splitTagAndValue[1]})
 	}
 	return nil
 }
 
-// ArrayOfStrings allows the support for multiple
+// Tags allows the support for multiple
 // command line options with the same name
 // i.e -tag x -tag y
-type Tags []tag
+type Tags []Tag
 
-type tag struct {
+// Tag represents an Asg Tag: Key, Value
+type Tag struct {
 	Key   string
 	Value string
 }
@@ -65,5 +66,5 @@ type Config struct {
 
 	// Filter on extra ASG tags in addition to finding those
 	// ASGs with spot-enabled=true
-	FilterByTag Tags
+	FilterByTags Tags
 }
