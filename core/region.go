@@ -283,22 +283,23 @@ func (r *region) requestSpotInstanceTypes() ([]string, error) {
 	return instTypes, nil
 }
 
+func isMatchingTag(asgTag autoscaling.TagDescription, filteringTag Tag) bool {
+	return *asgTag.Key == filteringTag.Key && *asgTag.Value == filteringTag.Value
+}
+
 func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch []Tag) bool {
 	matchedTags := 0
 
 	for _, tag := range tagsToMatch {
 		for _, asgTag := range asg.Tags {
-			if *asgTag.Key == tag.Key && *asgTag.Value == tag.Value {
+			if isMatchingTag(*asgTag, tag) {
 				matchedTags++
+				break
 			}
 		}
 	}
 
-	if matchedTags >= len(tagsToMatch) {
-		logger.Println("matching tags found for ASG, enabling ASG for processing:", *asg.AutoScalingGroupName)
-		return true
-	}
-	return false
+	return matchedTags >= len(tagsToMatch)
 }
 
 func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group, tagsToMatch []Tag, asgNames map[string]*string) []autoScalingGroup {
@@ -309,6 +310,7 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group, ta
 		asgName := *group.AutoScalingGroupName
 		_, ok := asgNames[asgName]
 		if ok && isASGWithMatchingTags(group, tagsToMatch) {
+			logger.Println("Matching tags found for ASG, enabling ASG for processing:", asgName)
 			asgs = append(asgs, autoScalingGroup{
 				Group:  group,
 				name:   asgName,
