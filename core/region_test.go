@@ -301,19 +301,12 @@ func TestFilterAsgs(t *testing.T) {
 	}{
 		{
 			name: "Test with single filter",
-			want: []string{"asg1", "asg2", "asg3"},
+			want: []string{"asg1", "asg2", "asg3", "asg4"},
 			tregion: &region{
-				primaryTagToFilterASGsBy: Tag{Key: "spot-enabled", Value: "true"},
-				conf: &Config{},
+				tagsToFilterASGsBy: []Tag{{Key: "spot-enabled", Value: "true"}},
+				conf:               &Config{},
 				services: connections{
 					autoScaling: mockASG{
-						dto: &autoscaling.DescribeTagsOutput{
-							Tags: []*autoscaling.TagDescription{
-								{ResourceId: aws.String("asg1")},
-								{ResourceId: aws.String("asg2")},
-								{ResourceId: aws.String("asg3")},
-							},
-						},
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
 							AutoScalingGroups: []*autoscaling.Group{
 								{
@@ -351,21 +344,13 @@ func TestFilterAsgs(t *testing.T) {
 			},
 		},
 		{
-			name: "Test with single secondary filter",
-			want: []string{"asg3"},
+			name: "Test with two filters",
+			want: []string{"asg3", "asg4"},
 			tregion: &region{
-				primaryTagToFilterASGsBy:    Tag{Key: "spot-enabled", Value: "true"},
-				secondaryTagsToFilterASGsBy: []Tag{{Key: "environment", Value: "qa"}},
-				conf: &Config{},
+				tagsToFilterASGsBy: []Tag{{Key: "spot-enabled", Value: "true"}, {Key: "environment", Value: "qa"}},
+				conf:               &Config{},
 				services: connections{
 					autoScaling: mockASG{
-						dto: &autoscaling.DescribeTagsOutput{
-							Tags: []*autoscaling.TagDescription{
-								{ResourceId: aws.String("asg1")},
-								{ResourceId: aws.String("asg2")},
-								{ResourceId: aws.String("asg3")},
-							},
-						},
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
 							AutoScalingGroups: []*autoscaling.Group{
 								{
@@ -406,22 +391,14 @@ func TestFilterAsgs(t *testing.T) {
 			name: "Test with multiple secondary filter",
 			want: []string{"asg4"},
 			tregion: &region{
-				primaryTagToFilterASGsBy: Tag{Key: "spot-enabled", Value: "true"},
-				secondaryTagsToFilterASGsBy: []Tag{
+				tagsToFilterASGsBy: []Tag{
+					{Key: "spot-enabled", Value: "true"},
 					{Key: "environment", Value: "qa"},
 					{Key: "team", Value: "interactive"},
 				},
 				conf: &Config{},
 				services: connections{
 					autoScaling: mockASG{
-						dto: &autoscaling.DescribeTagsOutput{
-							Tags: []*autoscaling.TagDescription{
-								{ResourceId: aws.String("asg1")},
-								{ResourceId: aws.String("asg2")},
-								{ResourceId: aws.String("asg3")},
-								{ResourceId: aws.String("asg4")},
-							},
-						},
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
 							AutoScalingGroups: []*autoscaling.Group{
 								{
