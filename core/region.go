@@ -283,19 +283,25 @@ func (r *region) requestSpotInstanceTypes() ([]string, error) {
 	return instTypes, nil
 }
 
-func isMatchingTag(asgTag autoscaling.TagDescription, filteringTag Tag) bool {
+func tagsMatch(asgTag autoscaling.TagDescription, filteringTag Tag) bool {
 	return *asgTag.Key == filteringTag.Key && *asgTag.Value == filteringTag.Value
+}
+
+func isFilterByTagWithinASGTags(tagToMatch Tag, asgTags []*autoscaling.TagDescription) bool {
+	for _, asgTag := range asgTags {
+		if tagsMatch(*asgTag, tagToMatch) {
+			return true
+		}
+	}
+	return false
 }
 
 func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch []Tag) bool {
 	matchedTags := 0
 
 	for _, tag := range tagsToMatch {
-		for _, asgTag := range asg.Tags {
-			if isMatchingTag(*asgTag, tag) {
-				matchedTags++
-				break
-			}
+		if isFilterByTagWithinASGTags(tag, asg.Tags) {
+			matchedTags++
 		}
 	}
 
