@@ -299,7 +299,7 @@ func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch []Tag) bool {
 		}
 	}
 
-	return matchedTags >= len(tagsToMatch)
+	return matchedTags == len(tagsToMatch)
 }
 
 func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group, tagsToMatch []Tag, asgNames map[string]*string) []autoScalingGroup {
