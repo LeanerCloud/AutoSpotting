@@ -71,6 +71,11 @@
       "Default": "",
       "Description": "Comma separated list of disallowed instance types for spot, in case you want to exclude specific types (also support globs). Example: 't2.*,m4.large'",
       "Type": "String"
+    },
+    "FilterByTags": {
+      "Default": "",
+      "Description": "Comma separated list of tag=value on which to filter the ASGs that autospotting considers.  By default 'spot-enabled=true'.  Example: 'spot-enabled=true,environment=dev'",
+      "Type": "String"
     }
   },
   "Resources": {
@@ -107,7 +112,8 @@
             "BIDDING_POLICY": { "Ref": "BiddingPolicy"},
             "REGIONS": { "Ref": "Regions" },
             "ALLOWED_INSTANCE_TYPES": { "Ref": "AllowedInstanceTypes" },
-            "DISALLOWED_INSTANCE_TYPES": { "Ref": "DisallowedInstanceTypes" }
+            "DISALLOWED_INSTANCE_TYPES": { "Ref": "DisallowedInstanceTypes" },
+            "TAG_FILTERS": { "Ref": "FilterByTags" }
           }
         },
         "Handler": { "Ref": "LambdaHandlerFunction" },

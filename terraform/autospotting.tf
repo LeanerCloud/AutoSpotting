@@ -8,6 +8,7 @@ module "autospotting" {
   autospotting_spot_price_buffer_percentage = "${var.asg_spot_price_buffer_percentage}"
   autospotting_bidding_policy               = "${var.asg_bidding_policy}"
   autospotting_regions_enabled              = "${var.asg_regions_enabled}"
+  autospotting_tag_filters                  = "${var.asg_tag_filters}
 
   lambda_zipname       = "${var.lambda_zipname}"
   lambda_runtime       = "${var.lambda_runtime}"

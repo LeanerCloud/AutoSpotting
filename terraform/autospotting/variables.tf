@@ -33,6 +33,10 @@ variable "autospotting_regions_enabled" {
   description = "Regions that autospotting is watching"
 }
 
+variable "autospotting_tag_filters" {
+  description = "tags to filter which ASGs autospotting considers"
+}
+
 # Lambda configuration
 variable "lambda_zipname" {
   description = "Name of the archive"

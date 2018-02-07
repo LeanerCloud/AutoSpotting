@@ -12,17 +12,30 @@ import (
 // String formats the ArrayOfStrings type string[]
 // into a string
 func (i *Tags) String() string {
-	return fmt.Sprintf("%v", *i)
+	if len(*i) > 0 {
+		return fmt.Sprintf("%v", *i)
+	}
+	return fmt.Sprintf("%v", []Tag{{Key: "spot-enabled", Value: "true"}})
 }
 
 // Set supports the multiple command line options with the same
 // name
 func (i *Tags) Set(value string) error {
+	if len(value) > 0 {
+		// Allow both space- and comma-separated values for the region list.
+		csv := strings.Replace(value, " ", ",", -1)
+		for _, tagWithValue := range strings.Split(csv, ",") {
+			i.splitTagAndValue(tagWithValue)
+		}
+	}
+	return nil
+}
+
+func (i *Tags) splitTagAndValue(value string) {
 	splitTagAndValue := strings.Split(value, "=")
 	if len(splitTagAndValue) > 1 {
 		*i = append(*i, Tag{Key: splitTagAndValue[0], Value: splitTagAndValue[1]})
 	}
-	return nil
 }
 
 // Tags allows the support for multiple

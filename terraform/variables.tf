@@ -39,6 +39,11 @@ variable "asg_regions_enabled" {
   default     = ""
 }
 
+variable "asg_tag_filters" {
+  description = "Tags to filter which ASGs autospotting considers"
+  default     = ""
+}
+
 # Lambda configuration
 variable "lambda_zipname" {
   description = "Name of the archive"

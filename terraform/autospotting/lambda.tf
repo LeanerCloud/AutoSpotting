@@ -17,6 +17,7 @@ resource "aws_lambda_function" "autospotting" {
       SPOT_PRICE_BUFFER_PERCENTAGE = "${var.autospotting_spot_price_buffer_percentage}"
       BIDDING_POLICY               = "${var.autospotting_bidding_policy}"
       REGIONS                      = "${var.autospotting_regions_enabled}"
+      TAG_FILTERS                  = "${var.autospotting_tag_filters}"
     }
   }
 }
