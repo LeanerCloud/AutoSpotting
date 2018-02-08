@@ -20,10 +20,7 @@ type cfgData struct {
 var conf *cfgData
 
 // Version represents the build version being used
-var Version string
-
-// ExpirationDate represents the date at which the version will expire
-var ExpirationDate string
+var Version = "number missing"
 
 func main() {
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
@@ -34,12 +31,8 @@ func main() {
 }
 
 func run() {
-	log.Println("Starting autospotting agent, build ", Version, "expiring on", ExpirationDate)
 
-	if isExpired(ExpirationDate) {
-		log.Fatalln("Autospotting expired, please install a newer version.")
-		return
-	}
+	log.Println("Starting autospotting agent, build", Version)
 
 	log.Printf("Parsed command line flags: "+
 		"regions='%s' "+
