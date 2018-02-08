@@ -28,6 +28,7 @@ type Config struct {
 	DisallowedInstanceTypes   string
 	OnDemandPriceMultiplier   float64
 	SpotPriceBufferPercentage float64
+	SpotProductDescription    string
 	BiddingPolicy             string
 
 	// This is only here for tests, where we want to be able to somehow mock

@@ -49,6 +49,7 @@ func run() {
 		"disallowed_instance_types=%v "+
 		"on_demand_price_multiplier=%.2f "+
 		"spot_price_buffer_percentage=%.3f "+
+		"spot_product_description=%v "+
 		"bidding_policy=%s",
 		conf.Regions,
 		conf.MinOnDemandNumber,
@@ -57,6 +58,7 @@ func run() {
 		conf.DisallowedInstanceTypes,
 		conf.OnDemandPriceMultiplier,
 		conf.SpotPriceBufferPercentage,
+		conf.SpotProductDescription,
 		conf.BiddingPolicy)
 
 	autospotting.Run(conf.Config)
@@ -146,6 +148,13 @@ func (c *cfgData) parseCommandLineFlags() {
 			"\twhen they were initially launched, but still somewhat less than the on-demand price. Can be\n"+
 			"\tenforced using the tag: "+autospotting.SpotPriceBufferPercentageTag+". If the bid exceeds\n"+
 			"\tthe on-demand price, we place a bid at on-demand price itself.")
+
+	//flag.StringVar(&c.SpotProductDescription, "spot_product_description", autospotting.DefaultSpotProductDescription,
+	lag.StringVar(&c.SpotProductDescription, "spot_product_description", "Linux/UNIX",
+		"They type of Spot product, typically operating system, (default: 'Linux/UNIX')\n"+
+			"\t Valid choices: \n"+
+			"\t 'Linux/UNIX', 'SUSE Linux', 'Windows', 'Linux/UNIX (Amazon VPC)',\n"+
+			"\t 'SUSE Linux (Amazon VPC)', 'Windows (Amazon VPC)'")
 
 	flag.StringVar(&c.BiddingPolicy, "bidding_policy", "normal",
 		"Policy choice for spot bid. If set to 'normal', we bid at the on-demand price. If set to 'aggressive',\n"+
