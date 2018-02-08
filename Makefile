@@ -10,9 +10,8 @@ LOCAL_PATH := build/s3/$(FLAVOR)
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
-EXPIRATION := $(shell ./expiration_date.sh $(FLAVOR))
 
-LOCAL_LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD) -X main.ExpirationDate=$(EXPIRATION)"
+LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD)"
 
 all: fmt-check vet-check build test                          ## Build the code
 .PHONY: all
@@ -36,7 +35,7 @@ build_deps:
 .PHONY: build_deps
 
 build: build_deps                                            ## Build autospotting binary
-	GOOS=linux go build -ldflags=$(LOCAL_LDFLAGS) -o $(BINARY)
+	GOOS=linux go build -ldflags=$(LDFLAGS) -o $(BINARY)
 .PHONY: build
 
 archive: build                                               ## Create archive to be uploaded
