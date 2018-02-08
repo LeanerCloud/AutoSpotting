@@ -64,24 +64,38 @@ For more detailed information you can read this [document](START.md)
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/nightly/template.json)
 
-Note: this installs the latest nightly build generated automatically from the
- code after each commit. Even though it's generally stable, it is meant to be
- used for evaluation purposes and is **not recommended for production use**. It
- expires after two months from the date in which the binary was built and comes
- with no support or warranty.
+### Nightly builds ###
 
-Stable, carefully tested and supported builds are available from the original
-author and given to major [Patrons](https://www.patreon.com/cristim). Using
-these builds you are also helping the further development of the software.
+The above stack installs the latest nightly build generated automatically after
+each commit to Github. Even though it's often relatively stable, it is meant to
+be used for evaluation purposes and is **not recommended for production use**.
+
+These builds come with no support or warranty whatsoever, you have been warned!
+
+Also please don't automate the download of the nightly builds, these incur some
+costs on a monthly basis and this may lead to them being discontinued in the
+future in case of abuse.
+
+### Stable builds ###
+
+Carefully tested builds are available from the original author and given to
+patrons that contribute a fraction of 5% of their monthly savings to further
+development. You can become a patron by clicking
+[here](https://www.patreon.com/bePatron?c=979085)
 
 Please get in touch on [gitter](https://gitter.im/cristim) if you are a Patron
-interested in getting a stable build.
+interested in getting access to the stable builds.
+
+These builds also come with some technical support, the author will try to help
+you run AutoSpotting on your environment and your feature requests and issues
+will be treated with higher priority.
 
 ## Compiling and Installing ##
 
-It is recommended to use the provided stable binaries. If you
+It is always recommended to use the stable binaries mentioned above. But if you
 have some special needs, you can tweak the software then build and run your
-customized binaries since these do not expire.
+customized binaries that you maintain on your own, just keep in mind that those
+won't be supported in any way.
 
 More details are available [here](CUSTOM_BUILDS.md)
 
@@ -100,12 +114,12 @@ setup.
 Non-trivial code should be submitted according to the contribution
 [guidelines](CONTRIBUTING.md)
 
-You can also contribute financially. We gladly accept tips on
-[Patreon](https://www.patreon.com/cristim) or
-[Paypal](https://paypal.me/cristim). Even a small percentage (1 to 5% cut of the
-generated monthly savings) would make a huge difference to the development of the
-project. Please convince your organization to invest in it so they will reap the
-benefits of any further improvements.
+You can also contribute financially, we gladly accept tips on
+[Patreon](https://www.patreon.com/bePatron?c=979085) or
+[Paypal](https://paypal.me/cristim). Even a small fraction of the generated
+monthly savings would make a huge difference to the development of the project.
+Please convince your organization to invest in it so they will reap the benefits
+of any further improvements.
 
 ## Support ##
 
@@ -117,8 +131,8 @@ binaries.
 The main author also offers enterprise-grade support and will do as much as
 possible to help you out with any issues you may have. Custom feature
 development as well as AWS-related consulting are also available for a fee
-(often proportional to just a month worth of savings). For more information feel
-free to get in touch on [gitter](https://gitter.im/cristim).
+(often proportional to less than a month worth of your savings). For more
+information feel free to get in touch on [gitter](https://gitter.im/cristim).
 
 ## Users ##
 
