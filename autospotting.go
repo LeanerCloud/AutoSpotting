@@ -148,7 +148,7 @@ func (c *cfgData) parseCommandLineFlags() {
 
 	flag.StringVar(&c.BiddingPolicy, "bidding_policy", autospotting.DefaultBiddingPolicy,
 		"\n\tPolicy choice for spot bid. If set to 'normal', we bid at the on-demand price.\n"+
-		"\tIf set to 'aggressive', we bid at a percentage value above the spot price configurable using the spot_price_buffer_percentage.\n")
+			"\tIf set to 'aggressive', we bid at a percentage value above the spot price configurable using the spot_price_buffer_percentage.\n")
 
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 
