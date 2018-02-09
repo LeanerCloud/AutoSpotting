@@ -6,7 +6,7 @@
 
 [![BuildStatus](https://travis-ci.org/cristim/autospotting.svg?branch=master)](https://travis-ci.org/cristim/autospotting)
 [![GoReportCard](https://goreportcard.com/badge/github.com/cristim/autospotting)](https://goreportcard.com/report/github.com/cristim/autospotting)
-[![CoverageStatus](https://coveralls.io/repos/github/cristim/autospotting/badge.svg?branch=master)](https://coveralls.io/github/cristim/autospotting?branch=master)
+[![Backers on Open Collective](https://opencollective.com/autospotting/backers/badge.svg)](#backers) [![Sponsors on Open Collective](https://opencollective.com/autospotting/sponsors/badge.svg)](#sponsors) [![CoverageStatus](https://coveralls.io/repos/github/cristim/autospotting/badge.svg?branch=master)](https://coveralls.io/github/cristim/autospotting?branch=master)
 [![CodeClimate](https://codeclimate.com/github/cristim/autospotting/badges/gpa.svg)](https://codeclimate.com/github/cristim/autospotting)
 [![IssueCount](https://codeclimate.com/github/cristim/autospotting/badges/issue_count.svg)](https://codeclimate.com/github/cristim/autospotting)
 [![ChatOnGitter](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
@@ -134,6 +134,36 @@ development as well as AWS-related consulting are also available for a fee
 (often proportional to less than a month worth of your savings). For more
 information feel free to get in touch on [gitter](https://gitter.im/cristim).
 
+## Credits
+
+### Contributors
+
+This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
+<a href="graphs/contributors"><img src="https://opencollective.com/autospotting/contributors.svg?width=890" /></a>
+
+
+### Backers
+
+Thank you to all our backers! 🙏 [[Become a backer](https://opencollective.com/autospotting#backer)]
+
+<a href="https://opencollective.com/autospotting#backers" target="_blank"><img src="https://opencollective.com/autospotting/backers.svg?width=890"></a>
+
+
+### Sponsors
+
+Support this project by becoming a sponsor. Your logo will show up here with a link to your website. [[Become a sponsor](https://opencollective.com/autospotting#sponsor)]
+
+<a href="https://opencollective.com/autospotting/sponsor/0/website" target="_blank"><img src="https://opencollective.com/autospotting/sponsor/0/avatar.svg"></a>
+<a href="https://opencollective.com/autospotting/sponsor/1/website" target="_blank"><img src="https://opencollective.com/autospotting/sponsor/1/avatar.svg"></a>
+<a href="https://opencollective.com/autospotting/sponsor/2/website" target="_blank"><img src="https://opencollective.com/autospotting/sponsor/2/avatar.svg"></a>
+<a href="https://opencollective.com/autospotting/sponsor/3/website" target="_blank"><img src="https://opencollective.com/autospotting/sponsor/3/avatar.svg"></a>
+<a href="https://opencollective.com/autospotting/sponsor/4/website" target="_blank"><img src="https://opencollective.com/autospotting/sponsor/4/avatar.svg"></a>
+<a href="https://opencollective.com/autospotting/sponsor/5/website" target="_blank"><img src="https://opencollective.com/autospotting/sponsor/5/avatar.svg"></a>
+<a href="https://opencollective.com/autospotting/sponsor/6/website" target="_blank"><img src="https://opencollective.com/autospotting/sponsor/6/avatar.svg"></a>
+<a href="https://opencollective.com/autospotting/sponsor/7/website" target="_blank"><img src="https://opencollective.com/autospotting/sponsor/7/avatar.svg"></a>
+<a href="https://opencollective.com/autospotting/sponsor/8/website" target="_blank"><img src="https://opencollective.com/autospotting/sponsor/8/avatar.svg"></a>
+<a href="https://opencollective.com/autospotting/sponsor/9/website" target="_blank"><img src="https://opencollective.com/autospotting/sponsor/9/avatar.svg"></a>
+
 ## Users ##
 
 Autospotting is already used by hundreds of individuals and organizations around
@@ -149,6 +179,10 @@ development effort (listed in alphabetical order):
 - www.here.com
 - www.spscommerce.com
 - www.timber.io
+
+
+
+
 
 ## License ##
 

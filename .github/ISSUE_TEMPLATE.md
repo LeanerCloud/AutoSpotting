@@ -71,3 +71,6 @@ You can paste some logging output and/or a stack trace between quotes below
 
 ```text
 ```
+
+<!-- Love autospotting? Please consider supporting our collective:
+👉  https://opencollective.com/autospotting/donate -->
