@@ -1,5 +1,7 @@
 # Frequently Asked Questions
 
+<!-- markdownlint-disable MD026 -->
+
 Feel free to add here any questions related to the AutoSpotting project and to
 edit existing items if you notice any inaccuracies. Once the list is in a decent
 shape it will be added to the official project documentation under a new FAQ
@@ -106,7 +108,7 @@ all regions in order to take action against your enabled AutoScaling groups.
 This is configurable in case you want to only have it running against a smaller
 set of regions.
 
- ## How much does it cost me to run it?
+## How much does it cost me to run it?
 
 AutoSpotting is designed to have minimal footprint, and it will only cost you a
 few pennies monthly.
@@ -146,13 +148,12 @@ The author also offers custom feature development and deployment support for a
 fee, feel free to [get in touch](https://gitter.im/cristim) if you need any
 help.
 
- ## How do I enable it?
+## How do I enable it?
 
 The entire configuration is based on tags applied on your AutoScaling groups.
 
 It will only take action against groups that have the "spot-enabled" tag set to
 "true", regardless in which region they are.
-
 
 ## What if I have groups in multiple AWS regions?
 
@@ -162,13 +163,18 @@ to all regions unless configured otherwise at installation time.
 The region selection can be changed later by updating the CloudFormation or
 Terraform stack you used to install it.
 
-## Will it replace all my on-demand instances wth spot instances? Can I keep some running just in case?
+## Will it replace all my on-demand instances wth spot instances?
 
-First, AutoSpotting will ignore all your groups, unless configured otherwise
-using tags for every single group.
+Yes, that's the default behavior (we find it quite safe), but for your peace of
+mind this is configurable, as you can see below.
 
-For your peace of mind, AutoSpotting can also keep some on-demand instances
-running in each of the enabled groups, if so configured.
+## Can I keep some on-demand instances running just in case?
+
+First, of all don't panic! AutoSpotting will ignore all your groups, unless
+configured otherwise using tags for every single group you want it to manage.
+
+For your peace of mind, AutoSpotting can be configured to keep some on-demand
+instances running in each of the enabled groups, if so configured.
 
 On the enabled groups it will by default replace all on-demand instances with
 spot, unless configured otherwise in the CloudFormation stack parameters. This
@@ -338,7 +344,7 @@ logic, which may depend a lot on your application. But there are some tools
 implementing spot instance termination handling and allowing you to customize
 the draining action.
 
-## What are some use cases in which AutoSpotting should not be used? What should I use instead?
+## What are some use cases in which it's not a good fit and what to use instead?
 
 Anything that doesn't really match the above cases.
 
@@ -447,6 +453,7 @@ narrow range, which is not the case for SpotFleets.
 ## How does AutoSpotting compare to commercial offerings such as SpotInst?
 
 Many of these commercial offerings have in common a number of things:
+
 - SaaS model, requiring admin-like privileges and cross-account access to all
   target AWS accounts which usually raises eyebrows from security auditors. They
   can read a lot of information from your AWS account and send it back to the
@@ -521,7 +528,7 @@ consider [contributing](CONTRIBUTING.md) a fix.
 
 Other cases may need to be reported as additional issues.
 
-# Which IAM permissions are granted to the AutoSpotting CloudFormation Stack and why are they needed?
+## Which IAM permissions does AutoSpotting need and why are they needed?
 
 Just like users who pipe curl output into their shell for installing software
 should carefully review those installation scripts, users should pay attention
@@ -549,6 +556,7 @@ permissions needed for the instance replacement and logging its actions. The
 full list can be seen in the Cloudformation stack
 [template](https://github.com/cristim/autospotting/blob/master/cloudformation/stacks/AutoSpotting/template.json#L91),
 but it basically boils down to the following:
+
 - describing the resources you have in order to decide what needs to be done
   (things such as regions, instances, spot prices, existing spot requests,
   AutoScaling groups, etc.)
@@ -584,6 +592,18 @@ Since it's open source anyone can participate in the development, contribute
 fixes and improvements benefitting anyone else, so it's no longer a tiny
 one-man-show open source hobby project.
 
+## How do I Uninstall it?
+
+You just need to remove the AutoSpotting CloudFormation or Terraform stack.
+
+The groups will eventually revert to the original state once the spot market
+price fluctuations terminate all the spot instances. In some cases this may take
+months, so you can also terminate them immediately, the best way to achieve this
+is by configuring autospotting to use 100% on-demand capacity.
+
+Fine-grained control on a per group level can be achieved by removing or setting
+the `spot-enabled` tag to any other value. AutoSpotting only touches groups
+where this tag is set to `true`.
 
 ## Shall I contribute to Autospotting code?
 

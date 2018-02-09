@@ -8,12 +8,12 @@
       "Type": "String"
     },
     "LambdaHandlerFunction": {
-      "Default": "handler.Handle",
+      "Default": "autospotting",
       "Description": "Handler function for Lambda",
       "Type": "String"
     },
     "LambdaMemorySize": {
-      "Default": "256",
+      "Default": "1024",
       "Description": "Memory allocated to the Lambda function",
       "Type": "Number"
     },
@@ -51,6 +51,11 @@
       "Default": "10.0",
       "Description": "Percentage Value of the bid above the current spot price. A spot bid would be placed at a value = current_spot_price * [1 + (spot_price_buffer_percentage/100.0)]. The main benefit is that it protects the group from running spot instances that got significantly more expensive than when they were initially launched, but still somewhat less than the on-demand price.",
       "Type": "Number"
+    },
+    "SpotProductDescription": {
+      "Default": "Linux/Unix (Amazon VPC)",
+      "Description": "The Spot Product or operating system to use when looking up spot price history in the market. Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)",
+      "Type": "String"
     },
     "BiddingPolicy": {
       "Default": "normal",
@@ -104,6 +109,7 @@
             "MIN_ON_DEMAND_PERCENTAGE": { "Ref": "MinOnDemandPercentage" },
             "ON_DEMAND_PRICE_MULTIPLIER": { "Ref": "OnDemandPriceMultiplier" },
             "SPOT_PRICE_BUFFER_PERCENTAGE": { "Ref": "SpotPricePercentageBuffer"},
+            "SPOT_PRODUCT_DESCRIPTION": { "Ref": "SpotProductDescription"},
             "BIDDING_POLICY": { "Ref": "BiddingPolicy"},
             "REGIONS": { "Ref": "Regions" },
             "ALLOWED_INSTANCE_TYPES": { "Ref": "AllowedInstanceTypes" },
@@ -113,7 +119,7 @@
         "Handler": { "Ref": "LambdaHandlerFunction" },
         "MemorySize": { "Ref": "LambdaMemorySize" },
         "Role": { "Fn::GetAtt": [ "LambdaExecutionRole", "Arn" ] },
-        "Runtime": "python2.7",
+        "Runtime": "go1.x",
         "Timeout": "300"
       },
       "Type": "AWS::Lambda::Function"
