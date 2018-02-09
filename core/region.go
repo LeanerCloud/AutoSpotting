@@ -206,7 +206,7 @@ func (r *region) requestSpotPrices() error {
 
 	// Retrieve all current spot prices from the current region.
 	// TODO: add support for other OSes
-	err := s.fetch("Linux/UNIX", 0, nil, nil)
+	err := s.fetch(r.conf.SpotProductDescription, 0, nil, nil)
 
 	if err != nil {
 		return errors.New("Couldn't fetch spot prices in " + r.name)
