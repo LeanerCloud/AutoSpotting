@@ -1,6 +1,6 @@
 # AutoSpotting #
 
-<!-- markdownlint-disable MD033 -->
+<!-- markdownlint-disable MD026 MD033 -->
 
 <img src="logo.png" width="150" align="right">
 
@@ -24,12 +24,12 @@ AutoSpotting clones one of your on-demand instances from the group with a spot
 instance that is cheaper, at least as large (automatically considering memory,
 CPU cores and disk volumes) and configured identically to it. Once the new spot
 instance is ready, it is attached to the group and an on-demand instance is
-detached and terminated, to keep the group at constant capacity.
+detached and terminated to keep the group at constant capacity.
 
-It continuously applies this process, across all enabled groups from all
-regions, gradually replacing your on-demand instances with much cheaper spot
+It continuously applies this process across all enabled groups from all
+regions gradually replacing your on-demand instances with much cheaper spot
 instances. For your peace of mind, you can also configure it to keep running a
-configurable number of on-demand instances, given as percentage or absolute
+configurable number of on-demand instances given as percentage or absolute
 number.
 
 Your groups will then monitor and use these spot instances just like they would
@@ -64,34 +64,48 @@ For more detailed information you can read this [document](START.md)
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/nightly/template.json)
 
-Note: this installs the latest nightly build, generated automatically from the
- code after each commit. Even though it's generally stable, it is meant to be
- used for evaluation purposes and is **not recommended for production use**. It
- expires after two months from the date in which the binary was built and comes
- with no support or warranty.
+### Nightly builds ###
 
-Stable, carefully tested and supported builds are available from the original
-author, and given to major [Patrons](https://www.patreon.com/cristim). Using
-these builds you are also helping the further development of the software.
+The above stack installs the latest nightly build generated automatically after
+each commit to Github. Even though it's often relatively stable, it is meant to
+be used for evaluation purposes and is **not recommended for production use**.
+
+These builds come with no support or warranty whatsoever, you have been warned!
+
+Also please don't automate the download of the nightly builds, these incur some
+costs on a monthly basis and this may lead to them being discontinued in the
+future in case of abuse.
+
+### Stable builds ###
+
+Carefully tested builds are available from the original author and given to
+patrons that contribute a fraction of 5% of their monthly savings to further
+development. You can become a patron by clicking
+[here](https://www.patreon.com/bePatron?c=979085)
 
 Please get in touch on [gitter](https://gitter.im/cristim) if you are a Patron
-interested in getting a stable build.
+interested in getting access to the stable builds.
+
+These builds also come with some technical support, the author will try to help
+you run AutoSpotting on your environment and your feature requests and issues
+will be treated with higher priority.
 
 ## Compiling and Installing ##
 
-Even though it's recommended to use the provided stable binaries, in case you
-have some special needs, you can tweak the software, then build and run your
-customized binaries, since these do not expire.
+It is always recommended to use the stable binaries mentioned above. But if you
+have some special needs, you can tweak the software then build and run your
+customized binaries that you maintain on your own, just keep in mind that those
+won't be supported in any way.
 
 More details are available [here](CUSTOM_BUILDS.md)
 
 ## Contributing ##
 
 This project was developed by volunteers in their own spare time. If you find it
-useful please consider contributing to its development, any help would be
+useful, please consider contributing to its development as any help would be
 greatly appreciated.
 
-You can do it by trying it out and giving feedback, reporting bugs, writing
+You can help by trying it out and giving feedback, reporting bugs, writing
 code, improving the documentation, assigning someone to work on it for a few
 hours a week, spreading the word or simply
 [contacting](https://gitter.im/cristim/autospotting) us and telling about your
@@ -101,11 +115,11 @@ Non-trivial code should be submitted according to the contribution
 [guidelines](CONTRIBUTING.md)
 
 You can also contribute financially, we gladly accept tips on
-[Patreon](https://www.patreon.com/cristim) or
-[Paypal](https://paypal.me/cristim). Even a small percentage, 1 to 5% cut of the
-generated monthly savings would make a huge difference to the development of the
-project, please convince your organization to invest in it, they will reap the
-benefits of any further improvements.
+[Patreon](https://www.patreon.com/bePatron?c=979085) or
+[Paypal](https://paypal.me/cristim). Even a small fraction of the generated
+monthly savings would make a huge difference to the development of the project.
+Please convince your organization to invest in it so they will reap the benefits
+of any further improvements.
 
 ## Support ##
 
@@ -116,14 +130,14 @@ binaries.
 
 The main author also offers enterprise-grade support and will do as much as
 possible to help you out with any issues you may have. Custom feature
-development as well as AWS-related consulting are also available for a fee,
-often proportional to just a month worth of savings. For more information feel
-free to get in touch on [gitter](https://gitter.im/cristim).
+development as well as AWS-related consulting are also available for a fee
+(often proportional to less than a month worth of your savings). For more
+information feel free to get in touch on [gitter](https://gitter.im/cristim).
 
 ## Users ##
 
 Autospotting is already used by hundreds of individuals and organizations around
-the world, some of them we know of are mentioned in the [list](USERS.md) of
+the world. Some of them we know of are mentioned in the [list](USERS.md) of
 notable users.
 
 The following deserve a special mention for contributing significantly to the

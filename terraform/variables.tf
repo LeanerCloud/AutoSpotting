@@ -1,4 +1,14 @@
 # Autospotting configuration
+variable "asg_disallowed_instance_types" {
+  description = <<EOF
+Comma separated list of disallowed instance types for spot requests,
+in case you want to exclude specific types (also support globs).
+
+Example: 't2.*,m4.large'
+EOF
+  default = ""
+}
+
 variable "asg_min_on_demand_number" {
   description = "Minimum on demand number for all ASG enabled"
   default     = "0"
@@ -12,6 +22,11 @@ variable "asg_min_on_demand_percentage" {
 variable "asg_on_demand_price_multiplier" {
   description = "Multiplier for the on-demand price"
   default     = "1.0"
+}
+
+variable "asg_spot_product_description" {
+  description = "The Spot Product or operating system to use when looking up spot price history in the market. Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)"
+  default     = "Linux/UNIX (Amazon VPC)"
 }
 
 variable "asg_spot_price_buffer_percentage" {
@@ -37,12 +52,12 @@ variable "lambda_zipname" {
 
 variable "lambda_runtime" {
   description = "Environment the lambda function runs in"
-  default     = "python2.7"
+  default     = "go1.x"
 }
 
 variable "lambda_memory_size" {
   description = "Memory size allocated to the lambda run"
-  default     = 256
+  default     = 1024
 }
 
 variable "lambda_timeout" {
