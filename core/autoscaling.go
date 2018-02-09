@@ -47,6 +47,10 @@ const (
 
 	// Default constant values should be defined below:
 
+	// DefaultSpotProductDescription stores the default operating system
+	// to use when looking up spot price history in the market.
+	DefaultSpotProductDescription = "Linux/UNIX (Amazon VPC)"
+
 	// DefaultMinOnDemandValue stores the default on-demand capacity to be kept
 	// running in a group managed by autospotting.
 	DefaultMinOnDemandValue = 0
