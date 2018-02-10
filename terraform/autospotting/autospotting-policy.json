@@ -17,6 +17,7 @@
         "ec2:RequestSpotInstances",
         "ec2:TerminateInstances",
         "iam:PassRole",
+        "iam:CreateServiceLinkedRole",
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
         "logs:PutLogEvents"
