@@ -53,14 +53,26 @@
       "Type": "Number"
     },
     "SpotProductDescription": {
-      "Default": "Linux/Unix (Amazon VPC)",
+      "Default": "Linux/UNIX (Amazon VPC)",
       "Description": "The Spot Product or operating system to use when looking up spot price history in the market. Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)",
-      "Type": "String"
+      "Type": "String",
+      "AllowedValues" : [
+        "Linux/UNIX",
+        "SUSE Linux",
+        "Windows",
+        "Linux/UNIX (Amazon VPC)",
+        "SUSE Linux (Amazon VPC)",
+        "Windows (Amazon VPC)"
+      ]
     },
     "BiddingPolicy": {
       "Default": "normal",
       "Description": "Policy choice for spot bid. If set to 'normal', we bid at the on-demand price. If set to 'aggressive', we bid at a multiple of the spot price.",
-      "Type": "String"
+      "Type": "String",
+      "AllowedValues" : [
+        "normal",
+        "aggressive"
+      ]
     },
     "Regions": {
       "Default": "",
@@ -144,6 +156,7 @@
                 "ec2:RequestSpotInstances",
                 "ec2:TerminateInstances",
                 "iam:PassRole",
+                "iam:CreateServiceLinkedRole",
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
                 "logs:PutLogEvents"
