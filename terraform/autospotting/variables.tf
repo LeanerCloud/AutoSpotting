@@ -1,4 +1,17 @@
 # Autospotting configuration
+variable "autospotting_allowed_instance_types" {
+  description = <<EOF
+Comma separated list of allowed instance types for spot requests,
+in case you want to exclude specific types (also support globs).
+
+Example: 't2.*,m4.large'
+
+Using the 'current' magic value will only allow the same type as the
+on-demand instances set in the group's launch configuration.
+EOF
+  default = ""
+}
+
 variable "autospotting_disallowed_instance_types" {
   description = <<EOF
 Comma separated list of disallowed instance types for spot requests,
