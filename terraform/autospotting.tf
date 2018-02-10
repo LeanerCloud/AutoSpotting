@@ -1,6 +1,7 @@
 module "autospotting" {
   source = "./autospotting"
 
+  autospotting_allowed_instance_types       = "${var.asg_allowed_instance_types}"
   autospotting_disallowed_instance_types    = "${var.asg_disallowed_instance_types}"
   autospotting_min_on_demand_number         = "${var.asg_min_on_demand_number}"
   autospotting_min_on_demand_percentage     = "${var.asg_min_on_demand_percentage}"
