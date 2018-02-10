@@ -34,6 +34,11 @@ variable "asg_on_demand_price_multiplier" {
   default     = "1.0"
 }
 
+variable "asg_spot_product_description" {
+  description = "The Spot Product or operating system to use when looking up spot price history in the market. Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)"
+  default     = "Linux/UNIX (Amazon VPC)"
+}
+
 variable "asg_spot_price_buffer_percentage" {
   description = "Percentage above the current spot price to place the bid"
   default     = "10.0"
@@ -57,7 +62,7 @@ variable "lambda_zipname" {
 
 variable "lambda_runtime" {
   description = "Environment the lambda function runs in"
-  default     = "python2.7"
+  default     = "go1.x"
 }
 
 variable "lambda_memory_size" {

@@ -46,6 +46,10 @@ variable "autospotting_regions_enabled" {
   description = "Regions that autospotting is watching"
 }
 
+variable "autospotting_spot_product_description" {
+  description = "The Spot Product or operating system to use when looking up spot price history in the market. Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)"
+}
+
 # Lambda configuration
 variable "lambda_zipname" {
   description = "Name of the archive"
