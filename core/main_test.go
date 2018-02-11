@@ -70,9 +70,19 @@ func Test_spotEnabledIsAddedByDefault(t *testing.T) {
 		want:   Tag{Key: "spot-enabled", Value: "true"},
 	},
 		{
-			name:   "Specified ASG Tags",
-			config: Config{FilterByTags: []Tag{Tag{Key: "environment", Value: "dev"}}},
-			want:   Tag{Key: "environment", Value: "dev"},
+			name: "Specified ASG Tags",
+			config: Config{
+				FilterByTags: []Tag{
+					Tag{
+						Key:   "environment",
+						Value: "dev",
+					},
+				},
+			},
+			want: Tag{
+				Key:   "environment",
+				Value: "dev",
+			},
 		},
 	}
 
