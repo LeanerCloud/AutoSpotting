@@ -446,7 +446,7 @@ func TestFilterAsgs(t *testing.T) {
 				asgNames = append(asgNames, name.name)
 			}
 			if !reflect.DeepEqual(tt.want, asgNames) {
-				t.Errorf("region.requestSpotInstanceTypes() = %v, want %v", asgNames, tt.want)
+				t.Errorf("region.scanForEnabledAutoScalingGroups() = %v, want %v", asgNames, tt.want)
 			}
 		})
 	}

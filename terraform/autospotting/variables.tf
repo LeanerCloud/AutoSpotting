@@ -47,7 +47,7 @@ variable "autospotting_regions_enabled" {
 }
 
 variable "autospotting_tag_filters" {
-  description = "tags to filter which ASGs autospotting considers"
+  description = "tags to filter which ASGs autospotting considers.  by default if left blank, asgs tagged with spot-enbled=true will be operated on.  You can set this to many tags, for example: spot-enabled=true,Environment=dev,Team=vision"
 }
 
 variable "autospotting_spot_product_description" {

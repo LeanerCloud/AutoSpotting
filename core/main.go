@@ -61,7 +61,8 @@ func setupLogging(cfg *Config) {
 }
 
 // processAllRegions iterates all regions in parallel, and replaces instances
-// for each of the ASGs tagged with 'spot-enabled=true'.
+// for each of the ASGs tagged with tags as specifed by slice represented by cfg.FilterByTags
+// by default this is all asg with the tag 'spot-enabled=true'.
 func processRegions(regions []string, cfg *Config) {
 
 	var wg sync.WaitGroup

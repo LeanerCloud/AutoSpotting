@@ -26,7 +26,7 @@ type region struct {
 	enabledASGs []autoScalingGroup
 	services    connections
 
-	tagsToFilterASGsBy []Tag
+	tagsToFilterASGsBy Tags
 
 	wg sync.WaitGroup
 }
@@ -270,13 +270,13 @@ func (r *region) requestSpotInstanceTypes() ([]string, error) {
 	return instTypes, nil
 }
 
-func tagsMatch(asgTag autoscaling.TagDescription, filteringTag Tag) bool {
-	return *asgTag.Key == filteringTag.Key && *asgTag.Value == filteringTag.Value
+func tagsMatch(asgTag *autoscaling.TagDescription, filteringTag Tag) bool {
+	return asgTag != nil && *asgTag.Key == filteringTag.Key && *asgTag.Value == filteringTag.Value
 }
 
 func isASGWithMatchingTag(tagToMatch Tag, asgTags []*autoscaling.TagDescription) bool {
 	for _, asgTag := range asgTags {
-		if tagsMatch(*asgTag, tagToMatch) {
+		if tagsMatch(asgTag, tagToMatch) {
 			return true
 		}
 	}
@@ -287,7 +287,7 @@ func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch []Tag) bool {
 	matchedTags := 0
 
 	for _, tag := range tagsToMatch {
-		if isASGWithMatchingTag(tag, asg.Tags) {
+		if asg != nil && isASGWithMatchingTag(tag, asg.Tags) {
 			matchedTags++
 		}
 	}
@@ -300,8 +300,8 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group, ta
 	var asgs []autoScalingGroup
 
 	for _, group := range groups {
-		asgName := *group.AutoScalingGroupName
 		if isASGWithMatchingTags(group, tagsToMatch) {
+			asgName := *group.AutoScalingGroupName
 			logger.Println("Matching tags found for ASG, enabling ASG for processing:", asgName)
 			asgs = append(asgs, autoScalingGroup{
 				Group:  group,
@@ -312,14 +312,6 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group, ta
 	}
 
 	return asgs
-}
-
-func sliceToMap(slice []*string) map[string]*string {
-	names := make(map[string]*string)
-	for _, slice := range slice {
-		names[*slice] = slice
-	}
-	return names
 }
 
 func (r *region) scanForEnabledAutoScalingGroups() {

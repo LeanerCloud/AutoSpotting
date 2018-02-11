@@ -9,7 +9,7 @@ import (
 	"github.com/cristim/ec2-instances-info"
 )
 
-// String formats the ArrayOfStrings type string[]
+// String formats the slice of Tag[]
 // into a string
 func (i *Tags) String() string {
 	if len(*i) > 0 {
@@ -19,10 +19,10 @@ func (i *Tags) String() string {
 }
 
 // Set supports the multiple command line options with the same
-// name
+// name for the "Tags" type
 func (i *Tags) Set(value string) error {
 	if len(value) > 0 {
-		// Allow both space- and comma-separated values for the region list.
+		// Allow both space- and comma-separated values for the command line option.
 		csv := strings.Replace(value, " ", ",", -1)
 		for _, tagWithValue := range strings.Split(csv, ",") {
 			i.splitTagAndValue(tagWithValue)

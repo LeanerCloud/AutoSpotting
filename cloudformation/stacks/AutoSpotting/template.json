@@ -91,7 +91,7 @@
     },
     "FilterByTags": {
       "Default": "",
-      "Description": "Comma separated list of tag=value on which to filter the ASGs that autospotting considers.  By default 'spot-enabled=true'.  Example: 'spot-enabled=true,environment=dev'",
+      "Description": "Comma separated list of tag=value on which to filter the ASGs that autospotting considers.  By default (if no filters are specific) then 'spot-enabled=true' is used.  Example: 'spot-enabled=true,environment=dev'",
       "Type": "String"
     }
   },
