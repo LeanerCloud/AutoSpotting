@@ -63,7 +63,7 @@ endif
 
 fmt-check:                                                   ## Verify fmt compliance
 ifneq ($(shell gofmt -l -s $(GOFILES) | wc -l), 0)
-	@printf "error\tsome files did not pass go fmt, fix the following formatting diff or run 'make fmt-check'\n"
+	@printf "error\tsome files did not pass go fmt, fix the following formatting diff:\n"
 	@gofmt -l -s -d $(GOFILES)
 	@exit 1
 else
