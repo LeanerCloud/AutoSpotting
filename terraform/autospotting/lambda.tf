@@ -10,11 +10,13 @@ resource "aws_lambda_function" "autospotting" {
 
   environment {
     variables = {
+      ALLOWED_INSTANCE_TYPES       = "${var.autospotting_allowed_instance_types}"
       DISALLOWED_INSTANCE_TYPES    = "${var.autospotting_disallowed_instance_types}"
       MIN_ON_DEMAND_NUMBER         = "${var.autospotting_min_on_demand_number}"
       MIN_ON_DEMAND_PERCENTAGE     = "${var.autospotting_min_on_demand_percentage}"
       ON_DEMAND_PRICE_MULTIPLIER   = "${var.autospotting_on_demand_price_multiplier}"
       SPOT_PRICE_BUFFER_PERCENTAGE = "${var.autospotting_spot_price_buffer_percentage}"
+      SPOT_PRODUCT_DESCRIPTION     = "${var.autospotting_spot_product_description}"
       BIDDING_POLICY               = "${var.autospotting_bidding_policy}"
       REGIONS                      = "${var.autospotting_regions_enabled}"
       TAG_FILTERS                  = "${var.autospotting_tag_filters}"

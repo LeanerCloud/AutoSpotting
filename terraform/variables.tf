@@ -1,4 +1,14 @@
 # Autospotting configuration
+variable "asg_allowed_instance_types" {
+  description = <<EOF
+If specified, the spot instances will have a specific instance type:
+
+current: the same as initial on-demand instances
+<instance-type>: the actual instance type to use
+EOF
+  default     = ""
+}
+
 variable "asg_disallowed_instance_types" {
   description = <<EOF
 Comma separated list of disallowed instance types for spot requests,
@@ -22,6 +32,11 @@ variable "asg_min_on_demand_percentage" {
 variable "asg_on_demand_price_multiplier" {
   description = "Multiplier for the on-demand price"
   default     = "1.0"
+}
+
+variable "asg_spot_product_description" {
+  description = "The Spot Product or operating system to use when looking up spot price history in the market. Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)"
+  default     = "Linux/UNIX (Amazon VPC)"
 }
 
 variable "asg_spot_price_buffer_percentage" {
