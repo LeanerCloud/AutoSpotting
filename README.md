@@ -10,6 +10,7 @@
 [![CodeClimate](https://codeclimate.com/github/cristim/autospotting/badges/gpa.svg)](https://codeclimate.com/github/cristim/autospotting)
 [![IssueCount](https://codeclimate.com/github/cristim/autospotting/badges/issue_count.svg)](https://codeclimate.com/github/cristim/autospotting)
 [![ChatOnGitter](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Open Source Helpers](https://www.codetriage.com/cristim/autospotting/badges/users.svg)](https://www.codetriage.com/cristim/autospotting)
 
 A simple and easy to use tool designed to significantly lower your Amazon AWS
 costs by automating the use of [spot](https://aws.amazon.com/ec2/spot)
