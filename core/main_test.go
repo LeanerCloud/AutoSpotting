@@ -63,23 +63,26 @@ func Test_spotEnabledIsAddedByDefault(t *testing.T) {
 	tests := []struct {
 		name   string
 		config Config
-		want   Tag
-	}{{
-		name:   "Default No ASG Tags",
-		config: Config{},
-		want:   Tag{Key: "spot-enabled", Value: "true"},
-	},
+		want   string
+	}{
+		{
+			name:   "Default No ASG Tags",
+			config: Config{},
+			want:   "spot-enabled=true",
+		},
 		{
 			name: "Specified ASG Tags",
 			config: Config{
-				FilterByTags: []Tag{
-					{Key: "environment", Value: "dev"},
-				},
+				FilterByTags: "environment=dev",
 			},
-			want: Tag{
-				Key:   "environment",
-				Value: "dev",
+			want: "environment=dev",
+		},
+		{
+			name: "Specified ASG that is just whitespace",
+			config: Config{
+				FilterByTags: "         ",
 			},
+			want: "spot-enabled=true",
 		},
 	}
 
@@ -88,11 +91,7 @@ func Test_spotEnabledIsAddedByDefault(t *testing.T) {
 
 			addDefaultFilter(&tt.config)
 
-			if len(tt.config.FilterByTags) != 1 {
-				t.Errorf("addDefaultFilter() = %v, want %v", tt.config.FilterByTags, tt.want)
-			}
-
-			if tt.config.FilterByTags[0].Key != tt.want.Key || tt.config.FilterByTags[0].Value != tt.want.Value {
+			if !reflect.DeepEqual(tt.config.FilterByTags, tt.want) {
 				t.Errorf("addDefaultFilter() = %v, want %v", tt.config.FilterByTags, tt.want)
 			}
 		})

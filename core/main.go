@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -40,8 +41,8 @@ func Run(cfg *Config) {
 }
 
 func addDefaultFilter(cfg *Config) {
-	if len(cfg.FilterByTags) == 0 {
-		cfg.FilterByTags = []Tag{{Key: "spot-enabled", Value: "true"}}
+	if len(strings.TrimSpace(cfg.FilterByTags)) == 0 {
+		cfg.FilterByTags = "spot-enabled=true"
 	}
 }
 

@@ -111,6 +111,49 @@ func Test_region_enabled(t *testing.T) {
 	}
 }
 
+func TestAsgFiltersSetupOnRegion(t *testing.T) {
+	tests := []struct {
+		name    string
+		want    []Tag
+		tregion *region
+	}{
+		{
+			name: "No tags specified",
+			want: []Tag{{Key: "spot-enabled", Value: "true"}},
+			tregion: &region{
+				conf: &Config{},
+			},
+		},
+		{
+			name: "No tags specified",
+			want: []Tag{{Key: "spot-enabled", Value: "true"}, {Key: "environment", Value: "dev"}},
+			tregion: &region{
+				conf: &Config{
+					FilterByTags: "spot-enabled=true, environment=dev",
+				},
+			},
+		},
+		{
+			name: "No tags specified",
+			want: []Tag{{Key: "spot-enabled", Value: "true"}, {Key: "environment", Value: "dev"}, {Key: "team", Value: "interactive"}},
+			tregion: &region{
+				conf: &Config{
+					FilterByTags: "spot-enabled=true, environment=dev,team=interactive",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+
+		tt.tregion.setupAsgFilters()
+		if !reflect.DeepEqual(tt.want, tt.tregion.tagsToFilterASGsBy) {
+			t.Errorf("region.setupAsgFilters() = %v, want %v", tt.tregion.tagsToFilterASGsBy, tt.want)
+
+		}
+
+	}
+}
+
 func TestRequestSpotInstanceTypes(t *testing.T) {
 	tests := []struct {
 		name    string

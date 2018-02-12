@@ -13,6 +13,12 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
+// Tag represents an Asg Tag: Key, Value
+type Tag struct {
+	Key   string
+	Value string
+}
+
 // data structure that stores information about a region
 type region struct {
 	name string
@@ -26,7 +32,7 @@ type region struct {
 	enabledASGs []autoScalingGroup
 	services    connections
 
-	tagsToFilterASGsBy Tags
+	tagsToFilterASGsBy []Tag
 
 	wg sync.WaitGroup
 }
@@ -98,7 +104,32 @@ func (r *region) processRegion() {
 }
 
 func (r *region) setupAsgFilters() {
-	r.tagsToFilterASGsBy = r.conf.FilterByTags
+	filters := replaceWhitespace(r.conf.FilterByTags)
+	if len(filters) == 0 {
+		r.tagsToFilterASGsBy = []Tag{{Key: "spot-enabled", Value: "true"}}
+		return
+	}
+
+	for _, tagWithValue := range strings.Split(filters, ",") {
+		tag := splitTagAndValue(tagWithValue)
+		if tag != nil {
+			r.tagsToFilterASGsBy = append(r.tagsToFilterASGsBy, *tag)
+		}
+	}
+}
+
+func replaceWhitespace(filters string) string {
+	filters = strings.TrimSpace(filters)
+	filters = strings.Replace(filters, " ", ",", -1)
+	return filters
+}
+
+func splitTagAndValue(value string) *Tag {
+	splitTagAndValue := strings.Split(value, "=")
+	if len(splitTagAndValue) > 1 {
+		return &Tag{Key: splitTagAndValue[0], Value: splitTagAndValue[1]}
+	}
+	return nil
 }
 
 func (r *region) scanInstances() error {

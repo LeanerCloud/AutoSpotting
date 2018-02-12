@@ -264,7 +264,7 @@ Usage of ./autospotting:
 	      Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)
 
   -tag_filters=[{spot-enabled true}]: Set of tags to filter the ASGs on.  Default is -tag_filters 'spot-enabled=true'
-	      Example: ./autospotting -tag_filters 'Environment=dev' -tag_filters 'Team=vision' or -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'
+	      Example: ./autospotting -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'
 
 ```
 
