@@ -127,6 +127,7 @@ module "autospotting" {
   autospotting_min_on_demand_number = "0"
   autospotting_min_on_demand_percentage = "50.0"
   autospotting_regions_enabled = "eu*,us*"
+  autospotting_tag_filters = "spot-enabled=true,environment=dev,team=interactive"
   on_demand_price_multiplier = "1.0"
   spot_price_buffer_percentage = "10.0"
   bidding_policy = "normal"
@@ -217,32 +218,54 @@ available options:
 ``` text
 $ ./autospotting -h
 Usage of ./autospotting:
-  -min_on_demand_number=0: On-demand capacity (as absolute number) ensured to be
-        running in each of your groups.
-        Can be overridden on a per-group basis using the tag autospotting_on_demand_number
-  -min_on_demand_percentage=0: On-demand capacity (percentage of the total number
-        of instances in the group) ensured to be running in each of your groups.
-        Can be overridden on a per-group basis using the tag autospotting_on_demand_percentage
+  -allowed_instance_types="":
+        If specified, the spot instances will be of these types.
+        If missing, the type is autodetected frome each ASG based on it's Launch Configuration.
+        Accepts a list of comma or whitespace seperated instance types (supports globs).
+        Example: ./autospotting -allowed_instance_types 'c5.*,c4.xlarge'
+
+  -bidding_policy="normal":
+        Policy choice for spot bid. If set to 'normal', we bid at the on-demand price.
+        If set to 'aggressive', we bid at a percentage value above the spot price configurable using the spot_price_buffer_percentage.
+
+  -disallowed_instance_types="":
+        If specified, the spot instances will _never_ be of these types.
+        Accepts a list of comma or whitespace seperated instance types (supports globs).
+        Example: ./autospotting -disallowed_instance_types 't2.*,c4.xlarge'
+
+  -min_on_demand_number=0:
+        On-demand capacity (as absolute number) ensured to be running in each of your groups.
+        Can be overridden on a per-group basis using the tag autospotting_min_on_demand_number.
+
+  -min_on_demand_percentage=0:
+        On-demand capacity (percentage of the total number of instances in the group) ensured to be running in each of your groups.
+        Can be overridden on a per-group basis using the tag autospotting_min_on_demand_percentage
         It is ignored if min_on_demand_number is also set.
-  -on_demand_price_multiplier float
-        Multiplier for the on-demand price. This is useful for volume discounts
-        or if you want to set your bid price to be higher than the on demand
-        price to reduce the chances that your spot instances will be terminated.
-        (default 1)
-  -spot_price_buffer_percentage float
-        Percentage Value of the bid above the current spot price. A spot
-        bid would be placed at a value
-        current_spot_price * [1 + (spot_price_buffer_percentage/100.0)] .
-        The main benefit is that it protects the group from running spot instances
-        that got significantly more expensive than when they were initially launched,
-        but still somewhat less than the on-demand price. (default 10.0)
-  -bidding_policy string
-        Policy choice for spot bid. If set to 'normal', we bid at the
-        on-demand price. If set to 'aggressive', we bid at a multiple of
-        the spot price. (default "normal")
-  -regions="": Regions where it should be activated (comma or whitespace separated
-        list, also supports globs), by default it runs on all regions.
+
+  -on_demand_price_multiplier=1:
+        Multiplier for the on-demand price. This is useful for volume discounts or if you want to
+        set your bid price to be higher than the on demand price to reduce the chances that your
+        spot instances will be terminated.
+
+  -regions="":
+        Regions where it should be activated (comma or whitespace separated list, also supports globs), by default it runs on all regions.
         Example: ./autospotting -regions 'eu-*,us-east-1'
+
+  -spot_price_buffer_percentage=10:
+        Percentage Value of the bid above the current spot price. A spot bid would be placed at a value :
+        current_spot_price * [1 + (spot_price_buffer_percentage/100.0)]. The main benefit is that
+        it protects the group from running spot instances that got significantly more expensive than
+        when they were initially launched, but still somewhat less than the on-demand price. Can be
+        enforced using the tag: autospotting_spot_price_buffer_percentage. If the bid exceeds
+        the on-demand price, we place a bid at on-demand price itself.
+
+  -spot_product_description="Linux/UNIX (Amazon VPC)":
+	      The Spot Product or operating system to use when looking up spot price history in the market.
+	      Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)
+
+  -tag_filters=[{spot-enabled true}]: Set of tags to filter the ASGs on.  Default is -tag_filters 'spot-enabled=true'
+	      Example: ./autospotting -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'
+
 ```
 
 The value of `-min_on_demand_number` has a higher priority than
@@ -258,6 +281,11 @@ functionality.
 All the flags are also exposed as environment variables, expected in ALL_CAPS.
 For example using the `-region` command-line flag is equivalent to using the
 `REGION` environment variable.
+
+When `tag_filters` is not passed, the default operation is to look for ASG's that
+have the tag `spot-enabled=true`.   If you wish to narrow the operation of
+autospotting to ASGs that match more specific criteria you can specify the matching
+tags as you see fit.  i.e. `-tag_filters 'spot-enabled=true,Environment=dev,Team=vision'`
 
 **Note**: These configurations are also implemented when running from Lambda,
 where they are actually passed as environment variables set by CloudFormation

@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -26,6 +27,8 @@ func Run(cfg *Config) {
 	// use this only to list all the other regions
 	ec2Conn := connectEC2(cfg.MainRegion)
 
+	addDefaultFilter(cfg)
+
 	allRegions, err := getRegions(ec2Conn)
 
 	if err != nil {
@@ -35,6 +38,12 @@ func Run(cfg *Config) {
 
 	processRegions(allRegions, cfg)
 
+}
+
+func addDefaultFilter(cfg *Config) {
+	if len(strings.TrimSpace(cfg.FilterByTags)) == 0 {
+		cfg.FilterByTags = "spot-enabled=true"
+	}
 }
 
 func disableLogging() {
@@ -53,7 +62,8 @@ func setupLogging(cfg *Config) {
 }
 
 // processAllRegions iterates all regions in parallel, and replaces instances
-// for each of the ASGs tagged with 'spot-enabled=true'.
+// for each of the ASGs tagged with tags as specifed by slice represented by cfg.FilterByTags
+// by default this is all asg with the tag 'spot-enabled=true'.
 func processRegions(regions []string, cfg *Config) {
 
 	var wg sync.WaitGroup
