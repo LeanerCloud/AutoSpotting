@@ -35,4 +35,8 @@ type Config struct {
 	// time.Sleep without actually sleeping. While testing it defaults to 0 (which won't sleep at all), in
 	// real-world usage it's expected to be set to 1
 	SleepMultiplier time.Duration
+
+	// Filter on ASG tags
+	// for example: spot-enabled=true,environment=dev,team=interactive
+	FilterByTags string
 }

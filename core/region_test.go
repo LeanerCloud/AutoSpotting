@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/cristim/ec2-instances-info"
 )
@@ -107,6 +108,49 @@ func Test_region_enabled(t *testing.T) {
 				t.Errorf("region.enabled() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestAsgFiltersSetupOnRegion(t *testing.T) {
+	tests := []struct {
+		name    string
+		want    []Tag
+		tregion *region
+	}{
+		{
+			name: "No tags specified",
+			want: []Tag{{Key: "spot-enabled", Value: "true"}},
+			tregion: &region{
+				conf: &Config{},
+			},
+		},
+		{
+			name: "No tags specified",
+			want: []Tag{{Key: "spot-enabled", Value: "true"}, {Key: "environment", Value: "dev"}},
+			tregion: &region{
+				conf: &Config{
+					FilterByTags: "spot-enabled=true, environment=dev",
+				},
+			},
+		},
+		{
+			name: "No tags specified",
+			want: []Tag{{Key: "spot-enabled", Value: "true"}, {Key: "environment", Value: "dev"}, {Key: "team", Value: "interactive"}},
+			tregion: &region{
+				conf: &Config{
+					FilterByTags: "spot-enabled=true, environment=dev,team=interactive",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+
+		tt.tregion.setupAsgFilters()
+		if !reflect.DeepEqual(tt.want, tt.tregion.tagsToFilterASGsBy) {
+			t.Errorf("region.setupAsgFilters() = %v, want %v", tt.tregion.tagsToFilterASGsBy, tt.want)
+
+		}
+
 	}
 }
 
@@ -287,6 +331,165 @@ func TestContainsString(t *testing.T) {
 			received := containsString(tt.list, tt.key)
 			if tt.want != received {
 				t.Errorf("region.containsString() = %v, want %v", received, tt.want)
+			}
+		})
+	}
+}
+
+func TestFilterAsgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		want    []string
+		tregion *region
+	}{
+		{
+			name: "Test with single filter",
+			want: []string{"asg1", "asg2", "asg3", "asg4"},
+			tregion: &region{
+				tagsToFilterASGsBy: []Tag{{Key: "spot-enabled", Value: "true"}},
+				conf:               &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+							AutoScalingGroups: []*autoscaling.Group{
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg1")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
+									},
+									AutoScalingGroupName: aws.String("asg1"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg2")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
+									},
+									AutoScalingGroupName: aws.String("asg2"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg3")},
+									},
+									AutoScalingGroupName: aws.String("asg3"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg4")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg4")},
+									},
+									AutoScalingGroupName: aws.String("asg4"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Test with two filters",
+			want: []string{"asg3", "asg4"},
+			tregion: &region{
+				tagsToFilterASGsBy: []Tag{{Key: "spot-enabled", Value: "true"}, {Key: "environment", Value: "qa"}},
+				conf:               &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+							AutoScalingGroups: []*autoscaling.Group{
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg1")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
+									},
+									AutoScalingGroupName: aws.String("asg1"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg2")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
+									},
+									AutoScalingGroupName: aws.String("asg2"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg3")},
+									},
+									AutoScalingGroupName: aws.String("asg3"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg4")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg4")},
+									},
+									AutoScalingGroupName: aws.String("asg4"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Test with multiple secondary filter",
+			want: []string{"asg4"},
+			tregion: &region{
+				tagsToFilterASGsBy: []Tag{
+					{Key: "spot-enabled", Value: "true"},
+					{Key: "environment", Value: "qa"},
+					{Key: "team", Value: "interactive"},
+				},
+				conf: &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+							AutoScalingGroups: []*autoscaling.Group{
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg1")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
+									},
+									AutoScalingGroupName: aws.String("asg1"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg2")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
+									},
+									AutoScalingGroupName: aws.String("asg2"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg3")},
+									},
+									AutoScalingGroupName: aws.String("asg3"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg4")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg4")},
+										{Key: aws.String("team"), Value: aws.String("interactive"), ResourceId: aws.String("asg4")},
+									},
+									AutoScalingGroupName: aws.String("asg4"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := tt.tregion
+			r.scanForEnabledAutoScalingGroups()
+			var asgNames []string
+			for _, name := range r.enabledASGs {
+				asgNames = append(asgNames, name.name)
+			}
+			if !reflect.DeepEqual(tt.want, asgNames) {
+				t.Errorf("region.scanForEnabledAutoScalingGroups() = %v, want %v", asgNames, tt.want)
 			}
 		})
 	}

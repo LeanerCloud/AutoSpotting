@@ -19,6 +19,7 @@ resource "aws_lambda_function" "autospotting" {
       SPOT_PRODUCT_DESCRIPTION     = "${var.autospotting_spot_product_description}"
       BIDDING_POLICY               = "${var.autospotting_bidding_policy}"
       REGIONS                      = "${var.autospotting_regions_enabled}"
+      TAG_FILTERS                  = "${var.autospotting_tag_filters}"
     }
   }
 }
