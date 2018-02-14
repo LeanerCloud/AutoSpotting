@@ -7,9 +7,14 @@ COVER_PROFILE := /tmp/coverage.out
 BUCKET_NAME ?= cloudprowess
 FLAVOR ?= custom
 LOCAL_PATH := build/s3/$(FLAVOR)
+LICENSE_FILES := LICENSE
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
+
+ifneq ($(FLAVOR), custom)
+    LICENSE_FILES += BINARY_LICENSE
+endif
 
 LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD)"
 
@@ -41,7 +46,7 @@ build: build_deps                                            ## Build autospotti
 archive: build                                               ## Create archive to be uploaded
 	@rm -rf $(LOCAL_PATH)
 	@mkdir -p $(LOCAL_PATH)
-	@zip $(LOCAL_PATH)/lambda.zip $(BINARY)
+	@zip $(LOCAL_PATH)/lambda.zip $(BINARY) $(LICENSE_FILES)
 	@cp -f cloudformation/stacks/AutoSpotting/template.json $(LOCAL_PATH)/template.json
 	@cp -f cloudformation/stacks/AutoSpotting/template.json $(LOCAL_PATH)/template_build_$(BUILD).json
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(BUILD).zip
