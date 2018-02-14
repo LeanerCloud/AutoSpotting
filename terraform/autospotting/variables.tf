@@ -46,6 +46,10 @@ variable "autospotting_regions_enabled" {
   description = "Regions that autospotting is watching"
 }
 
+variable "autospotting_tag_filters" {
+  description = "tags to filter which ASGs autospotting considers.  by default if left blank, asgs tagged with spot-enbled=true will be operated on.  You can set this to many tags, for example: spot-enabled=true,Environment=dev,Team=vision"
+}
+
 variable "autospotting_spot_product_description" {
   description = "The Spot Product or operating system to use when looking up spot price history in the market. Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)"
 }

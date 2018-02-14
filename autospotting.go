@@ -42,8 +42,9 @@ func run() {
 		"disallowed_instance_types=%v "+
 		"on_demand_price_multiplier=%.2f "+
 		"spot_price_buffer_percentage=%.3f "+
-		"spot_product_description=%v "+
-		"bidding_policy=%s",
+		"bidding_policy=%s "+
+		"tag_filters=%s "+
+		"spot_product_description=%v",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
@@ -51,8 +52,9 @@ func run() {
 		conf.DisallowedInstanceTypes,
 		conf.OnDemandPriceMultiplier,
 		conf.SpotPriceBufferPercentage,
-		conf.SpotProductDescription,
-		conf.BiddingPolicy)
+		conf.BiddingPolicy,
+		conf.FilterByTags,
+		conf.SpotProductDescription)
 
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")
@@ -149,6 +151,9 @@ func (c *cfgData) parseCommandLineFlags() {
 	flag.StringVar(&c.BiddingPolicy, "bidding_policy", autospotting.DefaultBiddingPolicy,
 		"\n\tPolicy choice for spot bid. If set to 'normal', we bid at the on-demand price.\n"+
 			"\tIf set to 'aggressive', we bid at a percentage value above the spot price configurable using the spot_price_buffer_percentage.\n")
+
+	flag.StringVar(&c.FilterByTags, "tag_filters", "", "Set of tags to filter the ASGs on.  Default if no value is set will be the equivalent of -tag_filters 'spot-enabled=true'\n\t"+
+		"Example: ./autospotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
 
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 
