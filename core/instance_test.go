@@ -722,14 +722,6 @@ func TestIsQuantityCompatible(t *testing.T) {
 					DesiredCapacity: tt.asgDesiredCapacity,
 				},
 			}
-			i := &instance{
-				Instance: &ec2.Instance{
-					Placement: &ec2.Placement{
-						AvailabilityZone: tt.availabilityZone,
-					},
-				},
-				asg: a,
-			}
 		})
 	}
 }
