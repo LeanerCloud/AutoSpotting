@@ -144,20 +144,6 @@ func (i *instance) terminate() error {
 	return nil
 }
 
-// We skip it in case we have more than 25% instances of this type already running
-func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformation) bool {
-	spotInstanceCount := i.asg.alreadyRunningSpotInstanceTypeCount(
-		spotCandidate.instanceType, *i.Placement.AvailabilityZone)
-
-	debug.Println("Checking current spot quantity:")
-	debug.Println("\tSpot count: ", spotInstanceCount)
-	if spotInstanceCount != 0 {
-		debug.Println("\tRatio desired/spot currently running: ",
-			(*i.asg.DesiredCapacity/spotInstanceCount > 4))
-	}
-	return spotInstanceCount == 0 || *i.asg.DesiredCapacity/spotInstanceCount > 4
-}
-
 func (i *instance) isPriceCompatible(spotPrice float64, bestPrice float64) bool {
 	return spotPrice != 0 && spotPrice <= i.price && spotPrice <= bestPrice
 }
@@ -275,8 +261,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 
 		candidatePrice := i.calculatePrice(candidate)
 
-		if i.isSpotQuantityCompatible(candidate) &&
-			i.isPriceCompatible(candidatePrice, bestPrice) &&
+		if i.isPriceCompatible(candidatePrice, bestPrice) &&
 			i.isEBSCompatible(candidate) &&
 			i.isClassCompatible(candidate) &&
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
