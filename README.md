@@ -58,8 +58,11 @@ and we'll do our best to answer them either there or on Gitter.
 
 Just like in the above animation, it's as easy as launching a CloudFormation (or
 [Terraform](https://github.com/cristim/autospotting/tree/master/terraform))
-stack and setting the `spot-enabled` tag on the AutoScaling groups where
-you want it enabled to `true`.
+stack and setting the `spot-enabled` tag on the AutoScaling groups where you
+want it enabled to `true`.
+
+All the required infrastructure and configuration will be created automatically,
+so you can get started as fast as possible.
 
 For more detailed information you can read this [document](START.md)
 
@@ -67,10 +70,10 @@ For more detailed information you can read this [document](START.md)
 
 ### Official binaries ###
 
-The above stack installs the latest build generated automatically after each
-commit. Even though these builds are usually stable enough, they may have not yet
-been thoroughly tested and come with no warranty and only best effort community
-support.
+The above stack can be used to conveniently install the latest build generated
+automatically after each commit. Even though these builds are usually stable
+enough, they may not have been thoroughly tested yet and come with no warranty
+and only best effort community support.
 
 They are distributed under a proprietary [license](BINARY_LICENSE) that allows
 them to be used free of charge for a limited evaluation period, no longer than
