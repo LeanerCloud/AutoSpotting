@@ -730,10 +730,6 @@ func TestIsQuantityCompatible(t *testing.T) {
 				},
 				asg: a,
 			}
-			retValue := i.isSpotQuantityCompatible(tt.spotInfo)
-			if retValue != tt.expected {
-				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
-			}
 		})
 	}
 }
