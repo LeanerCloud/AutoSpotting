@@ -68,7 +68,7 @@ For more detailed information you can read this [document](START.md)
 ### Official binaries ###
 
 The above stack installs the latest build generated automatically after each
-commit. Even though these builds are usully stable enough, they may have not yet
+commit. Even though these builds are usually stable enough, they may have not yet
 been thoroughly tested and come with no warranty and only best effort community
 support.
 
