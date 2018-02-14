@@ -215,6 +215,8 @@ The algorithm can use custom command-line flags. Much like many other
 command-line tools, you can use the `-h` command line flag to see all the
 available options:
 
+<!-- markdownlint-disable MD013 -->
+
 ``` text
 $ ./autospotting -h
 Usage of ./autospotting:
@@ -260,13 +262,14 @@ Usage of ./autospotting:
         the on-demand price, we place a bid at on-demand price itself.
 
   -spot_product_description="Linux/UNIX (Amazon VPC)":
-	      The Spot Product or operating system to use when looking up spot price history in the market.
-	      Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)
+        The Spot Product or operating system to use when looking up spot price history in the market.
+        Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)
 
   -tag_filters=[{spot-enabled true}]: Set of tags to filter the ASGs on.  Default is -tag_filters 'spot-enabled=true'
-	      Example: ./autospotting -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'
-
+        Example: ./autospotting -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'
 ```
+
+<!-- markdownlint-enable MD013 -->
 
 The value of `-min_on_demand_number` has a higher priority than
 `-min_on_demand_percentage`, so if you specify both options in the command line,
