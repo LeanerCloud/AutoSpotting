@@ -54,6 +54,11 @@ variable "asg_regions_enabled" {
   default     = ""
 }
 
+variable "asg_tag_filters" {
+  description = "Tags to filter which ASGs autospotting considers.  If blank by default this will search for asgs with spot-enabled=true.  You can set this to many tags, for example: spot-enabled=true,Environment=dev,Team=vision"
+  default     = ""
+}
+
 # Lambda configuration
 variable "lambda_zipname" {
   description = "Name of the archive"
