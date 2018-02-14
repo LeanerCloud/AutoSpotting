@@ -132,21 +132,23 @@ any other values.
 ## How about the software costs?
 
 The software itself is free and open source so there is no monthly subscription
-fee if you use the open source code straight from trunk. The software itself is
-largely community-supported, well-documented and is designed to be easy to set
-up so it shouldn't need much support.
+fee if you build the open source code straight from trunk. The software itself
+is largely community-supported, well-documented and is designed to be easy to
+set up so it shouldn't need much support.
 
-But if you really find it useful please consider giving a recurring tip on
+Convenient to install pre-built binaries are available for evaluation for a
+limited period. These can be used for unlimited time by the users who pay a
+small fraction of their monthly savings. Stable, carefully tested and better
+supported binaries are also available for a slightly larger fee.
+
+The license fees and payment methods for the prebuilt binaries are documented in
+the main [documentation](README.md)
+
+The author also offers custom feature development and deployment support, feel
+free to [get in touch](https://gitter.im/cristim) if you need any help.
+
+If you find AutoSpotting useful please consider giving a recurring tip on
 [Patreon](https://www.patreon.com/cristim) to encourage further development.
-
-If your tip is over 5% of the money it saves you monthly, you will get access to
-stable builds that were carefully tested by the author and should be more
-reliable for production use cases, and if you have any issues they will be
-handled with higher urgency by the author.
-
-The author also offers custom feature development and deployment support for a
-fee, feel free to [get in touch](https://gitter.im/cristim) if you need any
-help.
 
 ## How do I enable it?
 
