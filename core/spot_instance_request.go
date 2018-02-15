@@ -19,12 +19,48 @@ type spotInstanceRequest struct {
 	asg    *autoScalingGroup
 }
 
+func (s *spotInstanceRequest) cancelRequest() (bool, error) {
+	canCancel := false
+	if s.State != nil {
+		switch *s.State {
+		case "capacity-not-available":
+			canCancel = true
+			break
+		default:
+			canCancel = false
+		}
+	}
+
+	if canCancel {
+		ec2Client := s.region.services.ec2
+		params := ec2.CancelSpotInstanceRequestsInput{
+			SpotInstanceRequestIds: []*string{s.SpotInstanceRequestId},
+		}
+		_, err := ec2Client.CancelSpotInstanceRequests(&params)
+		return true, err
+	} else {
+		return false, nil
+	}
+}
+
 // This function returns an Instance ID
 func (s *spotInstanceRequest) waitForAndTagSpotInstance() error {
 	logger.Println(s.asg.name, "Waiting for spot instance for spot instance request",
 		*s.SpotInstanceRequestId)
 
 	ec2Client := s.region.services.ec2
+
+	cancelled, cancelError := s.cancelRequest()
+
+	if cancelError != nil {
+		logger.Println(s.asg.name, "Error attempting to cancel Spot request:", cancelError.Error())
+		return cancelError
+	}
+
+	if cancelled {
+		logger.Println(s.asg.name, "Spot request cancelled")
+		return nil
+	}
 
 	params := ec2.DescribeSpotInstanceRequestsInput{
 		SpotInstanceRequestIds: []*string{s.SpotInstanceRequestId},
