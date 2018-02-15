@@ -22,7 +22,7 @@ type spotInstanceRequest struct {
 func (s *spotInstanceRequest) cancelRequest() (bool, error) {
 	canCancel := false
 	if s.State != nil {
-		logger.Println(s.State)
+		logger.Println(*s.State)
 		switch *s.State {
 		case "capacity-not-available":
 			canCancel = true
