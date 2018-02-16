@@ -532,7 +532,11 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 			// function timeout when waiting for the instances would break the loop,
 			// because the subsequent run would find a failed spot request instead
 			// of an open one.
-			req.waitForAndTagSpotInstance()
+			err := req.waitForAndTagSpotInstance()
+			if err != nil {
+				logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance", err)
+				continue
+			}
 			activeSpotInstanceRequest = req
 		}
 
