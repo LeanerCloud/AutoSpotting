@@ -532,8 +532,10 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 			// function timeout when waiting for the instances would break the loop,
 			// because the subsequent run would find a failed spot request instead
 			// of an open one.
-			req.waitForAndTagSpotInstance()
-			activeSpotInstanceRequest = req
+			err := req.waitForAndTagSpotInstance()
+			if err != nil {
+				activeSpotInstanceRequest = req
+			}
 		}
 
 		// We found a spot request with a running instance.
@@ -564,8 +566,10 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 				} else {
 					logger.Println(a.name, "Active bid was found, with no running "+
 						"instances, waiting for an instance to start ...")
-					req.waitForAndTagSpotInstance()
-					activeSpotInstanceRequest = req
+					err := req.waitForAndTagSpotInstance()
+					if err != nil {
+						activeSpotInstanceRequest = req
+					}
 				}
 			}
 		}
