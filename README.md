@@ -16,7 +16,7 @@ A simple and easy to use tool designed to significantly lower your Amazon AWS
 costs by automating the use of [spot](https://aws.amazon.com/ec2/spot)
 instances.
 
-![Savings](https://cdn.cloudprowess.com/images/savings.png)
+![Savings](https://autospotting.org/img/savings.png)
 
 ## How does it work? ##
 
@@ -42,7 +42,7 @@ and configured individually by using a few additional tags.
 
 This can be seen in action below, you can click to expand the animation:
 
-![Workflow](https://cdn.cloudprowess.com/images/autospotting.gif)
+![Workflow](https://autospotting.org/img/autospotting.gif)
 
 Read [here](TECHNICAL_DETAILS.md) for more information and implementation
 details.

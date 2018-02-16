@@ -241,7 +241,7 @@ frequency is every 5 minutes, but it is configurable using stack parameters.
 
 ## Running example ##
 
-![Workflow](https://cdn.cloudprowess.com/images/autospotting.gif)
+![Workflow](https://autospotting.org/img/autospotting.gif)
 
 In this case the initial instance type was quite expensive, so the algorithm
 chose a different type that had more computing capacity. At the end that group
@@ -255,7 +255,7 @@ multiple price zones), where it can often achieve savings up to 90% off
 the usual on-demand prices, much like in the 85% price reduction shown below.
 This was seen on a group of two m3.medium instances running in eu-west-1:
 
-![Savings Graph](https://cdn.cloudprowess.com/images/autospotting-savings.png)
+![Savings Graph](https://autospotting.org/img/autospotting-savings.png)
 
 ## Best Practices ##
 
