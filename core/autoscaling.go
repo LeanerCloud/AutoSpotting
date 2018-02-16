@@ -574,6 +574,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 						continue
 					} else {
 						activeSpotInstanceRequest = req
+						break
 					}
 				}
 			}
