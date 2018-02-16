@@ -533,7 +533,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 			// because the subsequent run would find a failed spot request instead
 			// of an open one.
 			err := req.waitForAndTagSpotInstance()
-			if err != nil {
+			if err == nil {
 				activeSpotInstanceRequest = req
 			}
 		}

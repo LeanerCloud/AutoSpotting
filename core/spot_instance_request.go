@@ -59,7 +59,7 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() error {
 
 	if cancelled {
 		logger.Println(s.asg.name, "Spot request cancelled")
-		return nil
+		return errors.New("Spot request cancelled")
 	}
 
 	params := ec2.DescribeSpotInstanceRequestsInput{
