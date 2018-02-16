@@ -534,7 +534,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 			// of an open one.
 			err := req.waitForAndTagSpotInstance()
 			if err != nil {
-				logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance", err)
+				logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
 				continue
 			}
 			activeSpotInstanceRequest = req
@@ -570,6 +570,9 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 						"instances, waiting for an instance to start ...")
 					err := req.waitForAndTagSpotInstance()
 					if err != nil {
+						logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance to be Running", err)
+						continue
+					} else {
 						activeSpotInstanceRequest = req
 					}
 				}
