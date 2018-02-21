@@ -218,7 +218,7 @@ func (i *instance) isAllowed(instanceType string, allowedList []string, disallow
 
 	if allowedList != nil && allowedList[0] != "" {
 		for _, a := range allowedList {
-			if a == instanceType {
+			if match, _ := filepath.Match(a, instanceType); match {
 				return true
 			}
 		}
