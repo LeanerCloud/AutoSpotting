@@ -49,6 +49,7 @@ archive: build                                               ## Create archive t
 	@zip $(LOCAL_PATH)/lambda.zip $(BINARY) $(LICENSE_FILES)
 	@cp -f cloudformation/stacks/AutoSpotting/template.json $(LOCAL_PATH)/template.json
 	@cp -f cloudformation/stacks/AutoSpotting/template.json $(LOCAL_PATH)/template_build_$(BUILD).json
+	@sed -i "s#lambda\.zip#lambda_build_$(BUILD).zip#"
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(BUILD).zip
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(SHA).zip
 .PHONY: archive
