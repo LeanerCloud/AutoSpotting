@@ -216,7 +216,7 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 func (i *instance) isAllowed(instanceType string, allowedList []string, disallowedList []string) bool {
 	debug.Println("Checking allowed/disallowed list")
 
-	if allowedList != nil && allowedList[0] != "" {
+	if len(allowedList) > 0 {
 		for _, a := range allowedList {
 			if match, _ := filepath.Match(a, instanceType); match {
 				return true
