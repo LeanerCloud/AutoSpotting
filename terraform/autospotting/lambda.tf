@@ -20,6 +20,7 @@ resource "aws_lambda_function" "autospotting" {
       BIDDING_POLICY               = "${var.autospotting_bidding_policy}"
       REGIONS                      = "${var.autospotting_regions_enabled}"
       TAG_FILTERS                  = "${var.autospotting_tag_filters}"
+      MAX_TIME_SPOT_REQUEST_CAN_BE_HOLDING =  = "${var.max_time_spot_request_can_be_holding}"
     }
   }
 }

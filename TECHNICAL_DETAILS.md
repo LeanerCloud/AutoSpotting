@@ -14,6 +14,7 @@
 | Whitelisting of certain instance types | [:beetle:](https://github.com/cristim/autospotting/pull/120#issuecomment-321856920) | :heavy_minus_sign: |
 | Blacklisting of certain instance types | :white_check_mark: | :white_check_mark: |
 | Filter on multiple & custom tags | :white_check_mark: | :heavy_minus_sign: |
+| Cancel Spot Requests that are in holding by AWS | :white_check_mark: | :heavy_minus_sign: |
 
 For the options not directly linked to any specific part of the doc, please
 check the

@@ -93,6 +93,11 @@
       "Default": "",
       "Description": "Comma separated list of tag=value on which to filter the ASGs that autospotting considers.  By default (if no filters are specific) then 'spot-enabled=true' is used.  Example: 'spot-enabled=true,environment=dev'",
       "Type": "String"
+    },
+    "MaxTimeSpotRequestCanBeHolding": {
+      "Default": "0",
+      "Description": "The amount of time (in seconds) that a spot request can remain open, but in a holding state by amazon, before it is cancelled.  The default is 0, which means the request will not be cancelled",
+      "Type": "Number"
     }
   },
   "Resources": {
@@ -131,7 +136,8 @@
             "REGIONS": { "Ref": "Regions" },
             "ALLOWED_INSTANCE_TYPES": { "Ref": "AllowedInstanceTypes" },
             "DISALLOWED_INSTANCE_TYPES": { "Ref": "DisallowedInstanceTypes" },
-            "TAG_FILTERS": { "Ref": "FilterByTags" }
+            "TAG_FILTERS": { "Ref": "FilterByTags" },
+            "MAX_TIME_SPOT_REQUEST_CAN_BE_HOLDING": { "Ref": "TimeSpotRequestCanBeHolding"}
           }
         },
         "Handler": { "Ref": "LambdaHandlerFunction" },
@@ -160,6 +166,7 @@
                 "ec2:DescribeSpotInstanceRequests",
                 "ec2:DescribeSpotPriceHistory",
                 "ec2:RequestSpotInstances",
+                "ec2:CancelSpotRequest",
                 "ec2:TerminateInstances",
                 "iam:PassRole",
                 "iam:CreateServiceLinkedRole",

@@ -128,6 +128,7 @@ module "autospotting" {
   autospotting_min_on_demand_percentage = "50.0"
   autospotting_regions_enabled = "eu*,us*"
   autospotting_tag_filters = "spot-enabled=true,environment=dev,team=interactive"
+  autospotting_max_time_spot_request_can_be_holding = "300"
   on_demand_price_multiplier = "1.0"
   spot_price_buffer_percentage = "10.0"
   bidding_policy = "normal"
@@ -235,6 +236,10 @@ Usage of ./autospotting:
         Accepts a list of comma or whitespace seperated instance types (supports globs).
         Example: ./autospotting -disallowed_instance_types 't2.*,c4.xlarge'
 
+  -max_time_spot_request_can_be_holding=0:
+        Maximum amount of time (in seconds) that a spot request can be in the 'holding' state, before it is cancelled.
+	        The default is to leave the spot request as it is (in the 'holding' for amazon to fullfil)
+
   -min_on_demand_number=0:
         On-demand capacity (as absolute number) ensured to be running in each of your groups.
         Can be overridden on a per-group basis using the tag autospotting_min_on_demand_number.
@@ -289,6 +294,18 @@ When `tag_filters` is not passed, the default operation is to look for ASG's tha
 have the tag `spot-enabled=true`.   If you wish to narrow the operation of
 autospotting to ASGs that match more specific criteria you can specify the matching
 tags as you see fit.  i.e. `-tag_filters 'spot-enabled=true,Environment=dev,Team=vision'`
+
+When a spot request is issue, the normal operation is for this request to go into pending
+by AWS until it is fulfilled.  However, there are occasions when the spot request is put
+into a 'holding' state by amazon.  An example would be, there is no capacity available for
+instance type requested.  A list of the type of 'holding' status can be found on the following
+page: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html
+
+By default when a spot request is in holding, it will remain there until it is fulfilled.
+This can be hours.  As a result there is the parameter: `-max_time_spot_request_can_be_holding`
+that can be set, to the number of seconds (since the spot request was created), that the
+spot request can be in this state.  If it exceeds these number of seconds the spot request
+is cancelled.
 
 **Note**: These configurations are also implemented when running from Lambda,
 where they are actually passed as environment variables set by CloudFormation

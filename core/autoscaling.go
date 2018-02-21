@@ -62,6 +62,11 @@ const (
 	// DefaultBiddingPolicy stores the default bidding policy for
 	// the spot bid on a per-group level
 	DefaultBiddingPolicy = "normal"
+
+	// DefaultMaxTimeSpotRequestCanBeHolding is the default amount of time that
+	// a spot request can be left in the open 'holding' state before it is cancelled.
+	// Any value less than 1 means that the spot request can stay open indefinitely
+	DefaultMaxTimeSpotRequestCanBeHolding = 0
 )
 
 type autoScalingGroup struct {
@@ -494,6 +499,37 @@ func (a *autoScalingGroup) getAnySpotInstance() *instance {
 	return a.getInstance(nil, false, false)
 }
 
+// Before waiting for an instance we check if amazon has put the open request
+// in a holding state (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html).
+// If the request is in a holding state we check if we should
+// cancel the spot request, or ignore it for the time being depending upon the
+// setting of req.maxTimeInHolding.  The default of 0 means don't cancel the request
+// but ignore for the moment (the spot request will remain in the background, and the next
+// invocation will check it)
+func (a *autoScalingGroup) handleSpotRequestInHolding(req *spotInstanceRequest) bool {
+	holdingRequest, cancelled := req.processHoldingRequest(req.maxTimeInHolding)
+
+	if holdingRequest {
+		if req.Status != nil && req.Status.Code != nil {
+			logger.Println(a.name, "Spot Request ("+*req.SpotInstanceRequestId+") is in holding by Amazon:"+*req.Status.Code)
+		} else {
+			logger.Println(a.name, "Spot Request ("+*req.SpotInstanceRequestId+") is in holding by Amazon")
+		}
+		return true
+	}
+
+	if cancelled {
+		if req.Status != nil && req.Status.Code != nil {
+			logger.Println(a.name, "Cancelled Spot Request ("+*req.SpotInstanceRequestId+") that was in holding by Amazon:"+*req.Status.Code)
+		} else {
+			logger.Println(a.name, "Cancelled Spot Request ("+*req.SpotInstanceRequestId+") that was in holding by Amazon")
+		}
+		return true
+	}
+
+	return false
+}
+
 // returns an instance ID as *string and a bool that tells us if  we need to
 // wait for the next run in case there are spot instances still being launched
 func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
@@ -532,6 +568,19 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 			// function timeout when waiting for the instances would break the loop,
 			// because the subsequent run would find a failed spot request instead
 			// of an open one.
+			//
+			// Before waiting for an instance we check if amazon has put the open request
+			// in a holding state (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html).
+			// If the request is in a holding state we check if we should
+			// cancel the spot request, or ignore it for the time being depending upon the
+			// setting of req.maxTimeInHolding.  The default of 0 means don't cancel the request
+			// but ignore for the moment (the spot request will remain in the background, and the next
+			// invocation will check it)
+			//
+			if a.handleSpotRequestInHolding(req) {
+				continue
+			}
+
 			err := req.waitForAndTagSpotInstance()
 			if err != nil {
 				logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
@@ -741,12 +790,17 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 	return a.bidForSpotInstance(spotLS, a.getPricetoBid(baseOnDemandPrice, currentSpotPrice))
 }
 
-func (a *autoScalingGroup) loadSpotInstanceRequest(
-	req *ec2.SpotInstanceRequest) *spotInstanceRequest {
-	return &spotInstanceRequest{SpotInstanceRequest: req,
-		region: a.region,
-		asg:    a,
+func (a *autoScalingGroup) loadSpotInstanceRequest(req *ec2.SpotInstanceRequest) *spotInstanceRequest {
+	var time int64
+	if a.region.conf != nil {
+		time = a.region.conf.MaxTimeSpotRequestCanBeHolding
 	}
+	return &spotInstanceRequest{SpotInstanceRequest: req,
+		region:           a.region,
+		asg:              a,
+		maxTimeInHolding: time,
+	}
+
 }
 
 func (a *autoScalingGroup) bidForSpotInstance(
@@ -769,8 +823,9 @@ func (a *autoScalingGroup) bidForSpotInstance(
 
 	spotRequest := resp.SpotInstanceRequests[0]
 	sr := spotInstanceRequest{SpotInstanceRequest: spotRequest,
-		region: a.region,
-		asg:    a,
+		region:           a.region,
+		asg:              a,
+		maxTimeInHolding: a.region.conf.MaxTimeSpotRequestCanBeHolding,
 	}
 
 	srID := sr.SpotInstanceRequestId
