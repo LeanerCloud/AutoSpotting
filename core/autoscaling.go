@@ -506,7 +506,7 @@ func (a *autoScalingGroup) getAnySpotInstance() *instance {
 // setting of req.maxTimeInHolding.  The default of 0 means don't cancel the request
 // but ignore for the moment (the spot request will remain in the background, and the next
 // invocation will check it)
-func (a *autoScalingGroup) handleSpotRequestInHolding(req *spotInstanceRequest) bool {
+func (a *autoScalingGroup) handleSpotRequestInHolding(req *spotInstanceRequest) (bool, bool) {
 	holdingRequest, cancelled := req.processHoldingRequest(req.maxTimeInHolding)
 
 	if holdingRequest {
@@ -515,7 +515,7 @@ func (a *autoScalingGroup) handleSpotRequestInHolding(req *spotInstanceRequest) 
 		} else {
 			logger.Println(a.name, "Spot Request ("+*req.SpotInstanceRequestId+") is in holding by Amazon")
 		}
-		return true
+		return holdingRequest, cancelled
 	}
 
 	if cancelled {
@@ -524,10 +524,10 @@ func (a *autoScalingGroup) handleSpotRequestInHolding(req *spotInstanceRequest) 
 		} else {
 			logger.Println(a.name, "Cancelled Spot Request ("+*req.SpotInstanceRequestId+") that was in holding by Amazon")
 		}
-		return true
+		return holdingRequest, cancelled
 	}
 
-	return false
+	return holdingRequest, cancelled
 }
 
 // returns an instance ID as *string and a bool that tells us if  we need to
@@ -536,6 +536,8 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 
 	var activeSpotInstanceRequest *spotInstanceRequest
 
+	// default we have found a spot request, don't create a new one
+	waitForNextRun := false
 	// if there are on-demand instances but no spot instance requests yet,
 	// then we can launch a new spot instance
 	if len(a.spotInstanceRequests) == 0 {
@@ -577,16 +579,25 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 			// but ignore for the moment (the spot request will remain in the background, and the next
 			// invocation will check it)
 			//
-			if a.handleSpotRequestInHolding(req) {
+			holdingRequest, cancelled := a.handleSpotRequestInHolding(req)
+			if holdingRequest {
+				// Only ff the holding request was cancelled we wish to create a new spot request
+				// Other than that, we wish to wait for the next run to see if the holding request
+				// was fulfilled
+				if !cancelled {
+					waitForNextRun = true
+				}
 				continue
 			}
 
 			err := req.waitForAndTagSpotInstance()
 			if err != nil {
 				logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
+				waitForNextRun = true
 				continue
 			}
 			activeSpotInstanceRequest = req
+			waitForNextRun = false
 		}
 
 		// We found a spot request with a running instance.
@@ -635,7 +646,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	// launch a new spot instance.
 	if activeSpotInstanceRequest == nil {
 		logger.Println(a.name, "No active unfulfilled bid was found")
-		return nil, false
+		return nil, waitForNextRun
 	}
 
 	spotInstanceID := activeSpotInstanceRequest.InstanceId
