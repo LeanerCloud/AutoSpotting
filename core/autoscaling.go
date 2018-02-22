@@ -631,6 +631,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 					err := req.waitForAndTagSpotInstance()
 					if err != nil {
 						logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance to be Running", err)
+						waitForNextRun = true
 						continue
 					} else {
 						activeSpotInstanceRequest = req
