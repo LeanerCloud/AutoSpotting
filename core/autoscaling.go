@@ -621,26 +621,30 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 }
 
 func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) []string {
-	var allowed, allowedInstanceTypesTag string
+	var allowedInstanceTypesTag string
+
+	// By default take the command line parameter
+	allowed := strings.Replace(a.region.conf.AllowedInstanceTypes, " ", ",", -1)
 
 	// Check option of allowed instance types
 	// If we have that option we don't need to calculate the compatible instance type.
 	if tagValue := a.getTagValue(AllowedInstanceTypesTag); tagValue != nil {
 		allowedInstanceTypesTag = strings.Replace(*tagValue, " ", ",", -1)
 	}
-	allowedInstanceTypes := strings.Replace(a.region.conf.AllowedInstanceTypes, " ", ",", -1)
 
-	// Command line config has a priority
-	if allowedInstanceTypes != "" {
-		allowed = allowedInstanceTypes
-	} else {
+	// ASG Tag config has a priority to override
+	if allowedInstanceTypesTag != "" {
 		allowed = allowedInstanceTypesTag
 	}
 
 	if allowed == "current" {
 		return []string{baseInstance.typeInfo.instanceType}
 	}
-	return strings.Split(allowed, ",")
+
+	// Simple trick to avoid returning list with empty elements
+	return strings.FieldsFunc(allowed, func(c rune) bool {
+		return c == ','
+	})
 }
 
 func (a *autoScalingGroup) getDisallowedInstanceTypes(baseInstance *instance) []string {

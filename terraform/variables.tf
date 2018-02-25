@@ -1,10 +1,10 @@
 # Autospotting configuration
 variable "asg_allowed_instance_types" {
   description = <<EOF
-If specified, the spot instances will have a specific instance type:
+Comma separated list of allowed instance types for spot requests,
+in case you want to allow specific types (also support globs).
 
-current: the same as initial on-demand instances
-<instance-type>: the actual instance type to use
+Example: 't2.*,m4.large' or special value: 'current': the same as initial on-demand instances
 EOF
   default     = ""
 }
