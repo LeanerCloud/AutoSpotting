@@ -509,22 +509,13 @@ func (a *autoScalingGroup) getAnySpotInstance() *instance {
 func (a *autoScalingGroup) handleSpotRequestInHolding(req *spotInstanceRequest) (bool, bool) {
 	holdingRequest, cancelled := req.processHoldingRequest(req.maxTimeInHolding)
 
-	if holdingRequest {
-		if req.Status != nil && req.Status.Code != nil {
-			logger.Println(a.name, "Spot Request ("+*req.SpotInstanceRequestId+") is in holding by Amazon:"+*req.Status.Code)
-		} else {
-			logger.Println(a.name, "Spot Request ("+*req.SpotInstanceRequestId+") is in holding by Amazon")
-		}
+	if cancelled {
+		logger.Println(a.name, "Cancelled Spot Request ("+*req.SpotInstanceRequestId+") that was in holding by Amazon:"+*req.Status.Code)
 		return holdingRequest, cancelled
 	}
 
-	if cancelled {
-		if req.Status != nil && req.Status.Code != nil {
-			logger.Println(a.name, "Cancelled Spot Request ("+*req.SpotInstanceRequestId+") that was in holding by Amazon:"+*req.Status.Code)
-		} else {
-			logger.Println(a.name, "Cancelled Spot Request ("+*req.SpotInstanceRequestId+") that was in holding by Amazon")
-		}
-		return holdingRequest, cancelled
+	if holdingRequest {
+		logger.Println(a.name, "Spot Request ("+*req.SpotInstanceRequestId+") is in holding by Amazon:"+*req.Status.Code)
 	}
 
 	return holdingRequest, cancelled

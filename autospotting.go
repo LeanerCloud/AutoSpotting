@@ -30,33 +30,26 @@ func main() {
 	}
 }
 
+func outputParsedCommandLineOptions() {
+	log.Printf("Parsed command line flags: regions='%s' "+
+		"min_on_demand_number=%d min_on_demand_percentage=%.1f "+
+		"allowed_instance_types=%v disallowed_instance_types=%v "+
+		"on_demand_price_multiplier=%.2f spot_price_buffer_percentage=%.3f "+
+		"bidding_policy=%s tag_filters=%s "+
+		"spot_product_description=%v max_time_spot_request_can_be_holding=%d",
+		conf.Regions,
+		conf.MinOnDemandNumber, conf.MinOnDemandPercentage,
+		conf.AllowedInstanceTypes, conf.DisallowedInstanceTypes,
+		conf.OnDemandPriceMultiplier, conf.SpotPriceBufferPercentage,
+		conf.BiddingPolicy, conf.FilterByTags,
+		conf.SpotProductDescription, conf.MaxTimeSpotRequestCanBeHolding)
+}
+
 func run() {
 
 	log.Println("Starting autospotting agent, build", Version)
 
-	log.Printf("Parsed command line flags: "+
-		"regions='%s' "+
-		"min_on_demand_number=%d "+
-		"min_on_demand_percentage=%.1f "+
-		"allowed_instance_types=%v "+
-		"disallowed_instance_types=%v "+
-		"on_demand_price_multiplier=%.2f "+
-		"spot_price_buffer_percentage=%.3f "+
-		"bidding_policy=%s "+
-		"tag_filters=%s "+
-		"spot_product_description=%v "+
-		"max_time_spot_request_can_be_holding=%d",
-		conf.Regions,
-		conf.MinOnDemandNumber,
-		conf.MinOnDemandPercentage,
-		conf.AllowedInstanceTypes,
-		conf.DisallowedInstanceTypes,
-		conf.OnDemandPriceMultiplier,
-		conf.SpotPriceBufferPercentage,
-		conf.BiddingPolicy,
-		conf.FilterByTags,
-		conf.SpotProductDescription,
-		conf.MaxTimeSpotRequestCanBeHolding)
+	outputParsedCommandLineOptions()
 
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")

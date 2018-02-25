@@ -30,25 +30,32 @@ type spotInstanceRequest struct {
 //
 // The return values indicate:  isHoldingRequest, isCancelled
 func (s *spotInstanceRequest) processHoldingRequest(maxTimeRequestCanBeInHolding int64) (bool, bool) {
-	maxTime := float64(maxTimeRequestCanBeInHolding)
-	holdingRequest := false
+	holdingRequest := s.isHoldingRequest()
 	cancelled := false
-	if s.Status != nil && s.Status.Code != nil && s.isHoldingRequest(*s.Status.Code) {
-		holdingRequest = true
-		if maxTimeRequestCanBeInHolding > 0 && s.CreateTime != nil {
-			now := time.Now().UTC()
-			spotRequestCreated := s.CreateTime.UTC()
-			if now.Sub(spotRequestCreated).Seconds() > maxTime {
-				isCancelled, err := s.cancelRequest()
-				cancelled = isCancelled
-				logger.Println(s.asg.name, "Error attempting to cancel Spot request:", err)
-			}
-		}
+	if holdingRequest && hasRequestBeenOpenForLongerThanXSeconds(s.CreateTime, maxTimeRequestCanBeInHolding) {
+		cancelled, _ = s.cancelRequest()
 	}
 	return holdingRequest, cancelled
 }
 
-func (s *spotInstanceRequest) isHoldingRequest(code string) bool {
+func (s *spotInstanceRequest) isRequestOpen() bool {
+	return s.State != nil && *s.State == "open"
+}
+
+func (s *spotInstanceRequest) isHoldingRequest() bool {
+	return s.isRequestOpen() && s.Status != nil && s.Status.Code != nil && hasHoldingRequestStatus(*s.Status.Code)
+}
+
+func hasRequestBeenOpenForLongerThanXSeconds(spotRequestCreationTime *time.Time, seconds int64) bool {
+	if seconds > 0 && spotRequestCreationTime != nil {
+		now := time.Now().UTC()
+		spotRequestCreated := spotRequestCreationTime.UTC()
+		return now.Sub(spotRequestCreated).Seconds() > float64(seconds)
+	}
+	return false
+}
+
+func hasHoldingRequestStatus(code string) bool {
 	switch code {
 	case "capacity-not-available":
 		return true
@@ -76,7 +83,13 @@ func (s *spotInstanceRequest) cancelRequest() (bool, error) {
 	params := ec2.CancelSpotInstanceRequestsInput{
 		SpotInstanceRequestIds: []*string{s.SpotInstanceRequestId},
 	}
+
 	_, err := ec2Client.CancelSpotInstanceRequests(&params)
+
+	if err != nil {
+		logger.Println(s.asg.name, "Error attempting to cancel Spot request:", err)
+	}
+
 	return err == nil, err
 }
 

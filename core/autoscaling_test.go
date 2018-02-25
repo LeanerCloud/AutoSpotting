@@ -5,6 +5,7 @@ import (
 	"math"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -3322,6 +3323,174 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 					allowed, tt.expected)
 			}
 		})
+	}
+}
+
+func TestHoldingRequestHandling(t *testing.T) {
+	recentlyCreatedSpotRequest := time.Now()
+	oldSpotRequest := time.Now().Add(-1 * 600 * time.Second)
+	asg := &autoScalingGroup{
+		name: "asg",
+		region: &region{
+			name: "us-east-1",
+		},
+	}
+	tests := []struct {
+		name                 string
+		req                  spotInstanceRequest
+		expectCancelled      bool
+		expectHoldingRequest bool
+	}{
+		{
+			name: "Is Holding Request Only",
+			req: spotInstanceRequest{
+				asg: asg,
+				region: &region{
+					name: "test-region",
+					services: connections{
+						ec2: &mockEC2{},
+					},
+				},
+				maxTimeInHolding: 300,
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("open"),
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("capacity-not-available"),
+					},
+				},
+			},
+			expectHoldingRequest: true,
+			expectCancelled:      false,
+		},
+		{
+			name: "Spot Request is not Open",
+			req: spotInstanceRequest{
+				asg: asg,
+				region: &region{
+					name: "test-region",
+					services: connections{
+						ec2: &mockEC2{},
+					},
+				},
+				maxTimeInHolding: 300,
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("closed"),
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("capacity-not-available"),
+					},
+				},
+			},
+			expectHoldingRequest: false,
+			expectCancelled:      false,
+		},
+		{
+			name: "Spot Request is Open, but status is not holding",
+			req: spotInstanceRequest{
+				asg: asg,
+				region: &region{
+					name: "test-region",
+					services: connections{
+						ec2: &mockEC2{},
+					},
+				},
+				maxTimeInHolding: 300,
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("open"),
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("random aws status"),
+					},
+				},
+			},
+			expectHoldingRequest: false,
+			expectCancelled:      false,
+		},
+		{
+			name: "Is Holding Request But Not Exceeded Max Time request can be in holding",
+			req: spotInstanceRequest{
+				asg: asg,
+				region: &region{
+					name: "test-region",
+					services: connections{
+						ec2: &mockEC2{},
+					},
+				},
+				maxTimeInHolding: 300,
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("open"),
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("capacity-not-available"),
+					},
+					CreateTime: &recentlyCreatedSpotRequest,
+				},
+			},
+			expectHoldingRequest: true,
+			expectCancelled:      false,
+		},
+		{
+			name: "Is Holding Request and should be cancelled due to exceeding max time in holding",
+			req: spotInstanceRequest{
+				asg: asg,
+				region: &region{
+					name: "test-region",
+					services: connections{
+						ec2: &mockEC2{},
+					},
+				},
+				maxTimeInHolding: 300,
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("open"),
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("capacity-not-available"),
+					},
+					CreateTime: &oldSpotRequest,
+				},
+			},
+			expectHoldingRequest: true,
+			expectCancelled:      true,
+		},
+		{
+			name: "Is Holding Request and is not cancelled due to error",
+			req: spotInstanceRequest{
+				asg: asg,
+				region: &region{
+					name: "test-region",
+					services: connections{
+						ec2: &mockEC2{
+							csirerr: errors.New("429 : Throttling"),
+						},
+					},
+				},
+				maxTimeInHolding: 300,
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("open"),
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("capacity-not-available"),
+					},
+					CreateTime: &oldSpotRequest,
+				},
+			},
+			expectHoldingRequest: true,
+			expectCancelled:      false,
+		},
+	}
+
+	for _, tt := range tests {
+
+		holding, cancelled := tt.req.asg.handleSpotRequestInHolding(&tt.req)
+
+		if holding != tt.expectHoldingRequest {
+			t.Errorf("%+v: Spot request 'holding' status not correctly identify, received: %+v, expected: %+v", tt.name, holding, tt.expectHoldingRequest)
+		}
+
+		if cancelled != tt.expectCancelled {
+			t.Errorf("%+v: Spot request 'cancelled' status not correctly identify, received: %+v, expected: %+v", tt.name, cancelled, tt.expectCancelled)
+		}
 	}
 }
 

@@ -238,7 +238,7 @@ Usage of ./autospotting:
 
   -max_time_spot_request_can_be_holding=0:
         Maximum amount of time (in seconds) that a spot request can be in the 'holding' state, before it is cancelled.
-	        The default is to leave the spot request as it is (in the 'holding' for amazon to fullfil)
+        The default is to leave the spot request as it is (in the 'holding' for amazon to fullfil)
 
   -min_on_demand_number=0:
         On-demand capacity (as absolute number) ensured to be running in each of your groups.
@@ -295,14 +295,17 @@ have the tag `spot-enabled=true`.   If you wish to narrow the operation of
 autospotting to ASGs that match more specific criteria you can specify the matching
 tags as you see fit.  i.e. `-tag_filters 'spot-enabled=true,Environment=dev,Team=vision'`
 
-When a spot request is issue, the normal operation is for this request to go into pending
-by AWS until it is fulfilled.  However, there are occasions when the spot request is put
-into a 'holding' state by amazon.  An example would be, there is no capacity available for
-instance type requested.  A list of the type of 'holding' status can be found on the following
-page: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html
+When a spot request is issue, the normal operation is for this request to go
+into pending by AWS until it is fulfilled.  However, there are occasions
+when the spot request is put into a 'holding' state by amazon.
 
-By default when a spot request is in holding, it will remain there until it is fulfilled.
-This can be hours.  As a result there is the parameter: `-max_time_spot_request_can_be_holding`
+An example would be, there is no capacity available for instance type requested.
+A list of the type of 'holding' status can be found on the following
+page: [Spot Instance Request Status Docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html)
+
+By default when a spot request is in holding, it will remain there until it
+is fulfilled.  This could be a long time (several hours, or days).
+As a result there is the parameter: `-max_time_spot_request_can_be_holding`
 that can be set, to the number of seconds (since the spot request was created), that the
 spot request can be in this state.  If it exceeds these number of seconds the spot request
 is cancelled.

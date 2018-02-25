@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -110,8 +111,7 @@ func Test_isHoldingRequest(t *testing.T) {
 	}
 
 	for _, status := range statuses {
-		req := spotInstanceRequest{}
-		if !req.isHoldingRequest(status) {
+		if !hasHoldingRequestStatus(status) {
 			t.Errorf("" + status + " should be a holding request")
 		}
 	}
@@ -119,11 +119,96 @@ func Test_isHoldingRequest(t *testing.T) {
 	statuses = []string{"pending-evaluation", "bad-parameters", "schedule-expired"}
 
 	for _, status := range statuses {
-		req := spotInstanceRequest{}
-		if req.isHoldingRequest(status) {
+		if hasHoldingRequestStatus(status) {
 			t.Errorf("" + status + " should not be a holding request")
 		}
 	}
+}
+
+func Test_isSpotRequestAHoldingRequest(t *testing.T) {
+
+	tests := []struct {
+		name     string
+		req      spotInstanceRequest
+		expected bool
+	}{
+		{
+			req: spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("open"),
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("capacity-not-available"),
+					},
+				},
+			},
+			expected: true,
+			name:     "Is Holding Request With Capacity Not Available",
+		},
+		{
+			req: spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("open"),
+				},
+			},
+			expected: false,
+			name:     "Is Holding Request With No Status Information",
+		},
+	}
+
+	for _, test := range tests {
+		if test.req.isHoldingRequest() != test.expected {
+			if test.expected {
+				t.Errorf(test.name + " should be a holding request")
+			} else {
+				t.Errorf(test.name + " should not be a holding request")
+			}
+		}
+	}
+
+}
+
+func Test_isSpotRequestOld(t *testing.T) {
+
+	tests := []struct {
+		name          string
+		secondsToTest time.Duration
+		expected      bool
+	}{
+		{
+			name:          "OnFiveMinuteThreshold",
+			secondsToTest: 298 * time.Second,
+			expected:      false,
+		},
+		{
+			name:          "TenMinutesOld",
+			secondsToTest: 600 * time.Second,
+			expected:      true,
+		},
+		{
+			name:          "FiveMinutesOneSecondOld",
+			secondsToTest: 301 * time.Second,
+			expected:      true,
+		},
+	}
+
+	for _, test := range tests {
+		var testTime time.Time
+		testTime = time.Now().Add(-1 * test.secondsToTest)
+
+		fmt.Println(testTime)
+		isOlderThan5Minutes := hasRequestBeenOpenForLongerThanXSeconds(&testTime, 300)
+		if isOlderThan5Minutes != test.expected {
+			if test.expected {
+				t.Errorf(test.name + " expected spot request time to be older.")
+			} else {
+				t.Errorf(test.name + " expected spot request time to be younger.")
+			}
+		}
+
+	}
+
 }
 
 func Test_processHoldingRequest(t *testing.T) {
