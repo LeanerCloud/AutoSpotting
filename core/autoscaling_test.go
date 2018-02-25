@@ -2916,7 +2916,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 	}
 }
 
-func TestGetAllowedInstaceTypes(t *testing.T) {
+func TestGetAllowedInstanceTypes(t *testing.T) {
 	tests := []struct {
 		name         string
 		expected     []string
@@ -2992,8 +2992,8 @@ func TestGetAllowedInstaceTypes(t *testing.T) {
 			},
 			asgtags: []*autoscaling.TagDescription{},
 		},
-		{name: "Command line precedence on c2.xlarge",
-			expected: []string{"c2.xlarge"},
+		{name: "ASG precedence on command line",
+			expected: []string{"c4.4xlarge"},
 			instanceInfo: &instance{
 				typeInfo: instanceTypeInformation{
 					instanceType: "typeX",
@@ -3013,10 +3013,120 @@ func TestGetAllowedInstaceTypes(t *testing.T) {
 			},
 			asgtags: []*autoscaling.TagDescription{
 				{
-					Key:   aws.String("allowed-instance-types"),
+					Key:   aws.String("autospotting_allowed_instance_types"),
 					Value: aws.String("c4.4xlarge"),
 				},
 			},
+		},
+		{name: "ASG 'current' precedence on command line",
+			expected: []string{"c2.xlarge"},
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "c2.xlarge",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "c4.xlarge",
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("autospotting_allowed_instance_types"),
+					Value: aws.String("current"),
+				},
+			},
+		},
+		{name: "Comma separated list",
+			expected: []string{"c2.xlarge", "t2.medium", "c3.small"},
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "c2.xlarge,t2.medium,c3.small",
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{},
+		},
+		{name: "Space separated list",
+			expected: []string{"c2.xlarge", "t2.medium", "c3.small"},
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "c2.xlarge t2.medium c3.small",
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{},
+		},
+		{name: "No empty elements in comma separated list",
+			expected: []string{"c2.xlarge", "t2.medium", "c3.small"},
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: ",,c2.xlarge,,,t2.medium,c3.small,,",
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{},
+		},
+		{name: "No empty elements in space separated list",
+			expected: []string{"c2.xlarge", "t2.medium", "c3.small"},
+			instanceInfo: &instance{
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+				},
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "TestASG",
+				region: &region{
+					conf: &Config{
+						AllowedInstanceTypes: "   c2.xlarge    t2.medium  c3.small  ",
+					},
+				},
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			asgtags: []*autoscaling.TagDescription{},
 		},
 	}
 
