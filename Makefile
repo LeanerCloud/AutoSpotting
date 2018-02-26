@@ -107,7 +107,7 @@ travisci: archive travisci-checks travisci-cover             ## Executed by Trav
 
 terraform-test: archive .bin/terraform                            ## Test the Terraform code
 	@.bin/terraform init terraform
-	AWS_DEFAULT_REGION=us-east-1 .bin/terraform validate -var lambda_zipname=./build/s3/custom/lambda.zip terraform/
+	AWS_DEFAULT_REGION=us-east-1 .bin/terraform validate -var lambda_zipname=$(LOCAL_PATH)/lambda.zip terraform/
 	AWS_DEFAULT_REGION=us-east-1 .bin/terraform validate -var lambda_s3_bucket=bucket -var lambda_s3_key=key -var lambda_zipname= terraform/
 .PHONY: terraform-test
 
