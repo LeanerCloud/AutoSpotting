@@ -13,7 +13,9 @@ env:
   # default: custom
   - FLAVOR=nightly
 
-script: make travisci
+script:
+    - make travisci
+    - make terraform-test
 
 after_success:
   - curl --request POST "https://goreportcard.com/checks" --data "repo=github.com/cristim/autospotting"
