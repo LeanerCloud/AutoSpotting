@@ -1,5 +1,5 @@
 resource "aws_lambda_function" "autospotting" {
-  count = "${var.lambda_zipname != "" ? 1 : 0}"
+  count = "${var.lambda_s3_bucket == "" ? 1 : 0}"
 
   function_name    = "autospotting"
   filename         = "${var.lambda_zipname}"
@@ -27,7 +27,7 @@ resource "aws_lambda_function" "autospotting" {
 }
 
 resource "aws_lambda_function" "autospotting_from_s3" {
-  count = "${var.lambda_zipname != "" ? 0 : 1}"
+  count = "${var.lambda_s3_bucket == "" ? 0 : 1}"
 
   function_name    = "autospotting"
   s3_bucket        = "${var.lambda_s3_bucket}"
