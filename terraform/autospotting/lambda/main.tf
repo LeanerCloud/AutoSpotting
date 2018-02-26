@@ -27,7 +27,7 @@ resource "aws_lambda_function" "autospotting" {
 }
 
 resource "aws_lambda_function" "autospotting_from_s3" {
-  count = "${var.lambda_zipname == "" ? 0 : 1}"
+  count = "${var.lambda_zipname != "" ? 0 : 1}"
 
   function_name    = "autospotting"
   s3_bucket        = "${var.lambda_s3_bucket}"
