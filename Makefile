@@ -8,6 +8,7 @@ BUCKET_NAME ?= cloudprowess
 FLAVOR ?= custom
 LOCAL_PATH := build/s3/$(FLAVOR)
 LICENSE_FILES := LICENSE
+TERRAFORM_VERSION := 0.11.3
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
@@ -24,6 +25,7 @@ all: fmt-check vet-check build test                          ## Build the code
 clean:                                                       ## Remove installed packages/temporary files
 	go clean ./...
 	rm -rf $(BINDATA_DIR) $(LOCAL_PATH)
+	rm -rf .bin .terraform
 .PHONY: clean
 
 check_deps:                                                  ## Verify the system has all dependencies installed
@@ -102,6 +104,18 @@ travisci-checks: fmt-check vet-check lint                    ## Pass fmt / vet &
 
 travisci: archive travisci-checks travisci-cover             ## Executed by TravisCI
 .PHONY: travisci
+
+terraform-test: archive .bin/terraform                            ## Test the Terraform code
+	@.bin/terraform init terraform
+	AWS_DEFAULT_REGION=us-east-1 .bin/terraform validate -var lambda_zipname=./build/s3/custom/lambda.zip terraform/
+	AWS_DEFAULT_REGION=us-east-1 .bin/terraform validate -var lambda_s3_bucket=bucket -var lambda_s3_key=key -var lambda_zipname= terraform/
+.PHONY: terraform-test
+
+.bin/terraform:
+	@curl -OL https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
+	@mkdir .bin
+	@unzip -d .bin terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
+	@rm terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
 
 help:                                                        ## Show this help
 	@printf "Rules:\n"
