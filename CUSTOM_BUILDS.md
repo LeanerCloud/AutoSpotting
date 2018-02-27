@@ -139,4 +139,26 @@ tool:
 * **build_local**
   * Compiles the project for local execution.
 
+## Docker builds ##
+
+The repository also contains a `Dockerfile` and `docker-compose` configuration
+that allows you to build AutoSpotting Docker containers and run them
+conveniently without installing a Go build environment.
+
+If you have `docker` and `docker-compose` installed, it's as simple as running
+`docker-compose up`
+
+All the supported environment variables listed in the `docker-compose.yaml`
+configuration file are passed to the running container. You will at least need
+to have defined some AWS credential environment variables.
+
+You can also invoke the container entrypoint directly using
+    `docker-compose run autospotting`
+
+This also accepts all the autospotting command-line arguments, including `-help`
+which explains all the available options.
+
+Pre-built Docker images for the latest builds are also available on Dockerhub at
+[cristim/autospotting](https://hub.docker.com/r/cristim/autospotting/)
+
 [Back to the main Readme](./README.md)
