@@ -336,6 +336,55 @@ func TestContainsString(t *testing.T) {
 	}
 }
 
+func TestDefaultASGFiltering(t *testing.T) {
+	tests := []struct {
+		tregion  *region
+		expected []Tag
+		want     bool
+	}{
+		{
+			expected: []Tag{{Key: "spot-enabled", Value: "true"}},
+			tregion: &region{
+				conf: &Config{
+					FilterByTags: "bob",
+				},
+			},
+		},
+		{
+			expected: []Tag{{Key: "bob", Value: "value"}},
+			tregion: &region{
+				conf: &Config{
+					FilterByTags: "bob=value",
+				},
+			},
+		},
+		{
+			expected: []Tag{{Key: "spot-enabled", Value: "true"}, {Key: "team", Value: "interactive"}},
+			tregion: &region{
+				conf: &Config{
+					FilterByTags: "spot-enabled=true,team=interactive",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt.tregion.setupAsgFilters()
+		for _, tag := range tt.expected {
+			matchingTag := false
+			for _, setTag := range tt.tregion.tagsToFilterASGsBy {
+				if tag.Key == setTag.Key && tag.Value == setTag.Value {
+					matchingTag = true
+				}
+			}
+
+			if !matchingTag {
+				t.Errorf("tags not correctly filtered = %v, want %v", tt.tregion.tagsToFilterASGsBy, tt.expected)
+
+			}
+		}
+	}
+}
+
 func TestFilterAsgs(t *testing.T) {
 	tests := []struct {
 		name    string

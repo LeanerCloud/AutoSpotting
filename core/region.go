@@ -116,6 +116,10 @@ func (r *region) setupAsgFilters() {
 			r.tagsToFilterASGsBy = append(r.tagsToFilterASGsBy, *tag)
 		}
 	}
+
+	if len(r.tagsToFilterASGsBy) == 0 {
+		r.tagsToFilterASGsBy = []Tag{{Key: "spot-enabled", Value: "true"}}
+	}
 }
 
 func replaceWhitespace(filters string) string {
