@@ -881,26 +881,6 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 	return a.instances.get(*instanceID).terminate()
 }
 
-// Counts the number of already running spot instances.
-func (a *autoScalingGroup) alreadyRunningSpotInstanceTypeCount(
-	instanceType, availabilityZone string) int64 {
-
-	var count int64
-	logger.Println(a.name, "Counting already running spot instances of type ",
-		instanceType, " in AZ ", availabilityZone)
-	for inst := range a.instances.instances() {
-		if *inst.InstanceType == instanceType &&
-			*inst.Placement.AvailabilityZone == availabilityZone &&
-			inst.isSpot() {
-			logger.Println(a.name, "Found running spot instance ",
-				*inst.InstanceId, "of the same type:", instanceType)
-			count++
-		}
-	}
-	logger.Println(a.name, "Found", count, instanceType, "instances")
-	return count
-}
-
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.
 func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	spot bool, availabilityZone string) (int64, int64) {
