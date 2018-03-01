@@ -39,8 +39,7 @@ func outputParsedCommandLineOptions() {
 		"on_demand_price_multiplier=%.2f "+
 		"spot_price_buffer_percentage=%.3f "+
 		"bidding_policy=%s tag_filters=%s "+
-		"spot_product_description=%v "+
-		"max_time_spot_request_can_be_holding=%d",
+		"spot_product_description=%v",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
@@ -50,8 +49,7 @@ func outputParsedCommandLineOptions() {
 		conf.SpotPriceBufferPercentage,
 		conf.BiddingPolicy,
 		conf.FilterByTags,
-		conf.SpotProductDescription,
-		conf.MaxTimeSpotRequestCanBeHolding)
+		conf.SpotProductDescription)
 }
 
 func run() {
@@ -158,10 +156,6 @@ func (c *cfgData) parseCommandLineFlags() {
 
 	flag.StringVar(&c.FilterByTags, "tag_filters", "", "Set of tags to filter the ASGs on.  Default if no value is set will be the equivalent of -tag_filters 'spot-enabled=true'\n\t"+
 		"Example: ./autospotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
-
-	flag.Int64Var(&c.MaxTimeSpotRequestCanBeHolding, "max_time_spot_request_can_be_holding", autospotting.DefaultMaxTimeSpotRequestCanBeHolding,
-		"\n\tMaximum amount of time (in seconds) that a spot request can be in the 'holding' state, before it is cancelled.\n\t"+
-			"The default is to leave the spot request as it is (in the 'holding' for amazon to fullfil)\n")
 
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 

@@ -54,10 +54,6 @@ variable "autospotting_spot_product_description" {
   description = "The Spot Product or operating system to use when looking up spot price history in the market. Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)"
 }
 
-variable "autospotting_max_time_spot_request_can_be_holding" {
-  description = "The amount of time (in seconds) that a spot request can remain open, but in a holding state by amazon, before it is cancelled.  The default is 0, which means the request will not be cancelled"
-}
-
 # Lambda configuration
 variable "lambda_zipname" {
   description = "Name of the archive"

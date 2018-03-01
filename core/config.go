@@ -39,9 +39,4 @@ type Config struct {
 	// Filter on ASG tags
 	// for example: spot-enabled=true,environment=dev,team=interactive
 	FilterByTags string
-
-	// The max time, in seconds, that a spot instance request is to be kept in an open
-	// state if it is currently in an "holding" state by amazon:
-	// - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html
-	MaxTimeSpotRequestCanBeHolding int64
 }

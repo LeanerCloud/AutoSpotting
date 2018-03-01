@@ -15,44 +15,18 @@ const (
 
 type spotInstanceRequest struct {
 	*ec2.SpotInstanceRequest
-	region           *region
-	asg              *autoScalingGroup
-	maxTimeInHolding int64
-}
-
-// Before waiting for an instance we check if amazon has put the open request
-// in a holding state (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html).
-// If the request is in a holding state we check if we should
-// cancel the spot request, or ignore it for the time being depending upon the
-// setting value of maxTimeRequestCanBeInHolding.  A value of 0 or less means don't cancel the request
-// but ignore for the moment (the spot request will remain in the background, and the next
-// invocation will check it)
-//
-// The return values indicate:  isHoldingRequest, isCancelled
-func (s *spotInstanceRequest) processHoldingRequest(maxTimeRequestCanBeInHolding int64) (bool, bool) {
-	holdingRequest := s.isHoldingRequest()
-	cancelled := false
-	if holdingRequest && hasRequestBeenOpenForLongerThanXSeconds(s.CreateTime, maxTimeRequestCanBeInHolding) {
-		cancelled, _ = s.cancelRequest()
-	}
-	return holdingRequest, cancelled
+	region *region
+	asg    *autoScalingGroup
 }
 
 func (s *spotInstanceRequest) isRequestOpen() bool {
 	return s.State != nil && *s.State == "open"
 }
 
+// Before waiting for an instance we check if amazon has put the open request
+// in a holding state (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html).
 func (s *spotInstanceRequest) isHoldingRequest() bool {
 	return s.isRequestOpen() && s.Status != nil && s.Status.Code != nil && hasHoldingRequestStatus(*s.Status.Code)
-}
-
-func hasRequestBeenOpenForLongerThanXSeconds(spotRequestCreationTime *time.Time, seconds int64) bool {
-	if seconds > 0 && spotRequestCreationTime != nil {
-		now := time.Now().UTC()
-		spotRequestCreated := spotRequestCreationTime.UTC()
-		return now.Sub(spotRequestCreated).Seconds() > float64(seconds)
-	}
-	return false
 }
 
 func hasHoldingRequestStatus(code string) bool {
@@ -76,21 +50,6 @@ func hasHoldingRequestStatus(code string) bool {
 	default:
 		return false
 	}
-}
-
-func (s *spotInstanceRequest) cancelRequest() (bool, error) {
-	ec2Client := s.region.services.ec2
-	params := ec2.CancelSpotInstanceRequestsInput{
-		SpotInstanceRequestIds: []*string{s.SpotInstanceRequestId},
-	}
-
-	_, err := ec2Client.CancelSpotInstanceRequests(&params)
-
-	if err != nil {
-		logger.Println(s.asg.name, "Error attempting to cancel Spot request:", err)
-	}
-
-	return err == nil, err
 }
 
 // This function returns an Instance ID

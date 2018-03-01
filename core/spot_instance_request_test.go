@@ -2,7 +2,6 @@ package autospotting
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -169,50 +168,7 @@ func Test_isSpotRequestAHoldingRequest(t *testing.T) {
 
 }
 
-func Test_isSpotRequestOld(t *testing.T) {
-
-	tests := []struct {
-		name          string
-		secondsToTest time.Duration
-		expected      bool
-	}{
-		{
-			name:          "OnFiveMinuteThreshold",
-			secondsToTest: 298 * time.Second,
-			expected:      false,
-		},
-		{
-			name:          "TenMinutesOld",
-			secondsToTest: 600 * time.Second,
-			expected:      true,
-		},
-		{
-			name:          "FiveMinutesOneSecondOld",
-			secondsToTest: 301 * time.Second,
-			expected:      true,
-		},
-	}
-
-	for _, test := range tests {
-		var testTime time.Time
-		testTime = time.Now().Add(-1 * test.secondsToTest)
-
-		fmt.Println(testTime)
-		isOlderThan5Minutes := hasRequestBeenOpenForLongerThanXSeconds(&testTime, 300)
-		if isOlderThan5Minutes != test.expected {
-			if test.expected {
-				t.Errorf(test.name + " expected spot request time to be older.")
-			} else {
-				t.Errorf(test.name + " expected spot request time to be younger.")
-			}
-		}
-
-	}
-
-}
-
 func Test_processHoldingRequest(t *testing.T) {
-	creationTime := time.Now()
 	tests := []struct {
 		name             string
 		req              spotInstanceRequest
@@ -252,7 +208,7 @@ func Test_processHoldingRequest(t *testing.T) {
 			isHoldingRequest: true,
 		},
 		{
-			name: "with holding request that has a Creation Time, and there is no max time to wait",
+			name: "with holding request that has a Creation Time",
 			req: spotInstanceRequest{
 				SpotInstanceRequest: &ec2.SpotInstanceRequest{
 					SpotInstanceRequestId: aws.String("aaa"),
@@ -279,133 +235,6 @@ func Test_processHoldingRequest(t *testing.T) {
 			er:               nil,
 			cancelled:        false,
 			isHoldingRequest: true,
-		},
-		{
-			name: "with holding request that has a Creation Time, and has not exceeded default max Waiting time",
-			req: spotInstanceRequest{
-				maxTimeInHolding: 300,
-				SpotInstanceRequest: &ec2.SpotInstanceRequest{
-					SpotInstanceRequestId: aws.String("aaa"),
-					State: aws.String("open"),
-					Status: &ec2.SpotInstanceStatus{
-						Code: aws.String("capacity-not-available"),
-					},
-					CreateTime: &creationTime,
-				},
-				region: &region{
-					conf: &Config{},
-					services: connections{
-						ec2: mockEC2{
-							csiro: &ec2.CancelSpotInstanceRequestsOutput{
-								CancelledSpotInstanceRequests: []*ec2.CancelledSpotInstanceRequest{
-									{SpotInstanceRequestId: aws.String("aaa")},
-								},
-							},
-						},
-					},
-				},
-				asg: &autoScalingGroup{
-					name: ""},
-			},
-			er:               nil,
-			cancelled:        false,
-			isHoldingRequest: true,
-		},
-		{
-			name: "with holding request that has a Creation Time, that has exceeded the default max Waiting time",
-			req: spotInstanceRequest{
-				SpotInstanceRequest: &ec2.SpotInstanceRequest{
-					SpotInstanceRequestId: aws.String("aaa"),
-					State: aws.String("open"),
-					Status: &ec2.SpotInstanceStatus{
-						Code: aws.String("capacity-not-available"),
-					},
-					CreateTime: &creationTime,
-				},
-				region: &region{
-					conf: &Config{},
-					services: connections{
-						ec2: mockEC2{
-							csiro: &ec2.CancelSpotInstanceRequestsOutput{
-								CancelledSpotInstanceRequests: []*ec2.CancelledSpotInstanceRequest{
-									{SpotInstanceRequestId: aws.String("aaa")},
-								},
-							},
-						},
-					},
-				},
-				asg: &autoScalingGroup{
-					name: ""},
-			},
-			er:               nil,
-			cancelled:        true,
-			isHoldingRequest: true,
-			maxTimeInHolding: int64(2),
-			sleepTestFor:     5 * time.Second,
-		},
-		{
-			name: "with a holding request that has a Creation Time, but has not exceeded the given max Waiting time",
-			req: spotInstanceRequest{
-				SpotInstanceRequest: &ec2.SpotInstanceRequest{
-					SpotInstanceRequestId: aws.String("aaa"),
-					State: aws.String("open"),
-					Status: &ec2.SpotInstanceStatus{
-						Code: aws.String("capacity-not-available"),
-					},
-					CreateTime: &creationTime,
-				},
-				region: &region{
-					conf: &Config{},
-					services: connections{
-						ec2: mockEC2{
-							csiro: &ec2.CancelSpotInstanceRequestsOutput{
-								CancelledSpotInstanceRequests: []*ec2.CancelledSpotInstanceRequest{
-									{SpotInstanceRequestId: aws.String("aaa")},
-								},
-							},
-						},
-					},
-				},
-				asg: &autoScalingGroup{
-					name: ""},
-			},
-			er:               nil,
-			cancelled:        true,
-			isHoldingRequest: true,
-			maxTimeInHolding: int64(10),
-			sleepTestFor:     5 * time.Second,
-		},
-		{
-			name: "not with holding request that has a Creation Time, that has exceeded max Waiting time",
-			req: spotInstanceRequest{
-				SpotInstanceRequest: &ec2.SpotInstanceRequest{
-					SpotInstanceRequestId: aws.String("aaa"),
-					State: aws.String("open"),
-					Status: &ec2.SpotInstanceStatus{
-						Code: aws.String("pending-evaluation"),
-					},
-					CreateTime: &creationTime,
-				},
-				region: &region{
-					conf: &Config{},
-					services: connections{
-						ec2: mockEC2{
-							csiro: &ec2.CancelSpotInstanceRequestsOutput{
-								CancelledSpotInstanceRequests: []*ec2.CancelledSpotInstanceRequest{
-									{SpotInstanceRequestId: aws.String("aaa")},
-								},
-							},
-						},
-					},
-				},
-				asg: &autoScalingGroup{
-					name: ""},
-			},
-			er:               nil,
-			cancelled:        false,
-			isHoldingRequest: false,
-			maxTimeInHolding: int64(2),
-			sleepTestFor:     5 * time.Second,
 		},
 	}
 
@@ -414,13 +243,10 @@ func Test_processHoldingRequest(t *testing.T) {
 			time.Sleep(tc.sleepTestFor)
 		}
 
-		isHoldingRequest, cancelled := tc.req.processHoldingRequest(tc.maxTimeInHolding)
-		if cancelled != tc.cancelled {
-			t.Errorf("test cancelled for \"%v\", actual: %v, expected: %v", tc.name, cancelled, tc.cancelled)
-		}
+		isHoldingRequest := tc.req.isHoldingRequest()
 
 		if isHoldingRequest != tc.isHoldingRequest {
-			t.Errorf("test isHoldingRequest for \"%v\", actual: %v, expected: %v", tc.name, cancelled, tc.cancelled)
+			t.Errorf("test isHoldingRequest for \"%v\", actual: %v, expected: %v", tc.name, isHoldingRequest, tc.isHoldingRequest)
 		}
 
 	}

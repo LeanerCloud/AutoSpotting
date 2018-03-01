@@ -11,7 +11,6 @@ module "autospotting" {
   autospotting_bidding_policy               = "${var.asg_bidding_policy}"
   autospotting_regions_enabled              = "${var.asg_regions_enabled}"
   autospotting_tag_filters                  = "${var.asg_tag_filters}"
-  autospotting_max_time_spot_request_can_be_holding = "${var.asg_max_time_spot_request_can_be_holding}"
 
   lambda_zipname       = "${var.lambda_zipname}"
   lambda_runtime       = "${var.lambda_runtime}"

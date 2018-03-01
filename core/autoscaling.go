@@ -506,19 +506,14 @@ func (a *autoScalingGroup) getAnySpotInstance() *instance {
 // setting of req.maxTimeInHolding.  The default of 0 means don't cancel the request
 // but ignore for the moment (the spot request will remain in the background, and the next
 // invocation will check it)
-func (a *autoScalingGroup) handleSpotRequestInHolding(req *spotInstanceRequest) (bool, bool) {
-	holdingRequest, cancelled := req.processHoldingRequest(req.maxTimeInHolding)
-
-	if cancelled {
-		logger.Println(a.name, "Cancelled Spot Request ("+*req.SpotInstanceRequestId+") that was in holding by Amazon:"+*req.Status.Code)
-		return holdingRequest, cancelled
-	}
+func (a *autoScalingGroup) handleSpotRequestInHolding(req *spotInstanceRequest) bool {
+	holdingRequest := req.isHoldingRequest()
 
 	if holdingRequest {
 		logger.Println(a.name, "Spot Request ("+*req.SpotInstanceRequestId+") is in holding by Amazon:"+*req.Status.Code)
 	}
 
-	return holdingRequest, cancelled
+	return holdingRequest
 }
 
 // returns an instance ID as *string and a bool that tells us if  we need to
@@ -570,14 +565,11 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 			// but ignore for the moment (the spot request will remain in the background, and the next
 			// invocation will check it)
 			//
-			holdingRequest, cancelled := a.handleSpotRequestInHolding(req)
+			holdingRequest := a.handleSpotRequestInHolding(req)
 			if holdingRequest {
-				// Only ff the holding request was cancelled we wish to create a new spot request
-				// Other than that, we wish to wait for the next run to see if the holding request
+				// we wish to wait for the next run to see if the holding request
 				// was fulfilled
-				if !cancelled {
-					waitForNextRun = true
-				}
+				waitForNextRun = true
 				continue
 			}
 
@@ -587,6 +579,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 				waitForNextRun = true
 				continue
 			}
+
 			activeSpotInstanceRequest = req
 			waitForNextRun = false
 		}
@@ -798,16 +791,10 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 }
 
 func (a *autoScalingGroup) loadSpotInstanceRequest(req *ec2.SpotInstanceRequest) *spotInstanceRequest {
-	var time int64
-	if a.region.conf != nil {
-		time = a.region.conf.MaxTimeSpotRequestCanBeHolding
-	}
 	return &spotInstanceRequest{SpotInstanceRequest: req,
-		region:           a.region,
-		asg:              a,
-		maxTimeInHolding: time,
+		region: a.region,
+		asg:    a,
 	}
-
 }
 
 func (a *autoScalingGroup) bidForSpotInstance(
@@ -830,9 +817,8 @@ func (a *autoScalingGroup) bidForSpotInstance(
 
 	spotRequest := resp.SpotInstanceRequests[0]
 	sr := spotInstanceRequest{SpotInstanceRequest: spotRequest,
-		region:           a.region,
-		asg:              a,
-		maxTimeInHolding: a.region.conf.MaxTimeSpotRequestCanBeHolding,
+		region: a.region,
+		asg:    a,
 	}
 
 	srID := sr.SpotInstanceRequestId
