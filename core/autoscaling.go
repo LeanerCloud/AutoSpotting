@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -324,7 +325,10 @@ func (a *autoScalingGroup) process() {
 		logger.Println(a.region.name, a.name,
 			"Would launch a spot instance in ", *azToLaunchSpotIn)
 
-		a.launchCheapestSpotInstance(azToLaunchSpotIn)
+		err := a.launchCheapestSpotInstance(azToLaunchSpotIn)
+		if err != nil {
+			logger.Printf("Could not launch cheapest spot instance: %s", err)
+		}
 	}
 }
 
@@ -726,10 +730,15 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 
 	lc := a.getLaunchConfiguration()
 
-	spotLS := lc.convertLaunchConfigurationToSpotSpecification(
+	spotLS, err := lc.convertLaunchConfigurationToSpotSpecification(
 		baseInstance,
 		newInstance,
-		*azToLaunchIn)
+		&a.region.services,
+		*azToLaunchIn,
+	)
+	if err != nil {
+		return fmt.Errorf("could not convert launchConfiguration to SpotSpefication: %s", err)
+	}
 
 	logger.Println("Bidding for spot instance for ", a.name)
 	return a.bidForSpotInstance(spotLS, a.getPricetoBid(baseOnDemandPrice, currentSpotPrice))

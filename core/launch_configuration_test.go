@@ -407,7 +407,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				Placement: &ec2.SpotPlacement{
 					AvailabilityZone: aws.String(""),
 				},
-				SecurityGroups: aws.StringSlice([]string{"non-sgstart", "non-sg"}),
+				SecurityGroupIds: aws.StringSlice([]string{"sg-non-sgstart", "sg-non-sg"}),
 			},
 		},
 		{
@@ -440,12 +440,11 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				Instance: &ec2.Instance{},
 			},
 			spotRequest: &ec2.RequestSpotLaunchSpecification{
-				InstanceType:   aws.String(""),
-				SecurityGroups: aws.StringSlice([]string{"sg-12345", "non-sg"}),
+				InstanceType: aws.String(""),
 				Placement: &ec2.SpotPlacement{
 					AvailabilityZone: aws.String(""),
 				},
-				SecurityGroupIds: nil,
+				SecurityGroupIds: aws.StringSlice([]string{"sg-12345", "sg-non-sg"}),
 			},
 		},
 		{
@@ -487,7 +486,10 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			spot := tc.lc.convertLaunchConfigurationToSpotSpecification(tc.instance, tc.instanceType, tc.az)
+			spot, err := tc.lc.convertLaunchConfigurationToSpotSpecification(tc.instance, tc.instanceType, &connections{ec2: &mockEC2{}}, tc.az)
+			if err != nil {
+				t.Errorf("expected no error but got %s", err)
+			}
 			if !reflect.DeepEqual(spot, tc.spotRequest) {
 				t.Errorf("expected: %+v\nactual: %+v", tc.spotRequest, spot)
 			}
