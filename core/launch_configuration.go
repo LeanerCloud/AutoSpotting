@@ -36,7 +36,8 @@ func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() int {
 func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 	baseInstance *instance,
 	newInstance instanceTypeInformation,
-	az string) *ec2.RequestSpotLaunchSpecification {
+	conn *connections,
+	az string) (*ec2.RequestSpotLaunchSpecification, error) {
 
 	var spotLS ec2.RequestSpotLaunchSpecification
 
@@ -85,6 +86,11 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 		}
 	}
 
+	secGroupIDs, err := getSecurityGroupIDs(conn, lc.SecurityGroups)
+	if err != nil {
+		return nil, err
+	}
+
 	if lc.AssociatePublicIpAddress != nil || baseInstance.SubnetId != nil {
 		// Instances are running in a VPC.
 		spotLS.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
@@ -92,26 +98,12 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 				AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
 				DeviceIndex:              aws.Int64(0),
 				SubnetId:                 baseInstance.SubnetId,
-				Groups:                   lc.SecurityGroups,
+				Groups:                   secGroupIDs,
 			},
 		}
 	} else {
-		// Instances are running in EC2 Classic, but maybe by name or ID
-		// depending on your scenario, so testing if start with sg-
-		// note: this doesn't yet cover scenario of mixed mode
-		ids := true
-
-		for i := range lc.SecurityGroups {
-			if !strings.HasPrefix(*(lc.SecurityGroups[i]), "sg-") {
-				ids = false
-			}
-		}
-
-		if ids {
-			spotLS.SecurityGroupIds = lc.SecurityGroups
-		} else {
-			spotLS.SecurityGroups = lc.SecurityGroups
-		}
+		// Instances are running in EC2 Classic
+		spotLS.SecurityGroupIds = secGroupIDs
 	}
 
 	if lc.UserData != nil && *lc.UserData != "" {
@@ -120,8 +112,7 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 
 	spotLS.Placement = &ec2.SpotPlacement{AvailabilityZone: &az}
 
-	return &spotLS
-
+	return &spotLS, nil
 }
 
 func copyBlockDeviceMappings(
@@ -158,4 +149,44 @@ func copyBlockDeviceMappings(
 
 	}
 	return ec2BDMlist
+}
+
+// We don't know whether we got security group names or ids. We assume
+// that the ones starting with "sg-" are ids and then search for the IDs
+// of the other ones.
+func getSecurityGroupIDs(conn *connections, secGroups []*string) ([]*string, error) {
+	var (
+		names    []*string
+		ids      []*string
+		outNames *ec2.DescribeSecurityGroupsOutput
+		err      error
+	)
+
+	for _, secGroupStr := range secGroups {
+		// we assume these are IDs already
+		if strings.HasPrefix(*secGroupStr, "sg-") {
+			ids = append(ids, aws.String(*secGroupStr))
+		} else {
+			names = append(names, aws.String(*secGroupStr))
+		}
+	}
+
+	if len(names) > 0 {
+		inputNames := &ec2.DescribeSecurityGroupsInput{
+			GroupNames: names,
+		}
+
+		outNames, err = conn.ec2.DescribeSecurityGroups(inputNames)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if outNames != nil {
+		for _, group := range outNames.SecurityGroups {
+			ids = append(ids, aws.String(*group.GroupId))
+		}
+	}
+
+	return ids, nil
 }
