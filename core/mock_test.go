@@ -2,8 +2,10 @@ package autospotting
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -95,6 +97,28 @@ func (m mockEC2) CancelSpotInstanceRequests(*ec2.CancelSpotInstanceRequestsInput
 
 func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
 	return m.dro, m.drerr
+}
+
+// For testing we "convert" the SecurityGroupIDs/SecurityGroupNames by
+// prefixing the original name/id with "sg-" if not present already.
+func (m mockEC2) DescribeSecurityGroups(input *ec2.DescribeSecurityGroupsInput) (*ec2.DescribeSecurityGroupsOutput, error) {
+	var groups []*ec2.SecurityGroup
+
+	for _, groupName := range input.GroupNames {
+		newgroup := *groupName
+
+		if !strings.HasPrefix(*groupName, "sg-") {
+			newgroup = "sg-" + *groupName
+		}
+
+		groups = append(groups, &ec2.SecurityGroup{GroupId: &newgroup})
+	}
+
+	for _, groupID := range input.GroupIds {
+		groups = append(groups, &ec2.SecurityGroup{GroupId: aws.String(*groupID)})
+	}
+
+	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: groups}, nil
 }
 
 // All fields are composed of the abbreviation of their method
