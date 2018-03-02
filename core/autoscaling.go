@@ -734,7 +734,7 @@ func (a *autoScalingGroup) getBaseAndNewInstanceTypeToStart(azToLaunchIn *string
 		logger.Println("Found no on-demand instances, nothing to do here...")
 		return nil, nil, errors.New("no on-demand instances found")
 	}
-	logger.Println("Found on-demand instance", baseInstance.InstanceId)
+	logger.Println("Found on-demand instance", *baseInstance.InstanceId)
 
 	allowedInstances := a.getAllowedInstanceTypes(baseInstance)
 	disallowedInstances := a.getDisallowedInstanceTypes(baseInstance)
