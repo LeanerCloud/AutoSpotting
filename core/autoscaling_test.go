@@ -3377,6 +3377,12 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 	}
 }
 
+// SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+//   {
+//     SpotInstanceRequestId: aws.String("bidTestId"),
+//   },
+// },
+
 func TestGetPricetoBid(t *testing.T) {
 	tests := []struct {
 		spotPercentage       float64

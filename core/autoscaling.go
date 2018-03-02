@@ -335,6 +335,24 @@ func (a *autoScalingGroup) process() {
 	}
 }
 
+func filterOutCompleteSpotInstanceRequests(requests []*ec2.SpotInstanceRequest) []*ec2.SpotInstanceRequest {
+	var outStandingSpotRequests []*ec2.SpotInstanceRequest
+	for _, req := range requests {
+		sirIsComplete := false
+		for _, tag := range req.Tags {
+			if *tag.Key == "autospotting-complete" {
+				sirIsComplete = true
+				break
+			}
+		}
+
+		if !sirIsComplete {
+			outStandingSpotRequests = append(outStandingSpotRequests, req)
+		}
+	}
+	return outStandingSpotRequests
+}
+
 func (a *autoScalingGroup) findSpotInstanceRequests() error {
 
 	resp, err := a.region.services.ec2.DescribeSpotInstanceRequests(
@@ -350,9 +368,15 @@ func (a *autoScalingGroup) findSpotInstanceRequests() error {
 	if err != nil {
 		return err
 	}
+
+	//
+	// Filter out completed spot instance requests
+	//
+	spotRequests := filterOutCompleteSpotInstanceRequests(resp.SpotInstanceRequests)
+
 	logger.Println("Spot instance requests were previously created for", a.name)
 
-	for _, req := range resp.SpotInstanceRequests {
+	for _, req := range spotRequests {
 		a.spotInstanceRequests = append(a.spotInstanceRequests,
 			a.loadSpotInstanceRequest(req))
 	}
