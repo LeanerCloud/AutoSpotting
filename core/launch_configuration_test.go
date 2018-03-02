@@ -421,7 +421,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				Placement: &ec2.SpotPlacement{
 					AvailabilityZone: aws.String(""),
 				},
-				SecurityGroupIds: aws.StringSlice([]string{"sg-non-sgstart", "sg-non-sg"}),
+				SecurityGroupIds: aws.StringSlice([]string{"sg-non-sgstart", "sg-non-sgde"}),
 			},
 		},
 		{
@@ -463,7 +463,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				Placement: &ec2.SpotPlacement{
 					AvailabilityZone: aws.String(""),
 				},
-				SecurityGroupIds: aws.StringSlice([]string{"sg-12345", "sg-4567"}),
+				SecurityGroupIds: aws.StringSlice([]string{"sg-12345dea", "sg-4567dead"}),
 			},
 		},
 		{
@@ -490,7 +490,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 			name: "classic-mixed-networking",
 			lc: &launchConfiguration{
 				&autoscaling.LaunchConfiguration{
-					SecurityGroups: aws.StringSlice([]string{"sg-12345", "non-sg"}),
+					SecurityGroups: aws.StringSlice([]string{"sg-12345678", "non-sg"}),
 				},
 				testSecGroupRegex,
 			},
@@ -502,7 +502,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				Placement: &ec2.SpotPlacement{
 					AvailabilityZone: aws.String(""),
 				},
-				SecurityGroupIds: aws.StringSlice([]string{"sg-12345", "sg-non-sg"}),
+				SecurityGroupIds: aws.StringSlice([]string{"sg-12345678", "sg-non-sgde"}),
 			},
 		},
 		{
