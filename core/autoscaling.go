@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -857,7 +856,6 @@ func (a *autoScalingGroup) getLaunchConfiguration() *launchConfiguration {
 
 	a.launchConfiguration = &launchConfiguration{
 		LaunchConfiguration: resp.LaunchConfigurations[0],
-		secGroupRegex:       regexp.MustCompile(`^sg-[a-f0-9]{8,17}$`),
 	}
 	return a.launchConfiguration
 }

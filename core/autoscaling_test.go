@@ -1586,7 +1586,6 @@ func TestGetLaunchConfiguration(t *testing.T) {
 				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					LaunchConfigurationName: aws.String("testLC"),
 				},
-				secGroupRegex: testSecGroupRegex,
 			},
 		},
 		{name: "err during get launch configuration",
