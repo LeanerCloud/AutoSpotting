@@ -30,10 +30,7 @@ func main() {
 	}
 }
 
-func run() {
-
-	log.Println("Starting autospotting agent, build", Version)
-
+func outputParsedCommandLineOptions() {
 	log.Printf("Parsed command line flags: "+
 		"regions='%s' "+
 		"min_on_demand_number=%d "+
@@ -55,6 +52,13 @@ func run() {
 		conf.BiddingPolicy,
 		conf.FilterByTags,
 		conf.SpotProductDescription)
+}
+
+func run() {
+
+	log.Println("Starting autospotting agent, build", Version)
+
+	outputParsedCommandLineOptions()
 
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")
