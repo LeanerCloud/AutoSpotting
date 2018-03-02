@@ -31,14 +31,16 @@ func main() {
 }
 
 func outputParsedCommandLineOptions() {
-	log.Printf("Parsed command line flags: regions='%s' "+
+	log.Printf("Parsed command line flags: "+
+		"regions='%s' "+
 		"min_on_demand_number=%d "+
 		"min_on_demand_percentage=%.1f "+
 		"allowed_instance_types=%v "+
 		"disallowed_instance_types=%v "+
 		"on_demand_price_multiplier=%.2f "+
 		"spot_price_buffer_percentage=%.3f "+
-		"bidding_policy=%s tag_filters=%s "+
+		"bidding_policy=%s "+
+		"tag_filters=%s "+
 		"spot_product_description=%v",
 		conf.Regions,
 		conf.MinOnDemandNumber,
