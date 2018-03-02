@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -76,6 +77,9 @@ type autoScalingGroup struct {
 	// spot instance requests generated for the current group
 	spotInstanceRequests []*spotInstanceRequest
 	minOnDemand          int64
+
+	// for caching
+	launchConfiguration *launchConfiguration
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -819,6 +823,9 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 }
 
 func (a *autoScalingGroup) getLaunchConfiguration() *launchConfiguration {
+	if a.launchConfiguration != nil {
+		return a.launchConfiguration
+	}
 
 	lcName := a.LaunchConfigurationName
 
@@ -838,7 +845,11 @@ func (a *autoScalingGroup) getLaunchConfiguration() *launchConfiguration {
 		return nil
 	}
 
-	return &launchConfiguration{LaunchConfiguration: resp.LaunchConfigurations[0]}
+	a.launchConfiguration = &launchConfiguration{
+		LaunchConfiguration: resp.LaunchConfigurations[0],
+		secGroupRegex:       regexp.MustCompile(`^sg-[a-f0-9]{8}$`),
+	}
+	return a.launchConfiguration
 }
 
 func (a *autoScalingGroup) attachSpotInstance(spotInstanceID *string) error {
