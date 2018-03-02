@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,6 +12,8 @@ import (
 
 type launchConfiguration struct {
 	*autoscaling.LaunchConfiguration
+
+	secGroupRegex *regexp.Regexp
 }
 
 func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() int {
@@ -86,7 +89,7 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 		}
 	}
 
-	secGroupIDs, err := getSecurityGroupIDs(conn, lc.SecurityGroups)
+	secGroupIDs, err := lc.getSecurityGroupIDs(conn, lc.SecurityGroups)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +157,7 @@ func copyBlockDeviceMappings(
 // We don't know whether we got security group names or ids. We assume
 // that the ones starting with "sg-" are ids and then search for the IDs
 // of the other ones.
-func getSecurityGroupIDs(conn *connections, secGroups []*string) ([]*string, error) {
+func (lc *launchConfiguration) getSecurityGroupIDs(conn *connections, secGroups []*string) ([]*string, error) {
 	var (
 		names    []*string
 		ids      []*string
@@ -163,8 +166,8 @@ func getSecurityGroupIDs(conn *connections, secGroups []*string) ([]*string, err
 	)
 
 	for _, secGroupStr := range secGroups {
-		// we assume these are IDs already
-		if strings.HasPrefix(*secGroupStr, "sg-") {
+		// we assume strings that match are IDs already
+		if lc.secGroupRegex.MatchString(*secGroupStr) {
 			ids = append(ids, aws.String(*secGroupStr))
 		} else {
 			names = append(names, aws.String(*secGroupStr))

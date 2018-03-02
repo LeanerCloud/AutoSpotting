@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"reflect"
+	"regexp"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -105,6 +106,8 @@ func Test_copyBlockDeviceMappings(t *testing.T) {
 	}
 }
 
+var testSecGroupRegex = regexp.MustCompile(`^sg-[a-f0-9]{8}$`)
+
 func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -114,7 +117,7 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "empty launchConfiguration",
 			lc: &launchConfiguration{
-				&autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					BlockDeviceMappings: nil,
 				},
 			},
@@ -123,7 +126,7 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "empty BlockDeviceMappings",
 			lc: &launchConfiguration{
-				&autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
 						{},
 					},
@@ -134,7 +137,7 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "mix of valid and invalid configuration",
 			lc: &launchConfiguration{
-				&autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
 						{VirtualName: aws.String("ephemeral")},
 						{},
@@ -146,7 +149,7 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "valid configuration",
 			lc: &launchConfiguration{
-				&autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
 						{VirtualName: aws.String("ephemeral")},
 						{VirtualName: aws.String("ephemeral")},
@@ -180,6 +183,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 			name: "empty everything",
 			lc: &launchConfiguration{
 				&autoscaling.LaunchConfiguration{},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -196,6 +200,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 			name: "empty structs, but with az and instanceType",
 			lc: &launchConfiguration{
 				&autoscaling.LaunchConfiguration{},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -217,6 +222,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				&autoscaling.LaunchConfiguration{
 					EbsOptimized: aws.Bool(true),
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -247,6 +253,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				&autoscaling.LaunchConfiguration{
 					EbsOptimized: aws.Bool(false),
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -277,6 +284,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				&autoscaling.LaunchConfiguration{
 					IamInstanceProfile: aws.String("arn:aws:something"),
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -297,6 +305,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				&autoscaling.LaunchConfiguration{
 					IamInstanceProfile: aws.String("bla bla bla something"),
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -317,6 +326,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				&autoscaling.LaunchConfiguration{
 					KeyName: aws.String("key xyz"),
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -337,6 +347,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 						Enabled: aws.Bool(false),
 					},
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -357,6 +368,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				&autoscaling.LaunchConfiguration{
 					UserData: aws.String("user data"),
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -375,6 +387,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				&autoscaling.LaunchConfiguration{
 					AssociatePublicIpAddress: aws.Bool(true),
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -398,6 +411,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				&autoscaling.LaunchConfiguration{
 					SecurityGroups: aws.StringSlice([]string{"non-sgstart", "non-sg"}),
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -416,6 +430,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				&autoscaling.LaunchConfiguration{
 					SecurityGroups: aws.StringSlice([]string{"sg-12345", "sg-4567"}),
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -435,6 +450,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				&autoscaling.LaunchConfiguration{
 					SecurityGroups: aws.StringSlice([]string{"sg-12345", "non-sg"}),
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
@@ -459,6 +475,7 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 					KeyName:      aws.String("key xyz"),
 					EbsOptimized: aws.Bool(true),
 				},
+				testSecGroupRegex,
 			},
 			instance: &instance{
 				Instance: &ec2.Instance{},
