@@ -158,12 +158,8 @@ func copyBlockDeviceMappings(
 // that the ones starting with "sg-" are ids and then search for the IDs
 // of the other ones.
 func (lc *launchConfiguration) getSecurityGroupIDs(conn *connections, secGroups []*string) ([]*string, error) {
-	var (
-		names    []*string
-		ids      []*string
-		outNames *ec2.DescribeSecurityGroupsOutput
-		err      error
-	)
+	var names []*string
+	var ids []*string
 
 	for _, secGroupStr := range secGroups {
 		// we assume strings that match are IDs already
@@ -174,21 +170,21 @@ func (lc *launchConfiguration) getSecurityGroupIDs(conn *connections, secGroups 
 		}
 	}
 
-	if len(names) > 0 {
-		inputNames := &ec2.DescribeSecurityGroupsInput{
-			GroupNames: names,
-		}
-
-		outNames, err = conn.ec2.DescribeSecurityGroups(inputNames)
-		if err != nil {
-			return nil, err
-		}
+	if len(names) == 0 {
+		return ids, nil
 	}
 
-	if outNames != nil {
-		for _, group := range outNames.SecurityGroups {
-			ids = append(ids, aws.String(*group.GroupId))
-		}
+	inputNames := &ec2.DescribeSecurityGroupsInput{
+		GroupNames: names,
+	}
+
+	outNames, err := conn.ec2.DescribeSecurityGroups(inputNames)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, group := range outNames.SecurityGroups {
+		ids = append(ids, aws.String(*group.GroupId))
 	}
 
 	return ids, nil
