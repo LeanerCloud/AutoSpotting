@@ -106,7 +106,7 @@ func Test_copyBlockDeviceMappings(t *testing.T) {
 	}
 }
 
-var testSecGroupRegex = regexp.MustCompile(`^sg-[a-f0-9]{8}$`)
+var testSecGroupRegex = regexp.MustCompile(`^sg-[a-f0-9]{8,17}$`)
 
 func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 	tests := []struct {
@@ -428,6 +428,28 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 			name: "classic-id-networking",
 			lc: &launchConfiguration{
 				&autoscaling.LaunchConfiguration{
+					SecurityGroups: aws.StringSlice([]string{"sg-12345fdd", "sg-4567fed0"}),
+				},
+				testSecGroupRegex,
+			},
+			instance: &instance{
+				Instance: &ec2.Instance{},
+			},
+			spotRequest: &ec2.RequestSpotLaunchSpecification{
+				InstanceType:   aws.String(""),
+				SecurityGroups: nil,
+				Placement: &ec2.SpotPlacement{
+					AvailabilityZone: aws.String(""),
+				},
+				SecurityGroupIds: aws.StringSlice([]string{"sg-12345fdd", "sg-4567fed0"}),
+			},
+		},
+		{
+			// these look like real ids but they are not and will be treated as
+			// names
+			name: "classic-fake-id-networking",
+			lc: &launchConfiguration{
+				&autoscaling.LaunchConfiguration{
 					SecurityGroups: aws.StringSlice([]string{"sg-12345", "sg-4567"}),
 				},
 				testSecGroupRegex,
@@ -442,6 +464,26 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 					AvailabilityZone: aws.String(""),
 				},
 				SecurityGroupIds: aws.StringSlice([]string{"sg-12345", "sg-4567"}),
+			},
+		},
+		{
+			name: "classic-long-id-networking",
+			lc: &launchConfiguration{
+				&autoscaling.LaunchConfiguration{
+					SecurityGroups: aws.StringSlice([]string{"sg-123456aedf6aedf78", "sg-2671decc18123770b"}),
+				},
+				testSecGroupRegex,
+			},
+			instance: &instance{
+				Instance: &ec2.Instance{},
+			},
+			spotRequest: &ec2.RequestSpotLaunchSpecification{
+				InstanceType:   aws.String(""),
+				SecurityGroups: nil,
+				Placement: &ec2.SpotPlacement{
+					AvailabilityZone: aws.String(""),
+				},
+				SecurityGroupIds: aws.StringSlice([]string{"sg-123456aedf6aedf78", "sg-2671decc18123770b"}),
 			},
 		},
 		{
