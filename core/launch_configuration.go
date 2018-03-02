@@ -12,9 +12,9 @@ import (
 
 type launchConfiguration struct {
 	*autoscaling.LaunchConfiguration
-
-	secGroupRegex *regexp.Regexp
 }
+
+var secGroupRegex = regexp.MustCompile(`^sg-[a-f0-9]{8,17}$`)
 
 func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() int {
 	count := 0
@@ -163,7 +163,7 @@ func (lc *launchConfiguration) getSecurityGroupIDs(conn *connections, secGroups 
 
 	for _, secGroupStr := range secGroups {
 		// we assume strings that match are IDs already
-		if lc.secGroupRegex.MatchString(*secGroupStr) {
+		if secGroupRegex.MatchString(*secGroupStr) {
 			ids = append(ids, aws.String(*secGroupStr))
 		} else {
 			names = append(names, aws.String(*secGroupStr))
