@@ -695,9 +695,34 @@ func (a *autoScalingGroup) getPricetoBid(
 func (a *autoScalingGroup) launchCheapestSpotInstance(
 	azToLaunchIn *string) error {
 
+	baseInstance, newInstanceType, err := a.getBaseAndNewInstanceTypeToStart(azToLaunchIn)
+	if err != nil {
+		return err
+	}
+
+	lc := a.getLaunchConfiguration()
+
+	spotLS, err := lc.convertLaunchConfigurationToSpotSpecification(
+		baseInstance,
+		*newInstanceType,
+		&a.region.services,
+		*azToLaunchIn,
+	)
+	if err != nil {
+		return fmt.Errorf("could not convert launchConfiguration to SpotSpefication: %s", err)
+	}
+
+	baseOnDemandPrice := baseInstance.price
+	currentSpotPrice := newInstanceType.pricing.spot[*azToLaunchIn]
+
+	logger.Println("Bidding for spot instance for ", a.name)
+	return a.bidForSpotInstance(spotLS, a.getPricetoBid(baseOnDemandPrice, currentSpotPrice))
+}
+
+func (a *autoScalingGroup) getBaseAndNewInstanceTypeToStart(azToLaunchIn *string) (*instance, *instanceTypeInformation, error) {
 	if azToLaunchIn == nil {
 		logger.Println("Can't launch instances in any AZ, nothing to do here...")
-		return errors.New("invalid availability zone provided")
+		return nil, nil, errors.New("invalid availability zone provided")
 	}
 
 	logger.Println("Trying to launch spot instance in", *azToLaunchIn,
@@ -707,45 +732,30 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 
 	if baseInstance == nil {
 		logger.Println("Found no on-demand instances, nothing to do here...")
-		return errors.New("no on-demand instances found")
+		return nil, nil, errors.New("no on-demand instances found")
 	}
 	logger.Println("Found on-demand instance", baseInstance.InstanceId)
 
 	allowedInstances := a.getAllowedInstanceTypes(baseInstance)
 	disallowedInstances := a.getDisallowedInstanceTypes(baseInstance)
 
-	newInstanceType, err := baseInstance.getCheapestCompatibleSpotInstanceType(allowedInstances, disallowedInstances)
+	newInstanceTypeStr, err := baseInstance.getCheapestCompatibleSpotInstanceType(allowedInstances, disallowedInstances)
 	if err != nil {
 		logger.Println("No cheaper compatible instance type was found, "+
 			"nothing to do here...", err)
-		return errors.New("no cheaper spot instance found")
+		return nil, nil, errors.New("no cheaper spot instance found")
 	}
 
-	newInstance := a.region.instanceTypeInformation[newInstanceType]
+	newInstanceType := a.region.instanceTypeInformation[newInstanceTypeStr]
 
-	baseOnDemandPrice := baseInstance.price
-
-	currentSpotPrice := newInstance.pricing.spot[*azToLaunchIn]
+	currentSpotPrice := newInstanceType.pricing.spot[*azToLaunchIn]
 	logger.Println("Finished searching for best spot instance in ", *azToLaunchIn)
 	logger.Println("Replacing an on-demand", *baseInstance.InstanceType,
-		"instance having the ondemand price", baseOnDemandPrice)
+		"instance having the ondemand price", baseInstance.price)
 	logger.Println("Launching best compatible instance:", newInstanceType,
 		"with the current spot price:", currentSpotPrice)
 
-	lc := a.getLaunchConfiguration()
-
-	spotLS, err := lc.convertLaunchConfigurationToSpotSpecification(
-		baseInstance,
-		newInstance,
-		&a.region.services,
-		*azToLaunchIn,
-	)
-	if err != nil {
-		return fmt.Errorf("could not convert launchConfiguration to SpotSpefication: %s", err)
-	}
-
-	logger.Println("Bidding for spot instance for ", a.name)
-	return a.bidForSpotInstance(spotLS, a.getPricetoBid(baseOnDemandPrice, currentSpotPrice))
+	return baseInstance, &newInstanceType, nil
 }
 
 func (a *autoScalingGroup) loadSpotInstanceRequest(
