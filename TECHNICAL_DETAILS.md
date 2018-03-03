@@ -4,14 +4,14 @@
 
 ## Summary of supported features & options ##
 
-| Option  | Status | Override via ASG conf |
+| Option  | Status | [Override using ASG tags](https://github.com/cristim/autospotting/blob/master/core/autoscaling.go#L16) |
 | ------- | :----: | :-------------------: |
 | Run on multiple regions | :white_check_mark:  (default: all)| :heavy_minus_sign: |
 | [Keep a fixed minimum percentage of on-demand](https://github.com/cristim/autospotting/blob/master/START.md#minimum-on-demand-configuration) | :white_check_mark: (default: 0%) | :white_check_mark: |
 | [Keep a fixed minimum number of on-demand](https://github.com/cristim/autospotting/blob/master/START.md#minimum-on-demand-configuration) | :white_check_mark: (default: 0) | :white_check_mark: |
-| Bid at a certain percentage of the on-demand price | :white_check_mark: (default) | :white_check_mark: |
+| Bid at a certain percentage of the on-demand price | :white_check_mark: (default: 100%) | :white_check_mark: |
 | Can bid the current spot price plus a certain percentage | :white_check_mark: | :white_check_mark: |
-| Automatically determine the cheapest compatible instance type | :white_check_mark: (default) | :white_check_mark: (default) |
+| Automatically determine the cheapest compatible instance type | :white_check_mark: (default) | :white_check_mark: |
 | Can restrict to the same instance type only | :white_check_mark: | :white_check_mark: |
 | Can restrict to only certain instance types | :white_check_mark: | :white_check_mark: |
 | Blacklisting of certain instance types | :white_check_mark: | :white_check_mark: |
