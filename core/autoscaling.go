@@ -392,6 +392,10 @@ func (a *autoScalingGroup) scanInstances() instances {
 func (a *autoScalingGroup) propagatedInstanceTags() []*ec2.Tag {
 	var tags []*ec2.Tag
 
+	tags = append(tags, &ec2.Tag{
+		Key:   aws.String("LaunchConfigurationName"),
+		Value: a.LaunchConfigurationName,
+	})
 	for _, asgTag := range a.Tags {
 		if *asgTag.PropagateAtLaunch && !strings.HasPrefix(*asgTag.Key, "aws:") {
 			tags = append(tags, &ec2.Tag{
