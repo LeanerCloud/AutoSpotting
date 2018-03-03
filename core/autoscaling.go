@@ -494,12 +494,31 @@ func (a *autoScalingGroup) getAnySpotInstance() *instance {
 	return a.getInstance(nil, false, false)
 }
 
+// Before waiting for an instance we check if amazon has put the open request
+// in a holding state (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html).
+// If the request is in a holding state we check if we should
+// cancel the spot request, or ignore it for the time being depending upon the
+// setting of req.maxTimeInHolding.  The default of 0 means don't cancel the request
+// but ignore for the moment (the spot request will remain in the background, and the next
+// invocation will check it)
+func (a *autoScalingGroup) handleSpotRequestInHolding(req *spotInstanceRequest) bool {
+	holdingRequest := req.isHoldingRequest()
+
+	if holdingRequest {
+		logger.Println(a.name, "Spot Request ("+*req.SpotInstanceRequestId+") is in holding by Amazon:"+*req.Status.Code)
+	}
+
+	return holdingRequest
+}
+
 // returns an instance ID as *string and a bool that tells us if  we need to
 // wait for the next run in case there are spot instances still being launched
 func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 
 	var activeSpotInstanceRequest *spotInstanceRequest
 
+	// default we have found a spot request, don't create a new one
+	waitForNextRun := false
 	// if there are on-demand instances but no spot instance requests yet,
 	// then we can launch a new spot instance
 	if len(a.spotInstanceRequests) == 0 {
@@ -532,8 +551,32 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 			// function timeout when waiting for the instances would break the loop,
 			// because the subsequent run would find a failed spot request instead
 			// of an open one.
-			req.waitForAndTagSpotInstance()
+			//
+			// Before waiting for an instance we check if amazon has put the open request
+			// in a holding state (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html).
+			// If the request is in a holding state we check if we should
+			// cancel the spot request, or ignore it for the time being depending upon the
+			// setting of req.maxTimeInHolding.  The default of 0 means don't cancel the request
+			// but ignore for the moment (the spot request will remain in the background, and the next
+			// invocation will check it)
+			//
+			holdingRequest := a.handleSpotRequestInHolding(req)
+			if holdingRequest {
+				// we wish to wait for the next run to see if the holding request
+				// was fulfilled
+				waitForNextRun = true
+				continue
+			}
+
+			err := req.waitForAndTagSpotInstance()
+			if err != nil {
+				logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
+				waitForNextRun = true
+				continue
+			}
+
 			activeSpotInstanceRequest = req
+			waitForNextRun = false
 		}
 
 		// We found a spot request with a running instance.
@@ -564,8 +607,15 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 				} else {
 					logger.Println(a.name, "Active bid was found, with no running "+
 						"instances, waiting for an instance to start ...")
-					req.waitForAndTagSpotInstance()
-					activeSpotInstanceRequest = req
+					err := req.waitForAndTagSpotInstance()
+					if err != nil {
+						logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance to be Running", err)
+						waitForNextRun = true
+						continue
+					} else {
+						activeSpotInstanceRequest = req
+						break
+					}
 				}
 			}
 		}
@@ -576,7 +626,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 	// launch a new spot instance.
 	if activeSpotInstanceRequest == nil {
 		logger.Println(a.name, "No active unfulfilled bid was found")
-		return nil, false
+		return nil, waitForNextRun
 	}
 
 	spotInstanceID := activeSpotInstanceRequest.InstanceId

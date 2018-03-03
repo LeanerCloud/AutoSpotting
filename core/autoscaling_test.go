@@ -3325,6 +3325,91 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 	}
 }
 
+func TestHoldingRequestHandling(t *testing.T) {
+	asg := &autoScalingGroup{
+		name: "asg",
+		region: &region{
+			name: "us-east-1",
+		},
+	}
+	tests := []struct {
+		name                 string
+		req                  spotInstanceRequest
+		expectHoldingRequest bool
+	}{
+		{
+			name: "Is Holding Request Only",
+			req: spotInstanceRequest{
+				asg: asg,
+				region: &region{
+					name: "test-region",
+					services: connections{
+						ec2: &mockEC2{},
+					},
+				},
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("open"),
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("capacity-not-available"),
+					},
+				},
+			},
+			expectHoldingRequest: true,
+		},
+		{
+			name: "Spot Request is not Open",
+			req: spotInstanceRequest{
+				asg: asg,
+				region: &region{
+					name: "test-region",
+					services: connections{
+						ec2: &mockEC2{},
+					},
+				},
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("closed"),
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("capacity-not-available"),
+					},
+				},
+			},
+			expectHoldingRequest: false,
+		},
+		{
+			name: "Spot Request is Open, but status is not holding",
+			req: spotInstanceRequest{
+				asg: asg,
+				region: &region{
+					name: "test-region",
+					services: connections{
+						ec2: &mockEC2{},
+					},
+				},
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("open"),
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("random aws status"),
+					},
+				},
+			},
+			expectHoldingRequest: false,
+		},
+	}
+
+	for _, tt := range tests {
+
+		holding := tt.req.asg.handleSpotRequestInHolding(&tt.req)
+
+		if holding != tt.expectHoldingRequest {
+			t.Errorf("%+v: Spot request 'holding' status not correctly identify, received: %+v, expected: %+v", tt.name, holding, tt.expectHoldingRequest)
+		}
+
+	}
+}
+
 func TestGetPricetoBid(t *testing.T) {
 	tests := []struct {
 		spotPercentage       float64

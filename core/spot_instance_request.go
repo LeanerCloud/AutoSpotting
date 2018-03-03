@@ -19,6 +19,39 @@ type spotInstanceRequest struct {
 	asg    *autoScalingGroup
 }
 
+func (s *spotInstanceRequest) isRequestOpen() bool {
+	return s.State != nil && *s.State == "open"
+}
+
+// Before waiting for an instance we check if amazon has put the open request
+// in a holding state (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html).
+func (s *spotInstanceRequest) isHoldingRequest() bool {
+	return s.isRequestOpen() && s.Status != nil && s.Status.Code != nil && hasHoldingRequestStatus(*s.Status.Code)
+}
+
+func hasHoldingRequestStatus(code string) bool {
+	switch code {
+	case "capacity-not-available":
+		return true
+	case "capacity-oversubscribed":
+		return true
+	case "price-too-low":
+		return true
+	case "not-scheduled-yet":
+		return true
+	case "launch-group-constraint":
+		return true
+	case "az-group-constraint":
+		return true
+	case "placement-group-constraint":
+		return true
+	case "constraint-not-fulfillable":
+		return true
+	default:
+		return false
+	}
+}
+
 // This function returns an Instance ID
 func (s *spotInstanceRequest) waitForAndTagSpotInstance() error {
 	logger.Println(s.asg.name, "Waiting for spot instance for spot instance request",
