@@ -432,7 +432,7 @@ groups, which is trivial to do with AutoSpotting.
 
 The SpotFleets are also much less widely used than the AutoScaling groups, and
 many other AWS services and third-party applications are integrated out of the
-box with AutoScaling but not with SpotFleets. Things like ELB/ALB, CodeDeploy,
+box with AutoScaling but not with SpotFleets. Things like ELB/ALB, [CodeDeploy](CODEDEPLOY.md),
 and Beanstalk would run pretty much out of the box on AutoScaling groups managed
 by AutoSpotting, while integrating them with SpotFleets may need additional work
 or would simply be impossible in their current implementation. People also tend
