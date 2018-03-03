@@ -3377,11 +3377,78 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 	}
 }
 
-// SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-//   {
-//     SpotInstanceRequestId: aws.String("bidTestId"),
-//   },
-// },
+func TestFilteringCompleteSIRRequests(t *testing.T) {
+	tests := []struct {
+		foundSIRRequests    []*ec2.SpotInstanceRequest
+		expectedSIRRequests []*ec2.SpotInstanceRequest
+	}{
+		{
+			foundSIRRequests: []*ec2.SpotInstanceRequest{
+				{
+					SpotInstanceRequestId: aws.String("bidTestId1"),
+					Tags: []*ec2.Tag{
+						{Key: aws.String("launched-for-asg"), Value: aws.String("xyz")},
+						{Key: aws.String("autospotting-complete"), Value: aws.String("true")},
+					},
+				},
+				{
+					SpotInstanceRequestId: aws.String("bidTestId2"),
+					Tags: []*ec2.Tag{
+						{Key: aws.String("launched-for-asg"), Value: aws.String("xyz")},
+					},
+				},
+			},
+			expectedSIRRequests: []*ec2.SpotInstanceRequest{
+				{
+					SpotInstanceRequestId: aws.String("bidTestId2"),
+					Tags: []*ec2.Tag{
+						{Key: aws.String("launched-for-asg"), Value: aws.String("xyz")},
+					},
+				},
+			},
+		},
+		{
+			foundSIRRequests: []*ec2.SpotInstanceRequest{
+				{
+					SpotInstanceRequestId: aws.String("bidTestId1"),
+					Tags: []*ec2.Tag{
+						{Key: aws.String("launched-for-asg"), Value: aws.String("xyz")},
+						{Key: aws.String("autospotting-complete"), Value: aws.String("true")},
+					},
+				},
+				{
+					SpotInstanceRequestId: aws.String("bidTestId2"),
+					Tags: []*ec2.Tag{
+						{Key: aws.String("launched-for-asg"), Value: aws.String("xyz")},
+						{Key: aws.String("autospotting-complete"), Value: aws.String("doesnotmatter_justexistence_of_key")},
+					},
+				},
+			},
+			expectedSIRRequests: []*ec2.SpotInstanceRequest{},
+		},
+		{
+			foundSIRRequests:    []*ec2.SpotInstanceRequest{},
+			expectedSIRRequests: []*ec2.SpotInstanceRequest{},
+		},
+		{
+			foundSIRRequests:    nil,
+			expectedSIRRequests: []*ec2.SpotInstanceRequest{},
+		},
+	}
+
+	for _, tt := range tests {
+		filteredSIRRequests := filterOutCompleteSpotInstanceRequests(tt.foundSIRRequests)
+		if len(filteredSIRRequests) == 0 {
+			if len(tt.expectedSIRRequests) != 0 {
+				t.Errorf("Returned no filtered SIR Request, but expected some: %+v", tt.expectedSIRRequests)
+			}
+		} else if !reflect.DeepEqual(filteredSIRRequests, tt.expectedSIRRequests) {
+			t.Errorf("Filtered SIR Requests not returning as expected, received: %+v, expected: %+v",
+				filteredSIRRequests, tt.expectedSIRRequests)
+		}
+
+	}
+}
 
 func TestGetPricetoBid(t *testing.T) {
 	tests := []struct {
