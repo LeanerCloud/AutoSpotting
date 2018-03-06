@@ -114,7 +114,7 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "empty launchConfiguration",
 			lc: &launchConfiguration{
-				&autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					BlockDeviceMappings: nil,
 				},
 			},
@@ -123,7 +123,7 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "empty BlockDeviceMappings",
 			lc: &launchConfiguration{
-				&autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
 						{},
 					},
@@ -134,7 +134,7 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "mix of valid and invalid configuration",
 			lc: &launchConfiguration{
-				&autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
 						{VirtualName: aws.String("ephemeral")},
 						{},
@@ -146,7 +146,7 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "valid configuration",
 			lc: &launchConfiguration{
-				&autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
 						{VirtualName: aws.String("ephemeral")},
 						{VirtualName: aws.String("ephemeral")},
@@ -407,11 +407,32 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				Placement: &ec2.SpotPlacement{
 					AvailabilityZone: aws.String(""),
 				},
-				SecurityGroups: aws.StringSlice([]string{"non-sgstart", "non-sg"}),
+				SecurityGroupIds: aws.StringSlice([]string{"sg-non-sgstart", "sg-non-sgde"}),
 			},
 		},
 		{
 			name: "classic-id-networking",
+			lc: &launchConfiguration{
+				&autoscaling.LaunchConfiguration{
+					SecurityGroups: aws.StringSlice([]string{"sg-12345fdd", "sg-4567fed0"}),
+				},
+			},
+			instance: &instance{
+				Instance: &ec2.Instance{},
+			},
+			spotRequest: &ec2.RequestSpotLaunchSpecification{
+				InstanceType:   aws.String(""),
+				SecurityGroups: nil,
+				Placement: &ec2.SpotPlacement{
+					AvailabilityZone: aws.String(""),
+				},
+				SecurityGroupIds: aws.StringSlice([]string{"sg-12345fdd", "sg-4567fed0"}),
+			},
+		},
+		{
+			// these look like real ids but they are not and will be treated as
+			// names
+			name: "classic-fake-id-networking",
 			lc: &launchConfiguration{
 				&autoscaling.LaunchConfiguration{
 					SecurityGroups: aws.StringSlice([]string{"sg-12345", "sg-4567"}),
@@ -426,14 +447,14 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 				Placement: &ec2.SpotPlacement{
 					AvailabilityZone: aws.String(""),
 				},
-				SecurityGroupIds: aws.StringSlice([]string{"sg-12345", "sg-4567"}),
+				SecurityGroupIds: aws.StringSlice([]string{"sg-12345dea", "sg-4567dead"}),
 			},
 		},
 		{
-			name: "classic-mixed-networking",
+			name: "classic-long-id-networking",
 			lc: &launchConfiguration{
 				&autoscaling.LaunchConfiguration{
-					SecurityGroups: aws.StringSlice([]string{"sg-12345", "non-sg"}),
+					SecurityGroups: aws.StringSlice([]string{"sg-123456aedf6aedf78", "sg-2671decc18123770b"}),
 				},
 			},
 			instance: &instance{
@@ -441,11 +462,29 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 			},
 			spotRequest: &ec2.RequestSpotLaunchSpecification{
 				InstanceType:   aws.String(""),
-				SecurityGroups: aws.StringSlice([]string{"sg-12345", "non-sg"}),
+				SecurityGroups: nil,
 				Placement: &ec2.SpotPlacement{
 					AvailabilityZone: aws.String(""),
 				},
-				SecurityGroupIds: nil,
+				SecurityGroupIds: aws.StringSlice([]string{"sg-123456aedf6aedf78", "sg-2671decc18123770b"}),
+			},
+		},
+		{
+			name: "classic-mixed-networking",
+			lc: &launchConfiguration{
+				&autoscaling.LaunchConfiguration{
+					SecurityGroups: aws.StringSlice([]string{"sg-12345678", "non-sg"}),
+				},
+			},
+			instance: &instance{
+				Instance: &ec2.Instance{},
+			},
+			spotRequest: &ec2.RequestSpotLaunchSpecification{
+				InstanceType: aws.String(""),
+				Placement: &ec2.SpotPlacement{
+					AvailabilityZone: aws.String(""),
+				},
+				SecurityGroupIds: aws.StringSlice([]string{"sg-12345678", "sg-non-sgde"}),
 			},
 		},
 		{
@@ -487,7 +526,10 @@ func Test_convertLaunchConfigurationToSpotSpecification(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			spot := tc.lc.convertLaunchConfigurationToSpotSpecification(tc.instance, tc.instanceType, tc.az)
+			spot, err := tc.lc.convertLaunchConfigurationToSpotSpecification(tc.instance, tc.instanceType, &connections{ec2: &mockEC2{}}, tc.az)
+			if err != nil {
+				t.Errorf("expected no error but got %s", err)
+			}
 			if !reflect.DeepEqual(spot, tc.spotRequest) {
 				t.Errorf("expected: %+v\nactual: %+v", tc.spotRequest, spot)
 			}

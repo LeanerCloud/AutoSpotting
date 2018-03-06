@@ -2,8 +2,10 @@ package autospotting
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -95,6 +97,46 @@ func (m mockEC2) CancelSpotInstanceRequests(*ec2.CancelSpotInstanceRequestsInput
 
 func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
 	return m.dro, m.drerr
+}
+
+// For testing we "convert" the SecurityGroupIDs/SecurityGroupNames by
+// prefixing the original name/id with "sg-" if not present already. We
+// also fill up the rest of the string to the length of a typical ID with
+// characters taken from the string "deadbeef"
+func (m mockEC2) DescribeSecurityGroups(input *ec2.DescribeSecurityGroupsInput) (*ec2.DescribeSecurityGroupsOutput, error) {
+	var groups []*ec2.SecurityGroup
+
+	// we use this string to fill the length of an SecurityGroup name to an
+	// ID if the name is too short to be a correct ID
+	const testFillStringID = "deadbeef"
+
+	// "sg-" + 8 hex characters
+	const testLengthIDString = 11
+
+	for _, groupName := range input.GroupNames {
+		newgroup := *groupName
+
+		if !strings.HasPrefix(*groupName, "sg-") {
+			newgroup = "sg-" + *groupName
+		}
+
+		// a SecurityGroupID is supposed to have a length of 11
+		// characters. We fill up the missing characters to indicate that this is
+		// now an ID and that it was treated as a name before
+		lenng := len(newgroup)
+		if lenng < testLengthIDString {
+			needed := testLengthIDString - lenng
+			newgroup = newgroup + testFillStringID[:needed]
+		}
+
+		groups = append(groups, &ec2.SecurityGroup{GroupId: &newgroup})
+	}
+
+	for _, groupID := range input.GroupIds {
+		groups = append(groups, &ec2.SecurityGroup{GroupId: aws.String(*groupID)})
+	}
+
+	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: groups}, nil
 }
 
 // All fields are composed of the abbreviation of their method

@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -75,6 +76,9 @@ type autoScalingGroup struct {
 	// spot instance requests generated for the current group
 	spotInstanceRequests []*spotInstanceRequest
 	minOnDemand          int64
+
+	// for caching
+	launchConfiguration *launchConfiguration
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -324,7 +328,10 @@ func (a *autoScalingGroup) process() {
 		logger.Println(a.region.name, a.name,
 			"Would launch a spot instance in ", *azToLaunchSpotIn)
 
-		a.launchCheapestSpotInstance(azToLaunchSpotIn)
+		err := a.launchCheapestSpotInstance(azToLaunchSpotIn)
+		if err != nil {
+			logger.Printf("Could not launch cheapest spot instance: %s", err)
+		}
 	}
 }
 
@@ -385,6 +392,10 @@ func (a *autoScalingGroup) scanInstances() instances {
 func (a *autoScalingGroup) propagatedInstanceTags() []*ec2.Tag {
 	var tags []*ec2.Tag
 
+	tags = append(tags, &ec2.Tag{
+		Key:   aws.String("LaunchConfigurationName"),
+		Value: a.LaunchConfigurationName,
+	})
 	for _, asgTag := range a.Tags {
 		if *asgTag.PropagateAtLaunch && !strings.HasPrefix(*asgTag.Key, "aws:") {
 			tags = append(tags, &ec2.Tag{
@@ -737,9 +748,34 @@ func (a *autoScalingGroup) getPricetoBid(
 func (a *autoScalingGroup) launchCheapestSpotInstance(
 	azToLaunchIn *string) error {
 
+	baseInstance, newInstanceType, err := a.getBaseAndNewInstanceTypeToStart(azToLaunchIn)
+	if err != nil {
+		return err
+	}
+
+	lc := a.getLaunchConfiguration()
+
+	spotLS, err := lc.convertLaunchConfigurationToSpotSpecification(
+		baseInstance,
+		*newInstanceType,
+		&a.region.services,
+		*azToLaunchIn,
+	)
+	if err != nil {
+		return fmt.Errorf("could not convert launchConfiguration to SpotSpefication: %s", err)
+	}
+
+	baseOnDemandPrice := baseInstance.price
+	currentSpotPrice := newInstanceType.pricing.spot[*azToLaunchIn]
+
+	logger.Println("Bidding for spot instance for ", a.name)
+	return a.bidForSpotInstance(spotLS, a.getPricetoBid(baseOnDemandPrice, currentSpotPrice))
+}
+
+func (a *autoScalingGroup) getBaseAndNewInstanceTypeToStart(azToLaunchIn *string) (*instance, *instanceTypeInformation, error) {
 	if azToLaunchIn == nil {
 		logger.Println("Can't launch instances in any AZ, nothing to do here...")
-		return errors.New("invalid availability zone provided")
+		return nil, nil, errors.New("invalid availability zone provided")
 	}
 
 	logger.Println("Trying to launch spot instance in", *azToLaunchIn,
@@ -749,40 +785,30 @@ func (a *autoScalingGroup) launchCheapestSpotInstance(
 
 	if baseInstance == nil {
 		logger.Println("Found no on-demand instances, nothing to do here...")
-		return errors.New("no on-demand instances found")
+		return nil, nil, errors.New("no on-demand instances found")
 	}
-	logger.Println("Found on-demand instance", baseInstance.InstanceId)
+	logger.Println("Found on-demand instance", *baseInstance.InstanceId)
 
 	allowedInstances := a.getAllowedInstanceTypes(baseInstance)
 	disallowedInstances := a.getDisallowedInstanceTypes(baseInstance)
 
-	newInstanceType, err := baseInstance.getCheapestCompatibleSpotInstanceType(allowedInstances, disallowedInstances)
+	newInstanceTypeStr, err := baseInstance.getCheapestCompatibleSpotInstanceType(allowedInstances, disallowedInstances)
 	if err != nil {
 		logger.Println("No cheaper compatible instance type was found, "+
 			"nothing to do here...", err)
-		return errors.New("no cheaper spot instance found")
+		return nil, nil, errors.New("no cheaper spot instance found")
 	}
 
-	newInstance := a.region.instanceTypeInformation[newInstanceType]
+	newInstanceType := a.region.instanceTypeInformation[newInstanceTypeStr]
 
-	baseOnDemandPrice := baseInstance.price
-
-	currentSpotPrice := newInstance.pricing.spot[*azToLaunchIn]
+	currentSpotPrice := newInstanceType.pricing.spot[*azToLaunchIn]
 	logger.Println("Finished searching for best spot instance in ", *azToLaunchIn)
 	logger.Println("Replacing an on-demand", *baseInstance.InstanceType,
-		"instance having the ondemand price", baseOnDemandPrice)
+		"instance having the ondemand price", baseInstance.price)
 	logger.Println("Launching best compatible instance:", newInstanceType,
 		"with the current spot price:", currentSpotPrice)
 
-	lc := a.getLaunchConfiguration()
-
-	spotLS := lc.convertLaunchConfigurationToSpotSpecification(
-		baseInstance,
-		newInstance,
-		*azToLaunchIn)
-
-	logger.Println("Bidding for spot instance for ", a.name)
-	return a.bidForSpotInstance(spotLS, a.getPricetoBid(baseOnDemandPrice, currentSpotPrice))
+	return baseInstance, &newInstanceType, nil
 }
 
 func (a *autoScalingGroup) loadSpotInstanceRequest(
@@ -860,6 +886,9 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 }
 
 func (a *autoScalingGroup) getLaunchConfiguration() *launchConfiguration {
+	if a.launchConfiguration != nil {
+		return a.launchConfiguration
+	}
 
 	lcName := a.LaunchConfigurationName
 
@@ -879,7 +908,10 @@ func (a *autoScalingGroup) getLaunchConfiguration() *launchConfiguration {
 		return nil
 	}
 
-	return &launchConfiguration{LaunchConfiguration: resp.LaunchConfigurations[0]}
+	a.launchConfiguration = &launchConfiguration{
+		LaunchConfiguration: resp.LaunchConfigurations[0],
+	}
+	return a.launchConfiguration
 }
 
 func (a *autoScalingGroup) attachSpotInstance(spotInstanceID *string) error {
@@ -929,26 +961,6 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 	}
 
 	return a.instances.get(*instanceID).terminate()
-}
-
-// Counts the number of already running spot instances.
-func (a *autoScalingGroup) alreadyRunningSpotInstanceTypeCount(
-	instanceType, availabilityZone string) int64 {
-
-	var count int64
-	logger.Println(a.name, "Counting already running spot instances of type ",
-		instanceType, " in AZ ", availabilityZone)
-	for inst := range a.instances.instances() {
-		if *inst.InstanceType == instanceType &&
-			*inst.Placement.AvailabilityZone == availabilityZone &&
-			inst.isSpot() {
-			logger.Println(a.name, "Found running spot instance ",
-				*inst.InstanceId, "of the same type:", instanceType)
-			count++
-		}
-	}
-	logger.Println(a.name, "Found", count, instanceType, "instances")
-	return count
 }
 
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.
