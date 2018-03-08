@@ -25,7 +25,7 @@ all: fmt-check vet-check build test                          ## Build the code
 clean:                                                       ## Remove installed packages/temporary files
 	go clean ./...
 	rm -rf $(BINDATA_DIR) $(LOCAL_PATH)
-	rm -rf .bin .terraform
+	rm -rf .terraform
 .PHONY: clean
 
 check_deps:                                                  ## Verify the system has all dependencies installed
