@@ -68,6 +68,9 @@ For more detailed information you can read this [document](START.md)
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/nightly/template.json)
 
+CloudFormation launcher limited for use in region us-east-1 as noted in this 
+[issue](https://github.com/cristim/autospotting/issues/94).
+
 ### Official binaries ###
 
 The above stack can be used to conveniently install the latest build generated
