@@ -642,6 +642,13 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, bool) {
 
 	spotInstanceID := activeSpotInstanceRequest.InstanceId
 
+	if spotInstanceID == nil {
+		logger.Println(a.name,
+			"No instance was launched from the active spot instance request",
+			*activeSpotInstanceRequest.SpotInstanceRequestId)
+		return nil, false
+	}
+
 	logger.Println("Considering ", *spotInstanceID, "for attaching to", a.name)
 
 	instData := a.region.instances.get(*spotInstanceID)
