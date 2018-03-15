@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -12,6 +13,8 @@ import (
 type launchConfiguration struct {
 	*autoscaling.LaunchConfiguration
 }
+
+var secGroupRegex = regexp.MustCompile(`^sg-[a-f0-9]{8,17}$`)
 
 func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() int {
 	count := 0
@@ -35,8 +38,9 @@ func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() int {
 
 func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 	baseInstance *instance,
-	instanceType string,
-	az string) *ec2.RequestSpotLaunchSpecification {
+	newInstance instanceTypeInformation,
+	conn *connections,
+	az string) (*ec2.RequestSpotLaunchSpecification, error) {
 
 	var spotLS ec2.RequestSpotLaunchSpecification
 
@@ -45,6 +49,10 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 
 	if lc.EbsOptimized != nil {
 		spotLS.EbsOptimized = lc.EbsOptimized
+	}
+
+	if newInstance.hasEBSOptimization && newInstance.pricing.ebsSurcharge == 0.0 {
+		spotLS.SetEbsOptimized(true)
 	}
 
 	// The launch configuration's IamInstanceProfile field can store either a
@@ -64,7 +72,7 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 
 	spotLS.ImageId = lc.ImageId
 
-	spotLS.InstanceType = &instanceType
+	spotLS.InstanceType = &newInstance.instanceType
 
 	// these ones should NOT be copied, they break the SpotLaunchSpecification,
 	// so that it can't be launched
@@ -81,6 +89,11 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 		}
 	}
 
+	secGroupIDs, err := lc.getSecurityGroupIDs(conn, lc.SecurityGroups)
+	if err != nil {
+		return nil, err
+	}
+
 	if lc.AssociatePublicIpAddress != nil || baseInstance.SubnetId != nil {
 		// Instances are running in a VPC.
 		spotLS.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
@@ -88,26 +101,12 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 				AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
 				DeviceIndex:              aws.Int64(0),
 				SubnetId:                 baseInstance.SubnetId,
-				Groups:                   lc.SecurityGroups,
+				Groups:                   secGroupIDs,
 			},
 		}
 	} else {
-		// Instances are running in EC2 Classic, but maybe by name or ID
-		// depending on your scenario, so testing if start with sg-
-		// note: this doesn't yet cover scenario of mixed mode
-		ids := true
-
-		for i := range lc.SecurityGroups {
-			if !strings.HasPrefix(*(lc.SecurityGroups[i]), "sg-") {
-				ids = false
-			}
-		}
-
-		if ids {
-			spotLS.SecurityGroupIds = lc.SecurityGroups
-		} else {
-			spotLS.SecurityGroups = lc.SecurityGroups
-		}
+		// Instances are running in EC2 Classic
+		spotLS.SecurityGroupIds = secGroupIDs
 	}
 
 	if lc.UserData != nil && *lc.UserData != "" {
@@ -116,8 +115,7 @@ func (lc *launchConfiguration) convertLaunchConfigurationToSpotSpecification(
 
 	spotLS.Placement = &ec2.SpotPlacement{AvailabilityZone: &az}
 
-	return &spotLS
-
+	return &spotLS, nil
 }
 
 func copyBlockDeviceMappings(
@@ -154,4 +152,40 @@ func copyBlockDeviceMappings(
 
 	}
 	return ec2BDMlist
+}
+
+// We don't know whether we got security group names or ids. We assume
+// that the ones starting with "sg-" are ids and then search for the IDs
+// of the other ones.
+func (lc *launchConfiguration) getSecurityGroupIDs(conn *connections, secGroups []*string) ([]*string, error) {
+	var names []*string
+	var ids []*string
+
+	for _, secGroupStr := range secGroups {
+		// we assume strings that match are IDs already
+		if secGroupRegex.MatchString(*secGroupStr) {
+			ids = append(ids, aws.String(*secGroupStr))
+		} else {
+			names = append(names, aws.String(*secGroupStr))
+		}
+	}
+
+	if len(names) == 0 {
+		return ids, nil
+	}
+
+	inputNames := &ec2.DescribeSecurityGroupsInput{
+		GroupNames: names,
+	}
+
+	outNames, err := conn.ec2.DescribeSecurityGroups(inputNames)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, group := range outNames.SecurityGroups {
+		ids = append(ids, aws.String(*group.GroupId))
+	}
+
+	return ids, nil
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -234,6 +233,69 @@ func TestIsSpot(t *testing.T) {
 		})
 	}
 }
+func TestIsEBSCompatible(t *testing.T) {
+	tests := []struct {
+		name         string
+		spotInfo     instanceTypeInformation
+		instanceInfo instance
+		expected     bool
+	}{
+		{name: "EBS not Optimized Spot not Optimized",
+			spotInfo: instanceTypeInformation{
+				hasEBSOptimization: false,
+			},
+			instanceInfo: instance{
+				Instance: &ec2.Instance{
+					EbsOptimized: nil,
+				},
+			},
+			expected: true,
+		},
+		{name: "EBS Optimized Spot Optimized",
+			spotInfo: instanceTypeInformation{
+				hasEBSOptimization: true,
+			},
+			instanceInfo: instance{
+				Instance: &ec2.Instance{
+					EbsOptimized: &[]bool{true}[0],
+				},
+			},
+			expected: true,
+		},
+		{name: "EBS Optimized Spot not Optimized",
+			spotInfo: instanceTypeInformation{
+				hasEBSOptimization: false,
+			},
+			instanceInfo: instance{
+				Instance: &ec2.Instance{
+					EbsOptimized: &[]bool{true}[0],
+				},
+			},
+			expected: false,
+		},
+		{name: "EBS not Optimized Spot Optimized",
+			spotInfo: instanceTypeInformation{
+				hasEBSOptimization: true,
+			},
+			instanceInfo: instance{
+				Instance: &ec2.Instance{
+					EbsOptimized: &[]bool{false}[0],
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i := &tt.instanceInfo
+			retValue := i.isEBSCompatible(tt.spotInfo)
+			if retValue != tt.expected {
+				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
+			}
+		})
+	}
+}
 
 func TestIsPriceCompatible(t *testing.T) {
 	tests := []struct {
@@ -321,7 +383,8 @@ func TestIsPriceCompatible(t *testing.T) {
 			}
 			candidate := instanceTypeInformation{pricing: prices{}}
 			candidate.pricing = tt.spotPrices
-			retValue := i.isPriceCompatible(candidate, tt.bestPrice)
+			spotPrice := i.calculatePrice(candidate)
+			retValue := i.isPriceCompatible(spotPrice, tt.bestPrice)
 			if retValue != tt.expected {
 				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
 			}
@@ -335,6 +398,7 @@ func TestIsClassCompatible(t *testing.T) {
 		spotInfo       instanceTypeInformation
 		instanceCPU    int
 		instanceMemory float32
+		instanceGPU    int
 		expected       bool
 	}{
 		{name: "Spot is higher in both CPU & memory",
@@ -372,6 +436,29 @@ func TestIsClassCompatible(t *testing.T) {
 			instanceCPU:    15,
 			instanceMemory: 5.0,
 			expected:       false,
+		},
+		{name: "Spot is lower in CPU, memory and GPU ",
+			spotInfo: instanceTypeInformation{
+				vCPU:   10,
+				memory: 2.5,
+				GPU:    0,
+			},
+			instanceCPU:    15,
+			instanceMemory: 5.0,
+			instanceGPU:    1,
+			expected:       false,
+		},
+
+		{name: "Spot is higher in CPU, memory and GPU ",
+			spotInfo: instanceTypeInformation{
+				vCPU:   10,
+				memory: 20,
+				GPU:    4,
+			},
+			instanceCPU:    8,
+			instanceMemory: 4,
+			instanceGPU:    2,
+			expected:       true,
 		},
 	}
 
@@ -557,100 +644,6 @@ func TestIsVirtualizationCompatible(t *testing.T) {
 	}
 }
 
-func TestIsQuantityCompatible(t *testing.T) {
-	tests := []struct {
-		name               string
-		asgName            string
-		asgInstances       instances
-		asgDesiredCapacity *int64
-		availabilityZone   *string
-		spotInfo           instanceTypeInformation
-		expected           bool
-	}{
-		{name: "ASG spot ratio is too low (already 1 for 4)",
-			asgName: "test-asg",
-			asgInstances: makeInstancesWithCatalog(
-				map[string]*instance{
-					"id-1": {
-						Instance: &ec2.Instance{
-							InstanceId:        aws.String("id-1"),
-							InstanceType:      aws.String("m3.medium"),
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String("spot"),
-						},
-					},
-				},
-			),
-			asgDesiredCapacity: aws.Int64(4),
-			spotInfo:           instanceTypeInformation{instanceType: "m3.medium"},
-			availabilityZone:   aws.String("eu-west-1a"),
-			expected:           false,
-		},
-		{name: "ASG spot ratio is high enough (only 1 for 10)",
-			asgName: "test-asg",
-			asgInstances: makeInstancesWithCatalog(
-				map[string]*instance{
-					"id-1": {
-						Instance: &ec2.Instance{
-							InstanceId:        aws.String("id-1"),
-							InstanceType:      aws.String("m3.medium"),
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String("spot"),
-						},
-					},
-				},
-			),
-			asgDesiredCapacity: aws.Int64(10),
-			spotInfo:           instanceTypeInformation{instanceType: "m3.medium"},
-			availabilityZone:   aws.String("eu-west-1a"),
-			expected:           true,
-		},
-		{name: "ASG has no instances of this type",
-			asgName: "test-asg",
-			asgInstances: makeInstancesWithCatalog(
-				map[string]*instance{
-					"id-1": {
-						Instance: &ec2.Instance{
-							InstanceId:        aws.String("id-1"),
-							InstanceType:      aws.String("m3.medium"),
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String("spot"),
-						},
-					},
-				},
-			),
-			asgDesiredCapacity: aws.Int64(5),
-			spotInfo:           instanceTypeInformation{instanceType: "t2.micro"},
-			availabilityZone:   aws.String("eu-west-1a"),
-			expected:           true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := &autoScalingGroup{
-				name:      tt.name,
-				instances: tt.asgInstances,
-				Group: &autoscaling.Group{
-					DesiredCapacity: tt.asgDesiredCapacity,
-				},
-			}
-			i := &instance{
-				Instance: &ec2.Instance{
-					Placement: &ec2.Placement{
-						AvailabilityZone: tt.availabilityZone,
-					},
-				},
-				asg: a,
-			}
-			retValue := i.isSpotQuantityCompatible(tt.spotInfo)
-			if retValue != tt.expected {
-				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
-			}
-		})
-	}
-}
-
 func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -660,6 +653,8 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 		lc             *launchConfiguration
 		expectedString string
 		expectedError  error
+		allowedList    []string
+		disallowedList []string
 	}{
 		{name: "better/cheaper spot instance found",
 			spotInfos: map[string]instanceTypeInformation{
@@ -744,6 +739,267 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 					},
 				},
 			},
+			expectedString: "type1",
+			expectedError:  nil,
+		},
+		{name: "better/cheaper spot instance found but marked as disallowed",
+			spotInfos: map[string]instanceTypeInformation{
+				"1": {
+					instanceType: "type1",
+					pricing: prices{
+						spot: map[string]float64{
+							"eu-central-1": 0.5,
+							"eu-west-1":    1.0,
+							"eu-west-2":    2.0,
+						},
+					},
+					vCPU:   10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+					virtualizationTypes:      []string{"PV", "else"},
+				},
+				"2": {
+					instanceType: "type2",
+					pricing: prices{
+						spot: map[string]float64{
+							"eu-central-1": 0.8,
+							"eu-west-1":    1.0,
+							"eu-west-2":    2.0,
+						},
+					},
+					vCPU:   10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+					virtualizationTypes:      []string{"PV", "else"},
+				},
+			},
+			instanceInfo: &instance{
+				Instance: &ec2.Instance{
+					VirtualizationType: aws.String("paravirtual"),
+					Placement: &ec2.Placement{
+						AvailabilityZone: aws.String("eu-central-1"),
+					},
+				},
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+					vCPU:         10,
+					memory:       2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+				},
+				price:  0.75,
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "test-asg",
+				instances: makeInstancesWithCatalog(
+					map[string]*instance{
+						"id-1": {
+							Instance: &ec2.Instance{
+								InstanceId:        aws.String("id-1"),
+								InstanceType:      aws.String("typeX"),
+								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
+								InstanceLifecycle: aws.String("spot"),
+							},
+						},
+					},
+				),
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			lc: &launchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+						{
+							VirtualName: aws.String("vn1"),
+						},
+						{
+							VirtualName: aws.String("ephemeral"),
+						},
+					},
+				},
+			},
+			disallowedList: []string{"type*"},
+			expectedString: "",
+			expectedError:  errors.New("No cheaper spot instance types could be found"),
+		},
+		{name: "better/cheaper spot instance found but not marked as allowed",
+			spotInfos: map[string]instanceTypeInformation{
+				"1": {
+					instanceType: "type1",
+					pricing: prices{
+						spot: map[string]float64{
+							"eu-central-1": 0.5,
+							"eu-west-1":    1.0,
+							"eu-west-2":    2.0,
+						},
+					},
+					vCPU:   10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+					virtualizationTypes:      []string{"PV", "else"},
+				},
+				"2": {
+					instanceType: "type2",
+					pricing: prices{
+						spot: map[string]float64{
+							"eu-central-1": 0.8,
+							"eu-west-1":    1.0,
+							"eu-west-2":    2.0,
+						},
+					},
+					vCPU:   10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+					virtualizationTypes:      []string{"PV", "else"},
+				},
+			},
+			instanceInfo: &instance{
+				Instance: &ec2.Instance{
+					VirtualizationType: aws.String("paravirtual"),
+					Placement: &ec2.Placement{
+						AvailabilityZone: aws.String("eu-central-1"),
+					},
+				},
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+					vCPU:         10,
+					memory:       2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+				},
+				price:  0.75,
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "test-asg",
+				instances: makeInstancesWithCatalog(
+					map[string]*instance{
+						"id-1": {
+							Instance: &ec2.Instance{
+								InstanceId:        aws.String("id-1"),
+								InstanceType:      aws.String("typeX"),
+								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
+								InstanceLifecycle: aws.String("spot"),
+							},
+						},
+					},
+				),
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			lc: &launchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+						{
+							VirtualName: aws.String("vn1"),
+						},
+						{
+							VirtualName: aws.String("ephemeral"),
+						},
+					},
+				},
+			},
+			allowedList:    []string{"asdf*"},
+			expectedString: "",
+			expectedError:  errors.New("No cheaper spot instance types could be found"),
+		},
+		{name: "better/cheaper spot instance found and marked as allowed",
+			spotInfos: map[string]instanceTypeInformation{
+				"1": {
+					instanceType: "type1",
+					pricing: prices{
+						spot: map[string]float64{
+							"eu-central-1": 0.5,
+							"eu-west-1":    1.0,
+							"eu-west-2":    2.0,
+						},
+					},
+					vCPU:   10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+					virtualizationTypes:      []string{"PV", "else"},
+				},
+				"2": {
+					instanceType: "type2",
+					pricing: prices{
+						spot: map[string]float64{
+							"eu-central-1": 0.8,
+							"eu-west-1":    1.0,
+							"eu-west-2":    2.0,
+						},
+					},
+					vCPU:   10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+					virtualizationTypes:      []string{"PV", "else"},
+				},
+			},
+			instanceInfo: &instance{
+				Instance: &ec2.Instance{
+					VirtualizationType: aws.String("paravirtual"),
+					Placement: &ec2.Placement{
+						AvailabilityZone: aws.String("eu-central-1"),
+					},
+				},
+				typeInfo: instanceTypeInformation{
+					instanceType: "typeX",
+					vCPU:         10,
+					memory:       2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+				},
+				price:  0.75,
+				region: &region{},
+			},
+			asg: &autoScalingGroup{
+				name: "test-asg",
+				instances: makeInstancesWithCatalog(
+					map[string]*instance{
+						"id-1": {
+							Instance: &ec2.Instance{
+								InstanceId:        aws.String("id-1"),
+								InstanceType:      aws.String("typeX"),
+								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
+								InstanceLifecycle: aws.String("spot"),
+							},
+						},
+					},
+				),
+				Group: &autoscaling.Group{
+					DesiredCapacity: aws.Int64(4),
+				},
+			},
+			lc: &launchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+						{
+							VirtualName: aws.String("vn1"),
+						},
+						{
+							VirtualName: aws.String("ephemeral"),
+						},
+					},
+				},
+			},
+			allowedList:    []string{"ty*"},
 			expectedString: "type1",
 			expectedError:  nil,
 		},
@@ -841,7 +1097,9 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			i := tt.instanceInfo
 			i.region.instanceTypeInformation = tt.spotInfos
 			i.asg = tt.asg
-			retValue, err := i.getCheapestCompatibleSpotInstanceType()
+			allowedList := tt.allowedList
+			disallowedList := tt.disallowedList
+			retValue, err := i.getCheapestCompatibleSpotInstanceType(allowedList, disallowedList)
 			if err == nil && tt.expectedError != err {
 				t.Errorf("Error received: %v expected %v", err, tt.expectedError.Error())
 			} else if err != nil && tt.expectedError == nil {
@@ -924,6 +1182,7 @@ func TestTag(t *testing.T) {
 				},
 				region: &region{
 					name: "test",
+					conf: &Config{},
 					services: connections{
 						ec2: mockEC2{
 							cterr: nil,
@@ -942,6 +1201,7 @@ func TestTag(t *testing.T) {
 				},
 				region: &region{
 					name: "test",
+					conf: &Config{},
 					services: connections{
 						ec2: mockEC2{
 							cterr: errors.New("no tags with error"),
@@ -963,6 +1223,7 @@ func TestTag(t *testing.T) {
 				},
 				region: &region{
 					name: "test",
+					conf: &Config{},
 					services: connections{
 						ec2: mockEC2{
 							cterr: nil,
@@ -984,6 +1245,7 @@ func TestTag(t *testing.T) {
 				},
 				region: &region{
 					name: "test",
+					conf: &Config{},
 					services: connections{
 						ec2: mockEC2{
 							cterr: errors.New("tags with error"),
@@ -995,10 +1257,8 @@ func TestTag(t *testing.T) {
 		},
 	}
 
-	mockedSleep := func(time.Duration) {}
-
 	for _, tt := range tests {
-		err := tt.inst.tag(tt.tags, 1, mockedSleep)
+		err := tt.inst.tag(tt.tags, 1)
 		CheckErrors(t, err, tt.expectedError)
 	}
 }

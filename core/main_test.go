@@ -57,3 +57,43 @@ func Test_getRegions(t *testing.T) {
 		})
 	}
 }
+
+func Test_spotEnabledIsAddedByDefault(t *testing.T) {
+
+	tests := []struct {
+		name   string
+		config Config
+		want   string
+	}{
+		{
+			name:   "Default No ASG Tags",
+			config: Config{},
+			want:   "spot-enabled=true",
+		},
+		{
+			name: "Specified ASG Tags",
+			config: Config{
+				FilterByTags: "environment=dev",
+			},
+			want: "environment=dev",
+		},
+		{
+			name: "Specified ASG that is just whitespace",
+			config: Config{
+				FilterByTags: "         ",
+			},
+			want: "spot-enabled=true",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			addDefaultFilter(&tt.config)
+
+			if !reflect.DeepEqual(tt.config.FilterByTags, tt.want) {
+				t.Errorf("addDefaultFilter() = %v, want %v", tt.config.FilterByTags, tt.want)
+			}
+		})
+	}
+}

@@ -3,6 +3,7 @@ package autospotting
 import (
 	"fmt"
 	"math"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -99,6 +100,7 @@ type instance struct {
 type instanceTypeInformation struct {
 	instanceType             string
 	vCPU                     int
+	GPU                      int
 	pricing                  prices
 	memory                   float32
 	virtualizationTypes      []string
@@ -106,6 +108,21 @@ type instanceTypeInformation struct {
 	instanceStoreDeviceSize  float32
 	instanceStoreDeviceCount int
 	instanceStoreIsSSD       bool
+	hasEBSOptimization       bool
+}
+
+func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64 {
+	spotPrice := spotCandidate.pricing.spot[*i.Placement.AvailabilityZone]
+	debug.Println("Comparing price spot/instance:")
+
+	if i.EbsOptimized != nil && *i.EbsOptimized {
+		spotPrice += spotCandidate.pricing.ebsSurcharge
+		debug.Println("\tEBS Surcharge : ", spotCandidate.pricing.ebsSurcharge)
+	}
+
+	debug.Println("\tSpot price: ", spotPrice)
+	debug.Println("\tInstance price: ", i.price)
+	return spotPrice
 }
 
 func (i *instance) isSpot() bool {
@@ -127,27 +144,7 @@ func (i *instance) terminate() error {
 	return nil
 }
 
-// We skip it in case we have more than 25% instances of this type already running
-func (i *instance) isSpotQuantityCompatible(spotCandidate instanceTypeInformation) bool {
-	spotInstanceCount := i.asg.alreadyRunningSpotInstanceTypeCount(
-		spotCandidate.instanceType, *i.Placement.AvailabilityZone)
-
-	debug.Println("Checking current spot quantity:")
-	debug.Println("\tSpot count: ", spotInstanceCount)
-	if spotInstanceCount != 0 {
-		debug.Println("\tRatio desired/spot currently running: ",
-			(*i.asg.DesiredCapacity/spotInstanceCount > 4))
-	}
-	return spotInstanceCount == 0 || *i.asg.DesiredCapacity/spotInstanceCount > 4
-}
-
-func (i *instance) isPriceCompatible(spotCandidate instanceTypeInformation, bestPrice float64) bool {
-	spotPrice := spotCandidate.pricing.spot[*i.Placement.AvailabilityZone]
-
-	debug.Println("Comparing price spot/instance:")
-	debug.Println("\tSpot price: ", spotPrice)
-	debug.Println("\tInstance price: ", i.price)
-
+func (i *instance) isPriceCompatible(spotPrice float64, bestPrice float64) bool {
 	return spotPrice != 0 && spotPrice <= i.price && spotPrice <= bestPrice
 }
 
@@ -155,10 +152,21 @@ func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool
 	current := i.typeInfo
 
 	debug.Println("Comparing class spot/instance:")
-	debug.Println("\tSpot CPU/memory: ", spotCandidate.vCPU, " / ", spotCandidate.memory)
-	debug.Println("\tInstance CPU/memory: ", current.vCPU, " / ", current.memory)
+	debug.Println("\tSpot CPU/memory/GPU: ", spotCandidate.vCPU,
+		" / ", spotCandidate.memory, " / ", spotCandidate.GPU)
+	debug.Println("\tInstance CPU/memory/GPU: ", current.vCPU,
+		" / ", current.memory, " / ", current.GPU)
 
-	return spotCandidate.vCPU >= current.vCPU && spotCandidate.memory >= current.memory
+	return spotCandidate.vCPU >= current.vCPU &&
+		spotCandidate.memory >= current.memory &&
+		spotCandidate.GPU >= current.GPU
+}
+
+func (i *instance) isEBSCompatible(spotCandidate instanceTypeInformation) bool {
+	if i.EbsOptimized != nil && *i.EbsOptimized && !spotCandidate.hasEBSOptimization {
+		return false
+	}
+	return true
 }
 
 // Here we check the storage compatibility, with the following evaluation
@@ -205,7 +213,32 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 	return false
 }
 
-func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
+func (i *instance) isAllowed(instanceType string, allowedList []string, disallowedList []string) bool {
+	debug.Println("Checking allowed/disallowed list")
+
+	if len(allowedList) > 0 {
+		for _, a := range allowedList {
+			if match, _ := filepath.Match(a, instanceType); match {
+				return true
+			}
+		}
+		debug.Println("Instance has been excluded since it was not in the allowed instance types list")
+		return false
+	} else if len(disallowedList) > 0 {
+		for _, a := range disallowedList {
+			// glob matching
+			if match, _ := filepath.Match(a, instanceType); match {
+				debug.Println("Instance has been excluded since it was in the disallowed instance types list")
+				return false
+			}
+		}
+		return true
+	}
+
+	return true
+}
+
+func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, disallowedList []string) (string, error) {
 	current := i.typeInfo
 	bestPrice := math.MaxFloat64
 	chosenSpotType := ""
@@ -215,6 +248,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 	// device mappings, this number is used later when comparing with each
 	// instance type.
 	lc := i.asg.getLaunchConfiguration()
+
 	if lc != nil {
 		lcMappings := lc.countLaunchConfigEphemeralVolumes()
 		attachedVolumesNumber = min(lcMappings, current.instanceStoreDeviceCount)
@@ -225,12 +259,15 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 		logger.Println("Comparing ", candidate.instanceType, " with ",
 			current.instanceType)
 
-		if i.isSpotQuantityCompatible(candidate) &&
-			i.isPriceCompatible(candidate, bestPrice) &&
+		candidatePrice := i.calculatePrice(candidate)
+
+		if i.isPriceCompatible(candidatePrice, bestPrice) &&
+			i.isEBSCompatible(candidate) &&
 			i.isClassCompatible(candidate) &&
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
-			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
-			bestPrice = candidate.pricing.spot[*i.Placement.AvailabilityZone]
+			i.isVirtualizationCompatible(candidate.virtualizationTypes) &&
+			i.isAllowed(candidate.instanceType, allowedList, disallowedList) {
+			bestPrice = candidatePrice
 			chosenSpotType = candidate.instanceType
 			debug.Println("Best option is now: ", chosenSpotType, " at ", bestPrice)
 		} else if chosenSpotType != "" {
@@ -244,7 +281,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType() (string, error) {
 	return chosenSpotType, fmt.Errorf("No cheaper spot instance types could be found")
 }
 
-func (i *instance) tag(tags []*ec2.Tag, maxIter int, sleepFunc func(d time.Duration)) error {
+func (i *instance) tag(tags []*ec2.Tag, maxIter int) error {
 	var (
 		n   int
 		err error
@@ -275,7 +312,7 @@ func (i *instance) tag(tags []*ec2.Tag, maxIter int, sleepFunc func(d time.Durat
 			"Failed to create tags for the spot instance", *i.InstanceId, err.Error())
 		logger.Println(i.region.name,
 			"Sleeping for 5 seconds before retrying")
-		sleepFunc(5 * time.Second)
+		time.Sleep(5 * time.Second * i.region.conf.SleepMultiplier)
 	}
 	return err
 }
