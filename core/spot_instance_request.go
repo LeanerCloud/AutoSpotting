@@ -26,7 +26,11 @@ func (s *spotInstanceRequest) isRequestOpen() bool {
 // Before waiting for an instance we check if amazon has put the open request
 // in a holding state (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-bid-status.html).
 func (s *spotInstanceRequest) isHoldingRequest() bool {
-	return s.isRequestOpen() && s.Status != nil && s.Status.Code != nil && hasHoldingRequestStatus(*s.Status.Code)
+	return s.isRequestOpen() && hasStatusCode(s.Status) && hasHoldingRequestStatus(*s.Status.Code)
+}
+
+func hasStatusCode(status *ec2.SpotInstanceStatus) bool {
+	return status != nil && status.Code != nil
 }
 
 func hasHoldingRequestStatus(code string) bool {

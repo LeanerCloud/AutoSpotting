@@ -236,6 +236,62 @@ func Test_processHoldingRequest(t *testing.T) {
 			cancelled:        false,
 			isHoldingRequest: true,
 		},
+		{
+			name: "with holding request with nil status",
+			req: spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State:  aws.String("open"),
+					Status: nil,
+				},
+				region: &region{
+					conf: &Config{},
+					services: connections{
+						ec2: mockEC2{
+							csiro: &ec2.CancelSpotInstanceRequestsOutput{
+								CancelledSpotInstanceRequests: []*ec2.CancelledSpotInstanceRequest{
+									{SpotInstanceRequestId: aws.String("aaa")},
+								},
+							},
+						},
+					},
+				},
+				asg: &autoScalingGroup{
+					name: ""},
+			},
+			er:               nil,
+			cancelled:        false,
+			isHoldingRequest: false,
+		},
+		{
+			name: "with holding request with nil status code",
+			req: spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("aaa"),
+					State: aws.String("open"),
+					Status: &ec2.SpotInstanceStatus{
+						Code: nil,
+					},
+				},
+				region: &region{
+					conf: &Config{},
+					services: connections{
+						ec2: mockEC2{
+							csiro: &ec2.CancelSpotInstanceRequestsOutput{
+								CancelledSpotInstanceRequests: []*ec2.CancelledSpotInstanceRequest{
+									{SpotInstanceRequestId: aws.String("aaa")},
+								},
+							},
+						},
+					},
+				},
+				asg: &autoScalingGroup{
+					name: ""},
+			},
+			er:               nil,
+			cancelled:        false,
+			isHoldingRequest: false,
+		},
 	}
 
 	for _, tc := range tests {
