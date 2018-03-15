@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -17,14 +18,16 @@ var logger, debug *log.Logger
 // Run starts processing all AWS regions looking for AutoScaling groups
 // enabled and taking action by replacing more pricy on-demand instances with
 // compatible and cheaper spot instances.
-func Run(cfg Config) {
+func Run(cfg *Config) {
 
 	setupLogging(cfg)
 
-	debug.Println(cfg)
+	debug.Println(*cfg)
 
 	// use this only to list all the other regions
 	ec2Conn := connectEC2(cfg.MainRegion)
+
+	addDefaultFilter(cfg)
 
 	allRegions, err := getRegions(ec2Conn)
 
@@ -37,11 +40,17 @@ func Run(cfg Config) {
 
 }
 
-func disableLogging() {
-	setupLogging(Config{LogFile: ioutil.Discard})
+func addDefaultFilter(cfg *Config) {
+	if len(strings.TrimSpace(cfg.FilterByTags)) == 0 {
+		cfg.FilterByTags = "spot-enabled=true"
+	}
 }
 
-func setupLogging(cfg Config) {
+func disableLogging() {
+	setupLogging(&Config{LogFile: ioutil.Discard})
+}
+
+func setupLogging(cfg *Config) {
 	logger = log.New(cfg.LogFile, "", cfg.LogFlag)
 
 	if os.Getenv("AUTOSPOTTING_DEBUG") == "true" {
@@ -53,8 +62,9 @@ func setupLogging(cfg Config) {
 }
 
 // processAllRegions iterates all regions in parallel, and replaces instances
-// for each of the ASGs tagged with 'spot-enabled=true'.
-func processRegions(regions []string, cfg Config) {
+// for each of the ASGs tagged with tags as specifed by slice represented by cfg.FilterByTags
+// by default this is all asg with the tag 'spot-enabled=true'.
+func processRegions(regions []string, cfg *Config) {
 
 	var wg sync.WaitGroup
 
