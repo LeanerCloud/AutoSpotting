@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: SAM Cloudformation for autospotter
+Parameters:
+  Environment:
+    Type: String
+    Default: Dev
+  GitSHA:
+    Type: String
+    Default: no_commit
+    Description: SHA of git commit
+  Unit:
+    Type: String
+    Description: The unit the product belongs to
+    Default: techops
+  Product:
+    Type: String
+    Description: The product that the thing belongs to
+    Default: bdp
+  Subproduct:
+    Type: String
+    Description: The subproduct that the thing belongs to
+    Default: autospotting
+  DeployBucket:
+    Type: String
+  DeployableName:
+    Type: String
+    Description: deployable name
+    Default: autospotter
+Resources:
+  HelloWorldLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.lambda_handler
+      Description: Do lambda things
+      Runtime: python2.7
+      CodeUri:
+        Bucket: !Sub "sps-build-deploy-${AWS::AccountId}-${AWS::Region}"
+        Key:
+          Fn::Sub: >-
+            ${Environment}/${Unit}/${Product}/${Subproduct}/${DeployableName}/${GitSHA}/deployment.zip
