@@ -1,0 +1,22 @@
+pipeline:
+  build:
+    pull: true
+    image: spscommerce/lambda-packager:python-2.7
+    commands:
+      - /entrypoint.sh
+  bdp_core_deploy:
+    image: spscommerce/plugin-bdp-core
+    environment:
+      - VERSION=${DRONE_COMMIT}
+      - REGION=us-east-1
+      - BDP_FILE=.bdp
+      - ZIP=deployment.zip
+      - ACTION=deploy
+      - ENVIRONMENT=dev
+    commands:
+      - python -u /build/plug.py
+    when:
+      event:
+        - push
+      branch:
+        - master
