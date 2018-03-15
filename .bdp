@@ -1,0 +1,38 @@
+schema_version: v1.1
+global:
+  unit: techops
+  product: bdp
+  subproduct: autospotting
+  owner: lwmccormick@spscommerce.com
+  environments:
+    - name: dev
+      region: us-east-1
+      account: 056684691971
+    - name: test
+      region: us-east-1
+      account: 056684691971
+    - name: stage
+      region: us-east-1
+      account: '104966627370'
+    - name: prod
+      region: us-east-1
+      account: '104966627370'
+service:
+  id: bd416077-aecb-4abb-9a87-3b278acfbeef
+  name: bdp-autospotting
+  type: BACKGROUNDJOB
+  state: developing
+  dependencies: []
+  access: internal
+  reuse: not_reusable
+  data_class: confidential
+  xrefs: []
+  configurations: []
+  maintainers:
+    - lwmccormick@spscommerce.com
+deploy:
+  - name: autospotter
+    deployable_name: autospotter
+    deploy_type: sam
+    ecosystem: spsc
+    sam_file: deployment/autospotter.yml
