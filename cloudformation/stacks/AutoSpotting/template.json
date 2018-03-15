@@ -161,6 +161,7 @@
                 "ec2:DescribeSpotInstanceRequests",
                 "ec2:DescribeSpotPriceHistory",
                 "ec2:RequestSpotInstances",
+                "ec2:CancelSpotInstanceRequests",
                 "ec2:TerminateInstances",
                 "iam:PassRole",
                 "iam:CreateServiceLinkedRole",
