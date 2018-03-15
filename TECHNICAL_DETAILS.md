@@ -1,5 +1,61 @@
 # Technical Details #
 
+<!-- markdownlint-disable MD013 -->
+
+## Summary of supported features & options ##
+
+| Option  | Status | [Override using ASG tags](https://github.com/cristim/autospotting/blob/master/core/autoscaling.go#L16) |
+| ------- | :----: | :-------------------: |
+| Run on multiple regions | :white_check_mark:  (default: all)| :heavy_minus_sign: |
+| [Keep a fixed minimum percentage of on-demand](https://github.com/cristim/autospotting/blob/master/START.md#minimum-on-demand-configuration) | :white_check_mark: (default: 0%) | :white_check_mark: |
+| [Keep a fixed minimum number of on-demand](https://github.com/cristim/autospotting/blob/master/START.md#minimum-on-demand-configuration) | :white_check_mark: (default: 0) | :white_check_mark: |
+| Bid at a certain percentage of the on-demand price | :white_check_mark: (default: 100%) | :white_check_mark: |
+| Can bid the current spot price plus a certain percentage | :white_check_mark: | :white_check_mark: |
+| Automatically determine the cheapest compatible instance type | :white_check_mark: (default) | :white_check_mark: |
+| Can restrict to the same instance type only | :white_check_mark: | :white_check_mark: |
+| Can restrict to only certain instance types | :white_check_mark: | :white_check_mark: |
+| Blacklisting of certain instance types | :white_check_mark: | :white_check_mark: |
+| Filter on multiple & custom group tags | :white_check_mark:  (default: spot-enabled=true)  | :heavy_minus_sign: |
+| Set a desired spot product name | :white_check_mark: | :x: :wrench: - install multiple stacks, each with its own spot product|
+
+For the options not directly linked to any specific part of the doc, please
+check the
+[configuration](https://github.com/cristim/autospotting/blob/master/START.md#configuration-of-autospotting) page.
+
+| Feature | Status |
+| ------- | :----: |
+| [Easy installation via Cloudformation](https://github.com/cristim/autospotting/blob/master/START.md#install-via-cloudformation) | :white_check_mark: |
+| [Easy installation via Terraform](https://github.com/cristim/autospotting/blob/master/START.md#install-via-terraform) | :white_check_mark: |
+| [Available as Docker container image](https://hub.docker.com/r/cristim/autospotting/) | :white_check_mark: :wrench: |
+| [Works with Code Deploy](CODEDEPLOY.md) | :white_check_mark: :wrench: |
+| [Works with Elastic Beanstalk](https://github.com/cristim/autospotting/blob/053135e97082511fb99b689dce4a7a7830f3327c/START.md#for-elastic-beanstalk) | :white_check_mark: |
+| Support AWS VPC| :white_check_mark: |
+| Support AWS EC2Classic|[:beetle:](https://github.com/cristim/autospotting/issues/48) :pencil: |
+| Support AWS DefaultVPC| :white_check_mark: |
+| [Rancher compliance](http://rancher.com/reducing-aws-spend/) | :white_check_mark: |
+| Lambda X-Ray support | :x: |
+| Graphing savings | :x: :wrench: - use the Billing dashboard |
+| Windows support | :wrench: - set the proper Spot product on the stack |
+| Handle spot termination's signal | :x: :wrench: |
+| SNS notifications on success/failure | :x: |
+
+### Meaning of the above icons ##
+
+- :white_check_mark: - supported and known to work well so far
+- :x: - not supported but its implementation has been considered or is awaiting
+  code contributions
+- :heavy_minus_sign: - not applicable, or already part of the default behavior.
+- :beetle: - implemented but experimental or known to be buggy
+- :wrench: - may require some workarounds, for example it may be done with
+  external tooling or may need additional configuration on your infrastructure
+- :pencil: - a workaround or complete fix can be implemented in a
+  custom/hardcoded fork with relatively little effort, but a proper fix ready to
+  be upstreamed needs more work.
+
+Some of them can be clicked for more information, you can see if you hover them
+with your mouse pointer, but if you have any questions you can always get in
+touch on [Gitter](https://gitter.im/cristim/autospotting).
+
 ## Features and Benefits ##
 
 - **Significant cost savings compared to on-demand or reserved instances**
@@ -40,8 +96,8 @@
 
 - **Compatible out of the box with most AWS services that integrate
     with AutoScaling groups**
-  - services such as ELB, ALB, CodeDeploy, CloudWatch, etc. should work out of
-    the box or at most require minimal configuration changes.
+  - services such as ELB, ALB, [CodeDeploy](CODEDEPLOY.md), CloudWatch, etc.
+    should work out of the box or at most require minimal configuration changes.
   - as long as they support instances attached later to existing groups.
   - any other 3rd party services that run on top of AutoScaling groups should
     work as well.
@@ -189,7 +245,7 @@ frequency is every 5 minutes, but it is configurable using stack parameters.
 
 ## Running example ##
 
-![Workflow](https://cdn.cloudprowess.com/images/autospotting.gif)
+![Workflow](https://autospotting.org/img/autospotting.gif)
 
 In this case the initial instance type was quite expensive, so the algorithm
 chose a different type that had more computing capacity. At the end that group
@@ -203,7 +259,7 @@ multiple price zones), where it can often achieve savings up to 90% off
 the usual on-demand prices, much like in the 85% price reduction shown below.
 This was seen on a group of two m3.medium instances running in eu-west-1:
 
-![Savings Graph](https://cdn.cloudprowess.com/images/autospotting-savings.png)
+![Savings Graph](https://autospotting.org/img/autospotting-savings.png)
 
 ## Best Practices ##
 

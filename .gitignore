@@ -1,6 +1,6 @@
 build
 debug
-autospotting
+/autospotting
 coverage.out
 .vscode/
 handler.zip
@@ -8,3 +8,4 @@ handler.zip
 .idea/
 terraform/.terraform/
 terraform.tfstate*
+Makefile.lambda

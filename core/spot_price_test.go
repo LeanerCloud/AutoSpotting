@@ -146,12 +146,12 @@ func Test_fetch(t *testing.T) {
 						dspho: &ec2.DescribeSpotPriceHistoryOutput{
 							SpotPriceHistory: []*ec2.SpotPrice{},
 						},
-						dspherr: errors.New("Error!"),
+						dspherr: errors.New("error"),
 					},
 				},
 			},
 			data: []*ec2.SpotPrice{},
-			err:  errors.New("Error!"),
+			err:  errors.New("error"),
 		},
 		{
 			name: "ok",
