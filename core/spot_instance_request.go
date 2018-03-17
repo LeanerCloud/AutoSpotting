@@ -69,40 +69,6 @@ func (s *spotInstanceRequest) waitForAndTagSpotInstance() error {
 	return nil
 }
 
-func (s *spotInstanceRequest) markAsCompete() error {
-	svc := s.region.services.ec2
-	tags := []*ec2.Tag{
-		{
-			Key:   aws.String(DefaultSIRRequestCompleteTageName),
-			Value: aws.String("true"),
-		},
-	}
-
-	for count, err := 0, errors.New("dummy"); err != nil; _, err = svc.CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{s.SpotInstanceRequestId},
-		Tags:      tags,
-	}) {
-
-		// after failing to tag it for 10 retries, terminate its instance and cancel
-		// the spot instance request in order to avoid any orphaned instances
-		// created by spot requests which failed to be tagged.
-		if err != nil {
-			if count > 10 {
-				logger.Println("Failed to mark the spot instance request as complete after 10 retries:", err.Error())
-			}
-			logger.Println("Failed to mark the spot instance request as complete",
-				*s.SpotInstanceRequestId, "retrying in 5 seconds...")
-			count = count + 1
-			time.Sleep(5 * time.Second * s.region.conf.SleepMultiplier)
-		}
-	}
-
-	logger.Println("Tagged spot instance request as compete",
-		*s.SpotInstanceRequestId)
-
-	return nil
-}
-
 func (s *spotInstanceRequest) tag(asgName string) error {
 	svc := s.region.services.ec2
 	tags := []*ec2.Tag{

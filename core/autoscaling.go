@@ -357,23 +357,22 @@ func (a *autoScalingGroup) markSpotInstanceRequestAsCompete(spotInstanceRequestI
 		},
 	}
 
-	for count, err := 0, errors.New("dummy"); err != nil; _, err = svc.CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{spotInstanceRequestId},
-		Tags:      tags,
-	}) {
+	for count := 0; count < 10; count++ {
+		_, err := svc.CreateTags(&ec2.CreateTagsInput{
+			Resources: []*string{spotInstanceRequestId},
+			Tags:      tags,
+		})
 
-		// after failing to tag it for 10 retries, terminate its instance and cancel
-		// the spot instance request in order to avoid any orphaned instances
-		// created by spot requests which failed to be tagged.
 		if err != nil {
 			if count > 10 {
 				logger.Println("Failed to mark the spot instance request as complete after 10 retries:", err.Error())
+				return nil
 			}
-			logger.Println("Failed to mark the spot instance request as complete",
-				*spotInstanceRequestId, "retrying in 5 seconds...")
-			count = count + 1
+			logger.Println("Failed to mark the spot instance request as complete", *spotInstanceRequestId, "retrying in 5 seconds...")
 			time.Sleep(5 * time.Second * a.region.conf.SleepMultiplier)
+			continue
 		}
+		break
 	}
 
 	logger.Println("Tagged spot instance request as compete",
@@ -438,7 +437,9 @@ func (a *autoScalingGroup) findSpotInstanceRequests() error {
 	//
 	spotRequests = a.filterOutCancelledRequestsWithNoInstances(spotRequests)
 
-	logger.Println("Spot instance requests were previously created for", a.name)
+	if len(spotRequests) > 0 {
+		logger.Println("Spot instance requests were previously created for", a.name)
+	}
 
 	for _, req := range spotRequests {
 		a.spotInstanceRequests = append(a.spotInstanceRequests,
@@ -604,8 +605,126 @@ func (a *autoScalingGroup) getAnySpotInstance() *instance {
 	return a.getInstance(nil, false, false)
 }
 
-func (a *autoScalingGroup) isCancelledRequestWithAvailableInstance() (bool, *string) {
-	return false, nil
+func (a *autoScalingGroup) processOpenSIR(req *spotInstanceRequest) (*spotInstanceRequest, bool, bool) {
+	logger.Println(a.name, "Open bid found for current AutoScaling Group, "+
+		"waiting for the instance to start so it can be tagged...")
+
+	// Here we resume the wait for instances, initiated after requesting the
+	// spot instance. This could time out the entire lambda function
+	// run (although the spot instance request is only valid for a small time,
+	// which is less than the max time for a lambda) just like it could time out
+	// when we requested the new instance. In case of timeout the next run
+	// will continue waiting for the instance, and the process will continue until the new
+	// instance was found. In case of failed spot requests, the first lambda
+	// function timeout when waiting for the instances would break the loop,
+	// because the subsequent run would find a failed spot request instead
+	// of an open one.
+	err := req.waitForAndTagSpotInstance()
+	if err != nil {
+		logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
+		return nil, false, true
+	}
+
+	return req, false, false
+}
+
+func (a *autoScalingGroup) processCompletedSIR(req *spotInstanceRequest) (*spotInstanceRequest, bool, bool) {
+	// mark the SIR as completed
+	a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
+	return nil, true, false
+}
+
+func (a *autoScalingGroup) processCancelledSIR(req *spotInstanceRequest) (*spotInstanceRequest, bool, bool) {
+	if req.InstanceId == nil {
+		a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
+		return nil, true, false
+	}
+	logger.Println(a.name, "Cancelled bid was found, but with a running instance:", *req.InstanceId)
+	return req, false, false
+}
+
+func (a *autoScalingGroup) processActiveSIR(req *spotInstanceRequest) (*spotInstanceRequest, bool, bool) {
+	if *req.Status.Code == "fulfilled" {
+		logger.Println(a.name, "Active bid was found, with instance already "+
+			"started:", *req.InstanceId)
+		return req, false, false
+	}
+	return nil, true, false
+}
+
+func (a *autoScalingGroup) processInstanceId(req *spotInstanceRequest, instanceId *string) (*spotInstanceRequest, bool, bool) {
+	//
+	// If the instance is already in the group we should mark the
+	// SIR as completed
+	//
+	if a.instances.get(*instanceId) != nil {
+		logger.Println(a.name, "Instance", instanceId,
+			"is already attached to the ASG, tagging SIR as complete and skipping...")
+		a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
+		return nil, true, false
+		// In case the instance wasn't yet attached, we prepare to attach it.
+	} else {
+		logger.Println(a.name, "Instance", *instanceId,
+			"is not yet attached to the ASG, checking if it's running")
+
+		if i := a.instances.get(*instanceId); i != nil &&
+			i.State != nil &&
+			*i.State.Name == "running" {
+			logger.Println(a.name, "Active bid was found, with running "+
+				"instances not yet attached to the ASG",
+				*instanceId)
+			return req, false, false
+		} else {
+			logger.Println(a.name, "Active bid was found, with no running "+
+				"instances, waiting for an instance to start ...")
+			err := req.waitForAndTagSpotInstance()
+			if err != nil {
+				logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
+				return nil, false, true
+			}
+			return req, false, false
+		}
+	}
+}
+
+func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool) {
+	waitForNextRun := false
+	evalNextSIR := true
+	var activeSpotInstanceRequest *spotInstanceRequest
+	var instanceId *string
+
+	//
+	// Here we search for spot requests created for the current ASG,
+	// Use the first matching spot request with a instance ready for attaching
+	//
+	for _, req := range a.spotInstanceRequests {
+		switch *req.State {
+		case "open":
+			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processOpenSIR(req)
+		case "closed":
+			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processCompletedSIR(req)
+		case "failed":
+			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processCompletedSIR(req)
+		case "cancelled":
+			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processCancelledSIR(req)
+			instanceId = req.InstanceId
+		case "active":
+			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processActiveSIR(req)
+			instanceId = req.InstanceId
+		}
+
+		if instanceId != nil {
+			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processInstanceId(req, instanceId)
+		}
+
+		if evalNextSIR {
+			continue
+		} else {
+			break
+		}
+	}
+
+	return activeSpotInstanceRequest, waitForNextRun
 }
 
 // returns an instance ID as *string, the id of the spot request and a bool that
@@ -614,6 +733,9 @@ func (a *autoScalingGroup) isCancelledRequestWithAvailableInstance() (bool, *str
 func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, *string, bool) {
 
 	var activeSpotInstanceRequest *spotInstanceRequest
+
+	// default we have found a spot request, don't create a new one
+	waitForNextRun := false
 
 	// if there are on-demand instances but no spot instance requests yet,
 	// then we can launch a new spot instance
@@ -631,76 +753,15 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, *string, 
 
 	logger.Println("spot bids were found, continuing")
 
-	// Here we search for open spot requests created for the current ASG, and try
-	// to wait for their instances to start.
-	for _, req := range a.spotInstanceRequests {
-		if *req.State == "open" && *req.Tags[0].Value == a.name {
-			logger.Println(a.name, "Open bid found for current AutoScaling Group, "+
-				"waiting for the instance to start so it can be tagged...")
-
-			// Here we resume the wait for instances, initiated after requesting the
-			// spot instance. This may sometimes time out the entire lambda function
-			// run, just like it could time out the one done when we requested the
-			// new instance. In case of timeout the next run should continue waiting
-			// for the instance, and the process should continue until the new
-			// instance was found. In case of failed spot requests, the first lambda
-			// function timeout when waiting for the instances would break the loop,
-			// because the subsequent run would find a failed spot request instead
-			// of an open one.
-			req.waitForAndTagSpotInstance()
-			activeSpotInstanceRequest = req
-		}
-
-		if *req.State == "cancelled" && req.InstanceId != nil {
-			logger.Println(a.name, "Cancelled bid was found, but with a running instance:", *req.InstanceId)
-			req.waitForAndTagSpotInstance()
-			// Check to see if the instance is attached already.  If so, we need to tag
-			// the SIR as complete
-			activeSpotInstanceRequest = req
-			break
-		}
-
-		// We found a spot request with a running instance.
-		if *req.State == "active" &&
-			*req.Status.Code == "fulfilled" {
-			logger.Println(a.name, "Active bid was found, with instance already "+
-				"started:", *req.InstanceId)
-
-			// If the instance is already in the group we don't need to do anything.
-			if a.instances.get(*req.InstanceId) != nil {
-				logger.Println(a.name, "Instance", *req.InstanceId,
-					"is already attached to the ASG, skipping...")
-				continue
-
-				// In case the instance wasn't yet attached, we prepare to attach it.
-			} else {
-				logger.Println(a.name, "Instance", *req.InstanceId,
-					"is not yet attached to the ASG, checking if it's running")
-
-				if i := a.instances.get(*req.InstanceId); i != nil &&
-					i.State != nil &&
-					*i.State.Name == "running" {
-					logger.Println(a.name, "Active bid was found, with running "+
-						"instances not yet attached to the ASG",
-						*req.InstanceId)
-					activeSpotInstanceRequest = req
-					break
-				} else {
-					logger.Println(a.name, "Active bid was found, with no running "+
-						"instances, waiting for an instance to start ...")
-					req.waitForAndTagSpotInstance()
-					activeSpotInstanceRequest = req
-				}
-			}
-		}
-	}
+	// find a spot instance request
+	activeSpotInstanceRequest, waitForNextRun = a.findSpotInstanceRequest()
 
 	// In case we don't have any active spot requests with instances in the
 	// process of starting or already ready to be attached to the group, we can
 	// launch a new spot instance.
 	if activeSpotInstanceRequest == nil {
 		logger.Println(a.name, "No active unfulfilled bid was found")
-		return nil, nil, false
+		return nil, nil, waitForNextRun
 	}
 
 	spotInstanceID := activeSpotInstanceRequest.InstanceId
@@ -899,8 +960,8 @@ func (a *autoScalingGroup) bidForSpotInstance(
 	svc := a.region.services.ec2
 
 	var duration time.Duration
-	validUtil := time.Now().Add(duration)
 	duration = DefaultSecondsSpotRequestValidFor * time.Second
+	validUtil := time.Now().Add(duration)
 	resp, err := svc.RequestSpotInstances(&ec2.RequestSpotInstancesInput{
 		SpotPrice:           aws.String(strconv.FormatFloat(price, 'f', -1, 64)),
 		LaunchSpecification: ls,

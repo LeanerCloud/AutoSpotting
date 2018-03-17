@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 )
 
 func TestGetTagValue(t *testing.T) {
@@ -1887,9 +1888,10 @@ func TestLoadSpotInstanceRequest(t *testing.T) {
 
 func TestFindSpotInstanceRequests(t *testing.T) {
 	tests := []struct {
-		name     string
-		region   *region
-		expected error
+		name                string
+		region              *region
+		expectedError       error
+		expectedNumberFound int
 	}{
 		{name: "multiple spot instance requests found",
 			region: &region{
@@ -1897,16 +1899,67 @@ func TestFindSpotInstanceRequests(t *testing.T) {
 					ec2: mockEC2{
 						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{InstanceId: aws.String("1")},
-								{InstanceId: aws.String("2")},
-								{InstanceId: aws.String("3")},
+								{SpotInstanceRequestId: aws.String("1"), State: aws.String("active"), InstanceId: aws.String("1")},
+								{SpotInstanceRequestId: aws.String("2"), State: aws.String("active"), InstanceId: aws.String("2")},
+								{SpotInstanceRequestId: aws.String("3"), State: aws.String("active"), InstanceId: aws.String("3")},
 							},
 						},
 						dsirerr: nil,
 					},
 				},
 			},
-			expected: nil,
+			expectedError:       nil,
+			expectedNumberFound: 3,
+		},
+		{name: "completed spot requests filtered out",
+			region: &region{
+				services: connections{
+					ec2: mockEC2{
+						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{
+									SpotInstanceRequestId: aws.String("1"),
+									State:      aws.String("active"),
+									InstanceId: aws.String("1"),
+									Tags: []*ec2.Tag{
+										{
+											Key:   aws.String(DefaultSIRRequestCompleteTageName),
+											Value: aws.String("true"),
+										},
+									},
+								},
+								{SpotInstanceRequestId: aws.String("2"), State: aws.String("active"), InstanceId: aws.String("2")},
+								{SpotInstanceRequestId: aws.String("3"), State: aws.String("active"), InstanceId: aws.String("3")},
+							},
+						},
+						dsirerr: nil,
+					},
+				},
+			},
+			expectedError:       nil,
+			expectedNumberFound: 2,
+		},
+		{name: "cancelled spot requests with no instances filtered out",
+			region: &region{
+				services: connections{
+					ec2: mockEC2{
+						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+								{SpotInstanceRequestId: aws.String("1"), State: aws.String("cancelled")},
+								{
+									SpotInstanceRequestId: aws.String("2"),
+									State:      aws.String("cancelled"),
+									InstanceId: aws.String("2"),
+								},
+								{SpotInstanceRequestId: aws.String("3"), State: aws.String("active"), InstanceId: aws.String("3")},
+							},
+						},
+						dsirerr: nil,
+					},
+				},
+			},
+			expectedError:       nil,
+			expectedNumberFound: 2,
 		},
 		{name: "no spot instance requests found",
 			region: &region{
@@ -1919,7 +1972,8 @@ func TestFindSpotInstanceRequests(t *testing.T) {
 					},
 				},
 			},
-			expected: nil,
+			expectedError:       nil,
+			expectedNumberFound: 0,
 		},
 		{name: "error during describing spot instance requests",
 			region: &region{
@@ -1932,7 +1986,8 @@ func TestFindSpotInstanceRequests(t *testing.T) {
 					},
 				},
 			},
-			expected: errors.New("describe"),
+			expectedError:       errors.New("describe"),
+			expectedNumberFound: 0,
 		},
 	}
 
@@ -1944,7 +1999,11 @@ func TestFindSpotInstanceRequests(t *testing.T) {
 				region: tt.region,
 			}
 			err := a.findSpotInstanceRequests()
-			CheckErrors(t, err, tt.expected)
+			if len(a.spotInstanceRequests) != tt.expectedNumberFound {
+				t.Errorf("Incorrect number of spot instances found")
+			}
+
+			CheckErrors(t, err, tt.expectedError)
 		})
 	}
 }
@@ -3420,7 +3479,7 @@ func TestFilteringCompleteSIRRequests(t *testing.T) {
 					SpotInstanceRequestId: aws.String("bidTestId2"),
 					Tags: []*ec2.Tag{
 						{Key: aws.String("launched-for-asg"), Value: aws.String("xyz")},
-						{Key: aws.String("autospotting-complete"), Value: aws.String("doesnotmatter_justexistence_of_key")},
+						{Key: aws.String("autospotting-complete"), Value: aws.String("true")},
 					},
 				},
 			},
@@ -3508,3 +3567,443 @@ func TestGetPricetoBid(t *testing.T) {
 		}
 	}
 }
+
+func TestProcessOpenSIR(t *testing.T) {
+	tests := []struct {
+		name                     string
+		request                  *spotInstanceRequest
+		expectedCheckNextSIR     bool
+		expectedWaitForNextRun   bool
+		expectNilRequestReturned bool
+	}{
+		{
+			name: "Process Open Request",
+			request: &spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+				},
+				region: &region{
+					services: connections{
+						ec2: mockEC2{
+							dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+								SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+									{
+										SpotInstanceRequestId: aws.String("1"),
+										State:      aws.String("active"),
+										InstanceId: aws.String("1"),
+										Tags: []*ec2.Tag{
+											{
+												Key:   aws.String(DefaultSIRRequestCompleteTageName),
+												Value: aws.String("true"),
+											},
+										},
+									},
+									{SpotInstanceRequestId: aws.String("2"), State: aws.String("active"), InstanceId: aws.String("2")},
+									{SpotInstanceRequestId: aws.String("3"), State: aws.String("active"), InstanceId: aws.String("3")},
+								},
+							},
+							dsirerr: nil,
+						},
+					},
+				},
+				asg: &autoScalingGroup{
+					Group: &autoscaling.Group{
+						Tags: []*autoscaling.TagDescription{
+							{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
+						},
+					},
+				},
+			},
+			expectedCheckNextSIR:     false,
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: false,
+		},
+		{
+			name: "Process Open Request",
+			request: &spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+				},
+				region: &region{
+					services: connections{
+						ec2: mockEC2{
+							dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+								SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+									{
+										SpotInstanceRequestId: aws.String("1"),
+										State:      aws.String("active"),
+										InstanceId: aws.String("1"),
+										Tags: []*ec2.Tag{
+											{
+												Key:   aws.String(DefaultSIRRequestCompleteTageName),
+												Value: aws.String("true"),
+											},
+										},
+									},
+									{SpotInstanceRequestId: aws.String("2"), State: aws.String("active"), InstanceId: aws.String("2")},
+									{SpotInstanceRequestId: aws.String("3"), State: aws.String("active"), InstanceId: aws.String("3")},
+								},
+							},
+							wusirferr: errors.New("Failed to Wait for instance"),
+						},
+					},
+				},
+				asg: &autoScalingGroup{
+					Group: &autoscaling.Group{
+						Tags: []*autoscaling.TagDescription{
+							{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
+						},
+					},
+				},
+			},
+			expectNilRequestReturned: true,
+			expectedCheckNextSIR:     false,
+			expectedWaitForNextRun:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := tt.request.asg
+			req, checkNextSIR, waitForNextRun := a.processOpenSIR(tt.request)
+			if !tt.expectNilRequestReturned {
+				if req != tt.request {
+					t.Errorf("SIR not return as matching SIR")
+				}
+			} else {
+				if req != nil {
+					t.Errorf("Expecting SIR to not a matching SIR")
+				}
+			}
+
+			if checkNextSIR != tt.expectedCheckNextSIR || waitForNextRun != tt.expectedWaitForNextRun {
+				t.Errorf("open SIR not processed as expected: expect processNextSIR = %+v, actual processNextSIR = %+v; expected waitForNextRun = %+v ,actual waitForNextRun = %+v,",
+					tt.expectedCheckNextSIR, checkNextSIR, tt.expectedWaitForNextRun, waitForNextRun)
+
+			}
+
+		})
+	}
+}
+
+type checkCreateTagsCalledMock struct {
+	ec2iface.EC2API
+	CreateTagsCalled int
+}
+
+func (m *checkCreateTagsCalledMock) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
+	m.CreateTagsCalled++
+	return nil, nil
+}
+
+func TestProcessCompletedSIR(t *testing.T) {
+	mock := checkCreateTagsCalledMock{
+		CreateTagsCalled: 0,
+	}
+	tests := []struct {
+		name                     string
+		request                  *spotInstanceRequest
+		expectedCheckNextSIR     bool
+		expectedWaitForNextRun   bool
+		expectNilRequestReturned bool
+	}{
+		{
+			name: "Complete Spot Request to be Tagged",
+			request: &spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+				},
+				asg: &autoScalingGroup{
+					region: &region{
+						services: connections{
+							ec2: &mock,
+						},
+					},
+				},
+			},
+			expectedCheckNextSIR:     true,
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: true,
+		},
+	}
+
+	for count, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := tt.request.asg
+			req, checkNextSIR, waitForNextRun := a.processCompletedSIR(tt.request)
+			if !tt.expectNilRequestReturned {
+				if req != tt.request {
+					t.Errorf("SIR not return as matching SIR")
+				}
+			} else {
+				if req != nil {
+					t.Errorf("Expecting SIR to not a matching SIR")
+				}
+			}
+
+			if checkNextSIR != tt.expectedCheckNextSIR || waitForNextRun != tt.expectedWaitForNextRun {
+				t.Errorf("open SIR not processed as expected: expect processNextSIR = %+v, actual processNextSIR = %+v; expected waitForNextRun = %+v ,actual waitForNextRun = %+v,",
+					tt.expectedCheckNextSIR, checkNextSIR, tt.expectedWaitForNextRun, waitForNextRun)
+
+			}
+
+			if mock.CreateTagsCalled != (count + 1) {
+				t.Errorf("Expected request to be tagged: %+v", mock.CreateTagsCalled)
+			}
+
+		})
+	}
+}
+
+func TestProcessCancelledSIR(t *testing.T) {
+	mock := checkCreateTagsCalledMock{
+		CreateTagsCalled: 0,
+	}
+	tests := []struct {
+		name                     string
+		request                  *spotInstanceRequest
+		expectedCheckNextSIR     bool
+		expectedWaitForNextRun   bool
+		expectNilRequestReturned bool
+		expectCreateTags         int
+	}{
+		{
+			name: "Cancelled Request With No Instance, should be tagged",
+			request: &spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+				},
+				asg: &autoScalingGroup{
+					region: &region{
+						services: connections{
+							ec2: &mock,
+						},
+					},
+				},
+			},
+			expectedCheckNextSIR:     true,
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: true,
+			expectCreateTags:         1,
+		},
+		{
+			name: "Cancelled Request With Instance",
+			request: &spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+					InstanceId:            aws.String("i-039382787474f"),
+				},
+				asg: &autoScalingGroup{
+					region: &region{
+						services: connections{
+							ec2: &mock,
+						},
+					},
+				},
+			},
+			expectedCheckNextSIR:     false,
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: false,
+			expectCreateTags:         0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := tt.request.asg
+			req, checkNextSIR, waitForNextRun := a.processCancelledSIR(tt.request)
+			if !tt.expectNilRequestReturned {
+				if req != tt.request {
+					t.Errorf("%+v : SIR not return as matching SIR", tt.name)
+				}
+			} else {
+				if req != nil {
+					t.Errorf("%+v : Expecting SIR to not a matching SIR", tt.name)
+				}
+			}
+
+			if checkNextSIR != tt.expectedCheckNextSIR || waitForNextRun != tt.expectedWaitForNextRun {
+				t.Errorf("%+v : open SIR not processed as expected: expect processNextSIR = %+v, actual processNextSIR = %+v; expected waitForNextRun = %+v ,actual waitForNextRun = %+v,",
+					tt.name, tt.expectedCheckNextSIR, checkNextSIR, tt.expectedWaitForNextRun, waitForNextRun)
+
+			}
+
+			if tt.expectCreateTags > 0 {
+				if mock.CreateTagsCalled != tt.expectCreateTags {
+					t.Errorf("%+v : Expected request to be tagged: %+v", tt.name, mock.CreateTagsCalled)
+				}
+			}
+		})
+	}
+}
+
+func TestProcessActiveSIR(t *testing.T) {
+
+	tests := []struct {
+		name                     string
+		request                  *spotInstanceRequest
+		expectedCheckNextSIR     bool
+		expectedWaitForNextRun   bool
+		expectNilRequestReturned bool
+	}{
+		{
+			name: "Fullfilled Request",
+			request: &spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("fulfilled"),
+					},
+					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+					InstanceId:            aws.String("i-039382787474f"),
+				},
+				asg: &autoScalingGroup{},
+			},
+			expectedCheckNextSIR:     false,
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: false,
+		},
+		{
+			name: "Cancelled Request With Instance",
+			request: &spotInstanceRequest{
+				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					Status: &ec2.SpotInstanceStatus{
+						Code: aws.String("marked-for-stop"),
+					},
+					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+					InstanceId:            aws.String("i-039382787474f"),
+				},
+				asg: &autoScalingGroup{},
+			},
+			expectedCheckNextSIR:     true,
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := tt.request.asg
+			req, checkNextSIR, waitForNextRun := a.processActiveSIR(tt.request)
+			if !tt.expectNilRequestReturned {
+				if req != tt.request {
+					t.Errorf("%+v : SIR not return as matching SIR", tt.name)
+				}
+			} else {
+				if req != nil {
+					t.Errorf("%+v : Expecting SIR to not a matching SIR", tt.name)
+				}
+			}
+
+			if checkNextSIR != tt.expectedCheckNextSIR || waitForNextRun != tt.expectedWaitForNextRun {
+				t.Errorf("%+v : open SIR not processed as expected: expect processNextSIR = %+v, actual processNextSIR = %+v; expected waitForNextRun = %+v ,actual waitForNextRun = %+v,",
+					tt.name, tt.expectedCheckNextSIR, checkNextSIR, tt.expectedWaitForNextRun, waitForNextRun)
+
+			}
+
+		})
+	}
+}
+
+// func TestProcessInstanceId(t *testing.T) {
+// 	mock := checkCreateTagsCalledMock{
+// 		CreateTagsCalled: 0,
+// 	}
+// 	tests := []struct {
+// 		name                     string
+// 		request                  *spotInstanceRequest
+// 		instances                map[string]*instance
+// 		expectedCheckNextSIR     bool
+// 		expectedWaitForNextRun   bool
+// 		expectNilRequestReturned bool
+// 		expectCreateTags         int
+// 	}{
+// 		{
+// 			name: "Fullfilled Request",
+// 			request: &spotInstanceRequest{
+// 				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+// 					Status: &ec2.SpotInstanceStatus{
+// 						Code: aws.String("fulfilled"),
+// 					},
+// 					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+// 					InstanceId:            aws.String("i-039382787474f"),
+// 				},
+// 				asg: &autoScalingGroup{
+// 					region: &region{
+// 						services: connections{
+// 							ec2: &mock,
+// 						},
+// 					},
+// 				},
+// 			},
+// 			instances: map[string]*instance{
+// 				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
+// 				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
+// 			},
+// 			expectedCheckNextSIR:     false,
+// 			expectedWaitForNextRun:   false,
+// 			expectNilRequestReturned: false,
+// 			expectCreateTags:         1,
+// 		},
+// 		{
+// 			name: "Fullfilled Request",
+// 			request: &spotInstanceRequest{
+// 				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+// 					Status: &ec2.SpotInstanceStatus{
+// 						Code: aws.String("fulfilled"),
+// 					},
+// 					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+// 					InstanceId:            aws.String("i-039382787474f"),
+// 				},
+// 				asg: &autoScalingGroup{
+// 					region: &region{
+// 						services: connections{
+// 							ec2: &mock,
+// 						},
+// 					},
+// 				},
+// 			},
+// 			instances: map[string]*instance{
+// 				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f"), State: &ec2.InstanceState{Name: aws.String("running")}}},
+// 				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff"), State: &ec2.InstanceState{Name: aws.String("running")}}},
+// 			},
+// 			expectedCheckNextSIR:     true,
+// 			expectedWaitForNextRun:   false,
+// 			expectNilRequestReturned: true,
+// 			expectCreateTags:         1,
+// 		},
+// 	}
+
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			a := tt.request.asg
+// 			is := &instanceManager{}
+// 			is.make()
+// 			is.catalog = tt.instances
+// 			a.instances = is
+
+// 			req, checkNextSIR, waitForNextRun := a.processInstanceId(tt.request, tt.request.SpotInstanceRequest.InstanceId)
+// 			if !tt.expectNilRequestReturned {
+// 				if req != tt.request {
+// 					t.Errorf("%+v : SIR not return as matching SIR", tt.name)
+// 				}
+// 			} else {
+// 				if req != nil {
+// 					t.Errorf("%+v : Expecting SIR to not a matching SIR", tt.name)
+// 				}
+// 			}
+
+// 			if checkNextSIR != tt.expectedCheckNextSIR || waitForNextRun != tt.expectedWaitForNextRun {
+// 				t.Errorf("%+v : open SIR not processed as expected: expect processNextSIR = %+v, actual processNextSIR = %+v; expected waitForNextRun = %+v ,actual waitForNextRun = %+v,",
+// 					tt.name, tt.expectedCheckNextSIR, checkNextSIR, tt.expectedWaitForNextRun, waitForNextRun)
+
+// 			}
+
+// 			if tt.expectCreateTags > 0 {
+// 				if mock.CreateTagsCalled != tt.expectCreateTags {
+// 					t.Errorf("%+v : Expected request to be tagged: %+v", tt.name, mock.CreateTagsCalled)
+// 				}
+// 			}
+
+// 		})
+// 	}
+// }
