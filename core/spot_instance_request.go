@@ -79,7 +79,7 @@ func (s *spotInstanceRequest) tag(asgName string) error {
 				Value: aws.String(asgName),
 			},
 			{
-				Key:   aws.String(DefaultSIRRequestCompleteTageName),
+				Key:   aws.String(DefaultSIRRequestCompleteTagName),
 				Value: aws.String("false"),
 			},
 		},
