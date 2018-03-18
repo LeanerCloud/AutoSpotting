@@ -652,6 +652,27 @@ func (a *autoScalingGroup) processActiveSIR(req *spotInstanceRequest) (*spotInst
 	return nil, true, false
 }
 
+func (a *autoScalingGroup) isInstanceRunning(instanceId *string) bool {
+	svc := a.region.services.ec2
+	input := &ec2.DescribeInstanceStatusInput{
+		InstanceIds: []*string{
+			instanceId,
+		},
+	}
+
+	out, err := svc.DescribeInstanceStatus(input)
+	if err != nil {
+		return false
+	}
+
+	if len(out.InstanceStatuses) > 0 {
+		return *out.InstanceStatuses[0].InstanceState.Name == "running"
+	} else {
+		return false
+	}
+
+}
+
 func (a *autoScalingGroup) processInstanceId(req *spotInstanceRequest, instanceId *string) (*spotInstanceRequest, bool, bool) {
 	//
 	// If the instance is already in the group we should mark the
@@ -667,9 +688,8 @@ func (a *autoScalingGroup) processInstanceId(req *spotInstanceRequest, instanceI
 		logger.Println(a.name, "Instance", *instanceId,
 			"is not yet attached to the ASG, checking if it's running")
 
-		if i := a.instances.get(*instanceId); i != nil &&
-			i.State != nil &&
-			*i.State.Name == "running" {
+		spotInstanceRunning := a.isInstanceRunning(instanceId)
+		if spotInstanceRunning {
 			logger.Println(a.name, "Active bid was found, with running "+
 				"instances not yet attached to the ASG",
 				*instanceId)
