@@ -3850,13 +3850,27 @@ func TestProcessActiveSIR(t *testing.T) {
 			name: "Fullfilled Request",
 			request: &spotInstanceRequest{
 				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					State: aws.String("active"),
 					Status: &ec2.SpotInstanceStatus{
 						Code: aws.String("fulfilled"),
 					},
 					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
 					InstanceId:            aws.String("i-039382787474f"),
 				},
-				asg: &autoScalingGroup{},
+				asg: &autoScalingGroup{
+					spotInstanceRequests: []*spotInstanceRequest{
+						{
+							SpotInstanceRequest: &ec2.SpotInstanceRequest{
+								State: aws.String("active"),
+								Status: &ec2.SpotInstanceStatus{
+									Code: aws.String("fulfilled"),
+								},
+								SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+								InstanceId:            aws.String("i-039382787474f"),
+							},
+						},
+					},
+				},
 			},
 			expectedCheckNextSIR:     false,
 			expectedWaitForNextRun:   false,
@@ -3866,6 +3880,7 @@ func TestProcessActiveSIR(t *testing.T) {
 			name: "Cancelled Request With Instance",
 			request: &spotInstanceRequest{
 				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+					State: aws.String("active"),
 					Status: &ec2.SpotInstanceStatus{
 						Code: aws.String("marked-for-stop"),
 					},
@@ -4099,9 +4114,226 @@ func TestProcessInstanceId(t *testing.T) {
 				}
 			}
 
-			// id, next := a.findSpotInstanceRequest()
-			//
-			// t.Errorf("%+v %+v", id, next)
+		})
+	}
+}
+
+type createTagsStoreSIRId struct {
+	ec2iface.EC2API
+	CreateTagsCalled map[string]bool
+}
+
+func (m *createTagsStoreSIRId) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
+	if m.CreateTagsCalled == nil {
+		m.CreateTagsCalled = make(map[string]bool)
+	}
+
+	if len(in.Resources) > 0 {
+		m.CreateTagsCalled[*in.Resources[0]] = true
+	}
+	return nil, nil
+}
+
+func TestFindSpotInstanceRequest(t *testing.T) {
+	mock := createTagsStoreSIRId{
+		CreateTagsCalled: make(map[string]bool),
+	}
+	tests := []struct {
+		name                     string
+		asg                      *autoScalingGroup
+		instances                map[string]*instance
+		expectedWaitForNextRun   bool
+		expectNilRequestReturned bool
+		expectSIRToBeTagged      bool
+	}{
+		{
+			name: "Fullfilled Request, running instance not in asg",
+			asg: &autoScalingGroup{
+				spotInstanceRequests: []*spotInstanceRequest{
+					{
+						SpotInstanceRequest: &ec2.SpotInstanceRequest{
+							State: aws.String("active"),
+							Status: &ec2.SpotInstanceStatus{
+								Code: aws.String("fulfilled"),
+							},
+							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+							InstanceId:            aws.String("i-039382787474f"),
+						},
+					},
+				},
+				region: &region{
+					services: connections{
+						ec2: &mockEC2{
+							disro: &ec2.DescribeInstanceStatusOutput{
+								InstanceStatuses: []*ec2.InstanceStatus{
+									{InstanceState: &ec2.InstanceState{Name: aws.String("running")}},
+								},
+							},
+						},
+					},
+				},
+			},
+			instances: map[string]*instance{
+				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
+				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
+			},
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: false,
+		},
+		{
+			name: "Cancelled Request, running instance not in asg",
+			asg: &autoScalingGroup{
+				spotInstanceRequests: []*spotInstanceRequest{
+					{
+						SpotInstanceRequest: &ec2.SpotInstanceRequest{
+							State: aws.String("cancelled"),
+							Status: &ec2.SpotInstanceStatus{
+								Code: aws.String("request-canceled-and-instance-running"),
+							},
+							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+							InstanceId:            aws.String("i-039382787474f"),
+						},
+					},
+				},
+				region: &region{
+					services: connections{
+						ec2: &mockEC2{
+							disro: &ec2.DescribeInstanceStatusOutput{
+								InstanceStatuses: []*ec2.InstanceStatus{
+									{InstanceState: &ec2.InstanceState{Name: aws.String("running")}},
+								},
+							},
+						},
+					},
+				},
+			},
+			instances: map[string]*instance{
+				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
+				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
+			},
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: false,
+		},
+		{
+			name: "Cancelled Request, running instance in asg",
+			asg: &autoScalingGroup{
+				spotInstanceRequests: []*spotInstanceRequest{
+					{
+						SpotInstanceRequest: &ec2.SpotInstanceRequest{
+							State: aws.String("cancelled"),
+							Status: &ec2.SpotInstanceStatus{
+								Code: aws.String("request-canceled-and-instance-running"),
+							},
+							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+							InstanceId:            aws.String("i-039382787474f"),
+						},
+					},
+				},
+				region: &region{
+					services: connections{
+						ec2: &mock,
+					},
+				},
+			},
+			instances: map[string]*instance{
+				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f")}},
+			},
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: true,
+			expectSIRToBeTagged:      true,
+		},
+		{
+			name: "Failed Request",
+			asg: &autoScalingGroup{
+				spotInstanceRequests: []*spotInstanceRequest{
+					{
+						SpotInstanceRequest: &ec2.SpotInstanceRequest{
+							State: aws.String("failed"),
+							Status: &ec2.SpotInstanceStatus{
+								Code: aws.String("bad-parameters"),
+							},
+							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+						},
+					},
+				},
+				region: &region{
+					services: connections{
+						ec2: &mock,
+					},
+				},
+			},
+			instances:                map[string]*instance{},
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: true,
+			expectSIRToBeTagged:      true,
+		},
+		{
+			name: "Active Request, instance not in asg",
+			asg: &autoScalingGroup{
+				spotInstanceRequests: []*spotInstanceRequest{
+					{
+						SpotInstanceRequest: &ec2.SpotInstanceRequest{
+							State: aws.String("active"),
+							Status: &ec2.SpotInstanceStatus{
+								Code: aws.String("fulfilled"),
+							},
+							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+							InstanceId:            aws.String("i-039382787474f"),
+						},
+					},
+				},
+				region: &region{
+					services: connections{
+						ec2: &mockEC2{
+							disro: &ec2.DescribeInstanceStatusOutput{
+								InstanceStatuses: []*ec2.InstanceStatus{
+									{InstanceState: &ec2.InstanceState{Name: aws.String("running")}},
+								},
+							},
+						},
+					},
+				},
+			},
+			instances: map[string]*instance{
+				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
+				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
+			},
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: false,
+			expectSIRToBeTagged:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := tt.asg
+			is := &instanceManager{}
+			is.make()
+			is.catalog = tt.instances
+			a.instances = is
+
+			req, waitForNextRun := a.findSpotInstanceRequest()
+			if !tt.expectNilRequestReturned {
+				if req != tt.asg.spotInstanceRequests[0] {
+					t.Errorf("%+v : SIR not return as matching SIR", tt.name)
+				}
+			} else {
+				if req != nil {
+					t.Errorf("%+v : Expecting SIR to not a matching SIR", tt.name)
+				}
+			}
+
+			if waitForNextRun != tt.expectedWaitForNextRun {
+				t.Errorf("%+v : findSpotInstanceRequest not returning as expected waitForNextRun = %+v ,actual waitForNextRun = %+v,",
+					tt.name, tt.expectedWaitForNextRun, waitForNextRun)
+
+			}
+
+			if tt.expectSIRToBeTagged {
+				if !mock.CreateTagsCalled[*tt.asg.spotInstanceRequests[0].SpotInstanceRequestId] {
+					t.Errorf("%+v : Expected SIR to be tagged as complete", tt.name)
+				}
+			}
 
 		})
 	}

@@ -790,7 +790,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, *string, 
 		logger.Println(a.name,
 			"No instance was launched from the active spot instance request",
 			*activeSpotInstanceRequest.SpotInstanceRequestId)
-		return nil, false
+		return nil, nil, true
 	}
 
 	logger.Println("Considering ", *spotInstanceID, "for attaching to", a.name)
