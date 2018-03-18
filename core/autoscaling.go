@@ -753,7 +753,6 @@ func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool
 	waitForNextRun := false
 	evalNextSIR := true
 	var activeSpotInstanceRequest *spotInstanceRequest
-	var instanceID *string
 
 	//
 	// Here we search for spot requests created for the current ASG,
@@ -764,24 +763,20 @@ func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool
 		case "open":
 			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processOpenSIR(req)
 		case "closed":
-			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processCompletedSIR(req)
+			fallthrough
 		case "failed":
 			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processCompletedSIR(req)
 		case "cancelled":
 			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processCancelledSIR(req)
-			instanceID = req.InstanceId
 		case "active":
 			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processActiveSIR(req)
-			instanceID = req.InstanceId
 		}
 
-		if instanceID != nil {
-			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processInstanceID(req, instanceID)
+		if req.InstanceId != nil {
+			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processInstanceID(req, req.InstanceId)
 		}
 
-		if evalNextSIR {
-			continue
-		} else {
+		if !evalNextSIR {
 			break
 		}
 	}
