@@ -679,14 +679,14 @@ func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
 	return 48
 }
 
-func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sirRequestID *string) error {
+func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sirRequestID *string) {
 	svc := a.region.services.ec2
 	if instanceID != nil {
 		_, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
 			InstanceIds: []*string{instanceID},
 		})
 		if err != nil {
-			return err
+			return
 		}
 	}
 
@@ -695,7 +695,37 @@ func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sir
 			SpotInstanceRequestIds: []*string{sirRequestID},
 		})
 
-	return err
+	if err == nil {
+		a.markSpotInstanceRequestAsCompete(sirRequestID)
+	}
+}
+
+func (a *autoScalingGroup) processUnattachedInstance(req *spotInstanceRequest, instanceID *string) (*spotInstanceRequest, bool, bool) {
+	var validRequest *spotInstanceRequest
+	processNextSIR, waitForNextExecution := false, false
+
+	spotInstanceRunning := a.getInstanceState(instanceID)
+	if spotInstanceRunning == 16 {
+		logger.Println(a.name, "Active bid was found, with running "+
+			"instances not yet attached to the ASG",
+			*instanceID)
+		validRequest = req
+	} else if spotInstanceRunning > 16 {
+		a.cancelSIRAndTerminateInstance(instanceID, req.SpotInstanceRequestId)
+		processNextSIR = true
+
+	} else {
+		logger.Println(a.name, "Active bid was found, with no running "+
+			"instances, waiting for an instance to start ...")
+		err := req.waitForAndTagSpotInstance()
+		if err != nil {
+			logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
+			waitForNextExecution = true
+		}
+		validRequest = req
+	}
+
+	return validRequest, processNextSIR, waitForNextExecution
 }
 
 func (a *autoScalingGroup) processInstanceID(req *spotInstanceRequest, instanceID *string) (*spotInstanceRequest, bool, bool) {
@@ -714,32 +744,7 @@ func (a *autoScalingGroup) processInstanceID(req *spotInstanceRequest, instanceI
 	logger.Println(a.name, "Instance", *instanceID,
 		"is not yet attached to the ASG, checking if it's running")
 
-	spotInstanceRunning := a.getInstanceState(instanceID)
-	if spotInstanceRunning == 16 {
-		logger.Println(a.name, "Active bid was found, with running "+
-			"instances not yet attached to the ASG",
-			*instanceID)
-		return req, false, false
-	} else if spotInstanceRunning > 16 {
-		logger.Println(a.name, "Active bid was found, with not running instance status. "+
-			"Cancelling bid and terminating instance:",
-			*instanceID)
-		err := a.cancelSIRAndTerminateInstance(instanceID, req.SpotInstanceRequestId)
-		if err == nil {
-			a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
-		}
-		return nil, true, false
-	} else {
-		logger.Println(a.name, "Active bid was found, with no running "+
-			"instances, waiting for an instance to start ...")
-		err := req.waitForAndTagSpotInstance()
-		if err != nil {
-			logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
-			return nil, false, true
-		}
-		return req, false, false
-	}
-
+	return a.processUnattachedInstance(req, instanceID)
 }
 
 func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool) {
@@ -1007,6 +1012,17 @@ func (a *autoScalingGroup) loadSpotInstanceRequest(
 	}
 }
 
+func createSpotInstanceRequestInput(price float64, ls *ec2.RequestSpotLaunchSpecification) *ec2.RequestSpotInstancesInput {
+	var duration time.Duration
+	duration = DefaultSecondsSpotRequestValidFor * time.Second
+	validUtil := time.Now().Add(duration)
+	return &ec2.RequestSpotInstancesInput{
+		SpotPrice:           aws.String(strconv.FormatFloat(price, 'f', -1, 64)),
+		LaunchSpecification: ls,
+		ValidUntil:          &validUtil,
+	}
+}
+
 func (a *autoScalingGroup) bidForSpotInstance(
 	ls *ec2.RequestSpotLaunchSpecification,
 	price float64,
@@ -1014,14 +1030,7 @@ func (a *autoScalingGroup) bidForSpotInstance(
 
 	svc := a.region.services.ec2
 
-	var duration time.Duration
-	duration = DefaultSecondsSpotRequestValidFor * time.Second
-	validUtil := time.Now().Add(duration)
-	resp, err := svc.RequestSpotInstances(&ec2.RequestSpotInstancesInput{
-		SpotPrice:           aws.String(strconv.FormatFloat(price, 'f', -1, 64)),
-		LaunchSpecification: ls,
-		ValidUntil:          &validUtil,
-	})
+	resp, err := svc.RequestSpotInstances(createSpotInstanceRequestInput(price, ls))
 
 	if err != nil {
 		logger.Println("Failed to create spot instance request for",
