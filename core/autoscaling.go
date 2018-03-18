@@ -718,11 +718,13 @@ func (a *autoScalingGroup) processUnattachedInstance(req *spotInstanceRequest, i
 		logger.Println(a.name, "Active bid was found, with no running "+
 			"instances, waiting for an instance to start ...")
 		err := req.waitForAndTagSpotInstance()
+		validRequest = req
 		if err != nil {
 			logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
 			waitForNextExecution = true
+			validRequest = nil
 		}
-		validRequest = req
+
 	}
 
 	return validRequest, processNextSIR, waitForNextExecution
