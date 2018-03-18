@@ -64,12 +64,14 @@ const (
 	// the spot bid on a per-group level
 	DefaultBiddingPolicy = "normal"
 
-	// Tag used to mark that the Spot Instance Request has been satisfied
+	// DefaultSIRRequestCompleteTagName is the name of the Tag
+	// used to mark that the Spot Instance Request has been satisfied
 	// And the new sport instance has been added to the asg for replace the
 	// pre-existing on demand instance
-	DefaultSIRRequestCompleteTageName = "autospotting-complete"
+	DefaultSIRRequestCompleteTagName = "autospotting-complete"
 
-	// Default time in seconds that the sport request is valid for
+	// DefaultSecondsSpotRequestValidFor is the default amount of  time in
+	// seconds that the sport request is valid for
 	// from the moment the requests iss created
 	DefaultSecondsSpotRequestValidFor = 240
 )
@@ -348,37 +350,34 @@ func (a *autoScalingGroup) process() {
 	}
 }
 
-func (a *autoScalingGroup) markSpotInstanceRequestAsCompete(spotInstanceRequestId *string) error {
+func (a *autoScalingGroup) markSpotInstanceRequestAsCompete(spotInstanceRequestID *string) {
 	svc := a.region.services.ec2
-	tags := []*ec2.Tag{
-		{
-			Key:   aws.String(DefaultSIRRequestCompleteTageName),
-			Value: aws.String("true"),
+	input := &ec2.CreateTagsInput{
+		Resources: []*string{spotInstanceRequestID},
+		Tags: []*ec2.Tag{
+			{
+				Key:   aws.String(DefaultSIRRequestCompleteTagName),
+				Value: aws.String("true"),
+			},
 		},
 	}
 
+	tagged := false
 	for count := 0; count < 10; count++ {
-		_, err := svc.CreateTags(&ec2.CreateTagsInput{
-			Resources: []*string{spotInstanceRequestId},
-			Tags:      tags,
-		})
-
-		if err != nil {
-			if count > 10 {
-				logger.Println("Failed to mark the spot instance request as complete after 10 retries:", err.Error())
-				return nil
-			}
-			logger.Println("Failed to mark the spot instance request as complete", *spotInstanceRequestId, "retrying in 5 seconds...")
-			time.Sleep(5 * time.Second * a.region.conf.SleepMultiplier)
-			continue
+		_, err := svc.CreateTags(input)
+		if err == nil {
+			tagged = true
+			break
 		}
-		break
+
+		logger.Println("Failed to mark the spot instance request as complete", *spotInstanceRequestID, "retrying in 5 seconds...")
+		time.Sleep(5 * time.Second * a.region.conf.SleepMultiplier)
 	}
 
-	logger.Println("Tagged spot instance request as compete",
-		*spotInstanceRequestId)
+	if tagged {
+		logger.Println("Tagged spot instance request as compete", *spotInstanceRequestID)
+	}
 
-	return nil
 }
 
 func (a *autoScalingGroup) filterOutCancelledRequestsWithNoInstances(requests []*ec2.SpotInstanceRequest) []*ec2.SpotInstanceRequest {
@@ -393,18 +392,23 @@ func (a *autoScalingGroup) filterOutCancelledRequestsWithNoInstances(requests []
 	return outStandingSpotRequests
 }
 
+func isSpotInstanceRequestComplete(req *ec2.SpotInstanceRequest) bool {
+	sirIsComplete := false
+
+	for _, tag := range req.Tags {
+		if *tag.Key == DefaultSIRRequestCompleteTagName && *tag.Value == "true" {
+			sirIsComplete = true
+			break
+		}
+	}
+
+	return sirIsComplete
+}
+
 func filterOutCompleteSpotInstanceRequests(requests []*ec2.SpotInstanceRequest) []*ec2.SpotInstanceRequest {
 	var outStandingSpotRequests []*ec2.SpotInstanceRequest
 	for _, req := range requests {
-		sirIsComplete := false
-		for _, tag := range req.Tags {
-			if *tag.Key == DefaultSIRRequestCompleteTageName && *tag.Value == "true" {
-				sirIsComplete = true
-				break
-			}
-		}
-
-		if !sirIsComplete {
+		if !isSpotInstanceRequestComplete(req) {
 			outStandingSpotRequests = append(outStandingSpotRequests, req)
 		}
 	}
@@ -652,34 +656,34 @@ func (a *autoScalingGroup) processActiveSIR(req *spotInstanceRequest) (*spotInst
 	return nil, true, false
 }
 
-func (a *autoScalingGroup) getInstanceState(instanceId *string) int64 {
+func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
 	svc := a.region.services.ec2
 	input := &ec2.DescribeInstanceStatusInput{
 		InstanceIds: []*string{
-			instanceId,
+			instanceID,
 		},
 		IncludeAllInstances: aws.Bool(true),
 	}
 
 	out, err := svc.DescribeInstanceStatus(input)
 	if err != nil {
-		logger.Println("Error describing instance status:", *instanceId, err)
+		logger.Println("Error describing instance status:", *instanceID, err)
 		return 0
 	}
 
 	if len(out.InstanceStatuses) > 0 {
 		return *out.InstanceStatuses[0].InstanceState.Code
-	} else {
-		return 48
 	}
 
+	// If instance is not showing then it's terminated
+	return 48
 }
 
-func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceId *string, sirRequestId *string) error {
+func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sirRequestID *string) error {
 	svc := a.region.services.ec2
-	if instanceId != nil {
+	if instanceID != nil {
 		_, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
-			InstanceIds: []*string{instanceId},
+			InstanceIds: []*string{instanceID},
 		})
 		if err != nil {
 			return err
@@ -688,60 +692,61 @@ func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceId *string, sir
 
 	_, err := svc.CancelSpotInstanceRequests(
 		&ec2.CancelSpotInstanceRequestsInput{
-			SpotInstanceRequestIds: []*string{sirRequestId},
+			SpotInstanceRequestIds: []*string{sirRequestID},
 		})
 
 	return err
 }
 
-func (a *autoScalingGroup) processInstanceId(req *spotInstanceRequest, instanceId *string) (*spotInstanceRequest, bool, bool) {
+func (a *autoScalingGroup) processInstanceID(req *spotInstanceRequest, instanceID *string) (*spotInstanceRequest, bool, bool) {
 	//
 	// If the instance is already in the group we should mark the
 	// SIR as completed
 	//
-	if a.instances.get(*instanceId) != nil {
-		logger.Println(a.name, "Instance", instanceId,
+	if a.instances.get(*instanceID) != nil {
+		logger.Println(a.name, "Instance", instanceID,
 			"is already attached to the ASG, tagging SIR as complete and skipping...")
 		a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
 		return nil, true, false
 		// In case the instance wasn't yet attached, we prepare to attach it.
-	} else {
-		logger.Println(a.name, "Instance", *instanceId,
-			"is not yet attached to the ASG, checking if it's running")
-
-		spotInstanceRunning := a.getInstanceState(instanceId)
-		if spotInstanceRunning == 16 {
-			logger.Println(a.name, "Active bid was found, with running "+
-				"instances not yet attached to the ASG",
-				*instanceId)
-			return req, false, false
-		} else if spotInstanceRunning > 16 {
-			logger.Println(a.name, "Active bid was found, with not running instance status. "+
-				"Cancelling bid and terminating instance:",
-				*instanceId)
-			err := a.cancelSIRAndTerminateInstance(instanceId, req.SpotInstanceRequestId)
-			if err == nil {
-				a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
-			}
-			return nil, true, false
-		} else {
-			logger.Println(a.name, "Active bid was found, with no running "+
-				"instances, waiting for an instance to start ...")
-			err := req.waitForAndTagSpotInstance()
-			if err != nil {
-				logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
-				return nil, false, true
-			}
-			return req, false, false
-		}
 	}
+
+	logger.Println(a.name, "Instance", *instanceID,
+		"is not yet attached to the ASG, checking if it's running")
+
+	spotInstanceRunning := a.getInstanceState(instanceID)
+	if spotInstanceRunning == 16 {
+		logger.Println(a.name, "Active bid was found, with running "+
+			"instances not yet attached to the ASG",
+			*instanceID)
+		return req, false, false
+	} else if spotInstanceRunning > 16 {
+		logger.Println(a.name, "Active bid was found, with not running instance status. "+
+			"Cancelling bid and terminating instance:",
+			*instanceID)
+		err := a.cancelSIRAndTerminateInstance(instanceID, req.SpotInstanceRequestId)
+		if err == nil {
+			a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
+		}
+		return nil, true, false
+	} else {
+		logger.Println(a.name, "Active bid was found, with no running "+
+			"instances, waiting for an instance to start ...")
+		err := req.waitForAndTagSpotInstance()
+		if err != nil {
+			logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
+			return nil, false, true
+		}
+		return req, false, false
+	}
+
 }
 
 func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool) {
 	waitForNextRun := false
 	evalNextSIR := true
 	var activeSpotInstanceRequest *spotInstanceRequest
-	var instanceId *string
+	var instanceID *string
 
 	//
 	// Here we search for spot requests created for the current ASG,
@@ -757,14 +762,14 @@ func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool
 			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processCompletedSIR(req)
 		case "cancelled":
 			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processCancelledSIR(req)
-			instanceId = req.InstanceId
+			instanceID = req.InstanceId
 		case "active":
 			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processActiveSIR(req)
-			instanceId = req.InstanceId
+			instanceID = req.InstanceId
 		}
 
-		if instanceId != nil {
-			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processInstanceId(req, instanceId)
+		if instanceID != nil {
+			activeSpotInstanceRequest, evalNextSIR, waitForNextRun = a.processInstanceID(req, instanceID)
 		}
 
 		if evalNextSIR {

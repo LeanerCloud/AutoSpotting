@@ -3919,7 +3919,7 @@ func TestProcessActiveSIR(t *testing.T) {
 	}
 }
 
-func TestProcessInstanceId(t *testing.T) {
+func TestProcessInstanceID(t *testing.T) {
 	mock := checkCreateTagsCalledMock{
 		CreateTagsCalled: 0,
 	}
@@ -4091,7 +4091,7 @@ func TestProcessInstanceId(t *testing.T) {
 			is.catalog = tt.instances
 			a.instances = is
 
-			req, checkNextSIR, waitForNextRun := a.processInstanceId(tt.request, tt.request.SpotInstanceRequest.InstanceId)
+			req, checkNextSIR, waitForNextRun := a.processInstanceID(tt.request, tt.request.SpotInstanceRequest.InstanceId)
 			if !tt.expectNilRequestReturned {
 				if req != tt.request {
 					t.Errorf("%+v : SIR not return as matching SIR", tt.name)
