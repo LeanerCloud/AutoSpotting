@@ -4099,6 +4099,10 @@ func TestProcessInstanceId(t *testing.T) {
 				}
 			}
 
+			// id, next := a.findSpotInstanceRequest()
+			//
+			// t.Errorf("%+v %+v", id, next)
+
 		})
 	}
 }
