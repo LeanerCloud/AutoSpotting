@@ -652,25 +652,46 @@ func (a *autoScalingGroup) processActiveSIR(req *spotInstanceRequest) (*spotInst
 	return nil, true, false
 }
 
-func (a *autoScalingGroup) isInstanceRunning(instanceId *string) bool {
+func (a *autoScalingGroup) getInstanceState(instanceId *string) int64 {
 	svc := a.region.services.ec2
 	input := &ec2.DescribeInstanceStatusInput{
 		InstanceIds: []*string{
 			instanceId,
 		},
+		IncludeAllInstances: aws.Bool(true),
 	}
 
 	out, err := svc.DescribeInstanceStatus(input)
 	if err != nil {
-		return false
+		logger.Println("Error describing instance status:", *instanceId, err)
+		return 0
 	}
 
 	if len(out.InstanceStatuses) > 0 {
-		return *out.InstanceStatuses[0].InstanceState.Name == "running"
+		return *out.InstanceStatuses[0].InstanceState.Code
 	} else {
-		return false
+		return 48
 	}
 
+}
+
+func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceId *string, sirRequestId *string) error {
+	svc := a.region.services.ec2
+	if instanceId != nil {
+		_, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
+			InstanceIds: []*string{instanceId},
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err := svc.CancelSpotInstanceRequests(
+		&ec2.CancelSpotInstanceRequestsInput{
+			SpotInstanceRequestIds: []*string{sirRequestId},
+		})
+
+	return err
 }
 
 func (a *autoScalingGroup) processInstanceId(req *spotInstanceRequest, instanceId *string) (*spotInstanceRequest, bool, bool) {
@@ -688,12 +709,21 @@ func (a *autoScalingGroup) processInstanceId(req *spotInstanceRequest, instanceI
 		logger.Println(a.name, "Instance", *instanceId,
 			"is not yet attached to the ASG, checking if it's running")
 
-		spotInstanceRunning := a.isInstanceRunning(instanceId)
-		if spotInstanceRunning {
+		spotInstanceRunning := a.getInstanceState(instanceId)
+		if spotInstanceRunning == 16 {
 			logger.Println(a.name, "Active bid was found, with running "+
 				"instances not yet attached to the ASG",
 				*instanceId)
 			return req, false, false
+		} else if spotInstanceRunning > 16 {
+			logger.Println(a.name, "Active bid was found, with not running instance status. "+
+				"Cancelling bid and terminating instance:",
+				*instanceId)
+			err := a.cancelSIRAndTerminateInstance(instanceId, req.SpotInstanceRequestId)
+			if err == nil {
+				a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
+			}
+			return nil, true, false
 		} else {
 			logger.Println(a.name, "Active bid was found, with no running "+
 				"instances, waiting for an instance to start ...")

@@ -3948,7 +3948,7 @@ func TestProcessInstanceId(t *testing.T) {
 							ec2: &mockEC2{
 								disro: &ec2.DescribeInstanceStatusOutput{
 									InstanceStatuses: []*ec2.InstanceStatus{
-										{InstanceState: &ec2.InstanceState{Name: aws.String("running")}},
+										{InstanceState: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}},
 									},
 								},
 							},
@@ -3988,7 +3988,7 @@ func TestProcessInstanceId(t *testing.T) {
 							ec2: &mockEC2{
 								disro: &ec2.DescribeInstanceStatusOutput{
 									InstanceStatuses: []*ec2.InstanceStatus{
-										{InstanceState: &ec2.InstanceState{Name: aws.String("pending")}},
+										{InstanceState: &ec2.InstanceState{Name: aws.String("pending"), Code: aws.Int64(0)}},
 									},
 								},
 							},
@@ -4032,7 +4032,7 @@ func TestProcessInstanceId(t *testing.T) {
 							ec2: &mockEC2{
 								disro: &ec2.DescribeInstanceStatusOutput{
 									InstanceStatuses: []*ec2.InstanceStatus{
-										{InstanceState: &ec2.InstanceState{Name: aws.String("pending")}},
+										{InstanceState: &ec2.InstanceState{Name: aws.String("pending"), Code: aws.Int64(0)}},
 									},
 								},
 							},
@@ -4073,8 +4073,8 @@ func TestProcessInstanceId(t *testing.T) {
 				},
 			},
 			instances: map[string]*instance{
-				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f"), State: &ec2.InstanceState{Name: aws.String("running")}}},
-				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff"), State: &ec2.InstanceState{Name: aws.String("running")}}},
+				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f"), State: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}}},
+				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff"), State: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}}},
 			},
 			expectedCheckNextSIR:     true,
 			expectedWaitForNextRun:   false,
@@ -4121,6 +4121,8 @@ func TestProcessInstanceId(t *testing.T) {
 type createTagsStoreSIRId struct {
 	ec2iface.EC2API
 	CreateTagsCalled map[string]bool
+	disro            *ec2.DescribeInstanceStatusOutput
+	disrerr          error
 }
 
 func (m *createTagsStoreSIRId) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
@@ -4134,9 +4136,29 @@ func (m *createTagsStoreSIRId) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateT
 	return nil, nil
 }
 
+func (m *createTagsStoreSIRId) DescribeInstanceStatus(in *ec2.DescribeInstanceStatusInput) (*ec2.DescribeInstanceStatusOutput, error) {
+	return m.disro, m.disrerr
+}
+
+func (m *createTagsStoreSIRId) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
+	return nil, nil
+}
+
+func (m *createTagsStoreSIRId) CancelSpotInstanceRequests(*ec2.CancelSpotInstanceRequestsInput) (*ec2.CancelSpotInstanceRequestsOutput, error) {
+	return nil, nil
+}
+
 func TestFindSpotInstanceRequest(t *testing.T) {
 	mock := createTagsStoreSIRId{
 		CreateTagsCalled: make(map[string]bool),
+	}
+	mockCancelledWithTerminated := createTagsStoreSIRId{
+		CreateTagsCalled: make(map[string]bool),
+		disro: &ec2.DescribeInstanceStatusOutput{
+			InstanceStatuses: []*ec2.InstanceStatus{
+				{InstanceState: &ec2.InstanceState{Name: aws.String("terminated"), Code: aws.Int64(48)}},
+			},
+		},
 	}
 	tests := []struct {
 		name                     string
@@ -4144,7 +4166,7 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 		instances                map[string]*instance
 		expectedWaitForNextRun   bool
 		expectNilRequestReturned bool
-		expectSIRToBeTagged      bool
+		expectSIRToBeTagged      *createTagsStoreSIRId
 	}{
 		{
 			name: "Fullfilled Request, running instance not in asg",
@@ -4166,7 +4188,60 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 						ec2: &mockEC2{
 							disro: &ec2.DescribeInstanceStatusOutput{
 								InstanceStatuses: []*ec2.InstanceStatus{
-									{InstanceState: &ec2.InstanceState{Name: aws.String("running")}},
+									{InstanceState: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}},
+								},
+							},
+						},
+					},
+				},
+			},
+			instances: map[string]*instance{
+				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
+				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
+			},
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: false,
+		},
+		{
+			name: "Open Request, running instance not in asg",
+			asg: &autoScalingGroup{
+				spotInstanceRequests: []*spotInstanceRequest{
+					{
+						SpotInstanceRequest: &ec2.SpotInstanceRequest{
+							State: aws.String("open"),
+							Status: &ec2.SpotInstanceStatus{
+								Code: aws.String("pending-evaluation"),
+							},
+							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+							InstanceId:            aws.String("i-039382787474f"),
+						},
+						asg: &autoScalingGroup{
+							name: "ddd",
+							Group: &autoscaling.Group{
+								Tags: []*autoscaling.TagDescription{
+									{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
+								},
+							},
+						},
+						region: &region{
+							services: connections{
+								ec2: &mockEC2{
+									dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+										SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+											{InstanceId: aws.String("1")},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				region: &region{
+					services: connections{
+						ec2: &mockEC2{
+							disro: &ec2.DescribeInstanceStatusOutput{
+								InstanceStatuses: []*ec2.InstanceStatus{
+									{InstanceState: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(0)}},
 								},
 							},
 						},
@@ -4200,7 +4275,7 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 						ec2: &mockEC2{
 							disro: &ec2.DescribeInstanceStatusOutput{
 								InstanceStatuses: []*ec2.InstanceStatus{
-									{InstanceState: &ec2.InstanceState{Name: aws.String("running")}},
+									{InstanceState: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}},
 								},
 							},
 						},
@@ -4224,7 +4299,43 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 							Status: &ec2.SpotInstanceStatus{
 								Code: aws.String("request-canceled-and-instance-running"),
 							},
-							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+							SpotInstanceRequestId: aws.String("sir-cancelled-and-running-instances-in-asg"),
+							InstanceId:            aws.String("i-039382787474f"),
+						},
+						asg: &autoScalingGroup{
+							name: "ddd",
+							Group: &autoscaling.Group{
+								Tags: []*autoscaling.TagDescription{
+									{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
+								},
+							},
+						},
+					},
+				},
+				region: &region{
+					services: connections{
+						ec2: &mock,
+					},
+				},
+			},
+			instances: map[string]*instance{
+				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f")}},
+			},
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: true,
+			expectSIRToBeTagged:      &mock,
+		},
+		{
+			name: "Closed Request",
+			asg: &autoScalingGroup{
+				spotInstanceRequests: []*spotInstanceRequest{
+					{
+						SpotInstanceRequest: &ec2.SpotInstanceRequest{
+							State: aws.String("closed"),
+							Status: &ec2.SpotInstanceStatus{
+								Code: aws.String("request-canceled-and-instance-running"),
+							},
+							SpotInstanceRequestId: aws.String("sir-cancelled-and-running-instances-in-asg"),
 							InstanceId:            aws.String("i-039382787474f"),
 						},
 					},
@@ -4240,7 +4351,35 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 			},
 			expectedWaitForNextRun:   false,
 			expectNilRequestReturned: true,
-			expectSIRToBeTagged:      true,
+			expectSIRToBeTagged:      &mock,
+		},
+		{
+			name: "Cancelled Request, with terminated instance",
+			asg: &autoScalingGroup{
+				spotInstanceRequests: []*spotInstanceRequest{
+					{
+						SpotInstanceRequest: &ec2.SpotInstanceRequest{
+							State: aws.String("cancelled"),
+							Status: &ec2.SpotInstanceStatus{
+								Code: aws.String("instance-terminated-by-user"),
+							},
+							SpotInstanceRequestId: aws.String("sir-terminated"),
+							InstanceId:            aws.String("i-039382787474f"),
+						},
+					},
+				},
+				region: &region{
+					services: connections{
+						ec2: &mockCancelledWithTerminated,
+					},
+				},
+			},
+			instances: map[string]*instance{
+				"i-xxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxx")}},
+			},
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: true,
+			expectSIRToBeTagged:      &mockCancelledWithTerminated,
 		},
 		{
 			name: "Failed Request",
@@ -4252,7 +4391,7 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 							Status: &ec2.SpotInstanceStatus{
 								Code: aws.String("bad-parameters"),
 							},
-							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+							SpotInstanceRequestId: aws.String("sir-failed-request"),
 						},
 					},
 				},
@@ -4265,7 +4404,7 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 			instances:                map[string]*instance{},
 			expectedWaitForNextRun:   false,
 			expectNilRequestReturned: true,
-			expectSIRToBeTagged:      true,
+			expectSIRToBeTagged:      &mock,
 		},
 		{
 			name: "Active Request, instance not in asg",
@@ -4277,7 +4416,7 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 							Status: &ec2.SpotInstanceStatus{
 								Code: aws.String("fulfilled"),
 							},
-							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+							SpotInstanceRequestId: aws.String("sir-active-instance-no-in-asg"),
 							InstanceId:            aws.String("i-039382787474f"),
 						},
 					},
@@ -4287,7 +4426,7 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 						ec2: &mockEC2{
 							disro: &ec2.DescribeInstanceStatusOutput{
 								InstanceStatuses: []*ec2.InstanceStatus{
-									{InstanceState: &ec2.InstanceState{Name: aws.String("running")}},
+									{InstanceState: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}},
 								},
 							},
 						},
@@ -4300,7 +4439,6 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 			},
 			expectedWaitForNextRun:   false,
 			expectNilRequestReturned: false,
-			expectSIRToBeTagged:      false,
 		},
 	}
 
@@ -4329,8 +4467,8 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 
 			}
 
-			if tt.expectSIRToBeTagged {
-				if !mock.CreateTagsCalled[*tt.asg.spotInstanceRequests[0].SpotInstanceRequestId] {
+			if tt.expectSIRToBeTagged != nil {
+				if !tt.expectSIRToBeTagged.CreateTagsCalled[*tt.asg.spotInstanceRequests[0].SpotInstanceRequestId] {
 					t.Errorf("%+v : Expected SIR to be tagged as complete", tt.name)
 				}
 			}
