@@ -1,6 +1,6 @@
 # AutoSpotting #
 
-<!-- markdownlint-disable MD026 MD033 -->
+<!-- markdownlint-disable MD003 MD026 MD033 -->
 
 <img src="logo.png" width="150" align="right">
 
@@ -11,41 +11,92 @@
 [![IssueCount](https://codeclimate.com/github/cristim/autospotting/badges/issue_count.svg)](https://codeclimate.com/github/cristim/autospotting)
 [![ChatOnGitter](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![Open Source Helpers](https://www.codetriage.com/cristim/autospotting/badges/users.svg)](https://www.codetriage.com/cristim/autospotting)
+[![Patreon](https://img.shields.io/badge/patreon-donate-yellow.svg)](https://www.patreon.com/bePatron?c=979085)
 
 A simple and easy to use tool designed to significantly lower your Amazon AWS
 costs by automating the use of [spot](https://aws.amazon.com/ec2/spot)
 instances.
 
-![Savings](https://autospotting.org/img/savings.png)
+## Why? ##
+
+We believe that AWS EC2 is often pricier than it should be, and that the pricing
+models that can significantly reduce costs are hard to be reliably used by
+humans and are better handled by automation.
+
+We developed a novel, simple but effective way to make it much more affordable
+for a significant number of existing setups within minutes, with minimal
+configuration changes, negligible additional infrastructure and runtime costs,
+safely and securely and without any vendor lock-in.
+
+This already allows a large number of companies and individuals to significantly
+reduce their infrastructure costs or get more bang for the same buck. They can
+now easily get access to cheap compute capacity so they can spend their scarce
+resources developing innovative products that hopefully make the world a better
+place.
 
 ## How does it work? ##
 
-When installed and enabled on an existing on-demand AutoScaling group,
-AutoSpotting clones one of your on-demand instances from the group with a spot
-instance that is cheaper, at least as large (automatically considering memory,
-CPU cores and disk volumes) and configured identically to it. Once the new spot
-instance is ready, it is attached to the group and an on-demand instance is
-detached and terminated to keep the group at constant capacity.
-
-It continuously applies this process across all enabled groups from all
-regions gradually replacing your on-demand instances with much cheaper spot
-instances. For your peace of mind, you can also configure it to keep running a
-configurable number of on-demand instances given as percentage or absolute
-number.
-
-Your groups will then monitor and use these spot instances just like they would
-do with your on-demand instances. They will automatically join your load
-balancer and start receiving traffic once passing the health checks.
-
-The installation takes just a few minutes and the existing groups can be enabled
-and configured individually by using a few additional tags.
+Once installed and enabled by tagging existing on-demand AutoScaling groups,
+AutoSpotting gradually replaces their on-demand instances with spot instances
+that are usually much cheaper, at least as large and identically configured to
+the group's members, without changing the group configuration in any way. For
+your peace of mind, you can also keep running a configurable number of on-demand
+instances given as percentage or absolute number.
 
 This can be seen in action below, you can click to expand the animation:
 
 ![Workflow](https://autospotting.org/img/autospotting.gif)
 
+It implements some complex logic aware of spot and on demand prices, including
+for different spot products and configurable discounts for reserved instances or
+large volume customers. It also considers the specs of all instance types and
+automatically places bids to instance types and prices chosen based on flexible
+configuration set globally or overridden at the group level using additional
+tags.
+
+A single installation can handle all enabled groups in parallel across all
+available AWS regions, but can be restricted to fewer regions if desired.
+
+Your groups will then monitor and use these spot instances just like they would
+do with your on-demand instances. They will automatically join your load
+balancer and start receiving traffic once passing the health checks.
+
+## What? ##
+
+The savings it generates are often in the 60-80% range, but sometimes even up to
+90%, like you can see in the graph below.
+
+![Savings](https://autospotting.org/img/savings.png)
+
+The entire logic described above is implemented in a Lambda function deployed
+using CloudFormation or Terraform stacks that can be installed and configured in
+just a few minutes.
+
+The stack assigns the function the minimal set of IAM permissions required for
+it to work and has no admin-like cross-account permissions. The entire code base
+can be audited to see how these permissions are being used and even locked down
+further if your audit discovers any issues. This is not a SaaS, there's no
+component that calls home and reveals details about your infrastructure.
+
+The Lambda function is written in the Go programming language and the code is
+compiled as a static binary compressed and uploaded to S3. For evaluation or
+debugging purposes, the same binary can run out of the box locally on Linux
+machines or as a Docker container. Some people even run these containers on
+their existing Kubernetes clusters assuming the other resources provided by the
+stack are implemented in another way on Kubernetes.
+
+The stack also consists of a Cron-like CloudWatch event, that runs the Lambda
+function periodically to take action against the enabled groups. Between runs
+your group is entirely managed by AutoScaling (including any scaling policies
+you may have) and load balancer health checks, that can trigger instance
+launches or replacements using the original on-demand launch configuration.
+These instances will be replaced later by better priced spot instances when they
+are available on the spot market.
+
 Read [here](TECHNICAL_DETAILS.md) for more information and implementation
 details.
+
+## FAQs ##
 
 Frequently asked questions about the project are answered in the [FAQ](FAQ.md),
 *please read this first before asking for support*.
@@ -58,8 +109,8 @@ and we'll do our best to answer them either there or on Gitter.
 
 Just like in the above animation, it's as easy as launching a CloudFormation (or
 [Terraform](https://github.com/cristim/autospotting/tree/master/terraform))
-stack and setting the `spot-enabled` tag on the AutoScaling groups where you
-want it enabled to `true`.
+stack and setting the (configurable) `spot-enabled` tag on the AutoScaling
+groups where you want it enabled to `true`.
 
 All the required infrastructure and configuration will be created automatically,
 so you can get started as fast as possible.
@@ -68,85 +119,105 @@ For more detailed information you can read this [document](START.md)
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/nightly/template.json)
 
+## Support ##
+
+Community support is available on the
+[gitter](https://gitter.im/cristim/autospotting) chat room, where the main
+authors and other users are likely to help you solve issues with these official
+binaries.
+
+## Contributing ##
+
+Unlike multiple commercial products in this space that cost a lot of money and
+attempt to lock you in, this project is fully open source and developed in the
+open by a vibrant community.
+
+It was largely developed by volunteers who spent countless hours of their own
+spare time to make it easy for you to use. If you find it useful and you
+appreciate the work they put in it, please consider contributing to the
+development effort as well.
+
+You can just try it out and give
+[feedback](https://gitter.im/cristim/autospotting), report issues, improve the
+documentation, write some code or assign a developer to work on it, or even just
+spread the word among your peers who might be interested in it. Any amount of
+help would be greatly appreciated and would make a huge difference to the
+project.
+
+You can also contribute financially, we gladly accept recurrent tips on
+[Patreon](https://www.patreon.com/bePatron?c=979085), regardless of the amount.
+These donations will pay for hosting infrastructure of the easy to install
+binaries and the project website, and will also encourage further development
+by the main author.
+
+If you can, try also convincing your organization to use the official easy to
+install binaries for longer term, for a small fraction of their cost savings
+(see below for more details).
+
+Note: Non-trivial code should be submitted according to the contribution
+[guidelines](CONTRIBUTING.md).
+
 ### Official binaries ###
 
-The above stack can be used to conveniently install the latest build generated
-automatically after each commit. Even though these builds are usually stable
-enough, they may not have been thoroughly tested yet and come with no warranty
-and only best effort community support.
+The stack mentioned above can be used to conveniently get started within
+minutes, without setting up a build environment or any additional infrastructure
+so it can save you some time that you can better spend doing something else. It
+also requires some resources paid by the main author from his own pocket, so
+unfortunately he can't affort to sponsor it to everyone out there for free.
 
-The binaries (including the automated installation scripts) of the above stack
-are distributed under a proprietary [license](BINARY_LICENSE) that allows them
-to be used free of charge for a limited evaluation period, no longer than 14
-days. Further use is possible but requires the payment of a monthly fee for as
-long as you keep using them.
+That's why the binaries and the automated installation scripts used by
+the above stack are distributed under a proprietary [license](BINARY_LICENSE)
+that allows them to be used free of charge for a limited evaluation period, no
+longer than 14 days.
 
-This fee should be at least 5% of the savings generated by the AutoSpotting
-software, and it can be paid on a monthly basis through
-[Patreon](https://www.patreon.com/bePatron?c=979085).
+Further use is possible, but you have to contribute at least 5% of the generated
+savings as long as you keep using these binaries. This can be paid on a monthly
+basis through [Patreon](https://www.patreon.com/bePatron?c=979085).
 
 The license also forbids non-paying users to automate the installation of these
-official builds on a recurring basis.
+official builds on a recurring basis, in order to reduce the costs incurred to
+the main author.
+
+Any income left after paying for the infrastructure costs motivates the main
+author to allocate a proportional amount of time on a monthly basis for
+improving the software and supporting existing users.
+
+Note: even though these builds are usually stable enough, they may not have been
+thoroughly tested yet and come with best effort community support.
 
 ### Stable builds ###
 
-Carefully tested builds are also available. They come with support from the
-main author, who will do his best to help you configure and successfully run
-AutoSpotting on your environment.
+Carefully tested builds are also available for a slightly larger cut of your
+savings. They come with support from the main author, who will do his best to
+help you configure and successfully run AutoSpotting on your environment.
 
 Your feature requests and issues will also be treated with higher priority.
 
-These builds require a fee of at least 10% of the monthly savings, also paid
-through [Patreon](https://www.patreon.com/bePatron?c=979085) on a monthly basis.
+These builds require a monthly contribution of at least 10% of the monthly
+savings, also paid through [Patreon](https://www.patreon.com/bePatron?c=979085).
 
 Please get in touch on [gitter](https://gitter.im/cristim) if you are interested
 in getting access to the stable builds.
 
 ## Compiling and Installing ##
 
-It is always recommended to use the stable binaries mentioned above. But if you
-have some special needs or don't want to pay for long term use of the official
-binaries, you can always build and run your customized binaries that you
-maintain on your own, just keep in mind that those won't be supported in any
-way.
+It is recommended to use the binaries mentioned above, which are easy to install
+for you, support further development of the software and even allow you to get
+support from the main author.
+
+But if you have some special needs that require some customizations or you don't
+want to rely on the author's infrastructure or contribute anything for longer
+term use of the software, you can always build and run your customized binaries
+that you maintain on your own, just keep in mind that those won't be supported
+in any way.
 
 More details are available [here](CUSTOM_BUILDS.md)
-
-## Contributing ##
-
-This project was developed by volunteers in their own spare time. If you find it
-useful, please consider contributing to its development, any amount of help
-would be greatly appreciated and would make a huge difference to the project.
-
-The best way to help is by convincing your organization to use the official
-binaries but other equally appreciated ways you can help are trying it out and
-giving [feedback](https://gitter.im/cristim/autospotting), reporting bugs,
-writing code, improving the documentation, assigning a developer to work on it,
-or even just spreading the word.
-
-Non-trivial code should be submitted according to the contribution
-[guidelines](CONTRIBUTING.md).
-
-You can also contribute financially, we gladly accept recurrent tips on
-[Patreon](https://www.patreon.com/bePatron?c=979085), regardless of the amount.
-
-## Support ##
-
-Community support is available on the
-[gitter](https://gitter.im/cristim/autospotting) chat room on a best effort
-basis, where the main authors and other users are likely to help you solve
-issues with the official binaries.
-
-The main author also offers enterprise-grade support and will do as much as
-possible to help you out with any issues you may have, including with custom
-feature development. For more information feel free to get in touch on
-[gitter](https://gitter.im/cristim).
 
 ## Users ##
 
 Autospotting is already used by hundreds of individuals and organizations around
-the world. Some of them we know of are mentioned in the [list](USERS.md) of
-notable users.
+the world, and we estimate to already save them more than $1.000.000. Some
+of them we know of are mentioned in the [list](USERS.md) of notable users.
 
 The following deserve a special mention for contributing significantly to the
 development effort (listed in alphabetical order):
