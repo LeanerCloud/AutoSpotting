@@ -34,9 +34,5 @@
   version = "1.1.0"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/eawsy/aws-lambda-go-core"
-
-[[constraint]]
   name = "github.com/namsral/flag"
   version = "1.7.4-pre"
