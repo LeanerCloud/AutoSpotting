@@ -609,52 +609,6 @@ func (a *autoScalingGroup) getAnySpotInstance() *instance {
 	return a.getInstance(nil, false, false)
 }
 
-func (a *autoScalingGroup) processOpenSIR(req *spotInstanceRequest) (*spotInstanceRequest, bool, bool) {
-	logger.Println(a.name, "Open bid found for current AutoScaling Group, "+
-		"waiting for the instance to start so it can be tagged...")
-
-	// Here we resume the wait for instances, initiated after requesting the
-	// spot instance. This could time out the entire lambda function
-	// run (although the spot instance request is only valid for a small time,
-	// which is less than the max time for a lambda) just like it could time out
-	// when we requested the new instance. In case of timeout the next run
-	// will continue waiting for the instance, and the process will continue until the new
-	// instance was found. In case of failed spot requests, the first lambda
-	// function timeout when waiting for the instances would break the loop,
-	// because the subsequent run would find a failed spot request instead
-	// of an open one.
-	err := req.waitForAndTagSpotInstance()
-	if err != nil {
-		logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
-		return nil, false, true
-	}
-
-	return req, false, false
-}
-
-func (a *autoScalingGroup) processCompletedSIR(req *spotInstanceRequest) {
-	// mark the SIR as completed
-	a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
-}
-
-func (a *autoScalingGroup) processCancelledSIR(req *spotInstanceRequest) bool {
-	if req.InstanceId == nil {
-		a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
-		return false
-	}
-	logger.Println(a.name, "Cancelled bid was found, but with an instance:", *req.InstanceId)
-	return true
-}
-
-func (a *autoScalingGroup) processActiveSIR(req *spotInstanceRequest) (*spotInstanceRequest, bool, bool) {
-	if *req.Status.Code == "fulfilled" {
-		logger.Println(a.name, "Active bid was found, with instance already "+
-			"started:", *req.InstanceId)
-		return req, false, false
-	}
-	return nil, true, false
-}
-
 func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
 	svc := a.region.services.ec2
 	input := &ec2.DescribeInstanceStatusInput{
@@ -762,6 +716,24 @@ func (a *autoScalingGroup) processInstanceID(req *spotInstanceRequest, instanceI
 	return a.processUnattachedInstance(req, instanceID)
 }
 
+func (a *autoScalingGroup) isSpotInstanceRequestCompleted(req *spotInstanceRequest) bool {
+	isComplete := false
+	switch *req.State {
+	case "cancelled":
+		if req.InstanceId == nil {
+			isComplete = true
+		}
+	case "failed":
+		fallthrough
+	case "closed":
+		isComplete = true
+	}
+	if isComplete {
+		a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
+	}
+	return isComplete
+}
+
 func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool) {
 
 	//
@@ -769,28 +741,29 @@ func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool
 	// Use the first matching spot request with a instance ready for attaching
 	//
 	for _, req := range a.spotInstanceRequests {
-		checkInstance := false
-		switch *req.State {
-		case "cancelled":
-			checkInstance = a.processCancelledSIR(req)
-		case "failed":
-			fallthrough
-		case "closed":
-			a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
-		default:
-			return nil, true
+		// If spot request is failed, closed or cancelled with no instances
+		// continue to next SIR
+		if a.isSpotInstanceRequestCompleted(req) {
+			continue
 		}
 
-		if checkInstance && req.InstanceId != nil {
+		if *req.State == "cancelled" {
 			evalNextSIR, waitForNextRun := a.processInstanceID(req, req.InstanceId)
-			if !evalNextSIR && waitForNextRun {
-				return nil, true
-			}
-			if !evalNextSIR && !waitForNextRun {
+			if !evalNextSIR {
+				if waitForNextRun {
+					// If instance isn't in asg, but is pending, wait for next run of autospotting
+					return nil, true
+				}
+				// If instance isn't in asg, but is running, use the SIR
 				return req, false
 			}
+			// If instance is already part of asg, we continue onto next SIR
+			// If instance isn't in asg, but is terminated, we continue onto next SIR
+			continue
 		}
 
+		// SIR must be open or active.  Wait for next run (valid-util will kick in and move SIR to cancelled)
+		return nil, true
 	}
 	return nil, false
 }
