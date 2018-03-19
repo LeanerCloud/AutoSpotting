@@ -17,10 +17,22 @@ func main() {
 	}
 
 	for _, i := range *data {
-		fmt.Println("Instance type", i.InstanceType,
-			"CPU:", i.VCPU, "RAM:", i.Memory,
-			"cost in us-east-1: ", i.Pricing["us-east-1"].Linux.OnDemand,
-			"EBS surcharge: ", i.Pricing["us-east-1"].EBSSurcharge)
+		fmt.Print(
+			"Instance type: ", i.InstanceType,
+			",\tCPU cores: ", i.VCPU,
+			",\tMemory(GB): ", i.Memory,
+			",\tcost in us-east-1: ", i.Pricing["us-east-1"].Linux.OnDemand,
+			",\tcost in eu-central-1: ")
+
+		p := i.Pricing["eu-central-1"].Linux.OnDemand
+
+		if p == 0 {
+			fmt.Print("UNAVAILABLE")
+		} else {
+			fmt.Print(p)
+		}
+
+		fmt.Println(",\tEBS surcharge: ", i.Pricing["us-east-1"].EBSSurcharge)
 	}
 
 }
