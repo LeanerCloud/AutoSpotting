@@ -4,7 +4,7 @@ Description: SAM Cloudformation for autospotter
 Parameters:
   Environment:
     Type: String
-    Default: Dev
+    Default: dev
   GitSHA:
     Type: String
     Default: no_commit
@@ -102,13 +102,19 @@ Parameters:
     Description: 'Comma separated list of tag=value on which to filter the ASGs that autospotting considers.  By default (if no filters are specific) then ''spot-enabled=true'' is used.  Example: ''spot-enabled=true,environment=dev'''
     Type: String
 Resources:
-  HelloWorldLambda:
+  AutospotterLambda:
     Type: AWS::Serverless::Function
     Properties:
       Handler: !Ref LambdaHandlerFunction
       Description: Implements SPOT instance automation
       Runtime: go1.x
+      Events:
+        Timer:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref ExecutionFrequency
       Timeout: 300
+      Role: !GetAtt [AutospotterRole, Arn]
       CodeUri:
         Bucket: !Sub "sps-build-deploy-${AWS::AccountId}-${AWS::Region}"
         Key:
@@ -126,3 +132,59 @@ Resources:
           ALLOWED_INSTANCE_TYPES: !Ref AllowedInstanceTypes
           DISALLOWED_INSTANCE_TYPES: !Ref DisallowedInstanceTypes
           TAG_FILTERS: !Ref FilterByTags
+  AutospotterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - 'sts:AssumeRole'
+            Condition:
+              Bool:
+                "aws:MultiFactorAuthPresent": true
+      Path: /app/bdp/
+      Policies:
+        - PolicyName: autospotter-logs
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Resource:
+                  - "arn:aws:logs:*:*:*"
+                Action:
+                  - 'logs:PutLogEvents'
+                  - 'logs:CreateLog*'
+                  - 'logs:DescribeLogStreams'
+        - PolicyName: AutoSpotPerms
+          PolicyDocument:
+            Statement:
+            - Action:
+              - autoscaling:DescribeAutoScalingGroups
+              - autoscaling:DescribeLaunchConfigurations
+              - autoscaling:AttachInstances
+              - autoscaling:DetachInstances
+              - autoscaling:DescribeTags
+              - autoscaling:UpdateAutoScalingGroup
+              - ec2:CreateTags
+              - ec2:DescribeInstances
+              - ec2:DescribeRegions
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeSpotInstanceRequests
+              - ec2:DescribeSpotPriceHistory
+              - ec2:RequestSpotInstances
+              - ec2:TerminateInstances
+              - iam:PassRole
+              - iam:CreateServiceLinkedRole
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              Effect: Allow
+              Resource: "*"
