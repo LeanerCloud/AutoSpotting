@@ -9,7 +9,7 @@ pipeline:
       - apk add -U --no-cache ca-certificates git make
       - go get -v github.com/cristim/autospotting/...
       - FLAVOR=nightly CGO_ENABLED=0 make
-      - ls
+      - make sps-package
   #
   # bdp_core_deploy:
   #   image: spscommerce/plugin-bdp-core
