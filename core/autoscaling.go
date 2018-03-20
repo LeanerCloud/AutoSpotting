@@ -679,19 +679,13 @@ func (a *autoScalingGroup) processUnattachedInstance(req *spotInstanceRequest, i
 		}
 		return false, false
 	} else if spotInstanceRunning > 16 {
+		// stopped, terminated, shutting-dowm etc,
 		a.cancelSIRAndTerminateInstance(instanceID, req.SpotInstanceRequestId)
 		// processNextSIR = true
 		return true, false
 	} else {
 		logger.Println(a.name, "Active bid was found, with no running "+
 			"instances, waiting for an instance to start ...")
-		// err := req.waitForAndTagSpotInstance()
-		// validRequest = req
-		// if err != nil {
-		// 	logger.Println(a.name, "Problem Encountered While Waiting for Spot Instance Bid", err)
-		// 	waitForNextExecution = true
-		// 	validRequest = nil
-		// }
 		return false, true
 	}
 
@@ -716,7 +710,7 @@ func (a *autoScalingGroup) processInstanceID(req *spotInstanceRequest, instanceI
 	return a.processUnattachedInstance(req, instanceID)
 }
 
-func (a *autoScalingGroup) isSpotInstanceRequestCompleted(req *spotInstanceRequest) bool {
+func (a *autoScalingGroup) isSpotInstanceRequestClosedAndComplete(req *spotInstanceRequest) bool {
 	isComplete := false
 	switch *req.State {
 	case "cancelled":
@@ -734,6 +728,20 @@ func (a *autoScalingGroup) isSpotInstanceRequestCompleted(req *spotInstanceReque
 	return isComplete
 }
 
+func (a *autoScalingGroup) isOpenOrActiveRequestWithNoInstance(req *spotInstanceRequest) bool {
+	switch *req.State {
+	case "active":
+		fallthrough
+	case "open":
+		if req.InstanceId == nil {
+			return true
+		}
+		return false
+	default:
+		return false
+	}
+}
+
 func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool) {
 
 	//
@@ -743,27 +751,27 @@ func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool
 	for _, req := range a.spotInstanceRequests {
 		// If spot request is failed, closed or cancelled with no instances
 		// continue to next SIR
-		if a.isSpotInstanceRequestCompleted(req) {
+		if a.isSpotInstanceRequestClosedAndComplete(req) {
 			continue
 		}
 
-		if *req.State == "cancelled" {
-			evalNextSIR, waitForNextRun := a.processInstanceID(req, req.InstanceId)
-			if !evalNextSIR {
-				if waitForNextRun {
-					// If instance isn't in asg, but is pending, wait for next run of autospotting
-					return nil, true
-				}
-				// If instance isn't in asg, but is running, use the SIR
-				return req, false
+		if a.isOpenOrActiveRequestWithNoInstance(req) {
+			return nil, true
+		}
+
+		evalNextSIR, waitForNextRun := a.processInstanceID(req, req.InstanceId)
+		if !evalNextSIR {
+			if waitForNextRun {
+				// If instance isn't in asg, but is pending, wait for next run of autospotting
+				return nil, true
 			}
-			// If instance is already part of asg, we continue onto next SIR
-			// If instance isn't in asg, but is terminated, we continue onto next SIR
-			continue
+			// If instance isn't in asg, but is running, use the SIR
+			return req, false
 		}
+		// If instance is already part of asg, we continue onto next SIR
+		// If instance isn't in asg, but is terminated, we continue onto next SIR
+		continue
 
-		// SIR must be open or active.  Wait for next run (valid-util will kick in and move SIR to cancelled)
-		return nil, true
 	}
 	return nil, false
 }

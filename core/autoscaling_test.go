@@ -3800,11 +3800,63 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
 							InstanceId:            aws.String("i-039382787474f"),
 						},
+						asg: &autoScalingGroup{
+							Group: &autoscaling.Group{
+								Tags: []*autoscaling.TagDescription{
+									{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
+								},
+								LaunchConfigurationName: aws.String("bob"),
+							},
+						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{},
+							},
+						},
+					},
+				},
+				region: &region{
+					services: connections{
+						ec2: &mockEC2{
+							disro: &ec2.DescribeInstanceStatusOutput{
+								InstanceStatuses: []*ec2.InstanceStatus{
+									{InstanceState: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}},
+								},
+							},
+						},
 					},
 				},
 			},
-			expectedWaitForNextRun:   true,
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: false,
+		},
+		{
+			name: "Fullfilled Request, running instance in asg",
+			asg: &autoScalingGroup{
+				spotInstanceRequests: []*spotInstanceRequest{
+					{
+						SpotInstanceRequest: &ec2.SpotInstanceRequest{
+							State: aws.String("active"),
+							Status: &ec2.SpotInstanceStatus{
+								Code: aws.String("fulfilled"),
+							},
+							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+							InstanceId:            aws.String("i-039382787474f"),
+						},
+					},
+				},
+				region: &region{
+					services: connections{
+						ec2: &mock,
+					},
+				},
+			},
+			instances: map[string]*instance{
+				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f")}},
+			},
+			expectedWaitForNextRun:   false,
 			expectNilRequestReturned: true,
+			expectSIRToBeTagged:      &mock,
 		},
 		{
 			name: "Open Request, running instance not in asg",
@@ -3840,9 +3892,20 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 						},
 					},
 				},
+				region: &region{
+					services: connections{
+						ec2: &mockEC2{
+							disro: &ec2.DescribeInstanceStatusOutput{
+								InstanceStatuses: []*ec2.InstanceStatus{
+									{InstanceState: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}},
+								},
+							},
+						},
+					},
+				},
 			},
-			expectedWaitForNextRun:   true,
-			expectNilRequestReturned: true,
+			expectedWaitForNextRun:   false,
+			expectNilRequestReturned: false,
 		},
 		{
 			name: "Cancelled Request, running instance not in asg",
@@ -3999,29 +4062,6 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 			expectedWaitForNextRun:   false,
 			expectNilRequestReturned: true,
 			expectSIRToBeTagged:      &mock,
-		},
-		{
-			name: "Active Request, instance not in asg",
-			asg: &autoScalingGroup{
-				spotInstanceRequests: []*spotInstanceRequest{
-					{
-						SpotInstanceRequest: &ec2.SpotInstanceRequest{
-							State: aws.String("active"),
-							Status: &ec2.SpotInstanceStatus{
-								Code: aws.String("fulfilled"),
-							},
-							SpotInstanceRequestId: aws.String("sir-active-instance-no-in-asg"),
-							InstanceId:            aws.String("i-039382787474f"),
-						},
-					},
-				},
-			},
-			instances: map[string]*instance{
-				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
-				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
-			},
-			expectedWaitForNextRun:   true,
-			expectNilRequestReturned: true,
 		},
 	}
 
