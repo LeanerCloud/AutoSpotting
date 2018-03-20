@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
@@ -609,6 +610,15 @@ func (a *autoScalingGroup) getAnySpotInstance() *instance {
 	return a.getInstance(nil, false, false)
 }
 
+func isInstanceNotFound(err error) bool {
+	if aerr, ok := err.(awserr.Error); ok {
+		if aerr.Code() == "InvalidInstanceID.NotFound" {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
 	svc := a.region.services.ec2
 	input := &ec2.DescribeInstanceStatusInput{
@@ -620,8 +630,13 @@ func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
 
 	out, err := svc.DescribeInstanceStatus(input)
 	if err != nil {
-		logger.Println("Error describing instance status:", *instanceID, err)
-		return 0
+		if isInstanceNotFound(err) {
+			logger.Println("Instance not found:", *instanceID)
+			return 48
+		} else {
+			logger.Println("Error describing instance status:", *instanceID, err)
+			return 0
+		}
 	}
 
 	if len(out.InstanceStatuses) > 0 {
@@ -632,17 +647,27 @@ func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
 	return 48
 }
 
-func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sirRequestID *string) {
+func (a *autoScalingGroup) terminateInstance(instanceID *string, instanceState int64) bool {
 	svc := a.region.services.ec2
-	if instanceID != nil {
+	if instanceID != nil && instanceState > 48 {
 		_, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
 			InstanceIds: []*string{instanceID},
 		})
 		if err != nil {
-			return
+			return false
 		}
 	}
+	return true
+}
 
+func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sirRequestID *string, instanceState int64) {
+
+	if !a.terminateInstance(instanceID, instanceState) {
+		logger.Println("Unable to terminate instance:", *instanceID)
+		return
+	}
+
+	svc := a.region.services.ec2
 	_, err := svc.CancelSpotInstanceRequests(
 		&ec2.CancelSpotInstanceRequestsInput{
 			SpotInstanceRequestIds: []*string{sirRequestID},
@@ -680,7 +705,7 @@ func (a *autoScalingGroup) processUnattachedInstance(req *spotInstanceRequest, i
 		return false, false
 	} else if spotInstanceRunning > 16 {
 		// stopped, terminated, shutting-dowm etc,
-		a.cancelSIRAndTerminateInstance(instanceID, req.SpotInstanceRequestId)
+		a.cancelSIRAndTerminateInstance(instanceID, req.SpotInstanceRequestId, spotInstanceRunning)
 		// processNextSIR = true
 		return true, false
 	} else {
