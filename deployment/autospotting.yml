@@ -26,7 +26,7 @@ Parameters:
   DeployableName:
     Type: String
     Description: deployable name
-    Default: autospotter
+    Default: autospotting
   ExecutionFrequency:
     Default: rate(5 minutes)
     Description: Frequency of executing the Lambda function, influences the speed of replacing your instances. Can accept any value documented at http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html
@@ -102,7 +102,7 @@ Parameters:
     Description: 'Comma separated list of tag=value on which to filter the ASGs that autospotting considers.  By default (if no filters are specific) then ''spot-enabled=true'' is used.  Example: ''spot-enabled=true,environment=dev'''
     Type: String
 Resources:
-  AutospotterLambda:
+  Lambda:
     Type: AWS::Serverless::Function
     Properties:
       Handler: !Ref LambdaHandlerFunction
@@ -114,7 +114,7 @@ Resources:
           Properties:
             Schedule: !Ref ExecutionFrequency
       Timeout: 300
-      Role: !GetAtt [AutospotterRole, Arn]
+      Role: !GetAtt [LambdaRole, Arn]
       CodeUri:
         Bucket: !Sub "sps-build-deploy-${AWS::AccountId}-${AWS::Region}"
         Key:
@@ -132,7 +132,7 @@ Resources:
           ALLOWED_INSTANCE_TYPES: !Ref AllowedInstanceTypes
           DISALLOWED_INSTANCE_TYPES: !Ref DisallowedInstanceTypes
           TAG_FILTERS: !Ref FilterByTags
-  AutospotterRole:
+  LambdaRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
