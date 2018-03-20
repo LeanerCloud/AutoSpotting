@@ -1,22 +1,28 @@
+workspace:
+  base: /go
+
 pipeline:
   build:
-    pull: true
-    image: spscommerce/lambda-packager:python-2.7
+    image: golang:1.10.0-alpine
     commands:
-      - /entrypoint.sh
-  bdp_core_deploy:
-    image: spscommerce/plugin-bdp-core
-    environment:
-      - VERSION=${DRONE_COMMIT}
-      - REGION=us-east-1
-      - BDP_FILE=.bdp
-      - ZIP=deployment.zip
-      - ACTION=deploy
-      - ENVIRONMENT=dev
-    commands:
-      - python -u /build/plug.py
-    when:
-      event:
-        - push
-      branch:
-        - master
+      - apk add -U --no-cache ca-certificates git make
+      - go get -v ./...
+      - FLAVOR=nightly CGO_ENABLED=0 make
+      - ls
+  #
+  # bdp_core_deploy:
+  #   image: spscommerce/plugin-bdp-core
+  #   environment:
+  #     - VERSION=${DRONE_COMMIT}
+  #     - REGION=us-east-1
+  #     - BDP_FILE=.bdp
+  #     - ZIP=nightly/lambda.zip
+  #     - ACTION=deploy
+  #     - ENVIRONMENT=dev
+  #   commands:
+  #     - python -u /build/plug.py
+  #   when:
+  #     event:
+  #       - push
+  #     branch:
+  #       - master
