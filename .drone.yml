@@ -28,4 +28,4 @@ pipeline:
       event:
         - push
       branch:
-        - master
+        - deployment
