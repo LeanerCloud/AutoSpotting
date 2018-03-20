@@ -191,5 +191,5 @@ Resources:
   LogGroup0:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Join ["", ["/app/lambda/", !Ref Lambda]]
+      LogGroupName: !Join ["", ["/aws/lambda/", !Ref Lambda]]
       RetentionInDays: !Ref LogRetentionPeriod
