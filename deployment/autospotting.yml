@@ -48,7 +48,7 @@ Parameters:
     Description: 'Path to the Lambda function zip file inside the S3 bucket. Can be used to update to a more recent version, such as ''nightly/lambda_build_57.zip''. Build numbers can be taken from TravisCI: https://travis-ci.org/cristim/autospotting/builds'
     Type: String
   LogRetentionPeriod:
-    Default: '7'
+    Default: '14'
     Description: Number of days to keep the Lambda function logs in CloudWatch.
     Type: Number
   MinOnDemandNumber:
@@ -188,3 +188,8 @@ Resources:
               - logs:PutLogEvents
               Effect: Allow
               Resource: "*"
+  LogGroup0:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ["" ["/app/lambda/", !Ref Lambda]]
+      RetentionInDays: !Ref LogRetentionPeriod
