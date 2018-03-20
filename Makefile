@@ -56,6 +56,10 @@ archive: build                                               ## Create archive t
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(SHA).zip
 .PHONY: archive
 
+sps-package:                                                ## Create archive for bdp-deploy
+	@zip lambda.zip $(BINARY) $(LICENSE_FILES)
+.PHONY: sps-package
+
 upload: archive                                              ## Upload binary
 	aws s3 sync build/s3/ s3://$(BUCKET_NAME)/
 .PHONY: upload
