@@ -19,7 +19,7 @@ pipeline:
       - VERSION=${DRONE_COMMIT}
       - REGION=us-east-1
       - BDP_FILE=.bdp
-      - ZIP=nightly/lambda.zip
+      - ZIP=lambda.zip
       - ACTION=deploy
       - ENVIRONMENT=dev
     commands:
