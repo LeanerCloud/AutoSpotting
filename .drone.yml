@@ -10,8 +10,6 @@ pipeline:
       - go get -v github.com/cristim/autospotting/...
       - FLAVOR=nightly CGO_ENABLED=0 make
       - make sps-package
-      - pwd
-      - ls
 
   bdp_core_deploy:
     image: spscommerce/plugin-bdp-core
@@ -28,4 +26,4 @@ pipeline:
       event:
         - push
       branch:
-        - deployment
+        - master
