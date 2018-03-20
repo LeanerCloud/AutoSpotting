@@ -8,15 +8,7 @@ global:
     - name: dev
       region: us-east-1
       account: 056684691971
-    - name: test
-      region: us-east-1
-      account: 056684691971
-    - name: stage
-      region: us-east-1
-      account: '104966627370'
-    - name: prod
-      region: us-east-1
-      account: '104966627370'
+    
 service:
   id: bd416077-aecb-4abb-9a87-3b278acfbeef
   name: bdp-autospotting
