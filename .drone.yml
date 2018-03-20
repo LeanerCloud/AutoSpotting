@@ -10,20 +10,22 @@ pipeline:
       - go get -v github.com/cristim/autospotting/...
       - FLAVOR=nightly CGO_ENABLED=0 make
       - make sps-package
-  #
-  # bdp_core_deploy:
-  #   image: spscommerce/plugin-bdp-core
-  #   environment:
-  #     - VERSION=${DRONE_COMMIT}
-  #     - REGION=us-east-1
-  #     - BDP_FILE=.bdp
-  #     - ZIP=nightly/lambda.zip
-  #     - ACTION=deploy
-  #     - ENVIRONMENT=dev
-  #   commands:
-  #     - python -u /build/plug.py
-  #   when:
-  #     event:
-  #       - push
-  #     branch:
-  #       - master
+      - pwd
+      - ls
+
+  bdp_core_deploy:
+    image: spscommerce/plugin-bdp-core
+    environment:
+      - VERSION=${DRONE_COMMIT}
+      - REGION=us-east-1
+      - BDP_FILE=.bdp
+      - ZIP=nightly/lambda.zip
+      - ACTION=deploy
+      - ENVIRONMENT=dev
+    commands:
+      - python -u /build/plug.py
+    when:
+      event:
+        - push
+      branch:
+        - master
