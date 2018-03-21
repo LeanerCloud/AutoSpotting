@@ -15,7 +15,7 @@ pipeline:
     image: spscommerce/plugin-bdp-core
     environment:
       - VERSION=${DRONE_COMMIT}
-      - REGION=us-east-1
+      - REGION=${REGION}
       - BDP_FILE=.bdp
       - ZIP=lambda.zip
       - ACTION=deploy
@@ -27,3 +27,8 @@ pipeline:
         - push
       branch:
         - master
+
+matrix:
+  REGION:
+    - us-east-1
+    - us-west-2
