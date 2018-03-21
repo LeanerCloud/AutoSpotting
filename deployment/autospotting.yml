@@ -64,7 +64,7 @@ Parameters:
     Description: Multiplier for the on-demand price. This is useful for volume discounts or if you want to set your bid price to be higher than the on demand price to reduce the chances that your spot instances will be terminated.
     Type: Number
   SpotPricePercentageBuffer:
-    Default: '10.0'
+    Default: '20.0'
     Description: Percentage Value of the bid above the current spot price. A spot bid would be placed at a value = current_spot_price * [1 + (spot_price_buffer_percentage/100.0)]. The main benefit is that it protects the group from running spot instances that got significantly more expensive than when they were initially launched, but still somewhat less than the on-demand price.
     Type: Number
   SpotProductDescription:
@@ -79,7 +79,7 @@ Parameters:
     - SUSE Linux (Amazon VPC)
     - Windows (Amazon VPC)
   BiddingPolicy:
-    Default: normal
+    Default: aggressive
     Description: Policy choice for spot bid. If set to 'normal', we bid at the on-demand price. If set to 'aggressive', we bid at a multiple of the spot price.
     Type: String
     AllowedValues:
