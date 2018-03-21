@@ -633,10 +633,9 @@ func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
 		if isInstanceNotFound(err) {
 			logger.Println("Instance not found:", *instanceID)
 			return 48
-		} else {
-			logger.Println("Error describing instance status:", *instanceID, err)
-			return 0
 		}
+		logger.Println("Error describing instance status:", *instanceID, err)
+		return 0
 	}
 
 	if len(out.InstanceStatuses) > 0 {
@@ -678,31 +677,35 @@ func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sir
 	}
 }
 
+func (a *autoScalingGroup) processUnattachedRunningInstance(req *spotInstanceRequest, instanceID *string) (bool, bool) {
+	logger.Println(a.name, "Active bid was found, with running "+
+		"instances not yet attached to the ASG",
+		*instanceID)
+	// we need to re-scan in order to have the information a
+	err := req.region.scanInstances()
+	if err != nil {
+		logger.Printf("Failed to scan instances: %s for %s\n", err, req.asg.name)
+	}
+
+	tags := req.asg.propagatedInstanceTags()
+
+	i := req.region.instances.get(*instanceID)
+
+	if i != nil {
+		i.tag(tags, defaultTimeout)
+	} else {
+		logger.Println(req.asg.name, "new spot instance", *instanceID, "has disappeared")
+	}
+	return false, false
+}
+
 func (a *autoScalingGroup) processUnattachedInstance(req *spotInstanceRequest, instanceID *string) (bool, bool) {
 	// var validRequest *spotInstanceRequest
 	// processNextSIR, waitForNextExecution := false, false
 
 	spotInstanceRunning := a.getInstanceState(instanceID)
 	if spotInstanceRunning == 16 {
-		logger.Println(a.name, "Active bid was found, with running "+
-			"instances not yet attached to the ASG",
-			*instanceID)
-		// we need to re-scan in order to have the information a
-		err := req.region.scanInstances()
-		if err != nil {
-			logger.Printf("Failed to scan instances: %s for %s\n", err, req.asg.name)
-		}
-
-		tags := req.asg.propagatedInstanceTags()
-
-		i := req.region.instances.get(*instanceID)
-
-		if i != nil {
-			i.tag(tags, defaultTimeout)
-		} else {
-			logger.Println(req.asg.name, "new spot instance", *instanceID, "has disappeared")
-		}
-		return false, false
+		return a.processUnattachedRunningInstance(req, instanceID)
 	} else if spotInstanceRunning > 16 {
 		// stopped, terminated, shutting-dowm etc,
 		a.cancelSIRAndTerminateInstance(instanceID, req.SpotInstanceRequestId, spotInstanceRunning)
