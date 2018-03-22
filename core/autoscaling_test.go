@@ -1886,6 +1886,9 @@ func TestLoadSpotInstanceRequest(t *testing.T) {
 
 }
 
+func createInt64(x int64) *int64 {
+	return &x
+}
 func TestFindSpotInstanceRequests(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -1994,7 +1997,7 @@ func TestFindSpotInstanceRequests(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &autoScalingGroup{
-				Group:  &autoscaling.Group{AutoScalingGroupName: aws.String("testASG")},
+				Group:  &autoscaling.Group{AutoScalingGroupName: aws.String("testASG"), DesiredCapacity: createInt64(1)},
 				name:   "testASG",
 				region: tt.region,
 			}

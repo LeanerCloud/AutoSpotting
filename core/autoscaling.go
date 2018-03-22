@@ -455,7 +455,31 @@ func (a *autoScalingGroup) findSpotInstanceRequests() error {
 			a.loadSpotInstanceRequest(req))
 	}
 
+	// Check if the ASG's desired capacity has been set to 0 inbetween
+	// spot instance creation, and next run to assign spot instance
+	// to the asg
+	a.checkDesiredCapacity()
+
 	return nil
+}
+
+func (a *autoScalingGroup) checkDesiredCapacity() {
+	if *a.Group.DesiredCapacity == 0 && len(a.spotInstanceRequests) > 0 {
+		logger.Println("Desired Capacity is Zero. However, there are Spot Instance Requests.  Proceeding with cancelling them")
+		for _, req := range a.spotInstanceRequests {
+			terminated := true
+			err := a.cancelSIR(req.SpotInstanceRequestId)
+
+			if req.InstanceId != nil {
+				terminated = a.terminateInstance(req.InstanceId, a.getInstanceState(req.InstanceId))
+			}
+
+			if err == nil && terminated {
+				a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
+			}
+		}
+	}
+
 }
 
 func (a *autoScalingGroup) scanInstances() instances {
@@ -650,9 +674,13 @@ func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
 	return 48
 }
 
+func canTerminateInstance(instanceID *string, instanceState int64) bool {
+	return instanceID != nil && instanceState != 48 && instanceState != 32
+}
+
 func (a *autoScalingGroup) terminateInstance(instanceID *string, instanceState int64) bool {
 	svc := a.region.services.ec2
-	if instanceID != nil && instanceState > 48 {
+	if canTerminateInstance(instanceID, instanceState) {
 		_, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
 			InstanceIds: []*string{instanceID},
 		})
@@ -663,6 +691,16 @@ func (a *autoScalingGroup) terminateInstance(instanceID *string, instanceState i
 	return true
 }
 
+func (a *autoScalingGroup) cancelSIR(sirRequestID *string) error {
+	svc := a.region.services.ec2
+	_, err := svc.CancelSpotInstanceRequests(
+		&ec2.CancelSpotInstanceRequestsInput{
+			SpotInstanceRequestIds: []*string{sirRequestID},
+		})
+
+	return err
+}
+
 func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sirRequestID *string, instanceState int64) {
 
 	if !a.terminateInstance(instanceID, instanceState) {
@@ -670,11 +708,7 @@ func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sir
 		return
 	}
 
-	svc := a.region.services.ec2
-	_, err := svc.CancelSpotInstanceRequests(
-		&ec2.CancelSpotInstanceRequestsInput{
-			SpotInstanceRequestIds: []*string{sirRequestID},
-		})
+	err := a.cancelSIR(sirRequestID)
 
 	if err == nil {
 		a.markSpotInstanceRequestAsCompete(sirRequestID)
