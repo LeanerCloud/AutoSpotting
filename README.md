@@ -182,8 +182,14 @@ Any income left after paying for the infrastructure costs motivates the main
 author to allocate a proportional amount of time on a monthly basis for
 improving the software and supporting existing users.
 
-Note: even though these builds are usually stable enough, they may not have been
-thoroughly tested yet and come with best effort community support.
+Note:
+
+- even though these builds are usually stable enough, they may not have been
+  thoroughly tested yet and come with best effort community support.
+- the authors of significant code contributions and/or their employers are
+  allowed to use these builds free of charge without any time limit. The
+  original author grants these exemptions in written form upon request, and
+  decides on a case by case basis if the contribution is significant enough.
 
 ### Stable builds ###
 
