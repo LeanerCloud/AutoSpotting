@@ -416,9 +416,8 @@ func filterOutCompleteSpotInstanceRequests(requests []*ec2.SpotInstanceRequest) 
 	return outStandingSpotRequests
 }
 
-func (a *autoScalingGroup) findSpotInstanceRequests() error {
-
-	resp, err := a.region.services.ec2.DescribeSpotInstanceRequests(
+func (a *autoScalingGroup) describeSpotInstanceRequests() (*ec2.DescribeSpotInstanceRequestsOutput, error) {
+	return a.region.services.ec2.DescribeSpotInstanceRequests(
 		&ec2.DescribeSpotInstanceRequestsInput{
 			Filters: []*ec2.Filter{
 				{
@@ -427,6 +426,11 @@ func (a *autoScalingGroup) findSpotInstanceRequests() error {
 				},
 			},
 		})
+}
+
+func (a *autoScalingGroup) findSpotInstanceRequests() error {
+
+	resp, err := a.describeSpotInstanceRequests()
 
 	if err != nil {
 		return err
@@ -696,7 +700,7 @@ func (a *autoScalingGroup) processUnattachedRunningInstance(req *spotInstanceReq
 	} else {
 		logger.Println(req.asg.name, "new spot instance", *instanceID, "has disappeared")
 	}
-	return false, false
+	return true, false
 }
 
 func (a *autoScalingGroup) processUnattachedInstance(req *spotInstanceRequest, instanceID *string) (bool, bool) {
@@ -710,11 +714,11 @@ func (a *autoScalingGroup) processUnattachedInstance(req *spotInstanceRequest, i
 		// stopped, terminated, shutting-dowm etc,
 		a.cancelSIRAndTerminateInstance(instanceID, req.SpotInstanceRequestId, spotInstanceRunning)
 		// processNextSIR = true
-		return true, false
+		return false, false
 	} else {
 		logger.Println(a.name, "Active bid was found, with no running "+
 			"instances, waiting for an instance to start ...")
-		return false, true
+		return true, true
 	}
 
 }
@@ -728,7 +732,7 @@ func (a *autoScalingGroup) processInstanceID(req *spotInstanceRequest, instanceI
 		logger.Println(a.name, "Instance", instanceID,
 			"is already attached to the ASG, tagging SIR as complete and skipping...")
 		a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
-		return true, false
+		return false, false
 		// In case the instance wasn't yet attached, we prepare to attach it.
 	}
 
@@ -770,38 +774,84 @@ func (a *autoScalingGroup) isOpenOrActiveRequestWithNoInstance(req *spotInstance
 	}
 }
 
-func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool) {
-
-	//
-	// Here we search for spot requests created for the current ASG,
-	// Use the first matching spot request with a instance ready for attaching
-	//
+func (a *autoScalingGroup) removeClosedOrCompleteRequests(requests []*spotInstanceRequest) []*spotInstanceRequest {
+	var filtered []*spotInstanceRequest
 	for _, req := range a.spotInstanceRequests {
 		// If spot request is failed, closed or cancelled with no instances
 		// continue to next SIR
 		if a.isSpotInstanceRequestClosedAndComplete(req) {
 			continue
+		} else {
+			filtered = append(filtered, req)
 		}
+	}
+	return filtered
+}
 
-		if a.isOpenOrActiveRequestWithNoInstance(req) {
-			return nil, true
-		}
+func (a *autoScalingGroup) filterRequestsWithRunningInstances(potentialRequests []*spotInstanceRequest) ([]*spotInstanceRequest, []*spotInstanceRequest) {
+	var eligibleRequestsWithInstances []*spotInstanceRequest
+	var eligibleRequestsWithNoInstances []*spotInstanceRequest
 
-		evalNextSIR, waitForNextRun := a.processInstanceID(req, req.InstanceId)
-		if !evalNextSIR {
-			if waitForNextRun {
+	for _, req := range potentialRequests {
+		eligibleSIR, instanceNotRunning := a.processInstanceID(req, req.InstanceId)
+
+		if eligibleSIR {
+			if instanceNotRunning {
 				// If instance isn't in asg, but is pending, wait for next run of autospotting
-				return nil, true
+				eligibleRequestsWithNoInstances = append(eligibleRequestsWithNoInstances, req)
 			}
 			// If instance isn't in asg, but is running, use the SIR
-			return req, false
+			eligibleRequestsWithInstances = append(eligibleRequestsWithInstances, req)
 		}
-		// If instance is already part of asg, we continue onto next SIR
-		// If instance isn't in asg, but is terminated, we continue onto next SIR
-		continue
-
 	}
+
+	return eligibleRequestsWithInstances, eligibleRequestsWithNoInstances
+}
+
+func (a *autoScalingGroup) separateRequestsIntoThoseWithAndWithoutInstances(requests []*spotInstanceRequest) ([]*spotInstanceRequest, []*spotInstanceRequest) {
+	var potentialRequestsWithInstances []*spotInstanceRequest
+
+	var eligibleRequestsWithNoInstances []*spotInstanceRequest
+
+	//
+	// Here we search for spot requests created for the current ASG,
+	// Use the first matching spot request with a instance ready for attaching
+	//
+	for _, req := range requests {
+		if a.isOpenOrActiveRequestWithNoInstance(req) {
+			eligibleRequestsWithNoInstances = append(eligibleRequestsWithNoInstances, req)
+		} else {
+			potentialRequestsWithInstances = append(potentialRequestsWithInstances, req)
+		}
+	}
+
+	return potentialRequestsWithInstances, eligibleRequestsWithNoInstances
+}
+
+func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool) {
+
+	// If spot request is failed, closed or cancelled with no instances
+	// remove from list of eligible requests
+	requests := a.removeClosedOrCompleteRequests(a.spotInstanceRequests)
+
+	potentialRequestsWithInstances, eligibleRequestsWithNoInstances := a.separateRequestsIntoThoseWithAndWithoutInstances(requests)
+
+	eligibleRequestsWithInstances, additionalEligibleRequestsWithNoInstances := a.filterRequestsWithRunningInstances(potentialRequestsWithInstances)
+
+	for _, req := range additionalEligibleRequestsWithNoInstances {
+		eligibleRequestsWithNoInstances = append(eligibleRequestsWithNoInstances, req)
+	}
+
+	if len(eligibleRequestsWithInstances) > 0 {
+		return eligibleRequestsWithInstances[0], false
+	}
+
+	if len(eligibleRequestsWithNoInstances) > 0 {
+		return eligibleRequestsWithNoInstances[0], true
+	}
+
 	return nil, false
+
 }
 
 // returns an instance ID as *string, the id of the spot request and a bool that

@@ -3583,12 +3583,12 @@ func TestProcessInstanceID(t *testing.T) {
 		CreateTagsCalled: 0,
 	}
 	tests := []struct {
-		name                   string
-		request                *spotInstanceRequest
-		instances              map[string]*instance
-		expectedCheckNextSIR   bool
-		expectedWaitForNextRun bool
-		expectCreateTags       int
+		name                       string
+		request                    *spotInstanceRequest
+		instances                  map[string]*instance
+		expectedEligibleSIR        bool
+		expectedInstanceNotRunning bool
+		expectCreateTags           int
 	}{
 		{
 			name: "Instance not attached to asg, but running",
@@ -3629,9 +3629,9 @@ func TestProcessInstanceID(t *testing.T) {
 				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
 				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
 			},
-			expectedCheckNextSIR:   false,
-			expectedWaitForNextRun: false,
-			expectCreateTags:       0,
+			expectedEligibleSIR:        true,
+			expectedInstanceNotRunning: false,
+			expectCreateTags:           0,
 		},
 		{
 			name: "Instance not attached to asg, but not running.",
@@ -3677,9 +3677,9 @@ func TestProcessInstanceID(t *testing.T) {
 				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
 				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
 			},
-			expectedCheckNextSIR:   false,
-			expectedWaitForNextRun: true,
-			expectCreateTags:       0,
+			expectedEligibleSIR:        true,
+			expectedInstanceNotRunning: true,
+			expectCreateTags:           0,
 		},
 		{
 			name: "Instance Attached to the ASG",
@@ -3703,9 +3703,9 @@ func TestProcessInstanceID(t *testing.T) {
 				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f"), State: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}}},
 				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff"), State: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}}},
 			},
-			expectedCheckNextSIR:   true,
-			expectedWaitForNextRun: false,
-			expectCreateTags:       1,
+			expectedEligibleSIR:        false,
+			expectedInstanceNotRunning: false,
+			expectCreateTags:           1,
 		},
 	}
 
@@ -3717,11 +3717,11 @@ func TestProcessInstanceID(t *testing.T) {
 			is.catalog = tt.instances
 			a.instances = is
 
-			checkNextSIR, waitForNextRun := a.processInstanceID(tt.request, tt.request.SpotInstanceRequest.InstanceId)
+			eligibleSIR, instanceNotRunning := a.processInstanceID(tt.request, tt.request.SpotInstanceRequest.InstanceId)
 
-			if checkNextSIR != tt.expectedCheckNextSIR || waitForNextRun != tt.expectedWaitForNextRun {
-				t.Errorf("%+v : open SIR not processed as expected: expect processNextSIR = %+v, actual processNextSIR = %+v; expected waitForNextRun = %+v ,actual waitForNextRun = %+v,",
-					tt.name, tt.expectedCheckNextSIR, checkNextSIR, tt.expectedWaitForNextRun, waitForNextRun)
+			if eligibleSIR != tt.expectedEligibleSIR || instanceNotRunning != tt.expectedInstanceNotRunning {
+				t.Errorf("%+v : open SIR not processed as expected: expect eligibleSIR = %+v, actual eligibleSIT = %+v; expected instance not running = %+v ,actual instance not running = %+v,",
+					tt.name, tt.expectedEligibleSIR, eligibleSIR, tt.expectedInstanceNotRunning, instanceNotRunning)
 
 			}
 
