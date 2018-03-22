@@ -108,6 +108,7 @@ Resources:
       Handler: !Ref LambdaHandlerFunction
       Description: Implements SPOT instance automation
       Runtime: go1.x
+      MemorySize: !Ref LambdaMemorySize
       Events:
         Timer:
           Type: Schedule
