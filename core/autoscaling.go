@@ -77,6 +77,26 @@ const (
 	DefaultSecondsSpotRequestValidFor = 240
 )
 
+const (
+	// InstanceStateCodePending is a InstanceState Code enum value
+	InstanceStateCodePending = 0
+
+	// InstanceStateCodeRunning is a InstanceState Code enum value
+	InstanceStateCodeRunning = 16
+
+	// InstanceStateCodeShuttingDown is a InstanceState Code enum value
+	InstanceStateCodeShuttingDown = 32
+
+	// InstanceStateCodeTerminated is a InstanceState Code enum value
+	InstanceStateCodeTerminated = 48
+
+	// InstanceStateCodeStopping is a InstanceState Code enum value
+	InstanceStateCodeStopping = 64
+
+	// InstanceStateCodeStopped is a InstanceState Code enum value
+	InstanceStateCodeStopped = 80
+)
+
 type autoScalingGroup struct {
 	*autoscaling.Group
 
@@ -606,7 +626,7 @@ func (a *autoScalingGroup) getInstance(
 		}
 
 		// instance is running
-		if *i.State.Name == "running" {
+		if *i.State.Name == ec2.InstanceStateNameRunning {
 
 			// the InstanceLifecycle attribute is non-nil only for spot instances,
 			// where it contains the value "spot", if we're looking for on-demand
@@ -660,10 +680,10 @@ func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
 	if err != nil {
 		if isInstanceNotFound(err) {
 			logger.Println("Instance not found:", *instanceID)
-			return 48
+			return InstanceStateCodeTerminated
 		}
 		logger.Println("Error describing instance status:", *instanceID, err)
-		return 0
+		return InstanceStateCodePending
 	}
 
 	if len(out.InstanceStatuses) > 0 {
@@ -671,11 +691,11 @@ func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
 	}
 
 	// If instance is not showing then it's terminated
-	return 48
+	return InstanceStateCodeTerminated
 }
 
 func canTerminateInstance(instanceID *string, instanceState int64) bool {
-	return instanceID != nil && instanceState != 48 && instanceState != 32
+	return instanceID != nil && instanceState != InstanceStateCodeTerminated && instanceState != InstanceStateCodeShuttingDown
 }
 
 func (a *autoScalingGroup) terminateInstance(instanceID *string, instanceState int64) bool {
@@ -737,14 +757,22 @@ func (a *autoScalingGroup) processUnattachedRunningInstance(req *spotInstanceReq
 	return true, false
 }
 
+func isInstanceRunning(spotInstanceRunning int64) bool {
+	return spotInstanceRunning == InstanceStateCodeRunning
+}
+
+func isInstanceInUsableState(spotInstanceRequest int64) bool {
+	return spotInstanceRequest > InstanceStateCodeRunning
+}
+
 func (a *autoScalingGroup) processUnattachedInstance(req *spotInstanceRequest, instanceID *string) (bool, bool) {
 	// var validRequest *spotInstanceRequest
 	// processNextSIR, waitForNextExecution := false, false
 
 	spotInstanceRunning := a.getInstanceState(instanceID)
-	if spotInstanceRunning == 16 {
+	if isInstanceRunning(spotInstanceRunning) {
 		return a.processUnattachedRunningInstance(req, instanceID)
-	} else if spotInstanceRunning > 16 {
+	} else if isInstanceInUsableState(spotInstanceRunning) {
 		// stopped, terminated, shutting-dowm etc,
 		a.cancelSIRAndTerminateInstance(instanceID, req.SpotInstanceRequestId, spotInstanceRunning)
 		// processNextSIR = true

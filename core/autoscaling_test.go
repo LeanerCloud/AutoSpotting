@@ -936,7 +936,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
@@ -954,14 +954,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -979,14 +979,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
@@ -1004,14 +1004,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -1029,14 +1029,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -1054,14 +1054,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
@@ -1079,14 +1079,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
@@ -1104,14 +1104,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameShuttingDown)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -1129,14 +1129,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -1154,14 +1154,14 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -1217,14 +1217,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameShuttingDown)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameShuttingDown)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -1240,14 +1240,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameShuttingDown)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("shutting-down")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameShuttingDown)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -1264,7 +1264,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 					"id-1": {
 						Instance: &ec2.Instance{
 							InstanceId:        aws.String("id-1"),
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
@@ -1278,7 +1278,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 					"id-2": {
 						Instance: &ec2.Instance{
 							InstanceId:        aws.String("id-2"),
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -1294,14 +1294,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -1317,7 +1317,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
@@ -1333,14 +1333,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -1356,14 +1356,14 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 				map[string]*instance{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: aws.String("on-demand"),
 						},
@@ -1886,9 +1886,6 @@ func TestLoadSpotInstanceRequest(t *testing.T) {
 
 }
 
-func createInt64(x int64) *int64 {
-	return &x
-}
 func TestFindSpotInstanceRequests(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -1997,7 +1994,7 @@ func TestFindSpotInstanceRequests(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &autoScalingGroup{
-				Group:  &autoscaling.Group{AutoScalingGroupName: aws.String("testASG"), DesiredCapacity: createInt64(1)},
+				Group:  &autoscaling.Group{AutoScalingGroupName: aws.String("testASG"), DesiredCapacity: aws.Int64(1)},
 				name:   "testASG",
 				region: tt.region,
 			}
@@ -2282,28 +2279,28 @@ func TestGetOnDemandInstanceInAZ(t *testing.T) {
 				map[string]*instance{
 					"spot-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"spot-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"ondemand-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
 						},
 					},
 					"ondemand-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
 						},
@@ -2317,28 +2314,28 @@ func TestGetOnDemandInstanceInAZ(t *testing.T) {
 				map[string]*instance{
 					"spot-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"spot-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"ondemand-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
 						},
 					},
 					"ondemand-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
 						},
@@ -2348,7 +2345,7 @@ func TestGetOnDemandInstanceInAZ(t *testing.T) {
 			az: aws.String("1b"),
 			expected: &instance{
 				Instance: &ec2.Instance{
-					State:             &ec2.InstanceState{Name: aws.String("running")},
+					State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 					Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 					InstanceLifecycle: aws.String(""),
 				},
@@ -2359,28 +2356,28 @@ func TestGetOnDemandInstanceInAZ(t *testing.T) {
 				map[string]*instance{
 					"spot-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"spot-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"ondemand-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
 						},
 					},
 					"ondemand-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
 						},
@@ -2421,21 +2418,21 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 				map[string]*instance{
 					"spot-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"spot-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"ondemand-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
 						},
@@ -2449,28 +2446,28 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 				map[string]*instance{
 					"spot-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"spot-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"ondemand-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
 						},
 					},
 					"ondemand-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
 						},
@@ -2479,7 +2476,7 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 			),
 			expected: []*instance{{
 				Instance: &ec2.Instance{
-					State:             &ec2.InstanceState{Name: aws.String("running")},
+					State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 					Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 					InstanceLifecycle: aws.String(""),
 				}},
@@ -2490,28 +2487,28 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 				map[string]*instance{
 					"spot-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"spot-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"ondemand-running1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
 						},
 					},
 					"ondemand-running2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
 						},
@@ -2521,14 +2518,14 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 			expected: []*instance{
 				{
 					Instance: &ec2.Instance{
-						State:             &ec2.InstanceState{Name: aws.String("running")},
+						State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 						InstanceLifecycle: aws.String(""),
 					},
 				},
 				{
 					Instance: &ec2.Instance{
-						State:             &ec2.InstanceState{Name: aws.String("running")},
+						State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 						InstanceLifecycle: aws.String(""),
 					},
@@ -2580,21 +2577,21 @@ func TestGetAnySpotInstance(t *testing.T) {
 				map[string]*instance{
 					"spot-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"ondemand-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
 						},
 					},
 					"ondemand-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
 						},
@@ -2608,28 +2605,28 @@ func TestGetAnySpotInstance(t *testing.T) {
 				map[string]*instance{
 					"spot-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"spot-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"ondemand-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
 						},
 					},
 					"ondemand-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
 						},
@@ -2638,7 +2635,7 @@ func TestGetAnySpotInstance(t *testing.T) {
 			),
 			expected: []*instance{{
 				Instance: &ec2.Instance{
-					State:             &ec2.InstanceState{Name: aws.String("running")},
+					State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 					Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 					InstanceLifecycle: aws.String("spot"),
 				}},
@@ -2649,28 +2646,28 @@ func TestGetAnySpotInstance(t *testing.T) {
 				map[string]*instance{
 					"spot-running1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"spot-running2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
 					},
 					"ondemand-stopped": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("stopped")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
 						},
 					},
 					"ondemand-running": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String("running")},
+							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
 						},
@@ -2680,14 +2677,14 @@ func TestGetAnySpotInstance(t *testing.T) {
 			expected: []*instance{
 				{
 					Instance: &ec2.Instance{
-						State:             &ec2.InstanceState{Name: aws.String("running")},
+						State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 						InstanceLifecycle: aws.String("spot"),
 					},
 				},
 				{
 					Instance: &ec2.Instance{
-						State:             &ec2.InstanceState{Name: aws.String("running")},
+						State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 						InstanceLifecycle: aws.String("spot"),
 					},
@@ -2750,7 +2747,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 						"ondemand-stopped": {
 							Instance: &ec2.Instance{
 								InstanceId:        aws.String("ondemand-stopped"),
-								State:             &ec2.InstanceState{Name: aws.String("stopped")},
+								State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 								Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 								InstanceLifecycle: aws.String(""),
 							},
@@ -2770,7 +2767,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 						"ondemand-running": {
 							Instance: &ec2.Instance{
 								InstanceId:        aws.String("ondemand-running"),
-								State:             &ec2.InstanceState{Name: aws.String("running")},
+								State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 								Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 								InstanceLifecycle: aws.String(""),
 							},
@@ -2805,7 +2802,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							"spot-running": {
 								Instance: &ec2.Instance{
 									InstanceId:        aws.String("spot-running"),
-									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 									InstanceLifecycle: aws.String("spot"),
 								},
@@ -2821,7 +2818,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							"ondemand-stopped": {
 								Instance: &ec2.Instance{
 									InstanceId:        aws.String("ondemand-stopped"),
-									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 									InstanceLifecycle: aws.String(""),
 								},
@@ -2837,7 +2834,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							"ondemand-running": {
 								Instance: &ec2.Instance{
 									InstanceId:        aws.String("ondemand-running"),
-									State:             &ec2.InstanceState{Name: aws.String("running")},
+									State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 									InstanceLifecycle: aws.String(""),
 								},
@@ -2870,7 +2867,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 						"ondemand-running": {
 							Instance: &ec2.Instance{
 								InstanceId:        aws.String("ondemand-running"),
-								State:             &ec2.InstanceState{Name: aws.String("running")},
+								State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 								Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 								InstanceLifecycle: aws.String(""),
 							},
@@ -2905,7 +2902,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							"spot-running": {
 								Instance: &ec2.Instance{
 									InstanceId:        aws.String("spot-running"),
-									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 									InstanceLifecycle: aws.String("spot"),
 								},
@@ -2949,7 +2946,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							"spot-running": {
 								Instance: &ec2.Instance{
 									InstanceId:        aws.String("spot-running"),
-									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 									InstanceLifecycle: aws.String("spot"),
 								},
@@ -2957,7 +2954,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							"ondemand-stopped": {
 								Instance: &ec2.Instance{
 									InstanceId:        aws.String("ondemand-stopped"),
-									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 									InstanceLifecycle: aws.String(""),
 								},
@@ -2965,7 +2962,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							"ondemand-running": {
 								Instance: &ec2.Instance{
 									InstanceId:        aws.String("ondemand-running"),
-									State:             &ec2.InstanceState{Name: aws.String("running")},
+									State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 									InstanceLifecycle: aws.String(""),
 								},
@@ -3002,7 +2999,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							"spot-running": {
 								Instance: &ec2.Instance{
 									InstanceId:        aws.String("spot-running"),
-									State:             &ec2.InstanceState{Name: aws.String("stopped")},
+									State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1z")},
 									InstanceLifecycle: aws.String("spot"),
 								},
@@ -3609,7 +3606,7 @@ func TestProcessInstanceID(t *testing.T) {
 							ec2: &mockEC2{
 								disro: &ec2.DescribeInstanceStatusOutput{
 									InstanceStatuses: []*ec2.InstanceStatus{
-										{InstanceState: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}},
+										{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}},
 									},
 								},
 							},
@@ -3663,7 +3660,7 @@ func TestProcessInstanceID(t *testing.T) {
 							ec2: &mockEC2{
 								disro: &ec2.DescribeInstanceStatusOutput{
 									InstanceStatuses: []*ec2.InstanceStatus{
-										{InstanceState: &ec2.InstanceState{Name: aws.String("pending"), Code: aws.Int64(0)}},
+										{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNamePending), Code: aws.Int64(0)}},
 									},
 								},
 							},
@@ -3703,8 +3700,8 @@ func TestProcessInstanceID(t *testing.T) {
 				},
 			},
 			instances: map[string]*instance{
-				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f"), State: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}}},
-				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff"), State: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}}},
+				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f"), State: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}}},
+				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff"), State: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}}},
 			},
 			expectedEligibleSIR:        false,
 			expectedInstanceNotRunning: false,
@@ -3776,7 +3773,7 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 		CreateTagsCalled: make(map[string]bool),
 		disro: &ec2.DescribeInstanceStatusOutput{
 			InstanceStatuses: []*ec2.InstanceStatus{
-				{InstanceState: &ec2.InstanceState{Name: aws.String("terminated"), Code: aws.Int64(48)}},
+				{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameTerminated), Code: aws.Int64(48)}},
 			},
 		},
 	}
@@ -3823,7 +3820,7 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 						ec2: &mockEC2{
 							disro: &ec2.DescribeInstanceStatusOutput{
 								InstanceStatuses: []*ec2.InstanceStatus{
-									{InstanceState: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}},
+									{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}},
 								},
 							},
 						},
@@ -3900,7 +3897,7 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 						ec2: &mockEC2{
 							disro: &ec2.DescribeInstanceStatusOutput{
 								InstanceStatuses: []*ec2.InstanceStatus{
-									{InstanceState: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}},
+									{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}},
 								},
 							},
 						},
@@ -3943,7 +3940,7 @@ func TestFindSpotInstanceRequest(t *testing.T) {
 						ec2: &mockEC2{
 							disro: &ec2.DescribeInstanceStatusOutput{
 								InstanceStatuses: []*ec2.InstanceStatus{
-									{InstanceState: &ec2.InstanceState{Name: aws.String("running"), Code: aws.Int64(16)}},
+									{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}},
 								},
 							},
 						},
