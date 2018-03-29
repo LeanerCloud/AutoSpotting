@@ -139,6 +139,17 @@ module "autospotting" {
 }
 ```
 
+Instead of using a local file you can refer to the Lambda code in a location in S3:
+
+```hcl
+module "autospotting" {
+  source = "github.com/cristim/autospotting//terraform/autospotting"
+
+  lambda_s3_bucket = "lambda-releases"
+  lambda_s3_key    = "autospotting.zip"
+}
+```
+
 Note: Apart from AWS variable, no variables are required. The module can be run
 as such, and would function. But you might want to tweak at least the default
 on-demand values and/or the regions in which autospotting runs.
