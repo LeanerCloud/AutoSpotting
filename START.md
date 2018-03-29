@@ -98,12 +98,11 @@ If you are only using autospotting as such, you can install the stack by doing:
 
 ``` shell
  cd terraform/
- terraform get # in order for terraform to get the module
- terraform init # fetches required plugin for terraform
+ terraform init # fetches required plugin and modules for terraform
  export AWS_DEFAULT_REGION=XXXX
  export AWS_ACCESS_KEY_ID=XXXX
  export AWS_SECRET_ACCESS_KEY=XXXX
- terraform apply
+ terraform apply -auto-approve
 ```
 
 To use custom parameters, please refer to the `variables.tf` in `terraform/`.
@@ -119,9 +118,9 @@ Here is an example modifying both autospotting and lambda configuration:
 When you are using autospotting integrated to your infrastructure, then you can
 use the module directly:
 
-``` shell
+```hcl
 module "autospotting" {
-  source = "github.com/cristim/autospotting/terraform/autospotting"
+  source = "github.com/cristim/autospotting//terraform/autospotting"
 
   autospotting_disallowed_instance_types = "t2.*"
   autospotting_min_on_demand_number = "0"
