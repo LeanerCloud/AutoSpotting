@@ -6,6 +6,9 @@
     * [Installation options](#installation-options)
     * [Install via cloudformation](#install-via-cloudformation)
     * [Install via terraform](#install-via-terraform)
+      * [Default install](#default-install)
+      * [Install module from local file](#install-module-from-local-file)
+      * [Install module from S3](#install-module-from-s3)
   * [Enable autospotting](#enable-autospotting)
     * [For an AutoScaling group](#for-an-autoscaling-group)
     * [For Elastic Beanstalk](#for-elastic-beanstalk)
@@ -84,6 +87,8 @@ Notes:
 
 ### Install via terraform ###
 
+#### Default install ####
+
 To install it via terraform, you need to have
 [terraform installed](https://www.terraform.io/downloads.html) on your machine.
 
@@ -105,6 +110,11 @@ If you are only using autospotting as such, you can install the stack by doing:
  terraform apply -auto-approve
 ```
 
+Note: Apart from AWS variable, no variables are required. The module can be run
+as such, and would function. But you might want to tweak at least the default
+on-demand values and/or the regions in which autospotting runs.
+The extra parameters can also be overridden to suit your needs.
+
 To use custom parameters, please refer to the `variables.tf` in `terraform/`.
 Here is an example modifying both autospotting and lambda configuration:
 
@@ -114,6 +124,8 @@ Here is an example modifying both autospotting and lambda configuration:
    -var asg_min_on_demand_percentage="33.3" \
    -var lambda_memory_size=1024
 ```
+
+#### Install module from local file ####
 
 When you are using autospotting integrated to your infrastructure, then you can
 use the module directly:
@@ -139,7 +151,9 @@ module "autospotting" {
 }
 ```
 
-Instead of using a local file you can refer to the Lambda code in a location in S3:
+#### Install module from S3 ####
+
+Instead of using a local ZIP file you can refer to the Lambda code in a location in S3:
 
 ```hcl
 module "autospotting" {
@@ -149,11 +163,6 @@ module "autospotting" {
   lambda_s3_key    = "autospotting.zip"
 }
 ```
-
-Note: Apart from AWS variable, no variables are required. The module can be run
-as such, and would function. But you might want to tweak at least the default
-on-demand values and/or the regions in which autospotting runs.
-The extra parameters can also be overridden to suit your needs.
 
 ## Enable autospotting ##
 
