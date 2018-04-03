@@ -6,6 +6,9 @@
     * [Installation options](#installation-options)
     * [Install via cloudformation](#install-via-cloudformation)
     * [Install via terraform](#install-via-terraform)
+      * [Default install](#default-install)
+      * [Install module from local file](#install-module-from-local-file)
+      * [Install module from S3](#install-module-from-s3)
   * [Enable autospotting](#enable-autospotting)
     * [For an AutoScaling group](#for-an-autoscaling-group)
     * [For Elastic Beanstalk](#for-elastic-beanstalk)
@@ -84,6 +87,8 @@ Notes:
 
 ### Install via terraform ###
 
+#### Default install ####
+
 To install it via terraform, you need to have
 [terraform installed](https://www.terraform.io/downloads.html) on your machine.
 
@@ -98,13 +103,17 @@ If you are only using autospotting as such, you can install the stack by doing:
 
 ``` shell
  cd terraform/
- terraform get # in order for terraform to get the module
- terraform init # fetches required plugin for terraform
+ terraform init # fetches required plugin and modules for terraform
  export AWS_DEFAULT_REGION=XXXX
  export AWS_ACCESS_KEY_ID=XXXX
  export AWS_SECRET_ACCESS_KEY=XXXX
- terraform apply
+ terraform apply -auto-approve
 ```
+
+Note: Apart from AWS variable, no variables are required. The module can be run
+as such, and would function. But you might want to tweak at least the default
+on-demand values and/or the regions in which autospotting runs.
+The extra parameters can also be overridden to suit your needs.
 
 To use custom parameters, please refer to the `variables.tf` in `terraform/`.
 Here is an example modifying both autospotting and lambda configuration:
@@ -116,12 +125,14 @@ Here is an example modifying both autospotting and lambda configuration:
    -var lambda_memory_size=1024
 ```
 
+#### Install module from local file ####
+
 When you are using autospotting integrated to your infrastructure, then you can
 use the module directly:
 
-``` shell
+```hcl
 module "autospotting" {
-  source = "github.com/cristim/autospotting/terraform/autospotting"
+  source = "github.com/cristim/autospotting//terraform/autospotting"
 
   autospotting_disallowed_instance_types = "t2.*"
   autospotting_min_on_demand_number = "0"
@@ -140,10 +151,18 @@ module "autospotting" {
 }
 ```
 
-Note: Apart from AWS variable, no variables are required. The module can be run
-as such, and would function. But you might want to tweak at least the default
-on-demand values and/or the regions in which autospotting runs.
-The extra parameters can also be overridden to suit your needs.
+#### Install module from S3 ####
+
+Instead of using a local ZIP file you can refer to the Lambda code in a location in S3:
+
+```hcl
+module "autospotting" {
+  source = "github.com/cristim/autospotting//terraform/autospotting"
+
+  lambda_s3_bucket = "lambda-releases"
+  lambda_s3_key    = "autospotting.zip"
+}
+```
 
 ## Enable autospotting ##
 

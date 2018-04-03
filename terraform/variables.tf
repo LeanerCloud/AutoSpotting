@@ -65,6 +65,16 @@ variable "lambda_zipname" {
   default     = "../build/s3/nightly/lambda.zip"
 }
 
+variable "lambda_s3_bucket" {
+  description = "Bucket which the archive is stored in"
+  default     = ""
+}
+
+variable "lambda_s3_key" {
+  description = "Key in S3 under which the archive is stored"
+  default     = ""
+}
+
 variable "lambda_runtime" {
   description = "Environment the lambda function runs in"
   default     = "go1.x"
