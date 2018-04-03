@@ -9,3 +9,4 @@ handler.zip
 terraform/.terraform/
 terraform.tfstate*
 Makefile.lambda
+.terraform/

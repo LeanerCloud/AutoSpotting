@@ -1,27 +1,26 @@
-resource "aws_lambda_function" "autospotting" {
-  function_name    = "autospotting"
-  filename         = "${var.lambda_zipname}"
-  source_code_hash = "${base64sha256(file("${var.lambda_zipname}"))}"
-  role             = "${aws_iam_role.autospotting_role.arn}"
-  runtime          = "${var.lambda_runtime}"
-  timeout          = "${var.lambda_timeout}"
-  handler          = "autospotting"
-  memory_size      = "${var.lambda_memory_size}"
+module "aws_lambda_function" {
+  source = "./lambda"
 
-  environment {
-    variables = {
-      ALLOWED_INSTANCE_TYPES       = "${var.autospotting_allowed_instance_types}"
-      DISALLOWED_INSTANCE_TYPES    = "${var.autospotting_disallowed_instance_types}"
-      MIN_ON_DEMAND_NUMBER         = "${var.autospotting_min_on_demand_number}"
-      MIN_ON_DEMAND_PERCENTAGE     = "${var.autospotting_min_on_demand_percentage}"
-      ON_DEMAND_PRICE_MULTIPLIER   = "${var.autospotting_on_demand_price_multiplier}"
-      SPOT_PRICE_BUFFER_PERCENTAGE = "${var.autospotting_spot_price_buffer_percentage}"
-      SPOT_PRODUCT_DESCRIPTION     = "${var.autospotting_spot_product_description}"
-      BIDDING_POLICY               = "${var.autospotting_bidding_policy}"
-      REGIONS                      = "${var.autospotting_regions_enabled}"
-      TAG_FILTERS                  = "${var.autospotting_tag_filters}"
-    }
-  }
+  lambda_zipname = "${var.lambda_zipname}"
+
+  lambda_s3_bucket = "${var.lambda_s3_bucket}"
+  lambda_s3_key    = "${var.lambda_s3_key}"
+
+  lambda_role_arn    = "${aws_iam_role.autospotting_role.arn}"
+  lambda_runtime     = "${var.lambda_runtime}"
+  lambda_timeout     = "${var.lambda_timeout}"
+  lambda_memory_size = "${var.lambda_memory_size}"
+
+  autospotting_allowed_instance_types       = "${var.autospotting_allowed_instance_types}"
+  autospotting_disallowed_instance_types    = "${var.autospotting_disallowed_instance_types}"
+  autospotting_min_on_demand_number         = "${var.autospotting_min_on_demand_number}"
+  autospotting_min_on_demand_percentage     = "${var.autospotting_min_on_demand_percentage}"
+  autospotting_on_demand_price_multiplier   = "${var.autospotting_on_demand_price_multiplier}"
+  autospotting_spot_price_buffer_percentage = "${var.autospotting_spot_price_buffer_percentage}"
+  autospotting_spot_product_description     = "${var.autospotting_spot_product_description}"
+  autospotting_bidding_policy               = "${var.autospotting_bidding_policy}"
+  autospotting_regions_enabled              = "${var.autospotting_regions_enabled}"
+  autospotting_tag_filters                  = "${var.autospotting_tag_filters}"
 }
 
 resource "aws_iam_role" "autospotting_role" {
@@ -40,7 +39,7 @@ resource "aws_iam_role_policy" "autospotting_policy" {
 resource "aws_lambda_permission" "cloudwatch_events_permission" {
   statement_id  = "AllowExecutionFromCloudWatch"
   action        = "lambda:InvokeFunction"
-  function_name = "${aws_lambda_function.autospotting.function_name}"
+  function_name = "${module.aws_lambda_function.function_name}"
   principal     = "events.amazonaws.com"
   source_arn    = "${aws_cloudwatch_event_rule.cloudwatch_frequency.arn}"
 }
@@ -48,7 +47,7 @@ resource "aws_lambda_permission" "cloudwatch_events_permission" {
 resource "aws_cloudwatch_event_target" "cloudwatch_target" {
   rule      = "${aws_cloudwatch_event_rule.cloudwatch_frequency.name}"
   target_id = "run_autospotting"
-  arn       = "${aws_lambda_function.autospotting.arn}"
+  arn       = "${module.aws_lambda_function.arn}"
 }
 
 resource "aws_cloudwatch_event_rule" "cloudwatch_frequency" {
@@ -57,6 +56,6 @@ resource "aws_cloudwatch_event_rule" "cloudwatch_frequency" {
 }
 
 resource "aws_cloudwatch_log_group" "log_group_autospotting" {
-  name              = "/aws/lambda/${aws_lambda_function.autospotting.function_name}"
+  name              = "/aws/lambda/${module.aws_lambda_function.function_name}"
   retention_in_days = 7
 }

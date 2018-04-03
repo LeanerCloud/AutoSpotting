@@ -57,6 +57,17 @@ variable "autospotting_spot_product_description" {
 # Lambda configuration
 variable "lambda_zipname" {
   description = "Name of the archive"
+  default     = ""
+}
+
+variable "lambda_s3_bucket" {
+  description = "Bucket which the archive is stored in"
+  default     = ""
+}
+
+variable "lambda_s3_key" {
+  description = "Key in S3 under which the archive is stored"
+  default     = ""
 }
 
 variable "lambda_runtime" {

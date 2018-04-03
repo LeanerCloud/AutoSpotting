@@ -13,6 +13,8 @@ module "autospotting" {
   autospotting_tag_filters                  = "${var.asg_tag_filters}"
 
   lambda_zipname       = "${var.lambda_zipname}"
+  lambda_s3_bucket     = "${var.lambda_s3_bucket}"
+  lambda_s3_key        = "${var.lambda_s3_key}"
   lambda_runtime       = "${var.lambda_runtime}"
   lambda_memory_size   = "${var.lambda_memory_size}"
   lambda_timeout       = "${var.lambda_timeout}"
