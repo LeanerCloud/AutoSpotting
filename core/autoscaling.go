@@ -917,7 +917,7 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 		return err
 	}
 
-	// Wait till detachment is complete before terminate instance
+	// Wait till detachment initialize is complete before terminate instance
 	time.Sleep(20 * time.Second)
 
 	return a.instances.get(*instanceID).terminate()
