@@ -662,43 +662,43 @@ func isInstanceNotFound(err error) bool {
   Obtain the state of instances to check if terminated or not.
 **/
 func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
-	if instanceID == nil {
-		return InstanceStateCodeTerminated
-	}
+	instanceState := int64(InstanceStateCodeTerminated)
 
-	//
-	// By Default AWS API only returns
-	// instances that are health, As a result you need
-	// to specify the IncludeAllInstances flag to true (default is false)
-	// (https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#DescribeInstanceStatusInput)
-	//
-	svc := a.region.services.ec2
-	input := &ec2.DescribeInstanceStatusInput{
-		InstanceIds: []*string{
-			instanceID,
-		},
-		IncludeAllInstances: aws.Bool(true),
-	}
-
-	out, err := svc.DescribeInstanceStatus(input)
-	if err != nil {
-		if isInstanceNotFound(err) {
-			logger.Println("Instance not found:", *instanceID)
-			return InstanceStateCodeTerminated
+	if instanceID != nil {
+		//
+		// By Default AWS API only returns
+		// instances that are health, As a result you need
+		// to specify the IncludeAllInstances flag to true (default is false)
+		// (https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#DescribeInstanceStatusInput)
+		//
+		svc := a.region.services.ec2
+		input := &ec2.DescribeInstanceStatusInput{
+			InstanceIds: []*string{
+				instanceID,
+			},
+			IncludeAllInstances: aws.Bool(true),
 		}
-		logger.Println("Error describing instance status:", *instanceID, err)
-		return InstanceStateCodePending
-	}
 
-	// Guard Against no result being returned by AWS upstream
-	// Incase of AWS API problem.  AWS docs state 1 or more.
-	// Just checking in case
-	if len(out.InstanceStatuses) > 0 {
-		return *out.InstanceStatuses[0].InstanceState.Code
-	}
+		out, err := svc.DescribeInstanceStatus(input)
+		if err != nil {
+			if isInstanceNotFound(err) {
+				logger.Println("Instance not found:", *instanceID)
+				instanceState = InstanceStateCodeTerminated
+			}
+			logger.Println("Error describing instance status:", *instanceID, err)
+			instanceState = InstanceStateCodePending
+			return instanceState
+		}
 
+		// Guard Against no result being returned by AWS upstream
+		// Incase of AWS API problem.  AWS docs state 1 or more.
+		// Just checking in case
+		if len(out.InstanceStatuses) > 0 {
+			instanceState = *out.InstanceStatuses[0].InstanceState.Code
+		}
+	}
 	// If instance is not showing then it's terminated
-	return InstanceStateCodeTerminated
+	return instanceState
 }
 
 func canTerminateInstance(instanceID *string, instanceState int64) bool {
