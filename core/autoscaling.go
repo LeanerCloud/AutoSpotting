@@ -918,7 +918,7 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 	}
 
 	// Wait till detachment initialize is complete before terminate instance
-    time.Sleep(20 * time.Second * s.region.conf.SleepMultiplier)
+    time.Sleep(20 * time.Second * a.region.conf.SleepMultiplier)
 
 	return a.instances.get(*instanceID).terminate()
 }
