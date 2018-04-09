@@ -349,7 +349,7 @@ func (a *autoScalingGroup) process() {
 			*spotInstanceID, "to", a.name)
 
 		a.replaceOnDemandInstanceWithSpot(spotInstanceID)
-		a.markSpotInstanceRequestAsCompete(spotRequestID)
+		a.markSpotInstanceRequestAsComplete(spotRequestID)
 	} else {
 		// find any given on-demand instance and try to replace it with a spot one
 		onDemandInstance := a.getInstance(nil, true, false)
@@ -371,7 +371,7 @@ func (a *autoScalingGroup) process() {
 	}
 }
 
-func (a *autoScalingGroup) markSpotInstanceRequestAsCompete(spotInstanceRequestID *string) {
+func (a *autoScalingGroup) markSpotInstanceRequestAsComplete(spotInstanceRequestID *string) {
 	svc := a.region.services.ec2
 	input := &ec2.CreateTagsInput{
 		Resources: []*string{spotInstanceRequestID},
@@ -396,7 +396,7 @@ func (a *autoScalingGroup) markSpotInstanceRequestAsCompete(spotInstanceRequestI
 	}
 
 	if tagged {
-		logger.Println("Tagged spot instance request as compete", *spotInstanceRequestID)
+		logger.Println("Tagged spot instance request as complete", *spotInstanceRequestID)
 	}
 
 }
@@ -405,7 +405,7 @@ func (a *autoScalingGroup) filterOutCancelledRequestsWithNoInstances(requests []
 	var outStandingSpotRequests []*ec2.SpotInstanceRequest
 	for _, req := range requests {
 		if *req.State == "cancelled" && req.InstanceId == nil {
-			a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
+			a.markSpotInstanceRequestAsComplete(req.SpotInstanceRequestId)
 		} else {
 			outStandingSpotRequests = append(outStandingSpotRequests, req)
 		}
@@ -487,16 +487,7 @@ func (a *autoScalingGroup) checkDesiredCapacity() {
 	if *a.Group.DesiredCapacity == 0 && len(a.spotInstanceRequests) > 0 {
 		logger.Println("Desired Capacity is Zero. However, there are Spot Instance Requests.  Proceeding with cancelling them")
 		for _, req := range a.spotInstanceRequests {
-			terminated := true
-			err := a.cancelSIR(req.SpotInstanceRequestId)
-
-			if req.InstanceId != nil {
-				terminated = a.terminateInstance(req.InstanceId, a.getInstanceState(req.InstanceId))
-			}
-
-			if err == nil && terminated {
-				a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
-			}
+			a.cancelSIRAndTerminateInstance(req.InstanceId, req.SpotInstanceRequestId, a.getInstanceState(req.InstanceId))
 		}
 	}
 
@@ -667,7 +658,20 @@ func isInstanceNotFound(err error) bool {
 	return false
 }
 
+/**
+  Obtain the state of instances to check if terminated or not.
+**/
 func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
+	if instanceID == nil {
+		return InstanceStateCodeTerminated
+	}
+
+	//
+	// By Default AWS API only returns
+	// instances that are health, As a result you need
+	// to specify the IncludeAllInstances flag to true (default is false)
+	// (https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#DescribeInstanceStatusInput)
+	//
 	svc := a.region.services.ec2
 	input := &ec2.DescribeInstanceStatusInput{
 		InstanceIds: []*string{
@@ -686,6 +690,9 @@ func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
 		return InstanceStateCodePending
 	}
 
+	// Guard Against no result being returned by AWS upstream
+	// Incase of AWS API problem.  AWS docs state 1 or more.
+	// Just checking in case
 	if len(out.InstanceStatuses) > 0 {
 		return *out.InstanceStatuses[0].InstanceState.Code
 	}
@@ -721,18 +728,27 @@ func (a *autoScalingGroup) cancelSIR(sirRequestID *string) error {
 	return err
 }
 
-func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sirRequestID *string, instanceState int64) {
+/**
+  Terminate instance assocated with an SIR, and Cancel the SIR afterwards.
+  Returns 2 booleans, (instanceTerminated, sirCancelled)
+**/
+func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sirRequestID *string, instanceState int64) (bool, bool) {
 
-	if !a.terminateInstance(instanceID, instanceState) {
-		logger.Println("Unable to terminate instance:", *instanceID)
-		return
+	terminatedInstance := true
+	if instanceID != nil {
+		if !a.terminateInstance(instanceID, instanceState) {
+			logger.Println("Unable to terminate instance:", *instanceID)
+			return false, false
+		}
 	}
 
 	err := a.cancelSIR(sirRequestID)
-
-	if err == nil {
-		a.markSpotInstanceRequestAsCompete(sirRequestID)
+	sirCancelled := err == nil
+	if sirCancelled {
+		a.markSpotInstanceRequestAsComplete(sirRequestID)
 	}
+
+	return terminatedInstance, sirCancelled
 }
 
 func (a *autoScalingGroup) processUnattachedRunningInstance(req *spotInstanceRequest, instanceID *string) (bool, bool) {
@@ -761,30 +777,42 @@ func isInstanceRunning(spotInstanceRunning int64) bool {
 	return spotInstanceRunning == InstanceStateCodeRunning
 }
 
-func isInstanceInUsableState(spotInstanceRequest int64) bool {
+func instanceIsNotInUsableState(spotInstanceRequest int64) bool {
 	return spotInstanceRequest > InstanceStateCodeRunning
 }
 
-func (a *autoScalingGroup) processUnattachedInstance(req *spotInstanceRequest, instanceID *string) (bool, bool) {
-	// var validRequest *spotInstanceRequest
-	// processNextSIR, waitForNextExecution := false, false
+/*
+Check the state of an instance that is associated to the SIR.
+If the instance is running, it is tagged with ASG values
+If the instance is not useable (terminated, stopped, shutting down)
+the SIR is cancelled and the instance terminated.
 
+Returns 2 booleans (Is the SIR usable, Is the Associated SIR Instance Running)
+*/
+func (a *autoScalingGroup) processUnattachedInstanceFromSIR(req *spotInstanceRequest, instanceID *string) (bool, bool) {
 	spotInstanceRunning := a.getInstanceState(instanceID)
 	if isInstanceRunning(spotInstanceRunning) {
 		return a.processUnattachedRunningInstance(req, instanceID)
-	} else if isInstanceInUsableState(spotInstanceRunning) {
-		// stopped, terminated, shutting-dowm etc,
+	} else if instanceIsNotInUsableState(spotInstanceRunning) {
+		// stopped, terminated, shutting-down etc,
 		a.cancelSIRAndTerminateInstance(instanceID, req.SpotInstanceRequestId, spotInstanceRunning)
-		// processNextSIR = true
 		return false, false
-	} else {
-		logger.Println(a.name, "Active bid was found, with no running "+
-			"instances, waiting for an instance to start ...")
-		return true, true
 	}
-
+	logger.Println(a.name, "Active bid was found, with no running "+
+		"instances, waiting for an instance to start ...")
+	return true, true
 }
 
+/*
+  Checks if the SIR associate instance is already attached to the ASG or not.
+  If not, checks if the Associated Instance is usable (running), or not.
+
+  If the Instance is terminated, stopped or shutdown, the SIR is invalid and should not be used.
+  Otherwise the Instance is coming up and the SIR is potentially eligible to use
+
+  Returns 2 booleans (Is the SIR usable, Is the Associated SIR Instance Running)
+
+*/
 func (a *autoScalingGroup) processInstanceID(req *spotInstanceRequest, instanceID *string) (bool, bool) {
 	//
 	// If the instance is already in the group we should mark the
@@ -793,7 +821,7 @@ func (a *autoScalingGroup) processInstanceID(req *spotInstanceRequest, instanceI
 	if a.instances.get(*instanceID) != nil {
 		logger.Println(a.name, "Instance", instanceID,
 			"is already attached to the ASG, tagging SIR as complete and skipping...")
-		a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
+		a.markSpotInstanceRequestAsComplete(req.SpotInstanceRequestId)
 		return false, false
 		// In case the instance wasn't yet attached, we prepare to attach it.
 	}
@@ -801,39 +829,29 @@ func (a *autoScalingGroup) processInstanceID(req *spotInstanceRequest, instanceI
 	logger.Println(a.name, "Instance", *instanceID,
 		"is not yet attached to the ASG, checking if it's running")
 
-	return a.processUnattachedInstance(req, instanceID)
+	return a.processUnattachedInstanceFromSIR(req, instanceID)
 }
 
 func (a *autoScalingGroup) isSpotInstanceRequestClosedAndComplete(req *spotInstanceRequest) bool {
 	isComplete := false
 	switch *req.State {
-	case "cancelled":
+	case ec2.SpotInstanceStateCancelled:
 		if req.InstanceId == nil {
 			isComplete = true
 		}
-	case "failed":
+	case ec2.SpotInstanceStateFailed:
 		fallthrough
-	case "closed":
+	case ec2.SpotInstanceStateClosed:
 		isComplete = true
 	}
 	if isComplete {
-		a.markSpotInstanceRequestAsCompete(req.SpotInstanceRequestId)
+		a.markSpotInstanceRequestAsComplete(req.SpotInstanceRequestId)
 	}
 	return isComplete
 }
 
 func (a *autoScalingGroup) isOpenOrActiveRequestWithNoInstance(req *spotInstanceRequest) bool {
-	switch *req.State {
-	case "active":
-		fallthrough
-	case "open":
-		if req.InstanceId == nil {
-			return true
-		}
-		return false
-	default:
-		return false
-	}
+	return (*req.State == ec2.SpotInstanceStateActive || *req.State == ec2.SpotInstanceStateOpen) && req.InstanceId == nil
 }
 
 func (a *autoScalingGroup) removeClosedOrCompleteRequests(requests []*spotInstanceRequest) []*spotInstanceRequest {
@@ -841,9 +859,7 @@ func (a *autoScalingGroup) removeClosedOrCompleteRequests(requests []*spotInstan
 	for _, req := range a.spotInstanceRequests {
 		// If spot request is failed, closed or cancelled with no instances
 		// continue to next SIR
-		if a.isSpotInstanceRequestClosedAndComplete(req) {
-			continue
-		} else {
+		if a.isSpotInstanceRequestClosedAndComplete(req) == false {
 			filtered = append(filtered, req)
 		}
 	}
@@ -900,9 +916,7 @@ func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool
 
 	eligibleRequestsWithInstances, additionalEligibleRequestsWithNoInstances := a.filterRequestsWithRunningInstances(potentialRequestsWithInstances)
 
-	for _, req := range additionalEligibleRequestsWithNoInstances {
-		eligibleRequestsWithNoInstances = append(eligibleRequestsWithNoInstances, req)
-	}
+	eligibleRequestsWithNoInstances = append(eligibleRequestsWithNoInstances, additionalEligibleRequestsWithNoInstances...)
 
 	if len(eligibleRequestsWithInstances) > 0 {
 		return eligibleRequestsWithInstances[0], false
@@ -978,7 +992,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, *string, 
 				SpotInstanceRequestIds: []*string{activeSpotInstanceRequest.SpotInstanceRequestId},
 			})
 
-		a.markSpotInstanceRequestAsCompete(activeSpotInstanceRequest.SpotInstanceRequestId)
+		a.markSpotInstanceRequestAsComplete(activeSpotInstanceRequest.SpotInstanceRequestId)
 		return nil, activeSpotInstanceRequest.SpotInstanceRequestId, true
 	}
 
@@ -1194,7 +1208,7 @@ func (a *autoScalingGroup) bidForSpotInstance(
 	// interrupted by the lambda function's timeout, so we also need to check in
 	// the next run if we have any open spot requests with no instances and
 	// resume the wait there.
-	// return sr.waitForAndTagSpotInstance()
+
 	return nil
 }
 

@@ -3496,6 +3496,7 @@ func TestFilteringCompleteSIRRequests(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		// If the test is expecting results but we get none; then we should faile the tests
 		filteredSIRRequests := filterOutCompleteSpotInstanceRequests(tt.foundSIRRequests)
 		if len(filteredSIRRequests) == 0 {
 			if len(tt.expectedSIRRequests) != 0 {
