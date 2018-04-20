@@ -1,4 +1,5 @@
 ---
+<<<<<<< HEAD
 # Note: this is just an example on how the stack can be executed in a test
 # setting, you may want to change it for your production use case.
 
@@ -39,4 +40,13 @@ MinOnDemandNumber: '1'
 SpotProductDescription: Linux/UNIX (Amazon VPC)
 
 # Valid choices: opt-in (default), opt-out
+=======
+ExecutionFrequency: rate(1 minute)
+LambdaHandlerFunction: autospotting
+LambdaMemorySize: '1024'
+LambdaS3Bucket: cloudprowess
+LambdaZipPath: nightly/lambda.zip
+MinOnDemandNumber: '1'
+SpotProductDescription: Linux/UNIX (Amazon VPC)
+>>>>>>> 5620ae5... Convert the CloudFormation stack to YAML format
 TagFilteringMode: opt-out
