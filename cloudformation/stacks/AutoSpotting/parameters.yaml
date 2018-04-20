@@ -1,17 +1,9 @@
 ---
-# Note: this is just an example on how the stack can be executed in a test
-# setting, you may want to change it for your production use case.
-
-# This file is handled automatically using the clouds-aws tool. It can be
-# installed using pip, or from https://github.com/elias5000/clouds-aws
-LambdaZipPath: nightly/lambda.zip
-LambdaHandlerFunction: autospotting # Changed after the Lambda runtime was switched to Go, changing this value requires stack re-creation or also an update of the LambdaZipPath
-LambdaS3Bucket: cloudprowess
+ExecutionFrequency: rate(1 minute)
+LambdaHandlerFunction: autospotting
 LambdaMemorySize: '1024'
-ExecutionFrequency: "rate(1 minute)"
+LambdaS3Bucket: cloudprowess
+LambdaZipPath: nightly/lambda.zip
 MinOnDemandNumber: '1'
-
-# Valid choices:
-# - for EC2 Classic environments: Linux/UNIX | SUSE Linux | Windows
-# - for VPC: Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)
-SpotProductDescription: "Linux/UNIX (Amazon VPC)"
+SpotProductDescription: Linux/UNIX (Amazon VPC)
+TagFilteringMode: opt-out
