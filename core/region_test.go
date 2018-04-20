@@ -436,6 +436,50 @@ func TestFilterAsgs(t *testing.T) {
 			},
 		},
 		{
+			name: "Test opt-out mode",
+			// Run on all groups except for those tagged with spot-enabled=false
+			want: []string{"asg2", "asg3", "asg4"},
+			tregion: &region{
+				tagsToFilterASGsBy: []Tag{{Key: "spot-enabled", Value: "false"}},
+				conf:               &Config{TagFilteringMode: "opt-out"},
+				services: connections{
+					autoScaling: mockASG{
+						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+							AutoScalingGroups: []*autoscaling.Group{
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg1")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("false"), ResourceId: aws.String("asg1")},
+									},
+									AutoScalingGroupName: aws.String("asg1"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg2")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
+									},
+									AutoScalingGroupName: aws.String("asg2"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
+									},
+									AutoScalingGroupName: aws.String("asg3"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg4")},
+									},
+									AutoScalingGroupName: aws.String("asg4"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+
+		{
 			name: "Test with two filters",
 			want: []string{"asg3", "asg4"},
 			tregion: &region{

@@ -93,7 +93,16 @@
       "Default": "",
       "Description": "Comma separated list of tag=value on which to filter the ASGs that autospotting considers.  By default (if no filters are specific) then 'spot-enabled=true' is used.  Example: 'spot-enabled=true,environment=dev'",
       "Type": "String"
-    }
+      },
+    "TagFilteringMode": {
+        "Description": "Controls the behavior against the AutoScaling groups tagged as per the FilterByTags option. Defaults to 'opt-in', only processing the tagged groups. The opposite behavior can be configured using the opt-out mode",
+        "Type": "String",
+        "Default": "opt-in",
+        "AllowedValues" : [
+          "opt-in",
+          "opt-out"
+        ]
+      }
   },
   "Resources": {
     "LambdaExecutionRole": {
@@ -131,7 +140,8 @@
             "REGIONS": { "Ref": "Regions" },
             "ALLOWED_INSTANCE_TYPES": { "Ref": "AllowedInstanceTypes" },
             "DISALLOWED_INSTANCE_TYPES": { "Ref": "DisallowedInstanceTypes" },
-            "TAG_FILTERS": { "Ref": "FilterByTags" }
+            "TAG_FILTERS": { "Ref": "FilterByTags" },
+            "TAG_FILTERING_MODE": { "Ref": "TagFilteringMode" }
           }
         },
         "Handler": { "Ref": "LambdaHandlerFunction" },

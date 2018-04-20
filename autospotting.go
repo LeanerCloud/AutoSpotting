@@ -44,6 +44,7 @@ func run() {
 		"spot_price_buffer_percentage=%.3f "+
 		"bidding_policy=%s "+
 		"tag_filters=%s "+
+		"tag_filter_mode=%s "+
 		"spot_product_description=%v",
 		conf.Regions,
 		conf.MinOnDemandNumber,
@@ -54,6 +55,7 @@ func run() {
 		conf.SpotPriceBufferPercentage,
 		conf.BiddingPolicy,
 		conf.FilterByTags,
+		conf.TagFilteringMode,
 		conf.SpotProductDescription)
 
 	autospotting.Run(conf.Config)
@@ -146,14 +148,24 @@ func (c *cfgData) parseCommandLineFlags() {
 
 	flag.StringVar(&c.SpotProductDescription, "spot_product_description", autospotting.DefaultSpotProductDescription,
 		"\n\tThe Spot Product or operating system to use when looking up spot price history in the market.\n"+
-			"\tValid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)\n")
+			"\tValid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | \n"+
+			"\tSUSE Linux (Amazon VPC) | Windows (Amazon VPC)\n"+
+			"\tDefault value: "+autospotting.DefaultSpotProductDescription+"\n")
 
 	flag.StringVar(&c.BiddingPolicy, "bidding_policy", autospotting.DefaultBiddingPolicy,
 		"\n\tPolicy choice for spot bid. If set to 'normal', we bid at the on-demand price.\n"+
-			"\tIf set to 'aggressive', we bid at a percentage value above the spot price configurable using the spot_price_buffer_percentage.\n")
+			"\tIf set to 'aggressive', we bid at a percentage value above the spot price \n"+
+			"\tconfigurable using the spot_price_buffer_percentage.\n")
 
-	flag.StringVar(&c.FilterByTags, "tag_filters", "", "Set of tags to filter the ASGs on.  Default if no value is set will be the equivalent of -tag_filters 'spot-enabled=true'\n\t"+
-		"Example: ./autospotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
+	flag.StringVar(&c.FilterByTags, "tag_filters", "", "\n\tSet of tags to filter the ASGs on.\n"+
+		"\tDefault if no value is set will be the equivalent of -tag_filters 'spot-enabled=true'\n"+
+		"\tIn case the tag_filtering_mode is set to opt-out, it defaults to 'spot-enabled=false'\n"+
+		"\tExample: ./autospotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
+
+	flag.StringVar(&c.TagFilteringMode, "tag_filtering_mode", "opt-in",
+		"\n\tControls the behavior of the tag_filters option. \n"+
+			"\tValid choices: 'opt-in' | 'opt-out'. Default value: 'opt-in'\n"+
+			"\tExample: ./autospotting --tag_filtering_mode 'opt-out'\n")
 
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 

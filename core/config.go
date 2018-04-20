@@ -39,4 +39,7 @@ type Config struct {
 	// Filter on ASG tags
 	// for example: spot-enabled=true,environment=dev,team=interactive
 	FilterByTags string
+	// Controls how are the tags used to filter the groups.
+	// Available options: 'opt-in' and 'opt-out', default: 'opt-in'
+	TagFilteringMode string
 }

@@ -21,6 +21,7 @@ module "aws_lambda_function" {
   autospotting_bidding_policy               = "${var.autospotting_bidding_policy}"
   autospotting_regions_enabled              = "${var.autospotting_regions_enabled}"
   autospotting_tag_filters                  = "${var.autospotting_tag_filters}"
+  autospotting_tag_filtering_mode           = "${var.autospotting_tag_filtering_mode}"
 }
 
 resource "aws_iam_role" "autospotting_role" {
