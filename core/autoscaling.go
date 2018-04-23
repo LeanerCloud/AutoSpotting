@@ -618,8 +618,6 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 		return err
 	}
 
-	// Wait till detachment initialize is complete before terminate instance
-	time.Sleep(20 * time.Second * a.region.conf.SleepMultiplier)
 	return nil
 }
 
