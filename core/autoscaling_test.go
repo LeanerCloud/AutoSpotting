@@ -1291,6 +1291,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 				services: connections{
 					autoScaling: mockASG{},
 				},
+				conf: &Config{},
 			},
 		},
 		{name: "ASG has just enough on-demand instances running",
