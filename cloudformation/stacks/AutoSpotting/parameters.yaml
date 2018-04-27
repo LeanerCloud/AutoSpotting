@@ -9,6 +9,9 @@
 # Default value: rate(5 minutes)
 ExecutionFrequency: rate(1 minute)
 
+LambdaFunctionTagKey: Name
+LambdaFunctionTagValue: autospotting
+
 # This only needs to be changed if you update from an old build that was using
 # the Python shim for Go before AWS released official Go support for Lambda.
 # Because Lambda caches the code based on the path, you likely also need to

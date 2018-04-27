@@ -42,6 +42,14 @@
         'spot-enabled=true' is used.  Example:
         'spot-enabled=true,environment=dev'"
       Type: "String"
+    LambdaFunctionTagKey:
+      Description: "Name of the to be applied to the Lambda function"
+      Default: "Name"
+      Type: "String"
+    LambdaFunctionTagValue:
+      Description: "Value of the tag to be applied to the Lambda function"
+      Default: "autospotting"
+      Type: "String"
     LambdaHandlerFunction:
       Default: "autospotting"
       Description: "Handler function for Lambda"
@@ -188,6 +196,12 @@
             - "LambdaExecutionRole"
             - "Arn"
         Runtime: "go1.x"
+        Tags:
+          -
+            Key:
+              Ref: "LambdaFunctionTagKey"
+            Value:
+              Ref: "LambdaFunctionTagValue"
         Timeout: "300"
       Type: "AWS::Lambda::Function"
     LambdaPolicy:
