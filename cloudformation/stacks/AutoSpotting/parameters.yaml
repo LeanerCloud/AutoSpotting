@@ -9,6 +9,7 @@
 # Default value: rate(5 minutes)
 ExecutionFrequency: rate(1 minute)
 
+# Tag to be applied on the Lambda function
 LambdaFunctionTagKey: Name
 LambdaFunctionTagValue: autospotting
 
