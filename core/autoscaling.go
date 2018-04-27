@@ -598,15 +598,15 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string) error {
 	return nil
 }
 
-// Terminates an on-demand instance from the group,
-// but only after it was detached from the autoscaling group
+// Terminates an on-demand instance from the group using the
+// TerminateInstanceInAutoScalingGroup api call.
 func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	instanceID *string) error {
 	logger.Println(a.region.name,
 		a.name,
-		"Detaching and terminating instance:",
+		"Terminating instance:",
 		*instanceID)
-	// detach the on-demand instance
+	// terminate the on-demand instance
 	terminateParams := autoscaling.TerminateInstanceInAutoScalingGroupInput{
 		InstanceId:                     instanceID,
 		ShouldDecrementDesiredCapacity: aws.Bool(true),
