@@ -42,8 +42,12 @@ func Run(cfg *Config) {
 }
 
 func addDefaultFilteringMode(cfg *Config) {
-	if cfg.TagFilteringMode == "" {
+	if cfg.TagFilteringMode != "opt-out" {
+		debug.Printf("Configured filtering mode: '%s', considering it as 'opt-in'(default)\n",
+			cfg.TagFilteringMode)
 		cfg.TagFilteringMode = "opt-in"
+	} else {
+		debug.Println("Configured filtering mode: 'opt-out'")
 	}
 }
 

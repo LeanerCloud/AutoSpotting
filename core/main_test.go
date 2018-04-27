@@ -128,6 +128,13 @@ func Test_addDefaultFilterMode(t *testing.T) {
 			},
 			want: "opt-out",
 		},
+		{
+			name: "Anything else gives the opt-in FilterMode",
+			cfg: Config{
+				TagFilteringMode: "whatever",
+			},
+			want: "opt-in",
+		},
 	}
 
 	for _, tt := range tests {

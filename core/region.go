@@ -334,20 +334,24 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
 	tagsToMatch []Tag) []autoScalingGroup {
 
 	var asgs []autoScalingGroup
-	var optInFilterMode = (r.conf.TagFilteringMode == "" ||
-		r.conf.TagFilteringMode == "opt-in")
+	var optInFilterMode = (r.conf.TagFilteringMode != "opt-out")
 
 	for _, group := range groups {
+		asgName := *group.AutoScalingGroupName
 		groupMatchesExpectedTags := isASGWithMatchingTags(group, tagsToMatch)
 		// Go lacks a logical XOR operator, this is the equivalent to that logical
 		// expression. The goal is to add the matching ASGs when running in opt-in
 		// mode and the other way round.
 		if optInFilterMode != groupMatchesExpectedTags {
+			logger.Printf("Skipping group %s because its tags, the currently "+
+				"configured filtering mode (%s) and tag filters do not align\n",
+				asgName, r.conf.TagFilteringMode)
 			continue
 		}
 
-		asgName := *group.AutoScalingGroupName
-		logger.Println("Matching tags found for ASG, enabling ASG for processing:", asgName)
+		logger.Printf("Enabling group %s for processing because its tags, the "+
+			"currently configured  filtering mode (%s) and tag filters are aligned\n",
+			asgName, r.conf.TagFilteringMode)
 		asgs = append(asgs, autoScalingGroup{
 			Group:  group,
 			name:   asgName,
