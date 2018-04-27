@@ -561,7 +561,7 @@ actions against your instances and autoscaling groups.
 This configuration was carefully crafted to contain the minimum amount of
 permissions needed for the instance replacement and logging its actions. The
 full list can be seen in the Cloudformation stack
-[template](https://github.com/cristim/autospotting/blob/master/cloudformation/stacks/AutoSpotting/template.json#L91),
+[template](https://github.com/cristim/autospotting/blob/master/cloudformation/stacks/AutoSpotting/template.yaml#L199),
 but it basically boils down to the following:
 
 - describing the resources you have in order to decide what needs to be done
