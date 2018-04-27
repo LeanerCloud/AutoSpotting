@@ -67,7 +67,8 @@ variable "asg_tag_filters" {
   description = <<EOF
     Tags to filter which ASGs autospotting considers. If blank
     by default this will search for asgs with spot-enabled=true (when in opt-in
-    mode) and will skip those tagged with spot-enabled=false when in opt-out mode.
+    mode) and will skip those tagged with spot-enabled=false when in opt-out
+    mode.
 
     You can set this to many tags, for example:
     spot-enabled=true,Environment=dev,Team=vision
@@ -78,9 +79,9 @@ variable "asg_tag_filters" {
 
 variable "asg_tag_filtering_mode" {
   description = <<EOF
-  Controls the tag-based ASG filter. Supported values: 'opt-in' or 'opt-out'.
-  Defaults to opt-in mode, in which it only acts against the tagged groups. In
-  opt-out mode it works against all groups except for the tagged ones.
+    Controls the tag-based ASG filter. Supported values: 'opt-in' or 'opt-out'.
+    Defaults to opt-in mode, in which it only acts against the tagged groups. In
+    opt-out mode it works against all groups except for the tagged ones.
   EOF
 
   default = "opt-in"
