@@ -104,12 +104,14 @@ func (r *region) processRegion() {
 }
 
 func (r *region) setupAsgFilters() {
+  filters := r.conf.FilterByTags
 	if len(filters) == 0 {
 		r.tagsToFilterASGsBy = []Tag{{Key: "spot-enabled", Value: "true"}}
 		return
 	}
 
 	for _, tagWithValue := range strings.Split(filters, ",") {
+    tagWithValue := strings.TrimSpace(tagWithValue)
 		tag := splitTagAndValue(tagWithValue)
 		if tag != nil {
 			r.tagsToFilterASGsBy = append(r.tagsToFilterASGsBy, *tag)
