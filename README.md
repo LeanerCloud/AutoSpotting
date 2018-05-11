@@ -112,6 +112,10 @@ Just like in the above animation, it's as easy as launching a CloudFormation (or
 stack and setting the (configurable) `spot-enabled` tag on the AutoScaling
 groups where you want it enabled to `true`.
 
+The stack can also be configured in an `opt-out` filtering mode, in which it
+runs against all groups except for those tagged with the (configurable)
+`spot-enabled` tag set to `false`, which can be useful for large scale rollouts.
+
 All the required infrastructure and configuration will be created automatically,
 so you can get started as fast as possible.
 

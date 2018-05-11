@@ -84,6 +84,11 @@ func Test_spotEnabledIsAddedByDefault(t *testing.T) {
 			},
 			want: "spot-enabled=true",
 		},
+		{
+			name:   "Default No ASG Tags",
+			config: Config{TagFilteringMode: "opt-out"},
+			want:   "spot-enabled=false",
+		},
 	}
 
 	for _, tt := range tests {
@@ -93,6 +98,51 @@ func Test_spotEnabledIsAddedByDefault(t *testing.T) {
 
 			if !reflect.DeepEqual(tt.config.FilterByTags, tt.want) {
 				t.Errorf("addDefaultFilter() = %v, want %v", tt.config.FilterByTags, tt.want)
+			}
+		})
+	}
+}
+
+func Test_addDefaultFilterMode(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  Config
+		want string
+	}{
+		{
+			name: "Missing FilterMode",
+			cfg:  Config{TagFilteringMode: ""},
+			want: "opt-in",
+		},
+		{
+			name: "Opt-in FilterMode",
+			cfg: Config{
+				TagFilteringMode: "opt-in",
+			},
+			want: "opt-in",
+		},
+		{
+			name: "Opt-out FilterMode",
+			cfg: Config{
+				TagFilteringMode: "opt-out",
+			},
+			want: "opt-out",
+		},
+		{
+			name: "Anything else gives the opt-in FilterMode",
+			cfg: Config{
+				TagFilteringMode: "whatever",
+			},
+			want: "opt-in",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addDefaultFilteringMode(&tt.cfg)
+			if !reflect.DeepEqual(tt.cfg.TagFilteringMode, tt.want) {
+				t.Errorf("addDefaultFilteringMode() = %v, want %v",
+					tt.cfg.TagFilteringMode, tt.want)
 			}
 		})
 	}
