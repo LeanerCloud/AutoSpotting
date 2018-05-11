@@ -79,7 +79,7 @@
       Description: >
         "Minimum on-demand instances (absolute number) to be kept in each of
         your groups. It is a global default value that can be overridden on a
-        per-group basis using the autospotting_on_demand_number tag. It takes
+        per-group basis using the autospotting_min_on_demand_number tag. It takes
         precedence over MinOnDemandPercentage, so it doesn't make sense to pass
         both of them."
       Type: "Number"
@@ -89,7 +89,7 @@
         "Minimum on-demand instances (percentage of the instances currently
         running in each group) that will be kept when replacing with spot
         instances. It is also a global default value that can be overridden on a
-        per-group basis using the autospotting_on_demand_percentage tag.
+        per-group basis using the autospotting_min_on_demand_percentage tag.
         MinOnDemandNumber takes precedence if both these parameters are passed"
       Type: "Number"
     OnDemandPriceMultiplier:
