@@ -334,18 +334,18 @@ in the Lambda function's configuration.
 
 On top of the CLI configuration for the on-demand instances, autospotting
 can read those values from the tags of the auto-scaling groups. There are two
-available tags: `autospotting_on_demand_number` and
-`autospotting_on_demand_percentage`.
+available tags: `autospotting_min_on_demand_number` and
+`autospotting_min_on_demand_percentage`.
 
 Just like for the CLI configuration the defined number has a higher priority
 than the percentage value. So the percentage will be ignored if
-`autospotting_on_demand_number` is present and valid.
+`autospotting_min_on_demand_number` is present and valid.
 
 The order of priority from strongest to lowest for minimum on-demand
 configuration is as following:
 
-1. Tag `autospotting_on_demand_number` in ASG
-1. Tag `autospotting_on_demand_percentage` in ASG
+1. Tag `autospotting_min_on_demand_number` in ASG
+1. Tag `autospotting_min_on_demand_percentage` in ASG
 1. Option `-min_on_demand_number` in CLI
 1. Option `-min_on_demand_percentage` in CLI
 
