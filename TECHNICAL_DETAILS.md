@@ -15,7 +15,8 @@
 | Can restrict to the same instance type only | :white_check_mark: | :white_check_mark: |
 | Can restrict to only certain instance types | :white_check_mark: | :white_check_mark: |
 | Blacklisting of certain instance types | :white_check_mark: | :white_check_mark: |
-| Filter on multiple & custom group tags | :white_check_mark:  (default: spot-enabled=true)  | :heavy_minus_sign: |
+| Filter on multiple & custom group tags | :white_check_mark:  (default: `spot-enabled=true`)  | :heavy_minus_sign: |
+| Configurable filtering modes(`opt-in` and `opt-out`) | :white_check_mark:  (default: `opt-in`)| :heavy_minus_sign: |
 | Set a desired spot product name | :white_check_mark: | :x: :wrench: - install multiple stacks, each with its own spot product|
 
 For the options not directly linked to any specific part of the doc, please

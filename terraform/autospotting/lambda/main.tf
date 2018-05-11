@@ -22,6 +22,7 @@ resource "aws_lambda_function" "autospotting" {
       BIDDING_POLICY               = "${var.autospotting_bidding_policy}"
       REGIONS                      = "${var.autospotting_regions_enabled}"
       TAG_FILTERS                  = "${var.autospotting_tag_filters}"
+      TAG_FILTERING_MODE           = "${var.autospotting_tag_filtering_mode}"
     }
   }
 }
@@ -29,14 +30,14 @@ resource "aws_lambda_function" "autospotting" {
 resource "aws_lambda_function" "autospotting_from_s3" {
   count = "${var.lambda_s3_bucket == "" ? 0 : 1}"
 
-  function_name    = "autospotting"
-  s3_bucket        = "${var.lambda_s3_bucket}"
-  s3_key           = "${var.lambda_s3_key}"
-  role             = "${var.lambda_role_arn}"
-  runtime          = "${var.lambda_runtime}"
-  timeout          = "${var.lambda_timeout}"
-  handler          = "autospotting"
-  memory_size      = "${var.lambda_memory_size}"
+  function_name = "autospotting"
+  s3_bucket     = "${var.lambda_s3_bucket}"
+  s3_key        = "${var.lambda_s3_key}"
+  role          = "${var.lambda_role_arn}"
+  runtime       = "${var.lambda_runtime}"
+  timeout       = "${var.lambda_timeout}"
+  handler       = "autospotting"
+  memory_size   = "${var.lambda_memory_size}"
 
   environment {
     variables = {
@@ -50,6 +51,7 @@ resource "aws_lambda_function" "autospotting_from_s3" {
       BIDDING_POLICY               = "${var.autospotting_bidding_policy}"
       REGIONS                      = "${var.autospotting_regions_enabled}"
       TAG_FILTERS                  = "${var.autospotting_tag_filters}"
+      TAG_FILTERING_MODE           = "${var.autospotting_tag_filtering_mode}"
     }
   }
 }

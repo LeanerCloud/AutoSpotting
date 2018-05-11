@@ -44,6 +44,7 @@ func run() {
 		"spot_price_buffer_percentage=%.3f "+
 		"bidding_policy=%s "+
 		"tag_filters=%s "+
+		"tag_filter_mode=%s "+
 		"spot_product_description=%v",
 		conf.Regions,
 		conf.MinOnDemandNumber,
@@ -54,6 +55,7 @@ func run() {
 		conf.SpotPriceBufferPercentage,
 		conf.BiddingPolicy,
 		conf.FilterByTags,
+		conf.TagFilteringMode,
 		conf.SpotProductDescription)
 
 	autospotting.Run(conf.Config)
@@ -102,66 +104,56 @@ func (c *cfgData) initialize() {
 }
 
 func (c *cfgData) parseCommandLineFlags() {
-
-	flag.StringVar(&c.Regions, "regions", "",
-		"\n\tRegions where it should be activated (comma or whitespace separated list, "+
-			"also supports globs), by default it runs on all regions.\n\t"+
-			"Example: ./autospotting -regions 'eu-*,us-east-1'\n")
-
-	flag.Int64Var(&c.MinOnDemandNumber, "min_on_demand_number", autospotting.DefaultMinOnDemandValue,
-		"\n\tOn-demand capacity (as absolute number) ensured to be running in each of your groups.\n\t"+
-			"Can be overridden on a per-group basis using the tag "+
-			autospotting.OnDemandNumberLong+".\n")
-
-	flag.Float64Var(&c.MinOnDemandPercentage, "min_on_demand_percentage", 0.0,
-		"\n\tOn-demand capacity (percentage of the total number of instances in the group) "+
-			"ensured to be running in each of your groups.\n\t"+
-			"Can be overridden on a per-group basis using the tag "+
-			autospotting.OnDemandPercentageTag+
-			"\n\tIt is ignored if min_on_demand_number is also set.\n")
-
 	flag.StringVar(&c.AllowedInstanceTypes, "allowed_instance_types", "",
-		"\n\tIf specified, the spot instances will be of these types.\n"+
-			"\tIf missing, the type is autodetected frome each ASG based on it's Launch Configuration.\n"+
+		"\n\tIf specified, the spot instances will be searched only among these types.\n\tIf missing, any instance type is allowed.\n"+
 			"\tAccepts a list of comma or whitespace seperated instance types (supports globs).\n"+
 			"\tExample: ./autospotting -allowed_instance_types 'c5.*,c4.xlarge'\n")
-
+	flag.StringVar(&c.BiddingPolicy, "bidding_policy", autospotting.DefaultBiddingPolicy,
+		"\n\tPolicy choice for spot bid. If set to 'normal', we bid at the on-demand price(times the multiplier).\n"+
+			"\tIf set to 'aggressive', we bid at a percentage value above the spot price \n"+
+			"\tconfigurable using the spot_price_buffer_percentage.\n")
 	flag.StringVar(&c.DisallowedInstanceTypes, "disallowed_instance_types", "",
 		"\n\tIf specified, the spot instances will _never_ be of these types.\n"+
 			"\tAccepts a list of comma or whitespace seperated instance types (supports globs).\n"+
 			"\tExample: ./autospotting -disallowed_instance_types 't2.*,c4.xlarge'\n")
-
+	flag.Int64Var(&c.MinOnDemandNumber, "min_on_demand_number", autospotting.DefaultMinOnDemandValue,
+		"\n\tNumber of on-demand nodes to be kept running in each of the groups.\n\t"+
+			"Can be overridden on a per-group basis using the tag "+autospotting.OnDemandNumberLong+".\n")
+	flag.Float64Var(&c.MinOnDemandPercentage, "min_on_demand_percentage", 0.0,
+		"\n\tPercentage of the total number of instances in each group to be kept on-demand\n\t"+
+			"Can be overridden on a per-group basis using the tag "+autospotting.OnDemandPercentageTag+
+			"\n\tIt is ignored if min_on_demand_number is also set.\n")
 	flag.Float64Var(&c.OnDemandPriceMultiplier, "on_demand_price_multiplier", 1.0,
-		"\n\tMultiplier for the on-demand price. This is useful for volume discounts or if you want to\n"+
-			"\tset your bid price to be higher than the on demand price to reduce the chances that your\n"+
-			"\tspot instances will be terminated.\n")
-
+		"\n\tMultiplier for the on-demand price. Numbers less than 1.0 are useful for volume discounts.\n"+
+			"\tExample: ./autospotting -on_demand_price_multiplier 0.6 will have the on-demand price "+
+			"considered at 60% of the actual value.\n")
+	flag.StringVar(&c.Regions, "regions", "",
+		"\n\tRegions where it should be activated (separated by comma or whitespace, also supports globs).\n"+
+			"\tBy default it runs on all regions.\n"+
+			"\tExample: ./autospotting -regions 'eu-*,us-east-1'\n")
 	flag.Float64Var(&c.SpotPriceBufferPercentage, "spot_price_buffer_percentage", autospotting.DefaultSpotPriceBufferPercentage,
-		"\n\tPercentage Value of the bid above the current spot price. A spot bid would be placed at a value :\n"+
-			"\tcurrent_spot_price * [1 + (spot_price_buffer_percentage/100.0)]. The main benefit is that\n"+
-			"\tit protects the group from running spot instances that got significantly more expensive than\n"+
-			"\twhen they were initially launched, but still somewhat less than the on-demand price. Can be\n"+
-			"\tenforced using the tag: "+autospotting.SpotPriceBufferPercentageTag+". If the bid exceeds\n"+
-			"\tthe on-demand price, we place a bid at on-demand price itself.\n")
-
+		"\n\tBid a given percentage above the current spot price.\n\tProtects the group from running spot"+
+			"instances that got significantly more expensive than when they were initially launched\n"+
+			"\tThe tag "+autospotting.SpotPriceBufferPercentageTag+" can be used to override this on a group level.\n"+
+			"\tIf the bid exceeds the on-demand price, we place a bid at on-demand price itself.\n")
 	flag.StringVar(&c.SpotProductDescription, "spot_product_description", autospotting.DefaultSpotProductDescription,
-		"\n\tThe Spot Product or operating system to use when looking up spot price history in the market.\n"+
-			"\tValid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)\n")
-
-	flag.StringVar(&c.BiddingPolicy, "bidding_policy", autospotting.DefaultBiddingPolicy,
-		"\n\tPolicy choice for spot bid. If set to 'normal', we bid at the on-demand price.\n"+
-			"\tIf set to 'aggressive', we bid at a percentage value above the spot price configurable using the spot_price_buffer_percentage.\n")
-
-	flag.StringVar(&c.FilterByTags, "tag_filters", "", "Set of tags to filter the ASGs on.  Default if no value is set will be the equivalent of -tag_filters 'spot-enabled=true'\n\t"+
-		"Example: ./autospotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
-
+		"\n\tThe Spot Product to use when looking up spot price history in the market.\n"+
+			"\tValid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | \n"+
+			"\tSUSE Linux (Amazon VPC) | Windows (Amazon VPC)\n\tDefault value: "+autospotting.DefaultSpotProductDescription+"\n")
+	flag.StringVar(&c.TagFilteringMode, "tag_filtering_mode", "opt-in", "\n\tControls the behavior of the tag_filters option.\n"+
+		"\tValid choices: opt-in | opt-out\n\tDefault value: 'opt-in'\n\tExample: ./autospotting --tag_filtering_mode opt-out\n")
+	flag.StringVar(&c.FilterByTags, "tag_filters", "", "\n\tSet of tags to filter the ASGs on.\n"+
+		"\tDefault if no value is set will be the equivalent of -tag_filters 'spot-enabled=true'\n"+
+		"\tIn case the tag_filtering_mode is set to opt-out, it defaults to 'spot-enabled=false'\n"+
+		"\tExample: ./autospotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
 	v := flag.Bool("version", false, "Print version number and exit.\n")
-
 	flag.Parse()
+	printVersion(v)
+}
 
+func printVersion(v *bool) {
 	if *v {
 		fmt.Println("AutoSpotting build:", Version)
 		os.Exit(0)
 	}
-
 }
