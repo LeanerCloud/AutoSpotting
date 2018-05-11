@@ -10,6 +10,7 @@ module "aws_lambda_function" {
   lambda_runtime     = "${var.lambda_runtime}"
   lambda_timeout     = "${var.lambda_timeout}"
   lambda_memory_size = "${var.lambda_memory_size}"
+  lambda_tags        = "${var.lambda_tags}"
 
   autospotting_allowed_instance_types       = "${var.autospotting_allowed_instance_types}"
   autospotting_disallowed_instance_types    = "${var.autospotting_disallowed_instance_types}"

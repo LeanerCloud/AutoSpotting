@@ -9,6 +9,7 @@ resource "aws_lambda_function" "autospotting" {
   timeout          = "${var.lambda_timeout}"
   handler          = "autospotting"
   memory_size      = "${var.lambda_memory_size}"
+  tags             = "${var.lambda_tags}"
 
   environment {
     variables = {
@@ -38,6 +39,7 @@ resource "aws_lambda_function" "autospotting_from_s3" {
   timeout       = "${var.lambda_timeout}"
   handler       = "autospotting"
   memory_size   = "${var.lambda_memory_size}"
+  tags          = "${var.lambda_tags}"
 
   environment {
     variables = {
