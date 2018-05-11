@@ -65,14 +65,14 @@ To install it via cloudformation, you only need to launch a CloudFormation
 stack in your account. Click the button below and follow the launch wizard to
 completion, you can safely use the default stack parameters.
 
-[![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/nightly/template.json)
+[![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/nightly/template.yaml)
 
 If you are using the AWS command-line tool, you can use this command instead:
 
 ``` shell
 aws cloudformation create-stack \
 --stack-name AutoSpotting \
---template-url https://s3.amazonaws.com/cloudprowess/nightly/template.json \
+--template-url https://s3.amazonaws.com/cloudprowess/nightly/template.yaml \
 --capabilities CAPABILITY_IAM
 ```
 

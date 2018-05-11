@@ -49,7 +49,7 @@ The code review should be largely a matter of going through this checklist.
 1. [ ] Functionality not applicable to all users should be configurable.
 1. [ ] Configurations should be exposed through Lambda function environment
    variables which are also passed as parameters to the
-   [CloudFormation](https://github.com/cristim/autospotting/blob/master/cloudformation/stacks/AutoSpotting/template.json)
+   [CloudFormation](https://github.com/cristim/autospotting/blob/master/cloudformation/stacks/AutoSpotting/template.yaml)
    and
    [Terraform](https://github.com/cristim/autospotting/blob/master/terraform/autospotting.tf)
    stacks defined as infrastructure code.

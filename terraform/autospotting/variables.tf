@@ -66,6 +66,7 @@ variable "autospotting_tag_filtering_mode" {
   opt-out mode it works against all groups except for the tagged ones.
   Use the opt-out mode carefully!
   EOF
+
   default = "opt-in"
 }
 
@@ -103,4 +104,9 @@ variable "lambda_timeout" {
 
 variable "lambda_run_frequency" {
   description = "How frequent should lambda run"
+}
+
+variable "lambda_tags" {
+  description = "Tags to be applied to the Lambda function"
+  type        = "map"
 }

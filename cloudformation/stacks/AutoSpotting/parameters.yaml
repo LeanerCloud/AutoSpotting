@@ -3,15 +3,40 @@
 # setting, you may want to change it for your production use case.
 
 # This file is handled automatically using the clouds-aws tool. It can be
-# installed using pip, or from https://github.com/elias5000/clouds-aws
-LambdaZipPath: nightly/lambda.zip
-LambdaHandlerFunction: autospotting # Changed after the Lambda runtime was switched to Go, changing this value requires stack re-creation or also an update of the LambdaZipPath
-LambdaS3Bucket: cloudprowess
+# installed using pip, or from https://github.com/elias5000/clouds-aws. The same
+# values can be passed manually when you run the stack from the AWS console.
+
+# Default value: rate(5 minutes)
+ExecutionFrequency: rate(1 minute)
+
+# Tag to be applied on the Lambda function
+LambdaFunctionTagKey: Name
+LambdaFunctionTagValue: autospotting
+
+# This only needs to be changed if you update from an old build that was using
+# the Python shim for Go before AWS released official Go support for Lambda.
+# Because Lambda caches the code based on the path, you likely also need to
+# update the LambdaZipPath to explicitly pick up a more recent build.
+LambdaHandlerFunction: autospotting
+
+# You may need to change this on large installations if you run into out of
+# memory situations.
 LambdaMemorySize: '1024'
-ExecutionFrequency: "rate(1 minute)"
+
+# Change this section if you run it from your own bucket. This bucket should be
+# created in advance. Because of Lambda restrictions, the stack and the S3
+# bucket have to be located in the same region.
+LambdaS3Bucket: cloudprowess
+LambdaZipPath: nightly/lambda.zip
+
+# Default value: 0
 MinOnDemandNumber: '1'
 
 # Valid choices:
 # - for EC2 Classic environments: Linux/UNIX | SUSE Linux | Windows
-# - for VPC: Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)
-SpotProductDescription: "Linux/UNIX (Amazon VPC)"
+# - for VPC: Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) |
+#   Windows (Amazon VPC)
+SpotProductDescription: Linux/UNIX (Amazon VPC)
+
+# Valid choices: opt-in (default), opt-out
+TagFilteringMode: opt-out

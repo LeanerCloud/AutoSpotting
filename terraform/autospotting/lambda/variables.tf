@@ -26,3 +26,8 @@ variable "autospotting_bidding_policy" {}
 variable "autospotting_regions_enabled" {}
 variable "autospotting_tag_filters" {}
 variable "autospotting_tag_filtering_mode" {}
+
+variable "lambda_tags" {
+  description = "Tags to be applied to the Lambda function"
+  type        = "map"
+}
