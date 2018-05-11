@@ -31,10 +31,3 @@ variable "lambda_tags" {
   description = "Tags to be applied to the Lambda function"
   type        = "map"
 }
-
-variable "autospotting_tag_filtering_mode" {}
-
-variable "lambda_tags" {
-  description = "Tags to be applied to the Lambda function"
-  type        = "map"
-}
