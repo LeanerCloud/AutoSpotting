@@ -61,6 +61,14 @@ type mockEC2 struct {
 	// Cancel Spot instance request
 	csiro   *ec2.CancelSpotInstanceRequestsOutput
 	csirerr error
+
+	// DescribeInstance Status request
+	disro   *ec2.DescribeInstanceStatusOutput
+	disrerr error
+}
+
+func (m mockEC2) DescribeInstanceStatus(in *ec2.DescribeInstanceStatusInput) (*ec2.DescribeInstanceStatusOutput, error) {
+	return m.disro, m.disrerr
 }
 
 func (m mockEC2) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
