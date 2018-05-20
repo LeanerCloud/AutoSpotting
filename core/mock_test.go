@@ -28,13 +28,6 @@ type mockEC2 struct {
 	cto   *ec2.CreateTagsOutput
 	cterr error
 
-	// Wait Until Spot Instance Request Fulfilled
-	wusirferr error
-
-	// Describe Instance Request
-	dsiro   *ec2.DescribeSpotInstanceRequestsOutput
-	dsirerr error
-
 	// Describe Spot Price History
 	dspho   *ec2.DescribeSpotPriceHistoryOutput
 	dspherr error
@@ -46,21 +39,9 @@ type mockEC2 struct {
 	tio   *ec2.TerminateInstancesOutput
 	tierr error
 
-	// Request Spot Instance
-	rsio   *ec2.RequestSpotInstancesOutput
-	rsierr error
-
-	// Describe Spot Instance Requests
-	dspiro   *ec2.DescribeSpotInstanceRequestsOutput
-	dspirerr error
-
 	// Describe Regions
 	dro   *ec2.DescribeRegionsOutput
 	drerr error
-
-	// Cancel Spot instance request
-	csiro   *ec2.CancelSpotInstanceRequestsOutput
-	csirerr error
 
 	// DescribeInstance Status request
 	disro   *ec2.DescribeInstanceStatusOutput
@@ -75,14 +56,6 @@ func (m mockEC2) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, err
 	return m.cto, m.cterr
 }
 
-func (m mockEC2) WaitUntilSpotInstanceRequestFulfilled(in *ec2.DescribeSpotInstanceRequestsInput) error {
-	return m.wusirferr
-}
-
-func (m mockEC2) DescribeSpotInstanceRequests(in *ec2.DescribeSpotInstanceRequestsInput) (*ec2.DescribeSpotInstanceRequestsOutput, error) {
-	return m.dsiro, m.dsirerr
-}
-
 func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
 	return m.dspho, m.dspherr
 }
@@ -93,14 +66,6 @@ func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, fn func(
 
 func (m mockEC2) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
 	return m.tio, m.tierr
-}
-
-func (m mockEC2) RequestSpotInstances(*ec2.RequestSpotInstancesInput) (*ec2.RequestSpotInstancesOutput, error) {
-	return m.rsio, m.rsierr
-}
-
-func (m mockEC2) CancelSpotInstanceRequests(*ec2.CancelSpotInstanceRequestsInput) (*ec2.CancelSpotInstanceRequestsOutput, error) {
-	return m.csiro, m.csirerr
 }
 
 func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
@@ -164,11 +129,10 @@ type mockASG struct {
 	uasgo   *autoscaling.UpdateAutoScalingGroupOutput
 	uasgerr error
 	// Describe Tags
-	dto   *autoscaling.DescribeTagsOutput
-	dterr error
+	dto *autoscaling.DescribeTagsOutput
+
 	// Describe AutoScaling Group
-	dasgo   *autoscaling.DescribeAutoScalingGroupsOutput
-	dasgerr error
+	dasgo *autoscaling.DescribeAutoScalingGroupsOutput
 }
 
 func (m mockASG) DetachInstances(*autoscaling.DetachInstancesInput) (*autoscaling.DetachInstancesOutput, error) {

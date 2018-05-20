@@ -2,14 +2,13 @@ package autospotting
 
 import (
 	"errors"
-	"fmt"
+
 	"math"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
@@ -65,52 +64,20 @@ const (
 	// the spot bid on a per-group level
 	DefaultBiddingPolicy = "normal"
 
-	// DefaultSIRRequestCompleteTagName is the name of the Tag
-	// used to mark that the Spot Instance Request has been satisfied
-	// And the new sport instance has been added to the asg for replace the
-	// pre-existing on demand instance
-	DefaultSIRRequestCompleteTagName = "autospotting-complete"
-
 	// DefaultSecondsSpotRequestValidFor is the default amount of  time in
 	// seconds that the sport request is valid for
 	// from the moment the requests iss created
 	DefaultSecondsSpotRequestValidFor = 240
 )
 
-const (
-	// InstanceStateCodePending is a InstanceState Code enum value
-	InstanceStateCodePending = 0
-
-	// InstanceStateCodeRunning is a InstanceState Code enum value
-	InstanceStateCodeRunning = 16
-
-	// InstanceStateCodeShuttingDown is a InstanceState Code enum value
-	InstanceStateCodeShuttingDown = 32
-
-	// InstanceStateCodeTerminated is a InstanceState Code enum value
-	InstanceStateCodeTerminated = 48
-
-	// InstanceStateCodeStopping is a InstanceState Code enum value
-	InstanceStateCodeStopping = 64
-
-	// InstanceStateCodeStopped is a InstanceState Code enum value
-	InstanceStateCodeStopped = 80
-)
-
 type autoScalingGroup struct {
 	*autoscaling.Group
 
-	name   string
-	region *region
-
-	instances instances
-
-	// spot instance requests generated for the current group
-	spotInstanceRequests []*spotInstanceRequest
-	minOnDemand          int64
-
-	// for caching
+	name                string
+	region              *region
 	launchConfiguration *launchConfiguration
+	instances           instances
+	minOnDemand         int64
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -287,6 +254,36 @@ func (a *autoScalingGroup) loadDefaultConfig() bool {
 	return done
 }
 
+func (a *autoScalingGroup) loadLaunchConfiguration() error {
+	//already done
+	if a.launchConfiguration != nil {
+		return nil
+	}
+
+	lcName := a.LaunchConfigurationName
+
+	if lcName == nil {
+		return errors.New(a.name + " is missing launch configuration")
+	}
+
+	svc := a.region.services.autoScaling
+
+	params := &autoscaling.DescribeLaunchConfigurationsInput{
+		LaunchConfigurationNames: []*string{lcName},
+	}
+	resp, err := svc.DescribeLaunchConfigurations(params)
+
+	if err != nil {
+		logger.Println(err.Error())
+		return err
+	}
+
+	a.launchConfiguration = &launchConfiguration{
+		LaunchConfiguration: resp.LaunchConfigurations[0],
+	}
+	return nil
+}
+
 func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, "")
 	if onDemandRunning > a.minOnDemand {
@@ -319,178 +316,43 @@ func (a *autoScalingGroup) allInstanceRunning() bool {
 }
 
 func (a *autoScalingGroup) process() {
-	logger.Println("Finding spot instance requests created for", a.name)
-	err := a.findSpotInstanceRequests()
-	if err != nil {
-		logger.Printf("Error: %s while searching for spot instances for %s\n", err, a.name)
-		// exit early.  If unable to search for spot instance requests.  Then we should not continue
-		// and wait for next run instead.
-		return
+	logger.Println("Finding spot instances created for", a.name)
+
+	spotInstanceID := a.findReadyToAttachSpotInstance()
+
+	if spotInstanceID == nil {
+		logger.Println("No spot instances were found for ", a.name)
 	}
+
 	a.scanInstances()
 	a.loadDefaultConfig()
 	a.loadConfigFromTags()
 
-	debug.Println("Found spot instance requests:", a.spotInstanceRequests)
-
 	if !a.needReplaceOnDemandInstances() {
-		return
-	}
-
-	spotInstanceID, spotRequestID, waitForNextRun := a.havingReadyToAttachSpotInstance()
-
-	if waitForNextRun {
 		logger.Println("Waiting for next run while processing", a.name)
 		return
 	}
 
 	if spotInstanceID != nil {
-		logger.Println(a.region.name, "Attaching spot instance",
-			*spotInstanceID, "to", a.name)
+		logger.Println(a.region.name, "Found spot instance:", *spotInstanceID,
+			"Attaching it to", a.name)
 
 		a.replaceOnDemandInstanceWithSpot(spotInstanceID)
-		a.markSpotInstanceRequestAsComplete(spotRequestID)
 	} else {
 		// find any given on-demand instance and try to replace it with a spot one
-		onDemandInstance := a.getInstance(nil, true, false)
+		onDemandInstance := a.getAnyOnDemandInstance()
 
 		if onDemandInstance == nil {
 			logger.Println(a.region.name, a.name,
 				"No running on-demand instances were found, nothing to do here...")
 			return
 		}
-
-		azToLaunchSpotIn := onDemandInstance.Placement.AvailabilityZone
-		logger.Println(a.region.name, a.name,
-			"Would launch a spot instance in ", *azToLaunchSpotIn)
-
-		err := a.launchCheapestSpotInstance(azToLaunchSpotIn)
+		a.loadLaunchConfiguration()
+		err := onDemandInstance.launchSpotReplacement()
 		if err != nil {
 			logger.Printf("Could not launch cheapest spot instance: %s", err)
 		}
 	}
-}
-
-func (a *autoScalingGroup) markSpotInstanceRequestAsComplete(spotInstanceRequestID *string) {
-	svc := a.region.services.ec2
-	input := &ec2.CreateTagsInput{
-		Resources: []*string{spotInstanceRequestID},
-		Tags: []*ec2.Tag{
-			{
-				Key:   aws.String(DefaultSIRRequestCompleteTagName),
-				Value: aws.String("true"),
-			},
-		},
-	}
-
-	tagged := false
-	for count := 0; count < 10; count++ {
-		_, err := svc.CreateTags(input)
-		if err == nil {
-			tagged = true
-			break
-		}
-
-		logger.Println("Failed to mark the spot instance request as complete", *spotInstanceRequestID, "retrying in 5 seconds...")
-		time.Sleep(5 * time.Second * a.region.conf.SleepMultiplier)
-	}
-
-	if tagged {
-		logger.Println("Tagged spot instance request as complete", *spotInstanceRequestID)
-	}
-
-}
-
-func (a *autoScalingGroup) filterOutCancelledRequestsWithNoInstances(requests []*ec2.SpotInstanceRequest) []*ec2.SpotInstanceRequest {
-	var outStandingSpotRequests []*ec2.SpotInstanceRequest
-	for _, req := range requests {
-		if *req.State == "cancelled" && req.InstanceId == nil {
-			a.markSpotInstanceRequestAsComplete(req.SpotInstanceRequestId)
-		} else {
-			outStandingSpotRequests = append(outStandingSpotRequests, req)
-		}
-	}
-	return outStandingSpotRequests
-}
-
-func isSpotInstanceRequestComplete(req *ec2.SpotInstanceRequest) bool {
-	sirIsComplete := false
-
-	for _, tag := range req.Tags {
-		if *tag.Key == DefaultSIRRequestCompleteTagName && *tag.Value == "true" {
-			sirIsComplete = true
-			break
-		}
-	}
-
-	return sirIsComplete
-}
-
-func filterOutCompleteSpotInstanceRequests(requests []*ec2.SpotInstanceRequest) []*ec2.SpotInstanceRequest {
-	var outStandingSpotRequests []*ec2.SpotInstanceRequest
-	for _, req := range requests {
-		if !isSpotInstanceRequestComplete(req) {
-			outStandingSpotRequests = append(outStandingSpotRequests, req)
-		}
-	}
-	return outStandingSpotRequests
-}
-
-func (a *autoScalingGroup) describeSpotInstanceRequests() (*ec2.DescribeSpotInstanceRequestsOutput, error) {
-	return a.region.services.ec2.DescribeSpotInstanceRequests(
-		&ec2.DescribeSpotInstanceRequestsInput{
-			Filters: []*ec2.Filter{
-				{
-					Name:   aws.String("tag:launched-for-asg"),
-					Values: []*string{a.AutoScalingGroupName},
-				},
-			},
-		})
-}
-
-func (a *autoScalingGroup) findSpotInstanceRequests() error {
-
-	resp, err := a.describeSpotInstanceRequests()
-
-	if err != nil {
-		return err
-	}
-
-	//
-	// Filter out completed spot instance requests
-	//
-	spotRequests := filterOutCompleteSpotInstanceRequests(resp.SpotInstanceRequests)
-
-	//
-	// Filter out cancelled spot instance requests that have timed out, and have no instances
-	//
-	spotRequests = a.filterOutCancelledRequestsWithNoInstances(spotRequests)
-
-	if len(spotRequests) > 0 {
-		logger.Println("Spot instance requests were previously created for", a.name)
-	}
-
-	for _, req := range spotRequests {
-		a.spotInstanceRequests = append(a.spotInstanceRequests,
-			a.loadSpotInstanceRequest(req))
-	}
-
-	// Check if the ASG's desired capacity has been set to 0 inbetween
-	// spot instance creation, and next run to assign spot instance
-	// to the asg
-	a.checkDesiredCapacity()
-
-	return nil
-}
-
-func (a *autoScalingGroup) checkDesiredCapacity() {
-	if *a.Group.DesiredCapacity == 0 && len(a.spotInstanceRequests) > 0 {
-		logger.Println("Desired Capacity is Zero. However, there are Spot Instance Requests.  Proceeding with cancelling them")
-		for _, req := range a.spotInstanceRequests {
-			a.cancelSIRAndTerminateInstance(req.InstanceId, req.SpotInstanceRequestId, a.getInstanceState(req.InstanceId))
-		}
-	}
-
 }
 
 func (a *autoScalingGroup) scanInstances() instances {
@@ -515,41 +377,27 @@ func (a *autoScalingGroup) scanInstances() instances {
 			i.price = i.typeInfo.pricing.onDemand
 		}
 
-		i.asg = a
-
 		a.instances.add(i)
 	}
 	return a.instances
 }
 
-func (a *autoScalingGroup) propagatedInstanceTags() []*ec2.Tag {
-	var tags, additionalTags []*ec2.Tag
+// func (a *autoScalingGroup) scanUnattachedInstances() instances {
 
-	additionalTags = []*ec2.Tag{
-		{
-			Key:   aws.String("LaunchConfigurationName"),
-			Value: a.LaunchConfigurationName,
-		},
-		{
-			Key:   aws.String("launched-by-autospotting"),
-			Value: aws.String("true"),
-		},
-	}
+// 	logger.Println("Adding unttached instances to", a.name)
+// 	a.instances = makeInstances()
 
-	for _, tag := range additionalTags {
-		tags = append(tags, tag)
-	}
+// 	for i := range a.region.instances.instances() {
+// 		debug.Println(i)
 
-	for _, asgTag := range a.Tags {
-		if *asgTag.PropagateAtLaunch && !strings.HasPrefix(*asgTag.Key, "aws:") {
-			tags = append(tags, &ec2.Tag{
-				Key:   asgTag.Key,
-				Value: asgTag.Value,
-			})
-		}
-	}
-	return tags
-}
+// 		i.asg, i.region = a, a.region
+
+// 		i.price = i.typeInfo.pricing.spot[*i.Placement.AvailabilityZone]
+
+// 		a.unattachedSpotInstances.add(i)
+// 	}
+// 	return a.instances
+// }
 
 func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 	spotInstanceID *string) error {
@@ -649,332 +497,41 @@ func (a *autoScalingGroup) getAnySpotInstance() *instance {
 	return a.getInstance(nil, false, false)
 }
 
-func isInstanceNotFound(err error) bool {
-	if aerr, ok := err.(awserr.Error); ok {
-		if aerr.Code() == "InvalidInstanceID.NotFound" {
+func (a *autoScalingGroup) hasMemberInstance(inst *instance) bool {
+	for _, member := range a.Instances {
+		if *member.InstanceId == *inst.InstanceId {
 			return true
 		}
 	}
 	return false
 }
 
-/**
-  Obtain the state of instances to check if terminated or not.
-**/
-func (a *autoScalingGroup) getInstanceState(instanceID *string) int64 {
-	instanceState := int64(InstanceStateCodeTerminated)
-
-	if instanceID != nil {
-		//
-		// By Default AWS API only returns
-		// instances that are health, As a result you need
-		// to specify the IncludeAllInstances flag to true (default is false)
-		// (https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#DescribeInstanceStatusInput)
-		//
-		svc := a.region.services.ec2
-		input := &ec2.DescribeInstanceStatusInput{
-			InstanceIds: []*string{
-				instanceID,
-			},
-			IncludeAllInstances: aws.Bool(true),
-		}
-
-		out, err := svc.DescribeInstanceStatus(input)
-		if err != nil {
-			if isInstanceNotFound(err) {
-				logger.Println("Instance not found:", *instanceID)
-				instanceState = InstanceStateCodeTerminated
+func (a *autoScalingGroup) findUnattachedInstanceLaunchedForThisASG() *instance {
+	for inst := range a.region.instances.instances() {
+		for _, tag := range inst.Tags {
+			if *tag.Key == "launched-for-asg" && *tag.Value == a.name {
+				if !a.hasMemberInstance(inst) {
+					return inst
+				}
 			}
-			logger.Println("Error describing instance status:", *instanceID, err)
-			instanceState = InstanceStateCodePending
-			return instanceState
-		}
-
-		// Guard Against no result being returned by AWS upstream
-		// Incase of AWS API problem.  AWS docs state 1 or more.
-		// Just checking in case
-		if len(out.InstanceStatuses) > 0 {
-			instanceState = *out.InstanceStatuses[0].InstanceState.Code
 		}
 	}
-	// If instance is not showing then it's terminated
-	return instanceState
+	return nil
 }
 
-func canTerminateInstance(instanceID *string, instanceState int64) bool {
-	return instanceID != nil && instanceState != InstanceStateCodeTerminated && instanceState != InstanceStateCodeShuttingDown
-}
+// returns an instance ID as *string, set to nil if we need to wait for the next
+// run in case there are no spot instances
+func (a *autoScalingGroup) findReadyToAttachSpotInstance() *string {
 
-func (a *autoScalingGroup) terminateInstance(instanceID *string, instanceState int64) bool {
-	svc := a.region.services.ec2
-	if canTerminateInstance(instanceID, instanceState) {
-		_, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
-			InstanceIds: []*string{instanceID},
-		})
-		if err != nil {
-			return false
-		}
-	}
-	return true
-}
+	spotInstance := a.findUnattachedInstanceLaunchedForThisASG()
 
-func (a *autoScalingGroup) cancelSIR(sirRequestID *string) error {
-	svc := a.region.services.ec2
-	_, err := svc.CancelSpotInstanceRequests(
-		&ec2.CancelSpotInstanceRequestsInput{
-			SpotInstanceRequestIds: []*string{sirRequestID},
-		})
+	if spotInstance == nil {
+		logger.Println(a.name, "No instance was launched from this ASG")
 
-	return err
-}
-
-/**
-  Terminate instance assocated with an SIR, and Cancel the SIR afterwards.
-  Returns 2 booleans, (instanceTerminated, sirCancelled)
-**/
-func (a *autoScalingGroup) cancelSIRAndTerminateInstance(instanceID *string, sirRequestID *string, instanceState int64) (bool, bool) {
-
-	terminatedInstance := true
-	if instanceID != nil {
-		if !a.terminateInstance(instanceID, instanceState) {
-			logger.Println("Unable to terminate instance:", *instanceID)
-			return false, false
-		}
+		return nil
 	}
 
-	err := a.cancelSIR(sirRequestID)
-	sirCancelled := err == nil
-	if sirCancelled {
-		a.markSpotInstanceRequestAsComplete(sirRequestID)
-	}
-
-	return terminatedInstance, sirCancelled
-}
-
-func (a *autoScalingGroup) processUnattachedRunningInstance(req *spotInstanceRequest, instanceID *string) (bool, bool) {
-	logger.Println(a.name, "Active bid was found, with running "+
-		"instances not yet attached to the ASG",
-		*instanceID)
-	// we need to re-scan in order to have the information a
-	err := req.region.scanInstances()
-	if err != nil {
-		logger.Printf("Failed to scan instances: %s for %s\n", err, req.asg.name)
-	}
-
-	tags := req.asg.propagatedInstanceTags()
-
-	i := req.region.instances.get(*instanceID)
-
-	if i != nil {
-		i.tag(tags, defaultTimeout)
-	} else {
-		logger.Println(req.asg.name, "new spot instance", *instanceID, "has disappeared")
-	}
-	return true, false
-}
-
-func isInstanceRunning(spotInstanceRunning int64) bool {
-	return spotInstanceRunning == InstanceStateCodeRunning
-}
-
-func instanceIsNotInUsableState(spotInstanceRequest int64) bool {
-	return spotInstanceRequest > InstanceStateCodeRunning
-}
-
-/*
-Check the state of an instance that is associated to the SIR.
-If the instance is running, it is tagged with ASG values
-If the instance is not useable (terminated, stopped, shutting down)
-the SIR is cancelled and the instance terminated.
-
-Returns 2 booleans (Is the SIR usable, Is the Associated SIR Instance Running)
-*/
-func (a *autoScalingGroup) processUnattachedInstanceFromSIR(req *spotInstanceRequest, instanceID *string) (bool, bool) {
-	spotInstanceRunning := a.getInstanceState(instanceID)
-	if isInstanceRunning(spotInstanceRunning) {
-		return a.processUnattachedRunningInstance(req, instanceID)
-	} else if instanceIsNotInUsableState(spotInstanceRunning) {
-		// stopped, terminated, shutting-down etc,
-		a.cancelSIRAndTerminateInstance(instanceID, req.SpotInstanceRequestId, spotInstanceRunning)
-		return false, false
-	}
-	logger.Println(a.name, "Active bid was found, with no running "+
-		"instances, waiting for an instance to start ...")
-	return true, true
-}
-
-/*
-  Checks if the SIR associate instance is already attached to the ASG or not.
-  If not, checks if the Associated Instance is usable (running), or not.
-
-  If the Instance is terminated, stopped or shutdown, the SIR is invalid and should not be used.
-  Otherwise the Instance is coming up and the SIR is potentially eligible to use
-
-  Returns 2 booleans (Is the SIR usable, Is the Associated SIR Instance Running)
-
-*/
-func (a *autoScalingGroup) processInstanceID(req *spotInstanceRequest, instanceID *string) (bool, bool) {
-	//
-	// If the instance is already in the group we should mark the
-	// SIR as completed
-	//
-	if a.instances.get(*instanceID) != nil {
-		logger.Println(a.name, "Instance", instanceID,
-			"is already attached to the ASG, tagging SIR as complete and skipping...")
-		a.markSpotInstanceRequestAsComplete(req.SpotInstanceRequestId)
-		return false, false
-		// In case the instance wasn't yet attached, we prepare to attach it.
-	}
-
-	logger.Println(a.name, "Instance", *instanceID,
-		"is not yet attached to the ASG, checking if it's running")
-
-	return a.processUnattachedInstanceFromSIR(req, instanceID)
-}
-
-func (a *autoScalingGroup) isSpotInstanceRequestClosedAndComplete(req *spotInstanceRequest) bool {
-	isComplete := false
-	switch *req.State {
-	case ec2.SpotInstanceStateCancelled:
-		if req.InstanceId == nil {
-			isComplete = true
-		}
-	case ec2.SpotInstanceStateFailed:
-		fallthrough
-	case ec2.SpotInstanceStateClosed:
-		isComplete = true
-	}
-	if isComplete {
-		a.markSpotInstanceRequestAsComplete(req.SpotInstanceRequestId)
-	}
-	return isComplete
-}
-
-func (a *autoScalingGroup) isOpenOrActiveRequestWithNoInstance(req *spotInstanceRequest) bool {
-	return (*req.State == ec2.SpotInstanceStateActive || *req.State == ec2.SpotInstanceStateOpen) && req.InstanceId == nil
-}
-
-func (a *autoScalingGroup) removeClosedOrCompleteRequests(requests []*spotInstanceRequest) []*spotInstanceRequest {
-	var filtered []*spotInstanceRequest
-	for _, req := range a.spotInstanceRequests {
-		// If spot request is failed, closed or cancelled with no instances
-		// continue to next SIR
-		if a.isSpotInstanceRequestClosedAndComplete(req) == false {
-			filtered = append(filtered, req)
-		}
-	}
-	return filtered
-}
-
-func (a *autoScalingGroup) filterRequestsWithRunningInstances(potentialRequests []*spotInstanceRequest) ([]*spotInstanceRequest, []*spotInstanceRequest) {
-	var eligibleRequestsWithInstances []*spotInstanceRequest
-	var eligibleRequestsWithNoInstances []*spotInstanceRequest
-
-	for _, req := range potentialRequests {
-		eligibleSIR, instanceNotRunning := a.processInstanceID(req, req.InstanceId)
-
-		if eligibleSIR {
-			if instanceNotRunning {
-				// If instance isn't in asg, but is pending, wait for next run of autospotting
-				eligibleRequestsWithNoInstances = append(eligibleRequestsWithNoInstances, req)
-			}
-			// If instance isn't in asg, but is running, use the SIR
-			eligibleRequestsWithInstances = append(eligibleRequestsWithInstances, req)
-		}
-	}
-
-	return eligibleRequestsWithInstances, eligibleRequestsWithNoInstances
-}
-
-func (a *autoScalingGroup) separateRequestsIntoThoseWithAndWithoutInstances(requests []*spotInstanceRequest) ([]*spotInstanceRequest, []*spotInstanceRequest) {
-	var potentialRequestsWithInstances []*spotInstanceRequest
-
-	var eligibleRequestsWithNoInstances []*spotInstanceRequest
-
-	//
-	// Here we search for spot requests created for the current ASG,
-	// Use the first matching spot request with a instance ready for attaching
-	//
-	for _, req := range requests {
-		if a.isOpenOrActiveRequestWithNoInstance(req) {
-			eligibleRequestsWithNoInstances = append(eligibleRequestsWithNoInstances, req)
-		} else {
-			potentialRequestsWithInstances = append(potentialRequestsWithInstances, req)
-		}
-	}
-
-	return potentialRequestsWithInstances, eligibleRequestsWithNoInstances
-}
-
-func (a *autoScalingGroup) findSpotInstanceRequest() (*spotInstanceRequest, bool) {
-
-	// If spot request is failed, closed or cancelled with no instances
-	// remove from list of eligible requests
-	requests := a.removeClosedOrCompleteRequests(a.spotInstanceRequests)
-
-	potentialRequestsWithInstances, eligibleRequestsWithNoInstances := a.separateRequestsIntoThoseWithAndWithoutInstances(requests)
-
-	eligibleRequestsWithInstances, additionalEligibleRequestsWithNoInstances := a.filterRequestsWithRunningInstances(potentialRequestsWithInstances)
-
-	eligibleRequestsWithNoInstances = append(eligibleRequestsWithNoInstances, additionalEligibleRequestsWithNoInstances...)
-
-	if len(eligibleRequestsWithInstances) > 0 {
-		return eligibleRequestsWithInstances[0], false
-	}
-
-	if len(eligibleRequestsWithNoInstances) > 0 {
-		return eligibleRequestsWithNoInstances[0], true
-	}
-
-	return nil, false
-
-}
-
-// returns an instance ID as *string, the id of the spot request and a bool that
-// tells us if  we need to wait for the next run in case there are spot
-// instances still being launched
-func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, *string, bool) {
-
-	var activeSpotInstanceRequest *spotInstanceRequest
-
-	// default we have found a spot request, don't create a new one
-	waitForNextRun := false
-
-	// if there are on-demand instances but no spot instance requests yet,
-	// then we can launch a new spot instance
-	if len(a.spotInstanceRequests) == 0 {
-		logger.Println(a.name, "no spot bids were found")
-		if inst := a.getAnyOnDemandInstance(); inst != nil {
-			logger.Println(a.name, "on-demand instances were found, proceeding to "+
-				"launch a replacement spot instance")
-			return nil, nil, false
-		}
-		// Looks like we have no instances in the group, so we can stop here
-		logger.Println(a.name, "no on-demand instances were found, nothing to do")
-		return nil, nil, true
-	}
-
-	logger.Println("spot bids were found, continuing")
-
-	// find a spot instance request
-	activeSpotInstanceRequest, waitForNextRun = a.findSpotInstanceRequest()
-
-	// In case we don't have any active spot requests with instances in the
-	// process of starting or already ready to be attached to the group, we can
-	// launch a new spot instance.
-	if activeSpotInstanceRequest == nil {
-		logger.Println(a.name, "No active unfulfilled bid was found")
-		return nil, nil, waitForNextRun
-	}
-
-	spotInstanceID := activeSpotInstanceRequest.InstanceId
-
-	if spotInstanceID == nil {
-		logger.Println(a.name,
-			"No instance was launched from the active spot instance request",
-			*activeSpotInstanceRequest.SpotInstanceRequestId)
-		return nil, nil, true
-	}
+	spotInstanceID := spotInstance.InstanceId
 
 	logger.Println("Considering ", *spotInstanceID, "for attaching to", a.name)
 
@@ -987,13 +544,7 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, *string, 
 		logger.Println("Apparently", *spotInstanceID, "is no longer running, ",
 			"cancelling the spot instance request which created it...")
 
-		a.region.services.ec2.CancelSpotInstanceRequests(
-			&ec2.CancelSpotInstanceRequestsInput{
-				SpotInstanceRequestIds: []*string{activeSpotInstanceRequest.SpotInstanceRequestId},
-			})
-
-		a.markSpotInstanceRequestAsComplete(activeSpotInstanceRequest.SpotInstanceRequestId)
-		return nil, activeSpotInstanceRequest.SpotInstanceRequestId, true
+		return spotInstanceID
 	}
 
 	instanceUpTime := time.Now().Unix() - instData.LaunchTime.Unix()
@@ -1007,14 +558,14 @@ func (a *autoScalingGroup) havingReadyToAttachSpotInstance() (*string, *string, 
 		logger.Println("The new spot instance", *spotInstanceID,
 			"is still in the grace period,",
 			"waiting for it to be ready before we can attach it to the group...")
-		return nil, activeSpotInstanceRequest.SpotInstanceRequestId, true
+		return nil
 	} else if *instData.State.Name == "pending" {
 		logger.Println("The new spot instance", *spotInstanceID,
 			"is still pending,",
 			"waiting for it to be running before we can attach it to the group...")
-		return nil, activeSpotInstanceRequest.SpotInstanceRequestId, true
+		return nil
 	}
-	return spotInstanceID, activeSpotInstanceRequest.SpotInstanceRequestId, false
+	return spotInstanceID
 }
 
 func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) []string {
@@ -1067,151 +618,6 @@ func (a *autoScalingGroup) getDisallowedInstanceTypes(baseInstance *instance) []
 	})
 }
 
-func (a *autoScalingGroup) getPricetoBid(
-	baseOnDemandPrice float64, currentSpotPrice float64) float64 {
-
-	logger.Println("BiddingPolicy: ", a.region.conf.BiddingPolicy)
-
-	if a.region.conf.BiddingPolicy == DefaultBiddingPolicy {
-		logger.Println("Launching spot instance with a bid =", baseOnDemandPrice)
-		return baseOnDemandPrice
-	}
-
-	logger.Println("Launching spot instance with a bid =", math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+a.region.conf.SpotPriceBufferPercentage/100.0)))
-	return math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+a.region.conf.SpotPriceBufferPercentage/100.0))
-}
-
-func (a *autoScalingGroup) launchCheapestSpotInstance(
-	azToLaunchIn *string) error {
-
-	baseInstance, newInstanceType, err := a.getBaseAndNewInstanceTypeToStart(azToLaunchIn)
-	if err != nil {
-		return err
-	}
-
-	lc := a.getLaunchConfiguration()
-
-	spotLS, err := lc.convertLaunchConfigurationToSpotSpecification(
-		baseInstance,
-		*newInstanceType,
-		&a.region.services,
-		*azToLaunchIn,
-	)
-	if err != nil {
-		return fmt.Errorf("could not convert launchConfiguration to SpotSpecification: %s", err)
-	}
-
-	baseOnDemandPrice := baseInstance.price
-	currentSpotPrice := newInstanceType.pricing.spot[*azToLaunchIn]
-
-	logger.Println("Bidding for spot instance for ", a.name)
-	return a.bidForSpotInstance(spotLS, a.getPricetoBid(baseOnDemandPrice, currentSpotPrice))
-}
-
-func (a *autoScalingGroup) getBaseAndNewInstanceTypeToStart(azToLaunchIn *string) (*instance, *instanceTypeInformation, error) {
-	if azToLaunchIn == nil {
-		logger.Println("Can't launch instances in any AZ, nothing to do here...")
-		return nil, nil, errors.New("invalid availability zone provided")
-	}
-
-	logger.Println("Trying to launch spot instance in", *azToLaunchIn,
-		"first finding an on-demand instance to use as a template")
-
-	baseInstance := a.getOnDemandInstanceInAZ(azToLaunchIn)
-
-	if baseInstance == nil {
-		logger.Println("Found no on-demand instances, nothing to do here...")
-		return nil, nil, errors.New("no on-demand instances found")
-	}
-	logger.Println("Found on-demand instance", *baseInstance.InstanceId)
-
-	allowedInstances := a.getAllowedInstanceTypes(baseInstance)
-	disallowedInstances := a.getDisallowedInstanceTypes(baseInstance)
-
-	newInstanceTypeStr, err := baseInstance.getCheapestCompatibleSpotInstanceType(allowedInstances, disallowedInstances)
-	if err != nil {
-		logger.Println("No cheaper compatible instance type was found, "+
-			"nothing to do here...", err)
-		return nil, nil, errors.New("no cheaper spot instance found")
-	}
-
-	newInstanceType := a.region.instanceTypeInformation[newInstanceTypeStr]
-
-	currentSpotPrice := newInstanceType.pricing.spot[*azToLaunchIn]
-	logger.Println("Finished searching for best spot instance in ", *azToLaunchIn)
-	logger.Println("Replacing an on-demand", *baseInstance.InstanceType,
-		"instance having the ondemand price", baseInstance.price)
-	logger.Println("Launching best compatible instance:", newInstanceType,
-		"with the current spot price:", currentSpotPrice)
-
-	return baseInstance, &newInstanceType, nil
-}
-
-func (a *autoScalingGroup) loadSpotInstanceRequest(
-	req *ec2.SpotInstanceRequest) *spotInstanceRequest {
-	return &spotInstanceRequest{SpotInstanceRequest: req,
-		region: a.region,
-		asg:    a,
-	}
-}
-
-func createSpotInstanceRequestInput(price float64, ls *ec2.RequestSpotLaunchSpecification) *ec2.RequestSpotInstancesInput {
-	var duration time.Duration
-	duration = DefaultSecondsSpotRequestValidFor * time.Second
-	validUtil := time.Now().Add(duration)
-	return &ec2.RequestSpotInstancesInput{
-		SpotPrice:           aws.String(strconv.FormatFloat(price, 'f', -1, 64)),
-		LaunchSpecification: ls,
-		ValidUntil:          &validUtil,
-	}
-}
-
-func (a *autoScalingGroup) bidForSpotInstance(
-	ls *ec2.RequestSpotLaunchSpecification,
-	price float64,
-) error {
-
-	svc := a.region.services.ec2
-
-	resp, err := svc.RequestSpotInstances(createSpotInstanceRequestInput(price, ls))
-
-	if err != nil {
-		logger.Println("Failed to create spot instance request for",
-			a.name, err.Error(), ls)
-		return err
-	}
-
-	spotRequest := resp.SpotInstanceRequests[0]
-	sr := spotInstanceRequest{SpotInstanceRequest: spotRequest,
-		region: a.region,
-		asg:    a,
-	}
-
-	srID := sr.SpotInstanceRequestId
-
-	logger.Println(a.name, "Created spot instance request", *srID)
-
-	// tag the spot instance request to associate it with the current ASG, so we
-	// know where to attach the instance later. In case the waiter failed, it may
-	// happen that the instance is actually tagged in the next run, but the spot
-	// instance request needs to be tagged anyway.
-	err = sr.tag(a.name)
-
-	if err != nil {
-		logger.Println(a.name, "Can't tag spot instance request", err.Error())
-		return err
-	}
-	// Waiting for the instance to start so that we can then later tag it with
-	// the same tags originally set on the on-demand instances.
-	//
-	// This waiter only returns after the instance was found and it may be
-	// interrupted by the lambda function's timeout, so we also need to check in
-	// the next run if we have any open spot requests with no instances and
-	// resume the wait there.
-
-	return nil
-}
-
 func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 	svc := a.region.services.autoScaling
 
@@ -1228,35 +634,6 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 		return err
 	}
 	return nil
-}
-
-func (a *autoScalingGroup) getLaunchConfiguration() *launchConfiguration {
-	if a.launchConfiguration != nil {
-		return a.launchConfiguration
-	}
-
-	lcName := a.LaunchConfigurationName
-
-	if lcName == nil {
-		return nil
-	}
-
-	svc := a.region.services.autoScaling
-
-	params := &autoscaling.DescribeLaunchConfigurationsInput{
-		LaunchConfigurationNames: []*string{lcName},
-	}
-	resp, err := svc.DescribeLaunchConfigurations(params)
-
-	if err != nil {
-		logger.Println(err.Error())
-		return nil
-	}
-
-	a.launchConfiguration = &launchConfiguration{
-		LaunchConfiguration: resp.LaunchConfigurations[0],
-	}
-	return a.launchConfiguration
 }
 
 func (a *autoScalingGroup) attachSpotInstance(spotInstanceID *string) error {

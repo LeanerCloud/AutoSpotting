@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
-	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -130,16 +132,21 @@ func (i *instance) isSpot() bool {
 		*i.InstanceLifecycle == "spot")
 }
 
-func (i *instance) terminate() error {
+func (i *instance) canTerminate() bool {
+	return *i.State.Name != ec2.InstanceStateNameTerminated &&
+		*i.State.Name != ec2.InstanceStateNameShuttingDown
+}
 
-	_, err := i.region.services.ec2.TerminateInstances(
-		&ec2.TerminateInstancesInput{
+func (i *instance) terminate() error {
+	svc := i.region.services.ec2
+	if i.canTerminate() {
+		_, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
 			InstanceIds: []*string{i.InstanceId},
-		},
-	)
-	if err != nil {
-		logger.Printf("Issue while terminating %v: %v", *i.InstanceId, err.Error())
-		return err
+		})
+		if err != nil {
+			logger.Printf("Issue while terminating %v: %v", *i.InstanceId, err.Error())
+			return err
+		}
 	}
 	return nil
 }
@@ -232,27 +239,23 @@ func (i *instance) isAllowed(instanceType string, allowedList []string, disallow
 				return false
 			}
 		}
-		return true
 	}
-
 	return true
 }
 
-func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, disallowedList []string) (string, error) {
+func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, disallowedList []string) (instanceTypeInformation, error) {
 	current := i.typeInfo
 	bestPrice := math.MaxFloat64
 	chosenSpotType := ""
 	attachedVolumesNumber := current.instanceStoreDeviceCount
+	var cheapest instanceTypeInformation
 
 	// Count the ephemeral volumes attached to the original instance's block
 	// device mappings, this number is used later when comparing with each
 	// instance type.
-	lc := i.asg.getLaunchConfiguration()
 
-	if lc != nil {
-		lcMappings := lc.countLaunchConfigEphemeralVolumes()
-		attachedVolumesNumber = min(lcMappings, current.instanceStoreDeviceCount)
-	}
+	usedMappings := i.asg.launchConfiguration.countLaunchConfigEphemeralVolumes()
+	attachedVolumesNumber = min(usedMappings, current.instanceStoreDeviceCount)
 
 	for _, candidate := range i.region.instanceTypeInformation {
 
@@ -269,6 +272,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 			i.isAllowed(candidate.instanceType, allowedList, disallowedList) {
 			bestPrice = candidatePrice
 			chosenSpotType = candidate.instanceType
+			cheapest = candidate
 			debug.Println("Best option is now: ", chosenSpotType, " at ", bestPrice)
 		} else if chosenSpotType != "" {
 			debug.Println("Current best option: ", chosenSpotType, " at ", bestPrice)
@@ -276,45 +280,165 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 	}
 	if chosenSpotType != "" {
 		debug.Println("Cheapest compatible spot instance found: ", chosenSpotType)
-		return chosenSpotType, nil
+		return cheapest, nil
 	}
-	return chosenSpotType, fmt.Errorf("No cheaper spot instance types could be found")
+	return cheapest, fmt.Errorf("No cheaper spot instance types could be found")
 }
 
-func (i *instance) tag(tags []*ec2.Tag, maxIter int) error {
-	var (
-		n   int
-		err error
-	)
+func (i *instance) launchSpotReplacement() error {
+	instanceType, err := i.getCheapestCompatibleSpotInstanceType(
+		i.asg.getAllowedInstanceTypes(i),
+		i.asg.getDisallowedInstanceTypes(i))
 
-	if len(tags) == 0 {
-		logger.Println(i.region.name, "Tagging spot instance", *i.InstanceId,
-			"no tags were defined, skipping...")
-		return nil
+	if err != nil {
+		debug.Println("Couldn't determint the cheapest compatible spot instance type")
+		return err
 	}
 
-	svc := i.region.services.ec2
-	params := ec2.CreateTagsInput{
-		Resources: []*string{i.InstanceId},
-		Tags:      tags,
+	bidPrice := i.getPricetoBid(instanceType.pricing.onDemand,
+		instanceType.pricing.spot[*i.Placement.AvailabilityZone])
+
+	runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice, i.asg.launchConfiguration)
+	resp, err := i.region.services.ec2.RunInstances(runInstancesInput)
+
+	if err != nil {
+		debug.Println("Couldn't launch spot instance:", err.Error())
+		return err
 	}
 
-	logger.Println(i.region.name, "Tagging spot instance", *i.InstanceId)
+	spotInst := resp.Instances[0]
+	logger.Println(i.asg.name, "Created spot instance", *spotInst.InstanceId)
 
-	for n = 0; n < maxIter; n++ {
-		_, err = svc.CreateTags(&params)
-		if err == nil {
-			logger.Println("Instance", *i.InstanceId,
-				"was tagged with the following tags:", tags)
-			break
+	debug.Println("RunInstances response:", spew.Sdump(resp))
+
+	return nil
+}
+
+func (i *instance) getPricetoBid(
+	baseOnDemandPrice float64, currentSpotPrice float64) float64 {
+
+	logger.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
+
+	if i.region.conf.BiddingPolicy == DefaultBiddingPolicy {
+		logger.Println("Launching spot instance with a bid =", baseOnDemandPrice)
+		return baseOnDemandPrice
+	}
+
+	bufferPrice := math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))
+	logger.Println("Launching spot instance with a bid =", bufferPrice)
+	return bufferPrice
+}
+func (i *instance) convertBlockDeviceMappings(lc *launchConfiguration) []*ec2.BlockDeviceMapping {
+	var bds []*ec2.BlockDeviceMapping
+
+	for _, bdm := range lc.BlockDeviceMappings {
+
+		bds = append(bds, &ec2.BlockDeviceMapping{
+			DeviceName: bdm.DeviceName,
+			Ebs: &ec2.EbsBlockDevice{
+				DeleteOnTermination: bdm.Ebs.DeleteOnTermination,
+				Encrypted:           bdm.Ebs.Encrypted,
+				Iops:                bdm.Ebs.Iops,
+				SnapshotId:          bdm.Ebs.SnapshotId,
+				VolumeSize:          bdm.Ebs.VolumeSize,
+				VolumeType:          bdm.Ebs.VolumeType,
+			},
+		})
+	}
+	return bds
+}
+
+func (i *instance) convertSecurityGroups() []*string {
+	var groupIDs []*string
+	for _, sg := range i.SecurityGroups {
+		groupIDs = append(groupIDs, sg.GroupId)
+	}
+	return groupIDs
+}
+
+func (i *instance) createRunInstancesInput(instanceType string, price float64, lc *launchConfiguration) *ec2.RunInstancesInput {
+	var retval ec2.RunInstancesInput
+
+	retval = ec2.RunInstancesInput{
+
+		BlockDeviceMappings: i.convertBlockDeviceMappings(lc),
+
+		//TODO: set a CreditSpecification for T2 unlimited, if configured
+
+		EbsOptimized: i.EbsOptimized,
+
+		//TODO: ElasticGpuSpecification
+
+		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+			Arn: i.IamInstanceProfile.Arn,
+		},
+
+		ImageId: i.ImageId,
+
+		InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
+			MarketType: aws.String("spot"),
+			SpotOptions: &ec2.SpotMarketOptions{
+				MaxPrice: aws.String(strconv.FormatFloat(price, 'g', 10, 64)),
+			},
+		},
+
+		InstanceType: aws.String(instanceType),
+		KeyName:      i.KeyName,
+		MaxCount:     aws.Int64(1),
+		MinCount:     aws.Int64(1),
+		Monitoring: &ec2.RunInstancesMonitoringEnabled{
+			Enabled: i.asg.launchConfiguration.InstanceMonitoring.Enabled},
+
+		Placement: i.Placement,
+
+		SecurityGroupIds: i.convertSecurityGroups(),
+
+		SubnetId:          i.SubnetId,
+		TagSpecifications: i.generateTagsList(),
+		UserData:          i.asg.launchConfiguration.UserData,
+	}
+
+	if i.asg.LaunchTemplate != nil {
+		retval.LaunchTemplate = &ec2.LaunchTemplateSpecification{
+			LaunchTemplateId:   i.asg.LaunchTemplate.LaunchTemplateId,
+			LaunchTemplateName: i.asg.LaunchTemplate.LaunchTemplateName,
 		}
-		logger.Println(i.region.name,
-			"Failed to create tags for the spot instance", *i.InstanceId, err.Error())
-		logger.Println(i.region.name,
-			"Sleeping for 5 seconds before retrying")
-		time.Sleep(5 * time.Second * i.region.conf.SleepMultiplier)
 	}
-	return err
+
+	// if i.CpuOptions != nil {
+	// 	retval.CpuOptions = &ec2.CpuOptionsRequest{
+	// 		CoreCount:      i.CpuOptions.CoreCount,
+	// 		ThreadsPerCore: i.CpuOptions.ThreadsPerCore,
+	// 	}
+	// }
+	return &retval
+}
+
+func (i *instance) generateTagsList() []*ec2.TagSpecification {
+	tags := ec2.TagSpecification{
+		ResourceType: aws.String("instance"),
+		Tags: []*ec2.Tag{
+			{
+				Key:   aws.String("LaunchConfigurationName"),
+				Value: i.asg.LaunchConfigurationName,
+			},
+			{
+				Key:   aws.String("launched-by-autospotting"),
+				Value: aws.String("true"),
+			},
+			{
+				Key:   aws.String("launched-for-asg"),
+				Value: aws.String(i.asg.name),
+			},
+		},
+	}
+
+	for _, tag := range i.Tags {
+		if !strings.HasPrefix(*tag.Key, "aws:") {
+			tags.Tags = append(tags.Tags, tag)
+		}
+	}
+	return []*ec2.TagSpecification{&tags}
 }
 
 // Why the heck isn't this in the Go standard library?

@@ -2,14 +2,12 @@ package autospotting
 
 import (
 	"errors"
-	"math"
 	"reflect"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 )
 
 func TestGetTagValue(t *testing.T) {
@@ -716,7 +714,6 @@ func TestLoadConfigFromTags(t *testing.T) {
 
 func TestLoadSpotPriceBufferPercentage(t *testing.T) {
 	tests := []struct {
-		name            string
 		tagValue        *string
 		loadingExpected bool
 		valueExpected   float64
@@ -1406,6 +1403,9 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 					"1": {
 						Instance: &ec2.Instance{
 							InstanceId: aws.String("1"),
+							State: &ec2.InstanceState{
+								Name: aws.String(ec2.InstanceStateNameRunning),
+							},
 						},
 						region: &region{
 							services: connections{
@@ -1431,6 +1431,9 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 					"1": {
 						Instance: &ec2.Instance{
 							InstanceId: aws.String("1"),
+							State: &ec2.InstanceState{
+								Name: aws.String(ec2.InstanceStateNameRunning),
+							},
 						},
 						region: &region{
 							services: connections{
@@ -1456,6 +1459,9 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 					"1": {
 						Instance: &ec2.Instance{
 							InstanceId: aws.String("1"),
+							State: &ec2.InstanceState{
+								Name: aws.String(ec2.InstanceStateNameRunning),
+							},
 						},
 						region: &region{
 							services: connections{
@@ -1481,6 +1487,9 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 					"1": {
 						Instance: &ec2.Instance{
 							InstanceId: aws.String("1"),
+							State: &ec2.InstanceState{
+								Name: aws.String(ec2.InstanceStateNameRunning),
+							},
 						},
 						region: &region{
 							services: connections{
@@ -1555,72 +1564,72 @@ func TestAttachSpotInstance(t *testing.T) {
 	}
 }
 
-func TestGetLaunchConfiguration(t *testing.T) {
-	tests := []struct {
-		name       string
-		nameLC     *string
-		regionASG  *region
-		expectedLC *launchConfiguration
-	}{
-		{name: "get nil launch configuration",
-			nameLC: nil,
-			regionASG: &region{
-				services: connections{
-					autoScaling: mockASG{dlcerr: nil},
-				},
-			},
-			expectedLC: nil,
-		},
-		{name: "no err during get launch configuration",
-			nameLC: aws.String("testLC"),
-			regionASG: &region{
-				services: connections{
-					autoScaling: mockASG{
-						dlcerr: nil,
-						dlco: &autoscaling.DescribeLaunchConfigurationsOutput{
-							LaunchConfigurations: []*autoscaling.LaunchConfiguration{
-								{
-									LaunchConfigurationName: aws.String("testLC"),
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedLC: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
-					LaunchConfigurationName: aws.String("testLC"),
-				},
-			},
-		},
-		{name: "err during get launch configuration",
-			nameLC: aws.String("testLC"),
-			regionASG: &region{
-				services: connections{
-					autoScaling: mockASG{
-						dlcerr: errors.New("describe"),
-						dlco:   nil,
-					},
-				},
-			},
-			expectedLC: nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := autoScalingGroup{
-				region: tt.regionASG,
-				Group: &autoscaling.Group{
-					LaunchConfigurationName: tt.nameLC,
-				},
-			}
-			lc := a.getLaunchConfiguration()
-			if !reflect.DeepEqual(tt.expectedLC, lc) {
-				t.Errorf("getLaunchConfiguration received: %+v expected %+v", lc, tt.expectedLC)
-			}
-		})
-	}
-}
+// func TestGetLaunchConfiguration(t *testing.T) {
+// 	tests := []struct {
+// 		name       string
+// 		nameLC     *string
+// 		regionASG  *region
+// 		expectedLC *launchConfiguration
+// 	}{
+// 		{name: "get nil launch configuration",
+// 			nameLC: nil,
+// 			regionASG: &region{
+// 				services: connections{
+// 					autoScaling: mockASG{dlcerr: nil},
+// 				},
+// 			},
+// 			expectedLC: nil,
+// 		},
+// 		{name: "no err during get launch configuration",
+// 			nameLC: aws.String("testLC"),
+// 			regionASG: &region{
+// 				services: connections{
+// 					autoScaling: mockASG{
+// 						dlcerr: nil,
+// 						dlco: &autoscaling.DescribeLaunchConfigurationsOutput{
+// 							LaunchConfigurations: []*autoscaling.LaunchConfiguration{
+// 								{
+// 									LaunchConfigurationName: aws.String("testLC"),
+// 								},
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			expectedLC: &launchConfiguration{
+// 				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+// 					LaunchConfigurationName: aws.String("testLC"),
+// 				},
+// 			},
+// 		},
+// 		{name: "err during get launch configuration",
+// 			nameLC: aws.String("testLC"),
+// 			regionASG: &region{
+// 				services: connections{
+// 					autoScaling: mockASG{
+// 						dlcerr: errors.New("describe"),
+// 						dlco:   nil,
+// 					},
+// 				},
+// 			},
+// 			expectedLC: nil,
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			a := autoScalingGroup{
+// 				region: tt.regionASG,
+// 				Group: &autoscaling.Group{
+// 					LaunchConfigurationName: tt.nameLC,
+// 				},
+// 			}
+// 			lc := a.getLaunchConfiguration()
+// 			if !reflect.DeepEqual(tt.expectedLC, lc) {
+// 				t.Errorf("getLaunchConfiguration received: %+v expected %+v", lc, tt.expectedLC)
+// 			}
+// 		})
+// 	}
+// }
 
 func TestSetAutoScalingMaxSize(t *testing.T) {
 	tests := []struct {
@@ -1672,341 +1681,174 @@ func TestSetAutoScalingMaxSize(t *testing.T) {
 // dsirX:  describe spot instance request
 // diX:    describe instance
 //
-func TestBidForSpotInstance(t *testing.T) {
-	tests := []struct {
-		name      string
-		rsls      *ec2.RequestSpotLaunchSpecification
-		regionASG *region
-		expected  error
-	}{
-		{name: "no err during bid for spot instance",
-			rsls: &ec2.RequestSpotLaunchSpecification{},
-			regionASG: &region{
-				instances: makeInstances(),
-				conf:      &Config{},
-				services: connections{
-					ec2: mockEC2{
-						rsierr: nil,
-						rsio: &ec2.RequestSpotInstancesOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{
-									SpotInstanceRequestId: aws.String("bidTestId"),
-								},
-							},
-						},
-						cto:       nil,
-						cterr:     nil,
-						wusirferr: nil,
-						dsirerr:   nil,
-						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{InstanceId: aws.String("1")},
-							},
-						},
-					},
-				},
-			},
-			expected: nil,
-		},
-		{name: "err during request spot instances",
-			rsls: &ec2.RequestSpotLaunchSpecification{},
-			regionASG: &region{
-				instances: makeInstances(),
-				conf:      &Config{},
-				services: connections{
-					ec2: mockEC2{
-						rsierr: errors.New("requestSpot"),
-						rsio: &ec2.RequestSpotInstancesOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{
-									SpotInstanceRequestId: aws.String("bidTestId"),
-								},
-							},
-						},
-						cto:       nil,
-						cterr:     nil,
-						wusirferr: nil,
-						dsirerr:   nil,
-						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{InstanceId: aws.String("1")},
-							},
-						},
-					},
-				},
-			},
-			expected: errors.New("requestSpot"),
-		},
-		{name: "err during create tags",
-			rsls: &ec2.RequestSpotLaunchSpecification{},
-			regionASG: &region{
-				instances: makeInstances(),
-				conf:      &Config{},
-				services: connections{
-					ec2: mockEC2{
-						rsierr: nil,
-						rsio: &ec2.RequestSpotInstancesOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{
-									SpotInstanceRequestId: aws.String("bidTestId"),
-								},
-							},
-						},
-						cto:       nil,
-						cterr:     errors.New("create-tags"),
-						wusirferr: nil,
-						dsirerr:   nil,
-						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{InstanceId: aws.String("1")},
-							},
-						},
-					},
-				},
-			},
-			expected: errors.New("create-tags"),
-		},
-		{name: "err during wait until spot instance request fulfilled",
-			rsls: &ec2.RequestSpotLaunchSpecification{},
-			regionASG: &region{
-				instances: makeInstances(),
-				conf:      &Config{},
-				services: connections{
-					ec2: mockEC2{
-						rsierr: nil,
-						rsio: &ec2.RequestSpotInstancesOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{
-									SpotInstanceRequestId: aws.String("bidTestId"),
-								},
-							},
-						},
-						cto:       nil,
-						cterr:     nil,
-						wusirferr: errors.New("wait-fulfilled"),
-						dsirerr:   nil,
-						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{InstanceId: aws.String("1")},
-							},
-						},
-					},
-				},
-			},
-			expected: errors.New("wait-fulfilled"),
-		},
-		{name: "err during describe spot instance request",
-			rsls: &ec2.RequestSpotLaunchSpecification{},
-			regionASG: &region{
-				conf:      &Config{},
-				instances: makeInstances(),
-				services: connections{
-					ec2: mockEC2{
-						rsierr: nil,
-						rsio: &ec2.RequestSpotInstancesOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{
-									SpotInstanceRequestId: aws.String("bidTestId"),
-								},
-							},
-						},
-						cto:       nil,
-						cterr:     nil,
-						wusirferr: nil,
-						dsirerr:   errors.New("describe"),
-						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{InstanceId: aws.String("1")},
-							},
-						},
-					},
-				},
-			},
-			expected: errors.New("describe"),
-		},
-	}
+// func TestBidForSpotInstance(t *testing.T) {
+// 	tests := []struct {
+// 		name      string
+// 		rsls      *ec2.RequestSpotLaunchSpecification
+// 		regionASG *region
+// 		expected  error
+// 	}{
+// 		{name: "no err during bid for spot instance",
+// 			rsls: &ec2.RequestSpotLaunchSpecification{},
+// 			regionASG: &region{
+// 				instances: makeInstances(),
+// 				conf:      &Config{},
+// 				services: connections{
+// 					ec2: mockEC2{
+// 						rsierr: nil,
+// 						rsio: &ec2.RequestSpotInstancesOutput{
+// 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+// 								{
+// 									SpotInstanceRequestId: aws.String("bidTestId"),
+// 								},
+// 							},
+// 						},
+// 						cto:       nil,
+// 						cterr:     nil,
+// 						wusirferr: nil,
+// 						dsirerr:   nil,
+// 						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+// 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+// 								{InstanceId: aws.String("1")},
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			expected: nil,
+// 		},
+// 		{name: "err during request spot instances",
+// 			rsls: &ec2.RequestSpotLaunchSpecification{},
+// 			regionASG: &region{
+// 				instances: makeInstances(),
+// 				conf:      &Config{},
+// 				services: connections{
+// 					ec2: mockEC2{
+// 						rsierr: errors.New("requestSpot"),
+// 						rsio: &ec2.RequestSpotInstancesOutput{
+// 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+// 								{
+// 									SpotInstanceRequestId: aws.String("bidTestId"),
+// 								},
+// 							},
+// 						},
+// 						cto:       nil,
+// 						cterr:     nil,
+// 						wusirferr: nil,
+// 						dsirerr:   nil,
+// 						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+// 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+// 								{InstanceId: aws.String("1")},
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			expected: errors.New("requestSpot"),
+// 		},
+// 		{name: "err during create tags",
+// 			rsls: &ec2.RequestSpotLaunchSpecification{},
+// 			regionASG: &region{
+// 				instances: makeInstances(),
+// 				conf:      &Config{},
+// 				services: connections{
+// 					ec2: mockEC2{
+// 						rsierr: nil,
+// 						rsio: &ec2.RequestSpotInstancesOutput{
+// 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+// 								{
+// 									SpotInstanceRequestId: aws.String("bidTestId"),
+// 								},
+// 							},
+// 						},
+// 						cto:       nil,
+// 						cterr:     errors.New("create-tags"),
+// 						wusirferr: nil,
+// 						dsirerr:   nil,
+// 						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+// 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+// 								{InstanceId: aws.String("1")},
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			expected: errors.New("create-tags"),
+// 		},
+// 		{name: "err during wait until spot instance request fulfilled",
+// 			rsls: &ec2.RequestSpotLaunchSpecification{},
+// 			regionASG: &region{
+// 				instances: makeInstances(),
+// 				conf:      &Config{},
+// 				services: connections{
+// 					ec2: mockEC2{
+// 						rsierr: nil,
+// 						rsio: &ec2.RequestSpotInstancesOutput{
+// 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+// 								{
+// 									SpotInstanceRequestId: aws.String("bidTestId"),
+// 								},
+// 							},
+// 						},
+// 						cto:       nil,
+// 						cterr:     nil,
+// 						wusirferr: errors.New("wait-fulfilled"),
+// 						dsirerr:   nil,
+// 						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+// 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+// 								{InstanceId: aws.String("1")},
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			expected: errors.New("wait-fulfilled"),
+// 		},
+// 		{name: "err during describe spot instance request",
+// 			rsls: &ec2.RequestSpotLaunchSpecification{},
+// 			regionASG: &region{
+// 				conf:      &Config{},
+// 				instances: makeInstances(),
+// 				services: connections{
+// 					ec2: mockEC2{
+// 						rsierr: nil,
+// 						rsio: &ec2.RequestSpotInstancesOutput{
+// 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+// 								{
+// 									SpotInstanceRequestId: aws.String("bidTestId"),
+// 								},
+// 							},
+// 						},
+// 						cto:       nil,
+// 						cterr:     nil,
+// 						wusirferr: nil,
+// 						dsirerr:   errors.New("describe"),
+// 						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+// 							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+// 								{InstanceId: aws.String("1")},
+// 							},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			expected: errors.New("describe"),
+// 		},
+// 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := autoScalingGroup{
-				name:   "testASG",
-				region: tt.regionASG,
-				Group: &autoscaling.Group{
-					Tags: []*autoscaling.TagDescription{},
-				},
-			}
-			err := a.bidForSpotInstance(tt.rsls, 0.24)
-			CheckErrors(t, err, tt.expected)
-		})
-	}
-}
-
-func TestLoadSpotInstanceRequest(t *testing.T) {
-	tests := []struct {
-		name     string
-		req      *ec2.SpotInstanceRequest
-		region   *region
-		expected *spotInstanceRequest
-	}{
-		{name: "using region name 1",
-			region: &region{name: "1"},
-			req:    &ec2.SpotInstanceRequest{},
-			expected: &spotInstanceRequest{
-				SpotInstanceRequest: &ec2.SpotInstanceRequest{},
-				region:              &region{name: "1"},
-				asg: &autoScalingGroup{
-					region: &region{name: "1"},
-				},
-			},
-		},
-		{name: "using region name 2",
-			region: &region{name: "2"},
-			req:    &ec2.SpotInstanceRequest{},
-			expected: &spotInstanceRequest{
-				SpotInstanceRequest: &ec2.SpotInstanceRequest{},
-				region:              &region{name: "2"},
-				asg: &autoScalingGroup{
-					region: &region{name: "2"},
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := &autoScalingGroup{
-				region: tt.region,
-			}
-			sir := a.loadSpotInstanceRequest(tt.req)
-			if !reflect.DeepEqual(tt.expected, sir) {
-				t.Errorf("loadSpotInstanceRequest received: %+v expected %+v", sir, tt.expected)
-			}
-		})
-	}
-
-}
-
-func TestFindSpotInstanceRequests(t *testing.T) {
-	tests := []struct {
-		name                string
-		region              *region
-		expectedError       error
-		expectedNumberFound int
-	}{
-		{name: "multiple spot instance requests found",
-			region: &region{
-				services: connections{
-					ec2: mockEC2{
-						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{SpotInstanceRequestId: aws.String("1"), State: aws.String("active"), InstanceId: aws.String("1")},
-								{SpotInstanceRequestId: aws.String("2"), State: aws.String("active"), InstanceId: aws.String("2")},
-								{SpotInstanceRequestId: aws.String("3"), State: aws.String("active"), InstanceId: aws.String("3")},
-							},
-						},
-						dsirerr: nil,
-					},
-				},
-			},
-			expectedError:       nil,
-			expectedNumberFound: 3,
-		},
-		{name: "completed spot requests filtered out",
-			region: &region{
-				services: connections{
-					ec2: mockEC2{
-						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{
-									SpotInstanceRequestId: aws.String("1"),
-									State:      aws.String("active"),
-									InstanceId: aws.String("1"),
-									Tags: []*ec2.Tag{
-										{
-											Key:   aws.String(DefaultSIRRequestCompleteTagName),
-											Value: aws.String("true"),
-										},
-									},
-								},
-								{SpotInstanceRequestId: aws.String("2"), State: aws.String("active"), InstanceId: aws.String("2")},
-								{SpotInstanceRequestId: aws.String("3"), State: aws.String("active"), InstanceId: aws.String("3")},
-							},
-						},
-						dsirerr: nil,
-					},
-				},
-			},
-			expectedError:       nil,
-			expectedNumberFound: 2,
-		},
-		{name: "cancelled spot requests with no instances filtered out",
-			region: &region{
-				services: connections{
-					ec2: mockEC2{
-						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-								{SpotInstanceRequestId: aws.String("1"), State: aws.String("cancelled")},
-								{
-									SpotInstanceRequestId: aws.String("2"),
-									State:      aws.String("cancelled"),
-									InstanceId: aws.String("2"),
-								},
-								{SpotInstanceRequestId: aws.String("3"), State: aws.String("active"), InstanceId: aws.String("3")},
-							},
-						},
-						dsirerr: nil,
-					},
-				},
-			},
-			expectedError:       nil,
-			expectedNumberFound: 2,
-		},
-		{name: "no spot instance requests found",
-			region: &region{
-				services: connections{
-					ec2: mockEC2{
-						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{},
-						},
-						dsirerr: nil,
-					},
-				},
-			},
-			expectedError:       nil,
-			expectedNumberFound: 0,
-		},
-		{name: "error during describing spot instance requests",
-			region: &region{
-				services: connections{
-					ec2: mockEC2{
-						dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-							SpotInstanceRequests: []*ec2.SpotInstanceRequest{},
-						},
-						dsirerr: errors.New("describe"),
-					},
-				},
-			},
-			expectedError:       errors.New("describe"),
-			expectedNumberFound: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := &autoScalingGroup{
-				Group:  &autoscaling.Group{AutoScalingGroupName: aws.String("testASG"), DesiredCapacity: aws.Int64(1)},
-				name:   "testASG",
-				region: tt.region,
-			}
-			err := a.findSpotInstanceRequests()
-			if len(a.spotInstanceRequests) != tt.expectedNumberFound {
-				t.Errorf("Incorrect number of spot instances found")
-			}
-
-			CheckErrors(t, err, tt.expectedError)
-		})
-	}
-}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			a := autoScalingGroup{
+// 				name:   "testASG",
+// 				region: tt.regionASG,
+// 				Group: &autoscaling.Group{
+// 					Tags: []*autoscaling.TagDescription{},
+// 				},
+// 			}
+// 			err := a.bidForSpotInstance(tt.rsls, 0.24)
+// 			CheckErrors(t, err, tt.expected)
+// 		})
+// 	}
+// }
 
 func TestScanInstances(t *testing.T) {
 	tests := []struct {
@@ -2129,139 +1971,6 @@ func TestScanInstances(t *testing.T) {
 				t.Errorf("scanInstances: catalog does not match, received: %+v, expected: %+v",
 					asgInstanceManager.catalog,
 					tt.expectedInstances)
-			}
-		})
-	}
-}
-
-func TestPropagatedInstance(t *testing.T) {
-	tests := []struct {
-		name         string
-		ASGLCName    string
-		tagsASG      []*autoscaling.TagDescription
-		expectedTags []*ec2.Tag
-	}{
-		{name: "no tags on asg",
-			ASGLCName: "testLC0",
-			tagsASG:   []*autoscaling.TagDescription{},
-			expectedTags: []*ec2.Tag{
-				{
-					Key:   aws.String("LaunchConfigurationName"),
-					Value: aws.String("testLC0"),
-				},
-				{
-					Key:   aws.String("launched-by-autospotting"),
-					Value: aws.String("true"),
-				},
-			},
-		},
-		{name: "multiple tags but none to propagate",
-			ASGLCName: "testLC1",
-			tagsASG: []*autoscaling.TagDescription{
-				{
-					Key:               aws.String("k1"),
-					Value:             aws.String("v1"),
-					PropagateAtLaunch: aws.Bool(false),
-				},
-				{
-					Key:               aws.String("k2"),
-					Value:             aws.String("v2"),
-					PropagateAtLaunch: aws.Bool(false),
-				},
-				{
-					Key:               aws.String("k3"),
-					Value:             aws.String("v3"),
-					PropagateAtLaunch: aws.Bool(false),
-				},
-			},
-			expectedTags: []*ec2.Tag{
-				{
-					Key:   aws.String("LaunchConfigurationName"),
-					Value: aws.String("testLC1"),
-				},
-				{
-					Key:   aws.String("launched-by-autospotting"),
-					Value: aws.String("true"),
-				},
-			},
-		},
-		{name: "multiple tags but none to propagate",
-			ASGLCName: "testLC2",
-			tagsASG: []*autoscaling.TagDescription{
-				{
-					Key:               aws.String("aws:k1"),
-					Value:             aws.String("v1"),
-					PropagateAtLaunch: aws.Bool(true),
-				},
-				{
-					Key:               aws.String("k2"),
-					Value:             aws.String("v2"),
-					PropagateAtLaunch: aws.Bool(false),
-				},
-				{
-					Key:               aws.String("k3"),
-					Value:             aws.String("v3"),
-					PropagateAtLaunch: aws.Bool(false),
-				},
-			},
-			expectedTags: []*ec2.Tag{
-				{
-					Key:   aws.String("LaunchConfigurationName"),
-					Value: aws.String("testLC2"),
-				},
-				{
-					Key:   aws.String("launched-by-autospotting"),
-					Value: aws.String("true"),
-				},
-			},
-		},
-		{name: "multiple tags on asg - only one to propagate",
-			ASGLCName: "testLC3",
-			tagsASG: []*autoscaling.TagDescription{
-				{
-					Key:               aws.String("k1"),
-					Value:             aws.String("v1"),
-					PropagateAtLaunch: aws.Bool(false),
-				},
-				{
-					Key:               aws.String("k2"),
-					Value:             aws.String("v2"),
-					PropagateAtLaunch: aws.Bool(true),
-				},
-				{
-					Key:               aws.String("aws:k3"),
-					Value:             aws.String("v3"),
-					PropagateAtLaunch: aws.Bool(true),
-				},
-			},
-			expectedTags: []*ec2.Tag{
-				{
-					Key:   aws.String("LaunchConfigurationName"),
-					Value: aws.String("testLC3"),
-				},
-				{
-					Key:   aws.String("launched-by-autospotting"),
-					Value: aws.String("true"),
-				},
-				{
-					Key:   aws.String("k2"),
-					Value: aws.String("v2"),
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := &autoScalingGroup{
-				Group: &autoscaling.Group{
-					LaunchConfigurationName: aws.String(tt.ASGLCName),
-					Tags: tt.tagsASG,
-				},
-			}
-			tags := a.propagatedInstanceTags()
-			if !reflect.DeepEqual(tags, tt.expectedTags) {
-				t.Errorf("propagatedInstanceTags received: %+v, expected: %+v", tags, tt.expectedTags)
 			}
 		})
 	}
@@ -3436,667 +3145,185 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 	}
 }
 
-func TestFilteringCompleteSIRRequests(t *testing.T) {
-	tests := []struct {
-		foundSIRRequests    []*ec2.SpotInstanceRequest
-		expectedSIRRequests []*ec2.SpotInstanceRequest
-	}{
-		{
-			foundSIRRequests: []*ec2.SpotInstanceRequest{
-				{
-					SpotInstanceRequestId: aws.String("bidTestId1"),
-					Tags: []*ec2.Tag{
-						{Key: aws.String("launched-for-asg"), Value: aws.String("xyz")},
-						{Key: aws.String("autospotting-complete"), Value: aws.String("true")},
-					},
-				},
-				{
-					SpotInstanceRequestId: aws.String("bidTestId2"),
-					Tags: []*ec2.Tag{
-						{Key: aws.String("launched-for-asg"), Value: aws.String("xyz")},
-					},
-				},
-			},
-			expectedSIRRequests: []*ec2.SpotInstanceRequest{
-				{
-					SpotInstanceRequestId: aws.String("bidTestId2"),
-					Tags: []*ec2.Tag{
-						{Key: aws.String("launched-for-asg"), Value: aws.String("xyz")},
-					},
-				},
-			},
-		},
-		{
-			foundSIRRequests: []*ec2.SpotInstanceRequest{
-				{
-					SpotInstanceRequestId: aws.String("bidTestId1"),
-					Tags: []*ec2.Tag{
-						{Key: aws.String("launched-for-asg"), Value: aws.String("xyz")},
-						{Key: aws.String("autospotting-complete"), Value: aws.String("true")},
-					},
-				},
-				{
-					SpotInstanceRequestId: aws.String("bidTestId2"),
-					Tags: []*ec2.Tag{
-						{Key: aws.String("launched-for-asg"), Value: aws.String("xyz")},
-						{Key: aws.String("autospotting-complete"), Value: aws.String("true")},
-					},
-				},
-			},
-			expectedSIRRequests: []*ec2.SpotInstanceRequest{},
-		},
-		{
-			foundSIRRequests:    []*ec2.SpotInstanceRequest{},
-			expectedSIRRequests: []*ec2.SpotInstanceRequest{},
-		},
-		{
-			foundSIRRequests:    nil,
-			expectedSIRRequests: []*ec2.SpotInstanceRequest{},
-		},
-	}
+// func TestProcessInstanceID(t *testing.T) {
+// 	mock := checkCreateTagsCalledMock{
+// 		CreateTagsCalled: 0,
+// 	}
+// 	tests := []struct {
+// 		name                       string
+// 		request                    *spotInstanceRequest
+// 		instances                  map[string]*instance
+// 		expectedEligibleSIR        bool
+// 		expectedInstanceNotRunning bool
+// 		expectCreateTags           int
+// 	}{
+// 		{
+// 			name: "Instance not attached to asg, but running",
+// 			request: &spotInstanceRequest{
+// 				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+// 					Status: &ec2.SpotInstanceStatus{
+// 						Code: aws.String("fulfilled"),
+// 					},
+// 					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+// 					InstanceId:            aws.String("i-039382787474f"),
+// 				},
+// 				asg: &autoScalingGroup{
+// 					region: &region{
+// 						services: connections{
+// 							ec2: &mockEC2{
+// 								disro: &ec2.DescribeInstanceStatusOutput{
+// 									InstanceStatuses: []*ec2.InstanceStatus{
+// 										{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}},
+// 									},
+// 								},
+// 							},
+// 						},
+// 					},
+// 					Group: &autoscaling.Group{
+// 						Tags: []*autoscaling.TagDescription{
+// 							{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
+// 						},
+// 						LaunchConfigurationName: aws.String("bob"),
+// 					},
+// 				},
+// 				region: &region{
+// 					services: connections{
+// 						ec2: mockEC2{},
+// 					},
+// 				},
+// 			},
+// 			instances: map[string]*instance{
+// 				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
+// 				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
+// 			},
+// 			expectedEligibleSIR:        true,
+// 			expectedInstanceNotRunning: false,
+// 			expectCreateTags:           0,
+// 		},
+// 		{
+// 			name: "Instance not attached to asg, but not running.",
+// 			request: &spotInstanceRequest{
+// 				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+// 					Status: &ec2.SpotInstanceStatus{
+// 						Code: aws.String("fulfilled"),
+// 					},
+// 					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+// 					InstanceId:            aws.String("i-039382787474f"),
+// 				},
+// 				region: &region{
+// 					services: connections{
+// 						ec2: mockEC2{
+// 							dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
+// 								SpotInstanceRequests: []*ec2.SpotInstanceRequest{
+// 									{InstanceId: aws.String("i-039382787474f")},
+// 								},
+// 							},
+// 						},
+// 					},
+// 				},
+// 				asg: &autoScalingGroup{
+// 					region: &region{
+// 						services: connections{
+// 							ec2: &mockEC2{
+// 								disro: &ec2.DescribeInstanceStatusOutput{
+// 									InstanceStatuses: []*ec2.InstanceStatus{
+// 										{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNamePending), Code: aws.Int64(0)}},
+// 									},
+// 								},
+// 							},
+// 						},
+// 					},
+// 					Group: &autoscaling.Group{
+// 						Tags: []*autoscaling.TagDescription{
+// 							{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
+// 						},
+// 					},
+// 				},
+// 			},
+// 			instances: map[string]*instance{
+// 				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
+// 				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
+// 			},
+// 			expectedEligibleSIR:        true,
+// 			expectedInstanceNotRunning: true,
+// 			expectCreateTags:           0,
+// 		},
+// 		{
+// 			name: "Instance Attached to the ASG",
+// 			request: &spotInstanceRequest{
+// 				SpotInstanceRequest: &ec2.SpotInstanceRequest{
+// 					Status: &ec2.SpotInstanceStatus{
+// 						Code: aws.String("fulfilled"),
+// 					},
+// 					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
+// 					InstanceId:            aws.String("i-039382787474f"),
+// 				},
+// 				asg: &autoScalingGroup{
+// 					region: &region{
+// 						services: connections{
+// 							ec2: &mock,
+// 						},
+// 					},
+// 				},
+// 			},
+// 			instances: map[string]*instance{
+// 				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f"), State: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}}},
+// 				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff"), State: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}}},
+// 			},
+// 			expectedEligibleSIR:        false,
+// 			expectedInstanceNotRunning: false,
+// 			expectCreateTags:           1,
+// 		},
+// 	}
 
-	for _, tt := range tests {
-		// If the test is expecting results but we get none; then we should faile the tests
-		filteredSIRRequests := filterOutCompleteSpotInstanceRequests(tt.foundSIRRequests)
-		if len(filteredSIRRequests) == 0 {
-			if len(tt.expectedSIRRequests) != 0 {
-				t.Errorf("Returned no filtered SIR Request, but expected some: %+v", tt.expectedSIRRequests)
-			}
-		} else if !reflect.DeepEqual(filteredSIRRequests, tt.expectedSIRRequests) {
-			t.Errorf("Filtered SIR Requests not returning as expected, received: %+v, expected: %+v",
-				filteredSIRRequests, tt.expectedSIRRequests)
-		}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			a := tt.request.asg
+// 			is := &instanceManager{}
+// 			is.make()
+// 			is.catalog = tt.instances
+// 			a.instances = is
 
-	}
-}
+// 			eligibleSIR, instanceNotRunning := a.processInstanceID(tt.request, tt.request.SpotInstanceRequest.InstanceId)
 
-func TestGetPricetoBid(t *testing.T) {
-	tests := []struct {
-		spotPercentage       float64
-		currentSpotPrice     float64
-		currentOnDemandPrice float64
-		policy               string
-		want                 float64
-	}{
-		{
-			spotPercentage:       50.0,
-			currentSpotPrice:     0.0216,
-			currentOnDemandPrice: 0.0464,
-			policy:               "aggressive",
-			want:                 0.0324,
-		},
-		{
-			spotPercentage:       79.0,
-			currentSpotPrice:     0.0216,
-			currentOnDemandPrice: 0.0464,
-			policy:               "aggressive",
-			want:                 0.038664,
-		},
-		{
-			spotPercentage:       79.0,
-			currentSpotPrice:     0.0216,
-			currentOnDemandPrice: 0.0464,
-			policy:               "normal",
-			want:                 0.0464,
-		},
-		{
-			spotPercentage:       200.0,
-			currentSpotPrice:     0.0216,
-			currentOnDemandPrice: 0.0464,
-			policy:               "aggressive",
-			want:                 0.0464,
-		},
-	}
-	for _, tt := range tests {
-		cfg := &Config{
-			SpotPriceBufferPercentage: tt.spotPercentage,
-			BiddingPolicy:             tt.policy,
-		}
-		asg := &autoScalingGroup{
-			region: &region{
-				name: "us-east-1",
-				conf: cfg,
-			},
-		}
+// 			if eligibleSIR != tt.expectedEligibleSIR || instanceNotRunning != tt.expectedInstanceNotRunning {
+// 				t.Errorf("%+v : open SIR not processed as expected: expect eligibleSIR = %+v, actual eligibleSIT = %+v; expected instance not running = %+v ,actual instance not running = %+v,",
+// 					tt.name, tt.expectedEligibleSIR, eligibleSIR, tt.expectedInstanceNotRunning, instanceNotRunning)
 
-		currentSpotPrice := tt.currentSpotPrice
-		currentOnDemandPrice := tt.currentOnDemandPrice
-		actualPrice := asg.getPricetoBid(currentOnDemandPrice, currentSpotPrice)
-		if math.Abs(actualPrice-tt.want) > 0.000001 {
-			t.Errorf("percentage = %.2f, policy = %s, expected price = %.5f, want %.5f, currentSpotPrice = %.5f",
-				tt.spotPercentage, tt.policy, actualPrice, tt.want, currentSpotPrice)
-		}
-	}
-}
+// 			}
 
-type checkCreateTagsCalledMock struct {
-	ec2iface.EC2API
-	CreateTagsCalled int
-}
+// 			if tt.expectCreateTags > 0 {
+// 				if mock.CreateTagsCalled != tt.expectCreateTags {
+// 					t.Errorf("%+v : Expected request to be tagged: %+v", tt.name, mock.CreateTagsCalled)
+// 				}
+// 			}
 
-func (m *checkCreateTagsCalledMock) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
-	m.CreateTagsCalled++
-	return nil, nil
-}
+// 		})
+// 	}
+// }
 
-func TestProcessInstanceID(t *testing.T) {
-	mock := checkCreateTagsCalledMock{
-		CreateTagsCalled: 0,
-	}
-	tests := []struct {
-		name                       string
-		request                    *spotInstanceRequest
-		instances                  map[string]*instance
-		expectedEligibleSIR        bool
-		expectedInstanceNotRunning bool
-		expectCreateTags           int
-	}{
-		{
-			name: "Instance not attached to asg, but running",
-			request: &spotInstanceRequest{
-				SpotInstanceRequest: &ec2.SpotInstanceRequest{
-					Status: &ec2.SpotInstanceStatus{
-						Code: aws.String("fulfilled"),
-					},
-					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
-					InstanceId:            aws.String("i-039382787474f"),
-				},
-				asg: &autoScalingGroup{
-					region: &region{
-						services: connections{
-							ec2: &mockEC2{
-								disro: &ec2.DescribeInstanceStatusOutput{
-									InstanceStatuses: []*ec2.InstanceStatus{
-										{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}},
-									},
-								},
-							},
-						},
-					},
-					Group: &autoscaling.Group{
-						Tags: []*autoscaling.TagDescription{
-							{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
-						},
-						LaunchConfigurationName: aws.String("bob"),
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: mockEC2{},
-					},
-				},
-			},
-			instances: map[string]*instance{
-				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
-				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
-			},
-			expectedEligibleSIR:        true,
-			expectedInstanceNotRunning: false,
-			expectCreateTags:           0,
-		},
-		{
-			name: "Instance not attached to asg, but not running.",
-			request: &spotInstanceRequest{
-				SpotInstanceRequest: &ec2.SpotInstanceRequest{
-					Status: &ec2.SpotInstanceStatus{
-						Code: aws.String("fulfilled"),
-					},
-					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
-					InstanceId:            aws.String("i-039382787474f"),
-				},
-				region: &region{
-					services: connections{
-						ec2: mockEC2{
-							dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-								SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-									{InstanceId: aws.String("i-039382787474f")},
-								},
-							},
-						},
-					},
-				},
-				asg: &autoScalingGroup{
-					region: &region{
-						services: connections{
-							ec2: &mockEC2{
-								disro: &ec2.DescribeInstanceStatusOutput{
-									InstanceStatuses: []*ec2.InstanceStatus{
-										{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNamePending), Code: aws.Int64(0)}},
-									},
-								},
-							},
-						},
-					},
-					Group: &autoscaling.Group{
-						Tags: []*autoscaling.TagDescription{
-							{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
-						},
-					},
-				},
-			},
-			instances: map[string]*instance{
-				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
-				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
-			},
-			expectedEligibleSIR:        true,
-			expectedInstanceNotRunning: true,
-			expectCreateTags:           0,
-		},
-		{
-			name: "Instance Attached to the ASG",
-			request: &spotInstanceRequest{
-				SpotInstanceRequest: &ec2.SpotInstanceRequest{
-					Status: &ec2.SpotInstanceStatus{
-						Code: aws.String("fulfilled"),
-					},
-					SpotInstanceRequestId: aws.String("sir-tk585nsj"),
-					InstanceId:            aws.String("i-039382787474f"),
-				},
-				asg: &autoScalingGroup{
-					region: &region{
-						services: connections{
-							ec2: &mock,
-						},
-					},
-				},
-			},
-			instances: map[string]*instance{
-				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f"), State: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}}},
-				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff"), State: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}}},
-			},
-			expectedEligibleSIR:        false,
-			expectedInstanceNotRunning: false,
-			expectCreateTags:           1,
-		},
-	}
+// type createTagsStoreSIRId struct {
+// 	ec2iface.EC2API
+// 	CreateTagsCalled map[string]bool
+// 	disro            *ec2.DescribeInstanceStatusOutput
+// 	disrerr          error
+// }
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := tt.request.asg
-			is := &instanceManager{}
-			is.make()
-			is.catalog = tt.instances
-			a.instances = is
+// func (m *createTagsStoreSIRId) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
+// 	if m.CreateTagsCalled == nil {
+// 		m.CreateTagsCalled = make(map[string]bool)
+// 	}
 
-			eligibleSIR, instanceNotRunning := a.processInstanceID(tt.request, tt.request.SpotInstanceRequest.InstanceId)
+// 	if len(in.Resources) > 0 {
+// 		m.CreateTagsCalled[*in.Resources[0]] = true
+// 	}
+// 	return nil, nil
+// }
 
-			if eligibleSIR != tt.expectedEligibleSIR || instanceNotRunning != tt.expectedInstanceNotRunning {
-				t.Errorf("%+v : open SIR not processed as expected: expect eligibleSIR = %+v, actual eligibleSIT = %+v; expected instance not running = %+v ,actual instance not running = %+v,",
-					tt.name, tt.expectedEligibleSIR, eligibleSIR, tt.expectedInstanceNotRunning, instanceNotRunning)
+// func (m *createTagsStoreSIRId) DescribeInstanceStatus(in *ec2.DescribeInstanceStatusInput) (*ec2.DescribeInstanceStatusOutput, error) {
+// 	return m.disro, m.disrerr
+// }
 
-			}
-
-			if tt.expectCreateTags > 0 {
-				if mock.CreateTagsCalled != tt.expectCreateTags {
-					t.Errorf("%+v : Expected request to be tagged: %+v", tt.name, mock.CreateTagsCalled)
-				}
-			}
-
-		})
-	}
-}
-
-type createTagsStoreSIRId struct {
-	ec2iface.EC2API
-	CreateTagsCalled map[string]bool
-	disro            *ec2.DescribeInstanceStatusOutput
-	disrerr          error
-}
-
-func (m *createTagsStoreSIRId) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
-	if m.CreateTagsCalled == nil {
-		m.CreateTagsCalled = make(map[string]bool)
-	}
-
-	if len(in.Resources) > 0 {
-		m.CreateTagsCalled[*in.Resources[0]] = true
-	}
-	return nil, nil
-}
-
-func (m *createTagsStoreSIRId) DescribeInstanceStatus(in *ec2.DescribeInstanceStatusInput) (*ec2.DescribeInstanceStatusOutput, error) {
-	return m.disro, m.disrerr
-}
-
-func (m *createTagsStoreSIRId) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
-	return nil, nil
-}
-
-func (m *createTagsStoreSIRId) CancelSpotInstanceRequests(*ec2.CancelSpotInstanceRequestsInput) (*ec2.CancelSpotInstanceRequestsOutput, error) {
-	return nil, nil
-}
-
-func TestFindSpotInstanceRequest(t *testing.T) {
-	mock := createTagsStoreSIRId{
-		CreateTagsCalled: make(map[string]bool),
-	}
-	mockCancelledWithTerminated := createTagsStoreSIRId{
-		CreateTagsCalled: make(map[string]bool),
-		disro: &ec2.DescribeInstanceStatusOutput{
-			InstanceStatuses: []*ec2.InstanceStatus{
-				{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameTerminated), Code: aws.Int64(48)}},
-			},
-		},
-	}
-
-	_, _ = mock, mockCancelledWithTerminated
-	tests := []struct {
-		name                     string
-		asg                      *autoScalingGroup
-		instances                map[string]*instance
-		expectedWaitForNextRun   bool
-		expectNilRequestReturned bool
-		expectSIRToBeTagged      *createTagsStoreSIRId
-	}{
-		{
-			name: "Fullfilled Request, running instance not in asg",
-			asg: &autoScalingGroup{
-				spotInstanceRequests: []*spotInstanceRequest{
-					{
-						SpotInstanceRequest: &ec2.SpotInstanceRequest{
-							State: aws.String("active"),
-							Status: &ec2.SpotInstanceStatus{
-								Code: aws.String("fulfilled"),
-							},
-							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
-							InstanceId:            aws.String("i-039382787474f"),
-						},
-						asg: &autoScalingGroup{
-							Group: &autoscaling.Group{
-								Tags: []*autoscaling.TagDescription{
-									{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
-								},
-								LaunchConfigurationName: aws.String("bob"),
-							},
-						},
-						region: &region{
-							services: connections{
-								ec2: mockEC2{},
-							},
-						},
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: &mockEC2{
-							disro: &ec2.DescribeInstanceStatusOutput{
-								InstanceStatuses: []*ec2.InstanceStatus{
-									{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}},
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedWaitForNextRun:   false,
-			expectNilRequestReturned: false,
-		},
-		{
-			name: "Fullfilled Request, running instance in asg",
-			asg: &autoScalingGroup{
-				spotInstanceRequests: []*spotInstanceRequest{
-					{
-						SpotInstanceRequest: &ec2.SpotInstanceRequest{
-							State: aws.String("active"),
-							Status: &ec2.SpotInstanceStatus{
-								Code: aws.String("fulfilled"),
-							},
-							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
-							InstanceId:            aws.String("i-039382787474f"),
-						},
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: &mock,
-					},
-				},
-			},
-			instances: map[string]*instance{
-				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f")}},
-			},
-			expectedWaitForNextRun:   false,
-			expectNilRequestReturned: true,
-			expectSIRToBeTagged:      &mock,
-		},
-		{
-			name: "Open Request, running instance not in asg",
-			asg: &autoScalingGroup{
-				spotInstanceRequests: []*spotInstanceRequest{
-					{
-						SpotInstanceRequest: &ec2.SpotInstanceRequest{
-							State: aws.String("open"),
-							Status: &ec2.SpotInstanceStatus{
-								Code: aws.String("pending-evaluation"),
-							},
-							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
-							InstanceId:            aws.String("i-039382787474f"),
-						},
-						asg: &autoScalingGroup{
-							name: "ddd",
-							Group: &autoscaling.Group{
-								Tags: []*autoscaling.TagDescription{
-									{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
-								},
-							},
-						},
-						region: &region{
-							services: connections{
-								ec2: &mockEC2{
-									dsiro: &ec2.DescribeSpotInstanceRequestsOutput{
-										SpotInstanceRequests: []*ec2.SpotInstanceRequest{
-											{InstanceId: aws.String("1")},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: &mockEC2{
-							disro: &ec2.DescribeInstanceStatusOutput{
-								InstanceStatuses: []*ec2.InstanceStatus{
-									{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}},
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedWaitForNextRun:   false,
-			expectNilRequestReturned: false,
-		},
-		{
-			name: "Cancelled Request, running instance not in asg",
-			asg: &autoScalingGroup{
-				spotInstanceRequests: []*spotInstanceRequest{
-					{
-						SpotInstanceRequest: &ec2.SpotInstanceRequest{
-							State: aws.String("cancelled"),
-							Status: &ec2.SpotInstanceStatus{
-								Code: aws.String("request-canceled-and-instance-running"),
-							},
-							SpotInstanceRequestId: aws.String("sir-tk585nsj"),
-							InstanceId:            aws.String("i-039382787474f"),
-						},
-						asg: &autoScalingGroup{
-							Group: &autoscaling.Group{
-								Tags: []*autoscaling.TagDescription{
-									{Key: aws.String("prop"), Value: aws.String("val"), PropagateAtLaunch: aws.Bool(true)},
-								},
-								LaunchConfigurationName: aws.String("bob"),
-							},
-						},
-						region: &region{
-							services: connections{
-								ec2: mockEC2{},
-							},
-						},
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: &mockEC2{
-							disro: &ec2.DescribeInstanceStatusOutput{
-								InstanceStatuses: []*ec2.InstanceStatus{
-									{InstanceState: &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning), Code: aws.Int64(16)}},
-								},
-							},
-						},
-					},
-				},
-			},
-			instances: map[string]*instance{
-				"i-xxxxxxxxxxxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxxxxxxxxxx")}},
-				"i-fffffffffffff": {Instance: &ec2.Instance{InstanceId: aws.String("i-fffffffffffff")}},
-			},
-			expectedWaitForNextRun:   false,
-			expectNilRequestReturned: false,
-		},
-		{
-			name: "Cancelled Request, running instance in asg",
-			asg: &autoScalingGroup{
-				spotInstanceRequests: []*spotInstanceRequest{
-					{
-						SpotInstanceRequest: &ec2.SpotInstanceRequest{
-							State: aws.String("cancelled"),
-							Status: &ec2.SpotInstanceStatus{
-								Code: aws.String("request-canceled-and-instance-running"),
-							},
-							SpotInstanceRequestId: aws.String("sir-cancelled-and-running-instances-in-asg"),
-							InstanceId:            aws.String("i-039382787474f"),
-						},
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: &mock,
-					},
-				},
-			},
-			instances: map[string]*instance{
-				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f")}},
-			},
-			expectedWaitForNextRun:   false,
-			expectNilRequestReturned: true,
-			expectSIRToBeTagged:      &mock,
-		},
-		{
-			name: "Closed Request",
-			asg: &autoScalingGroup{
-				spotInstanceRequests: []*spotInstanceRequest{
-					{
-						SpotInstanceRequest: &ec2.SpotInstanceRequest{
-							State: aws.String("closed"),
-							Status: &ec2.SpotInstanceStatus{
-								Code: aws.String("request-canceled-and-instance-running"),
-							},
-							SpotInstanceRequestId: aws.String("sir-cancelled-and-running-instances-in-asg"),
-							InstanceId:            aws.String("i-039382787474f"),
-						},
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: &mock,
-					},
-				},
-			},
-			instances: map[string]*instance{
-				"i-039382787474f": {Instance: &ec2.Instance{InstanceId: aws.String("i-039382787474f")}},
-			},
-			expectedWaitForNextRun:   false,
-			expectNilRequestReturned: true,
-			expectSIRToBeTagged:      &mock,
-		},
-		{
-			name: "Cancelled Request, with terminated instance",
-			asg: &autoScalingGroup{
-				spotInstanceRequests: []*spotInstanceRequest{
-					{
-						SpotInstanceRequest: &ec2.SpotInstanceRequest{
-							State: aws.String("cancelled"),
-							Status: &ec2.SpotInstanceStatus{
-								Code: aws.String("instance-terminated-by-user"),
-							},
-							SpotInstanceRequestId: aws.String("sir-terminated"),
-							InstanceId:            aws.String("i-039382787474f"),
-						},
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: &mockCancelledWithTerminated,
-					},
-				},
-			},
-			instances: map[string]*instance{
-				"i-xxxx": {Instance: &ec2.Instance{InstanceId: aws.String("i-xxxxx")}},
-			},
-			expectedWaitForNextRun:   false,
-			expectNilRequestReturned: true,
-			expectSIRToBeTagged:      &mockCancelledWithTerminated,
-		},
-		{
-			name: "Failed Request",
-			asg: &autoScalingGroup{
-				spotInstanceRequests: []*spotInstanceRequest{
-					{
-						SpotInstanceRequest: &ec2.SpotInstanceRequest{
-							State: aws.String("failed"),
-							Status: &ec2.SpotInstanceStatus{
-								Code: aws.String("bad-parameters"),
-							},
-							SpotInstanceRequestId: aws.String("sir-failed-request"),
-						},
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: &mock,
-					},
-				},
-			},
-			instances:                map[string]*instance{},
-			expectedWaitForNextRun:   false,
-			expectNilRequestReturned: true,
-			expectSIRToBeTagged:      &mock,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := tt.asg
-			is := &instanceManager{}
-			is.make()
-			is.catalog = tt.instances
-			a.instances = is
-
-			req, waitForNextRun := a.findSpotInstanceRequest()
-			if !tt.expectNilRequestReturned {
-				if req != tt.asg.spotInstanceRequests[0] {
-					t.Errorf("%+v : SIR not return as matching SIR", tt.name)
-				}
-			} else {
-				if req != nil {
-					t.Errorf("%+v : Expecting SIR to not a matching SIR", tt.name)
-				}
-			}
-
-			if waitForNextRun != tt.expectedWaitForNextRun {
-				t.Errorf("%+v : findSpotInstanceRequest not returning as expected waitForNextRun = %+v ,actual waitForNextRun = %+v,",
-					tt.name, tt.expectedWaitForNextRun, waitForNextRun)
-
-			}
-
-			if tt.expectSIRToBeTagged != nil {
-				if !tt.expectSIRToBeTagged.CreateTagsCalled[*tt.asg.spotInstanceRequests[0].SpotInstanceRequestId] {
-					t.Errorf("%+v : Expected SIR to be tagged as complete", tt.name)
-				}
-			}
-
-		})
-	}
-}
+// func (m *createTagsStoreSIRId) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
+// 	return nil, nil
+// }
