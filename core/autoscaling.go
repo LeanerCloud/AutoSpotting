@@ -390,12 +390,23 @@ func (a *autoScalingGroup) scanInstances() instances {
 }
 
 func (a *autoScalingGroup) propagatedInstanceTags() []*ec2.Tag {
-	var tags []*ec2.Tag
+	var tags, additionalTags []*ec2.Tag
 
-	tags = append(tags, &ec2.Tag{
-		Key:   aws.String("LaunchConfigurationName"),
-		Value: a.LaunchConfigurationName,
-	})
+	additionalTags = []*ec2.Tag{
+		{
+			Key:   aws.String("LaunchConfigurationName"),
+			Value: a.LaunchConfigurationName,
+		},
+		{
+			Key:   aws.String("launched-by-autospotting"),
+			Value: aws.String("true"),
+		},
+	}
+
+	for _, tag := range additionalTags {
+		tags = append(tags, tag)
+	}
+
 	for _, asgTag := range a.Tags {
 		if *asgTag.PropagateAtLaunch && !strings.HasPrefix(*asgTag.Key, "aws:") {
 			tags = append(tags, &ec2.Tag{

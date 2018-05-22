@@ -65,14 +65,14 @@ To install it via cloudformation, you only need to launch a CloudFormation
 stack in your account. Click the button below and follow the launch wizard to
 completion, you can safely use the default stack parameters.
 
-[![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/nightly/template.json)
+[![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/nightly/template.yaml)
 
 If you are using the AWS command-line tool, you can use this command instead:
 
 ``` shell
 aws cloudformation create-stack \
 --stack-name AutoSpotting \
---template-url https://s3.amazonaws.com/cloudprowess/nightly/template.json \
+--template-url https://s3.amazonaws.com/cloudprowess/nightly/template.yaml \
 --capabilities CAPABILITY_IAM
 ```
 
@@ -134,22 +134,28 @@ use the module directly:
 module "autospotting" {
   source = "github.com/cristim/autospotting//terraform/autospotting"
 
-  autospotting_disallowed_instance_types = "t2.*"
-  autospotting_min_on_demand_number = "0"
-  autospotting_min_on_demand_percentage = "50.0"
-  autospotting_regions_enabled = "eu*,us*"
-  autospotting_tag_filters = "spot-enabled=true,environment=dev,team=interactive"
-  on_demand_price_multiplier = "1.0"
-  spot_price_buffer_percentage = "10.0"
-  bidding_policy = "normal"
 
-  lambda_zipname = "./lambda.zip"
-  lambda_runtime = "python2.7"
-  lambda_memory_size = "256"
-  lambda_timeout = "300"
+  autospotting_disallowed_instance_types    = "t2.*"
+  autospotting_min_on_demand_number         = "0"
+  autospotting_min_on_demand_percentage     = "50.0"
+  autospotting_regions_enabled              = "eu*,us*"
+  autospotting_tag_filters                  = "spot-enabled=true,environment=dev,team=interactive"
+  autospotting_on_demand_price_multiplier   = "1.0"
+  autospotting_spot_price_buffer_percentage = "10.0"
+  autospotting_bidding_policy               = "normal"
+  autospotting_tag_filtering_mode           = "opt-in"
+  autospotting_spot_product_description     = "Linux/UNIX (Amazon VPC)"
+
+  lambda_zipname       = "./lambda.zip"
+  lambda_runtime       = "go1.x"
+  lambda_memory_size   = "256"
+  lambda_timeout       = "300"
   lambda_run_frequency = "rate(5 minutes)"
 }
 ```
+
+Note: this snippet may be outdated, please see the Terraform module for the
+current module parameters.
 
 #### Install module from S3 ####
 
@@ -168,9 +174,9 @@ module "autospotting" {
 
 ### For an AutoScaling group ###
 
-Since AutoSpotting uses an opt-in model, no resources will be changed in your
-AWS account if you just launch the stack. You will need to explicitly enable it
-for each AutoScaling group where you want it to be used.
+Since AutoSpotting by default uses an opt-in model, no resources will be changed
+in your AWS account if you just launch the stack. You will need to explicitly
+enable it for each AutoScaling group where you want it to be used.
 
 Enabling it for an AutoScaling group is a matter of setting a tag on the group:
 
@@ -215,6 +221,15 @@ One good way to automate is using CloudFormation, using this example snippet:
   }
 }
 ```
+
+**Note:** The `spot-enabled=true` tag for `opt-in` is configurable. See the
+stack parameters for the way to override it.
+
+**Note:** AutoSpotting now also supports an `opt-out` mode, in which it will
+take over all your groups except of those tagged with the configured tag. The
+default (but also configurable) `opt-out` tag is `spot-enabled=false`. This may
+be risky, please handle with care.
+
 
 ### For Elastic Beanstalk ###
 
@@ -319,18 +334,18 @@ in the Lambda function's configuration.
 
 On top of the CLI configuration for the on-demand instances, autospotting
 can read those values from the tags of the auto-scaling groups. There are two
-available tags: `autospotting_on_demand_number` and
-`autospotting_on_demand_percentage`.
+available tags: `autospotting_min_on_demand_number` and
+`autospotting_min_on_demand_percentage`.
 
 Just like for the CLI configuration the defined number has a higher priority
 than the percentage value. So the percentage will be ignored if
-`autospotting_on_demand_number` is present and valid.
+`autospotting_min_on_demand_number` is present and valid.
 
 The order of priority from strongest to lowest for minimum on-demand
 configuration is as following:
 
-1. Tag `autospotting_on_demand_number` in ASG
-1. Tag `autospotting_on_demand_percentage` in ASG
+1. Tag `autospotting_min_on_demand_number` in ASG
+1. Tag `autospotting_min_on_demand_percentage` in ASG
 1. Option `-min_on_demand_number` in CLI
 1. Option `-min_on_demand_percentage` in CLI
 

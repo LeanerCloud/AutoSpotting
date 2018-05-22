@@ -1,21 +1,22 @@
 # Autospotting configuration
 variable "asg_allowed_instance_types" {
   description = <<EOF
-Comma separated list of allowed instance types for spot requests,
-in case you want to allow specific types (also support globs).
+    Comma separated list of allowed instance types for spot requests,
+    in case you want to allow specific types (also support globs).
 
-Example: 't2.*,m4.large' or special value: 'current': the same as initial on-demand instances
-EOF
-  default     = ""
+    Example: 't2.*,m4.large' or special value: 'current': the same as initial
+    on-demand instances EOF
+
+  default = ""
 }
 
 variable "asg_disallowed_instance_types" {
   description = <<EOF
-Comma separated list of disallowed instance types for spot requests,
-in case you want to exclude specific types (also support globs).
+    Comma separated list of disallowed instance types for spot requests,in case you
+    want to exclude specific types (also support globs).
 
-Example: 't2.*,m4.large'
-EOF
+    Example: 't2.*,m4.large' EOF
+
   default = ""
 }
 
@@ -35,8 +36,16 @@ variable "asg_on_demand_price_multiplier" {
 }
 
 variable "asg_spot_product_description" {
-  description = "The Spot Product or operating system to use when looking up spot price history in the market. Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)"
-  default     = "Linux/UNIX (Amazon VPC)"
+  description = <<EOF
+    The Spot Product or operating system to use when looking
+    up spot price history in the market.
+
+    Valid choices
+    - Linux/UNIX | SUSE Linux | Windows
+    - Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)
+  EOF
+
+  default = "Linux/UNIX (Amazon VPC)"
 }
 
 variable "asg_spot_price_buffer_percentage" {
@@ -55,8 +64,27 @@ variable "asg_regions_enabled" {
 }
 
 variable "asg_tag_filters" {
-  description = "Tags to filter which ASGs autospotting considers.  If blank by default this will search for asgs with spot-enabled=true.  You can set this to many tags, for example: spot-enabled=true,Environment=dev,Team=vision"
-  default     = ""
+  description = <<EOF
+    Tags to filter which ASGs autospotting considers. If blank
+    by default this will search for asgs with spot-enabled=true (when in opt-in
+    mode) and will skip those tagged with spot-enabled=false when in opt-out
+    mode.
+
+    You can set this to many tags, for example:
+    spot-enabled=true,Environment=dev,Team=vision
+  EOF
+
+  default = ""
+}
+
+variable "asg_tag_filtering_mode" {
+  description = <<EOF
+    Controls the tag-based ASG filter. Supported values: 'opt-in' or 'opt-out'.
+    Defaults to opt-in mode, in which it only acts against the tagged groups. In
+    opt-out mode it works against all groups except for the tagged ones.
+  EOF
+
+  default = "opt-in"
 }
 
 # Lambda configuration
@@ -93,4 +121,13 @@ variable "lambda_timeout" {
 variable "lambda_run_frequency" {
   description = "How frequent should lambda run"
   default     = "rate(5 minutes)"
+}
+
+variable "lambda_tags" {
+  description = "Tags to be applied to the Lambda function"
+
+  default = {
+    # You can add more values below
+    Name = "autospotting"
+  }
 }

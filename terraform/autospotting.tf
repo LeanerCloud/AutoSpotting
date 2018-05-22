@@ -11,6 +11,7 @@ module "autospotting" {
   autospotting_bidding_policy               = "${var.asg_bidding_policy}"
   autospotting_regions_enabled              = "${var.asg_regions_enabled}"
   autospotting_tag_filters                  = "${var.asg_tag_filters}"
+  autospotting_tag_filtering_mode           = "${var.asg_tag_filtering_mode}"
 
   lambda_zipname       = "${var.lambda_zipname}"
   lambda_s3_bucket     = "${var.lambda_s3_bucket}"
@@ -19,4 +20,5 @@ module "autospotting" {
   lambda_memory_size   = "${var.lambda_memory_size}"
   lambda_timeout       = "${var.lambda_timeout}"
   lambda_run_frequency = "${var.lambda_run_frequency}"
+  lambda_tags          = "${var.lambda_tags}"
 }

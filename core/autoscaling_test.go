@@ -2090,6 +2090,10 @@ func TestPropagatedInstance(t *testing.T) {
 					Key:   aws.String("LaunchConfigurationName"),
 					Value: aws.String("testLC0"),
 				},
+				{
+					Key:   aws.String("launched-by-autospotting"),
+					Value: aws.String("true"),
+				},
 			},
 		},
 		{name: "multiple tags but none to propagate",
@@ -2115,6 +2119,10 @@ func TestPropagatedInstance(t *testing.T) {
 				{
 					Key:   aws.String("LaunchConfigurationName"),
 					Value: aws.String("testLC1"),
+				},
+				{
+					Key:   aws.String("launched-by-autospotting"),
+					Value: aws.String("true"),
 				},
 			},
 		},
@@ -2142,6 +2150,10 @@ func TestPropagatedInstance(t *testing.T) {
 					Key:   aws.String("LaunchConfigurationName"),
 					Value: aws.String("testLC2"),
 				},
+				{
+					Key:   aws.String("launched-by-autospotting"),
+					Value: aws.String("true"),
+				},
 			},
 		},
 		{name: "multiple tags on asg - only one to propagate",
@@ -2167,6 +2179,10 @@ func TestPropagatedInstance(t *testing.T) {
 				{
 					Key:   aws.String("LaunchConfigurationName"),
 					Value: aws.String("testLC3"),
+				},
+				{
+					Key:   aws.String("launched-by-autospotting"),
+					Value: aws.String("true"),
 				},
 				{
 					Key:   aws.String("k2"),

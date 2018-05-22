@@ -10,6 +10,7 @@ module "aws_lambda_function" {
   lambda_runtime     = "${var.lambda_runtime}"
   lambda_timeout     = "${var.lambda_timeout}"
   lambda_memory_size = "${var.lambda_memory_size}"
+  lambda_tags        = "${var.lambda_tags}"
 
   autospotting_allowed_instance_types       = "${var.autospotting_allowed_instance_types}"
   autospotting_disallowed_instance_types    = "${var.autospotting_disallowed_instance_types}"
@@ -21,6 +22,7 @@ module "aws_lambda_function" {
   autospotting_bidding_policy               = "${var.autospotting_bidding_policy}"
   autospotting_regions_enabled              = "${var.autospotting_regions_enabled}"
   autospotting_tag_filters                  = "${var.autospotting_tag_filters}"
+  autospotting_tag_filtering_mode           = "${var.autospotting_tag_filtering_mode}"
 }
 
 resource "aws_iam_role" "autospotting_role" {

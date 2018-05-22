@@ -9,6 +9,7 @@ Example: 't2.*,m4.large'
 Using the 'current' magic value will only allow the same type as the
 on-demand instances set in the group's launch configuration.
 EOF
+
   default = ""
 }
 
@@ -19,6 +20,7 @@ in case you want to exclude specific types (also support globs).
 
 Example: 't2.*,m4.large'
 EOF
+
   default = ""
 }
 
@@ -47,7 +49,25 @@ variable "autospotting_regions_enabled" {
 }
 
 variable "autospotting_tag_filters" {
-  description = "tags to filter which ASGs autospotting considers.  by default if left blank, asgs tagged with spot-enbled=true will be operated on.  You can set this to many tags, for example: spot-enabled=true,Environment=dev,Team=vision"
+  description = <<EOF
+  Tags to filter which ASGs autospotting considers. By default, ASGs tagged
+  with spot-enbled=true will be operated on. In opt-out mode it operates on
+  all groups except those tagged with spot-enbled=false.
+
+  You can set this to many tags, for example:
+  spot-enabled=true,Environment=dev,Team=vision"
+  EOF
+}
+
+variable "autospotting_tag_filtering_mode" {
+  description = <<EOF
+  Controls the tag-based ASG filter. Supported values: 'opt-in' or 'opt-out'.
+  Defaults to opt-in mode, in which it only acts against the tagged groups. In
+  opt-out mode it works against all groups except for the tagged ones.
+  Use the opt-out mode carefully!
+  EOF
+
+  default = "opt-in"
 }
 
 variable "autospotting_spot_product_description" {
@@ -84,4 +104,9 @@ variable "lambda_timeout" {
 
 variable "lambda_run_frequency" {
   description = "How frequent should lambda run"
+}
+
+variable "lambda_tags" {
+  description = "Tags to be applied to the Lambda function"
+  type        = "map"
 }

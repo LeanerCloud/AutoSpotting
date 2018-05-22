@@ -154,8 +154,13 @@ If you find AutoSpotting useful please consider giving a recurring tip on
 
 The entire configuration is based on tags applied on your AutoScaling groups.
 
-It will only take action against groups that have the "spot-enabled" tag set to
-"true", regardless in which region they are.
+By default it runs in `opt-in` mode, so it will only take action against groups
+that have the `spot-enabled` tag set to `true`, across all the enabled regions.
+
+When the stack is installed in `opt-out` mode, it will run against all groups
+except for those tagged with the `spot-enabled` tag set to `false`.
+
+Note: the key and value of the `spot-enabled` tag is configurable in both modes.
 
 ## What if I have groups in multiple AWS regions?
 
@@ -556,7 +561,7 @@ actions against your instances and autoscaling groups.
 This configuration was carefully crafted to contain the minimum amount of
 permissions needed for the instance replacement and logging its actions. The
 full list can be seen in the Cloudformation stack
-[template](https://github.com/cristim/autospotting/blob/master/cloudformation/stacks/AutoSpotting/template.json#L91),
+[template](https://github.com/cristim/autospotting/blob/master/cloudformation/stacks/AutoSpotting/template.yaml#L199),
 but it basically boils down to the following:
 
 - describing the resources you have in order to decide what needs to be done
@@ -606,6 +611,9 @@ is by configuring autospotting to use 100% on-demand capacity.
 Fine-grained control on a per group level can be achieved by removing or setting
 the `spot-enabled` tag to any other value. AutoSpotting only touches groups
 where this tag is set to `true`.
+
+Note: this is the default tag configuration, but it is configurable so you may
+be using different values.
 
 ## Shall I contribute to Autospotting code?
 
