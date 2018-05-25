@@ -263,7 +263,7 @@ func (a *autoScalingGroup) loadLaunchConfiguration() error {
 	lcName := a.LaunchConfigurationName
 
 	if lcName == nil {
-		return errors.New(a.name + " is missing launch configuration")
+		return errors.New("missing launch configuration")
 	}
 
 	svc := a.region.services.autoScaling

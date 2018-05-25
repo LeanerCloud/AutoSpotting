@@ -1196,136 +1196,101 @@ func TestMin(t *testing.T) {
 	}
 }
 
-// func TestPropagatedInstance(t *testing.T) {
-// 	tests := []struct {
-// 		name         string
-// 		ASGLCName    string
-// 		tagsASG      []*autoscaling.TagDescription
-// 		expectedTags []*ec2.Tag
-// 	}{
-// 		{name: "no tags on asg",
-// 			ASGLCName: "testLC0",
-// 			tagsASG:   []*autoscaling.TagDescription{},
-// 			expectedTags: []*ec2.Tag{
-// 				{
-// 					Key:   aws.String("LaunchConfigurationName"),
-// 					Value: aws.String("testLC0"),
-// 				},
-// 				{
-// 					Key:   aws.String("launched-by-autospotting"),
-// 					Value: aws.String("true"),
-// 				},
-// 			},
-// 		},
-// 		{name: "multiple tags but none to propagate",
-// 			ASGLCName: "testLC1",
-// 			tagsASG: []*autoscaling.TagDescription{
-// 				{
-// 					Key:               aws.String("k1"),
-// 					Value:             aws.String("v1"),
-// 					PropagateAtLaunch: aws.Bool(false),
-// 				},
-// 				{
-// 					Key:               aws.String("k2"),
-// 					Value:             aws.String("v2"),
-// 					PropagateAtLaunch: aws.Bool(false),
-// 				},
-// 				{
-// 					Key:               aws.String("k3"),
-// 					Value:             aws.String("v3"),
-// 					PropagateAtLaunch: aws.Bool(false),
-// 				},
-// 			},
-// 			expectedTags: []*ec2.Tag{
-// 				{
-// 					Key:   aws.String("LaunchConfigurationName"),
-// 					Value: aws.String("testLC1"),
-// 				},
-// 				{
-// 					Key:   aws.String("launched-by-autospotting"),
-// 					Value: aws.String("true"),
-// 				},
-// 			},
-// 		},
-// 		{name: "multiple tags but none to propagate",
-// 			ASGLCName: "testLC2",
-// 			tagsASG: []*autoscaling.TagDescription{
-// 				{
-// 					Key:               aws.String("aws:k1"),
-// 					Value:             aws.String("v1"),
-// 					PropagateAtLaunch: aws.Bool(true),
-// 				},
-// 				{
-// 					Key:               aws.String("k2"),
-// 					Value:             aws.String("v2"),
-// 					PropagateAtLaunch: aws.Bool(false),
-// 				},
-// 				{
-// 					Key:               aws.String("k3"),
-// 					Value:             aws.String("v3"),
-// 					PropagateAtLaunch: aws.Bool(false),
-// 				},
-// 			},
-// 			expectedTags: []*ec2.Tag{
-// 				{
-// 					Key:   aws.String("LaunchConfigurationName"),
-// 					Value: aws.String("testLC2"),
-// 				},
-// 				{
-// 					Key:   aws.String("launched-by-autospotting"),
-// 					Value: aws.String("true"),
-// 				},
-// 			},
-// 		},
-// 		{name: "multiple tags on asg - only one to propagate",
-// 			ASGLCName: "testLC3",
-// 			tagsASG: []*autoscaling.TagDescription{
-// 				{
-// 					Key:               aws.String("k1"),
-// 					Value:             aws.String("v1"),
-// 					PropagateAtLaunch: aws.Bool(false),
-// 				},
-// 				{
-// 					Key:               aws.String("k2"),
-// 					Value:             aws.String("v2"),
-// 					PropagateAtLaunch: aws.Bool(true),
-// 				},
-// 				{
-// 					Key:               aws.String("aws:k3"),
-// 					Value:             aws.String("v3"),
-// 					PropagateAtLaunch: aws.Bool(true),
-// 				},
-// 			},
-// 			expectedTags: []*ec2.Tag{
-// 				{
-// 					Key:   aws.String("LaunchConfigurationName"),
-// 					Value: aws.String("testLC3"),
-// 				},
-// 				{
-// 					Key:   aws.String("launched-by-autospotting"),
-// 					Value: aws.String("true"),
-// 				},
-// 				{
-// 					Key:   aws.String("k2"),
-// 					Value: aws.String("v2"),
-// 				},
-// 			},
-// 		},
-// 	}
+func TestGenerateTagList(t *testing.T) {
+	tests := []struct {
+		name                     string
+		ASGName                  string
+		ASGLCName                string
+		instanceTags             []*ec2.Tag
+		expectedTagSpecification []*ec2.TagSpecification
+	}{
+		{name: "no tags on original instance",
+			ASGLCName:    "testLC0",
+			ASGName:      "myASG",
+			instanceTags: []*ec2.Tag{},
+			expectedTagSpecification: []*ec2.TagSpecification{
+				{
+					ResourceType: aws.String("instance"),
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("testLC0"),
+						},
+						{
+							Key:   aws.String("launched-by-autospotting"),
+							Value: aws.String("true"),
+						},
+						{
+							Key:   aws.String("launched-for-asg"),
+							Value: aws.String("myASG"),
+						},
+					},
+				},
+			},
+		},
+    {name: "Multiple tags on original instance",
+			ASGLCName:    "testLC0",
+			ASGName:      "myASG",
+			instanceTags: []*ec2.Tag{
+        {
+          Key: aws.String("foo"),
+          Value: aws.String("bar"),
+        },
+        {
+          Key: aws.String("baz"),
+          Value: aws.String("bazinga"),
+        },
+      },
+			expectedTagSpecification: []*ec2.TagSpecification{
+				{
+					ResourceType: aws.String("instance"),
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("testLC0"),
+						},
+						{
+							Key:   aws.String("launched-by-autospotting"),
+							Value: aws.String("true"),
+						},
+						{
+							Key:   aws.String("launched-for-asg"),
+							Value: aws.String("myASG"),
+            },
+            {
+              Key: aws.String("foo"),
+              Value: aws.String("bar"),
+            },
+            {
+              Key: aws.String("baz"),
+              Value: aws.String("bazinga"),
+            },
+					},
+				},
+			},
+		},
+	}
 
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
-//       a := &autoScalingGroup{
-// 				Group: &autoscaling.Group{
-// 					LaunchConfigurationName: aws.String(tt.ASGLCName),
-// 					Tags: tt.tagsASG,
-// 				},
-// 			}
-// 			tags := i.generateTagList()
-// 			if !reflect.DeepEqual(tags, tt.expectedTags) {
-// 				t.Errorf("propagatedInstanceTags received: %+v, expected: %+v", tags, tt.expectedTags)
-// 			}
-// 		})
-// 	}
-// }
+			i := instance{
+				Instance: &ec2.Instance{
+					Tags: tt.instanceTags,
+				},
+				asg: &autoScalingGroup{
+					name: tt.ASGName,
+					Group: &autoscaling.Group{
+						LaunchConfigurationName: aws.String(tt.ASGLCName),
+					},
+				},
+			}
+
+			tags := i.generateTagsList()
+			if !reflect.DeepEqual(tags, tt.expectedTagSpecification) {
+				t.Errorf("propagatedInstanceTags received: %+v, expected: %+v",
+					tags, tt.expectedTagSpecification)
+			}
+		})
+	}
+}
