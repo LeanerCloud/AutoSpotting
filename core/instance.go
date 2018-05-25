@@ -332,19 +332,31 @@ func (i *instance) getPricetoBid(
 func (i *instance) convertBlockDeviceMappings(lc *launchConfiguration) []*ec2.BlockDeviceMapping {
 	var bds []*ec2.BlockDeviceMapping
 
-	for _, bdm := range lc.BlockDeviceMappings {
+	for _, lcBDM := range lc.BlockDeviceMappings {
 
-		bds = append(bds, &ec2.BlockDeviceMapping{
-			DeviceName: bdm.DeviceName,
-			Ebs: &ec2.EbsBlockDevice{
-				DeleteOnTermination: bdm.Ebs.DeleteOnTermination,
-				Encrypted:           bdm.Ebs.Encrypted,
-				Iops:                bdm.Ebs.Iops,
-				SnapshotId:          bdm.Ebs.SnapshotId,
-				VolumeSize:          bdm.Ebs.VolumeSize,
-				VolumeType:          bdm.Ebs.VolumeType,
-			},
-		})
+		ec2BDM := &ec2.BlockDeviceMapping{
+			DeviceName:  lcBDM.DeviceName,
+			VirtualName: lcBDM.VirtualName,
+		}
+
+		if lcBDM.Ebs != nil {
+			ec2BDM.Ebs = &ec2.EbsBlockDevice{
+				DeleteOnTermination: lcBDM.Ebs.DeleteOnTermination,
+				Encrypted:           lcBDM.Ebs.Encrypted,
+				Iops:                lcBDM.Ebs.Iops,
+				SnapshotId:          lcBDM.Ebs.SnapshotId,
+				VolumeSize:          lcBDM.Ebs.VolumeSize,
+				VolumeType:          lcBDM.Ebs.VolumeType,
+			}
+		}
+
+		// it turns out that the noDevice field needs to be converted from bool to
+		// *string
+		if lcBDM.NoDevice != nil {
+			ec2BDM.NoDevice = aws.String(fmt.Sprintf("%t", *lcBDM.NoDevice))
+		}
+
+		bds = append(bds, ec2BDM)
 	}
 	return bds
 }
@@ -364,11 +376,7 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64, l
 
 		BlockDeviceMappings: i.convertBlockDeviceMappings(lc),
 
-		//TODO: set a CreditSpecification for T2 unlimited, if configured
-
 		EbsOptimized: i.EbsOptimized,
-
-		//TODO: ElasticGpuSpecification
 
 		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
 			Arn: i.IamInstanceProfile.Arn,
@@ -406,12 +414,6 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64, l
 		}
 	}
 
-	// if i.CpuOptions != nil {
-	// 	retval.CpuOptions = &ec2.CpuOptionsRequest{
-	// 		CoreCount:      i.CpuOptions.CoreCount,
-	// 		ThreadsPerCore: i.CpuOptions.ThreadsPerCore,
-	// 	}
-	// }
 	return &retval
 }
 

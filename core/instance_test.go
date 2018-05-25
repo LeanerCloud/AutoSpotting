@@ -1294,3 +1294,112 @@ func TestGenerateTagList(t *testing.T) {
 		})
 	}
 }
+
+func Test_instance_convertBlockDeviceMappings(t *testing.T) {
+
+	tests := []struct {
+		name string
+		lc   *launchConfiguration
+		want []*ec2.BlockDeviceMapping
+	}{
+		{
+			name: "instance-store only",
+			lc: &launchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+						{
+							DeviceName:  aws.String("/dev/ephemeral0"),
+							Ebs:         nil,
+							NoDevice:    aws.Bool(false),
+							VirtualName: aws.String("foo"),
+						},
+						{
+							DeviceName:  aws.String("/dev/ephemeral1"),
+							Ebs:         nil,
+							NoDevice:    aws.Bool(false),
+							VirtualName: aws.String("bar"),
+						},
+					},
+				},
+			},
+			want: []*ec2.BlockDeviceMapping{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					NoDevice:    aws.String("false"),
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName:  aws.String("/dev/ephemeral1"),
+					Ebs:         nil,
+					NoDevice:    aws.String("false"),
+					VirtualName: aws.String("bar"),
+				},
+			},
+		},
+
+		{
+			name: "instance-store and EBS",
+			lc: &launchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+						{
+							DeviceName:  aws.String("/dev/ephemeral0"),
+							Ebs:         nil,
+							NoDevice:    aws.Bool(false),
+							VirtualName: aws.String("foo"),
+						},
+						{
+							DeviceName: aws.String("/dev/xvda"),
+							Ebs: &autoscaling.Ebs{
+								DeleteOnTermination: aws.Bool(false),
+								VolumeSize:          aws.Int64(10),
+							},
+							VirtualName: aws.String("bar"),
+						},
+						{
+							DeviceName: aws.String("/dev/xvdb"),
+							Ebs: &autoscaling.Ebs{
+								DeleteOnTermination: aws.Bool(true),
+								VolumeSize:          aws.Int64(20),
+							},
+							VirtualName: aws.String("baz"),
+						},
+					},
+				},
+			},
+			want: []*ec2.BlockDeviceMapping{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					NoDevice:    aws.String("false"),
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					Ebs: &ec2.EbsBlockDevice{
+						DeleteOnTermination: aws.Bool(false),
+						VolumeSize:          aws.Int64(10),
+					},
+					VirtualName: aws.String("bar"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &ec2.EbsBlockDevice{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i := &instance{}
+			if got := i.convertBlockDeviceMappings(tt.lc); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("instance.convertBlockDeviceMappings() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
