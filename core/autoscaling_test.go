@@ -2981,3 +2981,182 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 		})
 	}
 }
+
+func Test_autoScalingGroup_hasMemberInstance(t *testing.T) {
+
+	tests := []struct {
+		name  string
+		Group *autoscaling.Group
+		inst  *instance
+		want  bool
+	}{
+		{
+			name: "has member",
+			Group: &autoscaling.Group{
+				Instances: []*autoscaling.Instance{
+					{InstanceId: aws.String("foo")},
+					{InstanceId: aws.String("bar")},
+					{InstanceId: aws.String("baz")},
+				},
+			},
+			inst: &instance{
+				asg:      &autoScalingGroup{},
+				Instance: &ec2.Instance{InstanceId: aws.String("bar")},
+			},
+			want: true,
+		},
+		{
+			name: "doesn't have member",
+			Group: &autoscaling.Group{
+				Instances: []*autoscaling.Instance{
+					{InstanceId: aws.String("foo")},
+					{InstanceId: aws.String("bar")},
+					{InstanceId: aws.String("baz")},
+				},
+			},
+			inst: &instance{
+				asg:      &autoScalingGroup{},
+				Instance: &ec2.Instance{InstanceId: aws.String("bazinga")},
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				Group: tt.Group,
+			}
+			if got := a.hasMemberInstance(tt.inst); got != tt.want {
+				t.Errorf("autoScalingGroup.hasMemberInstance() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_autoScalingGroup_findUnattachedInstanceLaunchedForThisASG(t *testing.T) {
+
+	tests := []struct {
+		name string
+		asg  autoScalingGroup
+		want *instance
+	}{
+		{
+			name: "no instances launched for this ASG",
+			asg: autoScalingGroup{
+				name: "mygroup",
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						map[string]*instance{
+							"id-1": {
+								Instance: &ec2.Instance{
+									InstanceId: aws.String("id-1"),
+									Tags:       []*ec2.Tag{},
+								},
+							},
+						},
+					),
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "instance launched for another ASG",
+			asg: autoScalingGroup{
+				name: "mygroup",
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						map[string]*instance{
+							"id-1": {
+								Instance: &ec2.Instance{
+									InstanceId: aws.String("id-1"),
+									Tags:       []*ec2.Tag{},
+								},
+							},
+							"id-2": {
+								Instance: &ec2.Instance{
+									InstanceId: aws.String("id-2"),
+									Tags: []*ec2.Tag{
+										{
+											Key:   aws.String("launched-for-asg"),
+											Value: aws.String("another-asg"),
+										},
+										{
+											Key:   aws.String("another-key"),
+											Value: aws.String("another-value"),
+										},
+									},
+								},
+							},
+						},
+					),
+				},
+			},
+			want: nil,
+		}, {
+			name: "instance launched for current ASG",
+			asg: autoScalingGroup{
+				name: "mygroup",
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{InstanceId: aws.String("foo")},
+						{InstanceId: aws.String("bar")},
+						{InstanceId: aws.String("baz")},
+					},
+				},
+
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						map[string]*instance{
+							"id-1": {
+								Instance: &ec2.Instance{
+									InstanceId: aws.String("id-1"),
+									Tags:       []*ec2.Tag{},
+								},
+							},
+							"id-2": {
+								Instance: &ec2.Instance{
+									InstanceId: aws.String("id-2"),
+									Tags: []*ec2.Tag{
+										{
+											Key:   aws.String("launched-for-asg"),
+											Value: aws.String("mygroup"),
+										},
+										{
+											Key:   aws.String("another-key"),
+											Value: aws.String("another-value"),
+										},
+									},
+								},
+							},
+						},
+					),
+				},
+			},
+			want: &instance{
+				Instance: &ec2.Instance{
+					InstanceId: aws.String("id-2"),
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("launched-for-asg"),
+							Value: aws.String("mygroup"),
+						},
+						{
+							Key:   aws.String("another-key"),
+							Value: aws.String("another-value"),
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := tt.asg
+
+			if got := a.findUnattachedInstanceLaunchedForThisASG(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("autoScalingGroup.findUnattachedInstanceLaunchedForThisASG() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
