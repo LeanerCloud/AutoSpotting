@@ -1228,19 +1228,19 @@ func TestGenerateTagList(t *testing.T) {
 				},
 			},
 		},
-    {name: "Multiple tags on original instance",
-			ASGLCName:    "testLC0",
-			ASGName:      "myASG",
+		{name: "Multiple tags on original instance",
+			ASGLCName: "testLC0",
+			ASGName:   "myASG",
 			instanceTags: []*ec2.Tag{
-        {
-          Key: aws.String("foo"),
-          Value: aws.String("bar"),
-        },
-        {
-          Key: aws.String("baz"),
-          Value: aws.String("bazinga"),
-        },
-      },
+				{
+					Key:   aws.String("foo"),
+					Value: aws.String("bar"),
+				},
+				{
+					Key:   aws.String("baz"),
+					Value: aws.String("bazinga"),
+				},
+			},
 			expectedTagSpecification: []*ec2.TagSpecification{
 				{
 					ResourceType: aws.String("instance"),
@@ -1256,15 +1256,15 @@ func TestGenerateTagList(t *testing.T) {
 						{
 							Key:   aws.String("launched-for-asg"),
 							Value: aws.String("myASG"),
-            },
-            {
-              Key: aws.String("foo"),
-              Value: aws.String("bar"),
-            },
-            {
-              Key: aws.String("baz"),
-              Value: aws.String("bazinga"),
-            },
+						},
+						{
+							Key:   aws.String("foo"),
+							Value: aws.String("bar"),
+						},
+						{
+							Key:   aws.String("baz"),
+							Value: aws.String("bazinga"),
+						},
 					},
 				},
 			},

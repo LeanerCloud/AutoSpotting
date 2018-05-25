@@ -1528,7 +1528,7 @@ func TestAttachSpotInstance(t *testing.T) {
 	tests := []struct {
 		name       string
 		regionASG  *region
-		instanceID *string
+		instanceID string
 		expected   error
 	}{
 		{name: "no err during attach",
@@ -1538,7 +1538,7 @@ func TestAttachSpotInstance(t *testing.T) {
 					autoScaling: mockASG{aierr: nil},
 				},
 			},
-			instanceID: aws.String("1"),
+			instanceID: "1",
 			expected:   nil,
 		},
 		{name: "err during attach",
@@ -1548,7 +1548,7 @@ func TestAttachSpotInstance(t *testing.T) {
 					autoScaling: mockASG{aierr: errors.New("attach")},
 				},
 			},
-			instanceID: aws.String("1"),
+			instanceID: "1",
 			expected:   errors.New("attach"),
 		},
 	}
@@ -2275,11 +2275,11 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 	tests := []struct {
 		name     string
 		asg      *autoScalingGroup
-		spotID   *string
+		spotID   string
 		expected error
 	}{
 		{name: "OnDemand is replaced by spot instance - min/max/des identical",
-			spotID:   aws.String("spot-running"),
+			spotID:   "spot-running",
 			expected: nil,
 			asg: &autoScalingGroup{
 				name: "test-asg",
@@ -2399,7 +2399,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 			},
 		},
 		{name: "OnDemand is replaced by spot instance - min/max/des different",
-			spotID:   aws.String("spot-running"),
+			spotID:   "spot-running",
 			expected: nil,
 			asg: &autoScalingGroup{
 				name: "test-asg",
@@ -2467,7 +2467,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 			},
 		},
 		{name: "no spot instances found in region",
-			spotID:   aws.String("spot-not-found"),
+			spotID:   "spot-not-found",
 			expected: errors.New("couldn't find spot instance to use"),
 			asg: &autoScalingGroup{
 				name: "test-asg",
@@ -2519,7 +2519,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 			},
 		},
 		{name: "no OnDemand instances found in asg",
-			spotID:   aws.String("spot-running"),
+			spotID:   "spot-running",
 			expected: errors.New("couldn't find ondemand instance to replace"),
 			asg: &autoScalingGroup{
 				name: "test-asg",
