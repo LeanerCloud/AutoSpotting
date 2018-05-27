@@ -112,10 +112,6 @@ Just like in the above animation, it's as easy as launching a CloudFormation (or
 stack and setting the (configurable) `spot-enabled` tag on the AutoScaling
 groups where you want it enabled to `true`.
 
-The stack can also be configured in an `opt-out` filtering mode, in which it
-runs against all groups except for those tagged with the (configurable)
-`spot-enabled` tag set to `false`, which can be useful for large scale rollouts.
-
 All the required infrastructure and configuration will be created automatically,
 so you can get started as fast as possible.
 
@@ -123,8 +119,15 @@ For more detailed information you can read this [document](START.md)
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/nightly/template.yaml)
 
-**Note** the binaries launched by this stack are distributed under a proprietary
+**Note**
+- the binaries launched by this stack are distributed under a proprietary
 [license](BINARY_LICENSE), see the Official Binaries section below for more details.
+- later on, if you're confident enough to roll it out on all your groups by default,
+it can also be configured in an `opt-out` mode, in which it runs against all 
+groups except for those tagged with the (configurable) `spot-enabled` tag set to
+`false`. This can be very useful for large scale Enterprise rollouts against lots
+of AWS accounts, where you can migrate to spot with minimal buy-in or effort from
+the account maintainers.
 
 ## Support ##
 
