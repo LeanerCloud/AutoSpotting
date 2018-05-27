@@ -123,6 +123,9 @@ For more detailed information you can read this [document](START.md)
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=AutoSpotting&templateURL=https://s3.amazonaws.com/cloudprowess/nightly/template.yaml)
 
+**Note** the binaries launched by this stack are distributed under a proprietary
+[license](BINARY_LICENSE), see the Official Binaries section below for more details.
+
 ## Support ##
 
 Community support is available on the
@@ -155,65 +158,59 @@ binaries and the project website, and will also encourage further development
 by the main author.
 
 If you can, try also convincing your organization to use the official easy to
-install binaries for longer term, for a small fraction of their cost savings
-(see below for more details).
+install binaries (see below for more details).
 
 Note: Non-trivial code should be submitted according to the contribution
 [guidelines](CONTRIBUTING.md).
 
 ### Official binaries ###
 
-The stack mentioned above can be used to conveniently get started within
-minutes, without setting up a build environment or any additional infrastructure
-so it can save you some time that you can better spend doing something else. It
-also requires some resources paid by the main author from his own pocket, so
-unfortunately he can't affort to sponsor it to everyone out there for free.
+The source code is and will always be open source, so you can build and run
+it yourself, see how it works and even enhance it if you want.
 
-That's why the binaries and the automated installation scripts used by
-the above stack are distributed under a proprietary [license](BINARY_LICENSE)
-that allows them to be used free of charge for a limited evaluation period, no
-longer than 14 days.
+But if you want to conveniently get started within minutes without setting up a
+build environment or any additional infrastructure, we have proprietary 
+pre-built binaries that will save you significant amounts of time and effort.
 
-Further use is possible, but you have to contribute at least 5% of the generated
-savings as long as you keep using these binaries. This can be paid on a monthly
-basis through [Patreon](https://www.patreon.com/bePatron?c=979085).
+These are free of charge for individuals, non-profits and companies 
+significantly supporting the development of the open source code. Other 
+companies can use them free of charge for up to 14 days, but will need to
+purchase a license in order to legally use them for longer time.
 
-The license also forbids non-paying users to automate the installation of these
-official builds on a recurring basis, in order to reduce the costs incurred to
-the main author.
+The license costs $50 monthly for each AWS account and can be paid through 
+[Patreon](https://www.patreon.com/bePatron?c=979085).
 
-Any income left after paying for the infrastructure costs motivates the main
-author to allocate a proportional amount of time on a monthly basis for
-improving the software and supporting existing users.
+This income motivates the main author to allocate a proportional amount
+of time on a monthly basis for improving the software and supporting users 
+like you.
 
-Note:
-
+*Note:*
 - even though these builds are usually stable enough, they may not have been
   thoroughly tested yet and come with best effort community support.
 - the authors of significant code contributions and/or their employers are
-  allowed to use these builds free of charge without any time limit. The
-  original author grants these exemptions in written form upon request, and
-  decides on a case by case basis if the contribution is significant enough.
+  allowed to use these builds free of charge. The original author grants
+  these exemptions in written form upon request, and decides on a case by
+  case basis if the contribution is significant enough.
 
-### Stable builds ###
+### Stable binaries ###
 
-Carefully tested builds are also available for a slightly larger cut of your
-savings. They come with support from the main author, who will do his best to
-help you configure and successfully run AutoSpotting on your environment.
+Carefully tested builds suitable for Enterprise use are also available for
+a custom fee you can negotiate with the original author, also paid monthly
+through [Patreon](https://www.patreon.com/bePatron?c=979085).
 
-Your feature requests and issues will also be treated with higher priority.
-
-These builds require a monthly contribution of at least 10% of the monthly
-savings, also paid through [Patreon](https://www.patreon.com/bePatron?c=979085).
+They come with support from the author, who will do his best to help you
+successfully run AutoSpotting on your environment so you can get the most 
+out of it. Your feature requests and issues will also be treated with high
+priority.
 
 Please get in touch on [gitter](https://gitter.im/cristim) if you are interested
-in getting access to the stable builds.
+in getting access to these stable builds.
 
 ## Compiling and Installing ##
 
-It is recommended to use the binaries mentioned above, which are easy to install
-for you, support further development of the software and even allow you to get
-support from the main author.
+It is recommended to use the official or stable binaries, which are easy to 
+install, support further development of the software and allow you to get 
+Enterprise support.
 
 But if you have some special needs that require some customizations or you don't
 want to rely on the author's infrastructure or contribute anything for longer
@@ -226,7 +223,7 @@ More details are available [here](CUSTOM_BUILDS.md)
 ## Users ##
 
 Autospotting is already used by hundreds of individuals and organizations around
-the world, and we estimate to already save them more than $1.000.000. Some
+the world, and we estimate to already save them in the millions of dollars. Some
 of them we know of are mentioned in the [list](USERS.md) of notable users.
 
 The following deserve a special mention for contributing significantly to the
