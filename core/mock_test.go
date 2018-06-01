@@ -24,10 +24,6 @@ func CheckErrors(t *testing.T, err error, expected error) {
 type mockEC2 struct {
 	ec2iface.EC2API
 
-	// Create tags
-	cto   *ec2.CreateTagsOutput
-	cterr error
-
 	// Describe Spot Price History
 	dspho   *ec2.DescribeSpotPriceHistoryOutput
 	dspherr error
@@ -42,18 +38,6 @@ type mockEC2 struct {
 	// Describe Regions
 	dro   *ec2.DescribeRegionsOutput
 	drerr error
-
-	// DescribeInstance Status request
-	disro   *ec2.DescribeInstanceStatusOutput
-	disrerr error
-}
-
-func (m mockEC2) DescribeInstanceStatus(in *ec2.DescribeInstanceStatusInput) (*ec2.DescribeInstanceStatusOutput, error) {
-	return m.disro, m.disrerr
-}
-
-func (m mockEC2) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
-	return m.cto, m.cterr
 }
 
 func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {

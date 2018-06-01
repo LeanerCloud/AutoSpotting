@@ -292,18 +292,19 @@ func (i *instance) launchSpotReplacement() error {
 		i.asg.getDisallowedInstanceTypes(i))
 
 	if err != nil {
-		debug.Println("Couldn't determint the cheapest compatible spot instance type")
+		logger.Println("Couldn't determine the cheapest compatible spot instance type")
 		return err
 	}
 
 	bidPrice := i.getPricetoBid(instanceType.pricing.onDemand,
 		instanceType.pricing.spot[*i.Placement.AvailabilityZone])
 
-	runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice, i.asg.launchConfiguration)
+	runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
 	resp, err := i.region.services.ec2.RunInstances(runInstancesInput)
 
 	if err != nil {
-		debug.Println("Couldn't launch spot instance:", err.Error())
+		logger.Println("Couldn't launch spot instance:", err.Error())
+		debug.Println(runInstancesInput)
 		return err
 	}
 
@@ -330,7 +331,11 @@ func (i *instance) getPricetoBid(
 	return bufferPrice
 }
 func (i *instance) convertBlockDeviceMappings(lc *launchConfiguration) []*ec2.BlockDeviceMapping {
-	var bds []*ec2.BlockDeviceMapping
+	bds := []*ec2.BlockDeviceMapping{}
+	if lc == nil || len(lc.BlockDeviceMappings) == 0 {
+		debug.Println("Missing block device mappings")
+		return bds
+	}
 
 	for _, lcBDM := range lc.BlockDeviceMappings {
 
@@ -362,19 +367,17 @@ func (i *instance) convertBlockDeviceMappings(lc *launchConfiguration) []*ec2.Bl
 }
 
 func (i *instance) convertSecurityGroups() []*string {
-	var groupIDs []*string
+	groupIDs := []*string{}
 	for _, sg := range i.SecurityGroups {
 		groupIDs = append(groupIDs, sg.GroupId)
 	}
 	return groupIDs
 }
 
-func (i *instance) createRunInstancesInput(instanceType string, price float64, lc *launchConfiguration) *ec2.RunInstancesInput {
+func (i *instance) createRunInstancesInput(instanceType string, price float64) *ec2.RunInstancesInput {
 	var retval ec2.RunInstancesInput
 
 	retval = ec2.RunInstancesInput{
-
-		BlockDeviceMappings: i.convertBlockDeviceMappings(lc),
 
 		EbsOptimized: i.EbsOptimized,
 
@@ -412,6 +415,12 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64, l
 			LaunchTemplateId:   i.asg.LaunchTemplate.LaunchTemplateId,
 			LaunchTemplateName: i.asg.LaunchTemplate.LaunchTemplateName,
 		}
+	}
+
+	BDMs := i.convertBlockDeviceMappings(i.asg.launchConfiguration)
+
+	if len(BDMs) > 0 {
+		retval.BlockDeviceMappings = BDMs
 	}
 
 	return &retval
@@ -458,19 +467,19 @@ func (i *instance) isReadyToAttach(asg *autoScalingGroup) bool {
 
 	// Check if the spot instance is out of the grace period, so in that case we
 	// can replace an on-demand instance with it
-	if *i.State.Name == "running" &&
-		instanceUpTime < gracePeriod {
+	if *i.State.Name == ec2.InstanceStateNameRunning &&
+		instanceUpTime > gracePeriod {
 		logger.Println("The spot instance", *i.InstanceId,
 			"is still in the grace period,",
 			"waiting for it to be ready before we can attach it to the group...")
-		return false
-	} else if *i.State.Name == "pending" {
+		return true
+	} else if *i.State.Name == ec2.InstanceStateNamePending {
 		logger.Println("The spot instance", *i.InstanceId,
 			"is still pending,",
 			"waiting for it to be running before we can attach it to the group...")
 		return false
 	}
-	return true
+	return false
 }
 
 // Why the heck isn't this in the Go standard library?
