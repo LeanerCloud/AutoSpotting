@@ -61,7 +61,7 @@ upload: archive                                              ## Upload binary
 .PHONY: upload
 
 vet-check:                                                   ## Verify vet compliance
-ifeq ($(shell go tool vet -all -shadow=true $(GOFILES) 2>&1 | wc -l), 0)
+ifeq ($(shell go tool vet -all -shadow=true $(GOFILES) 2>&1 | wc -l | tr -d '[:space:]'), 0)
 	@printf "ok\tall files passed go vet\n"
 else
 	@printf "error\tsome files did not pass go vet\n"
@@ -70,12 +70,12 @@ endif
 .PHONY: vet-check
 
 fmt-check:                                                   ## Verify fmt compliance
-ifneq ($(shell gofmt -l -s $(GOFILES) | wc -l), 0)
+ifeq ($(shell gofmt -l -s $(GOFILES) | wc -l | tr -d '[:space:]'), 0)
+	@printf "ok\tall files passed go fmt\n"
+else
 	@printf "error\tsome files did not pass go fmt, fix the following formatting diff:\n"
 	@gofmt -l -s -d $(GOFILES)
 	@exit 1
-else
-	@printf "ok\tall files passed go fmt\n"
 endif
 .PHONY: fmt-check
 
