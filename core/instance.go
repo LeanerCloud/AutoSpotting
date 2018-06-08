@@ -381,10 +381,6 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 
 		EbsOptimized: i.EbsOptimized,
 
-		IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-			Arn: i.IamInstanceProfile.Arn,
-		},
-
 		ImageId: i.ImageId,
 
 		InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
@@ -398,8 +394,6 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		KeyName:      i.KeyName,
 		MaxCount:     aws.Int64(1),
 		MinCount:     aws.Int64(1),
-		Monitoring: &ec2.RunInstancesMonitoringEnabled{
-			Enabled: i.asg.launchConfiguration.InstanceMonitoring.Enabled},
 
 		Placement: i.Placement,
 
@@ -407,13 +401,28 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 
 		SubnetId:          i.SubnetId,
 		TagSpecifications: i.generateTagsList(),
-		UserData:          i.asg.launchConfiguration.UserData,
 	}
 
 	if i.asg.LaunchTemplate != nil {
 		retval.LaunchTemplate = &ec2.LaunchTemplateSpecification{
 			LaunchTemplateId:   i.asg.LaunchTemplate.LaunchTemplateId,
 			LaunchTemplateName: i.asg.LaunchTemplate.LaunchTemplateName,
+		}
+	}
+
+	if i.IamInstanceProfile != nil {
+		retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
+			Arn: i.IamInstanceProfile.Arn,
+		}
+	}
+
+	if i.asg != nil &&
+		i.asg.launchConfiguration != nil {
+		retval.UserData = i.asg.launchConfiguration.UserData
+
+		if i.asg.launchConfiguration.InstanceMonitoring != nil {
+			retval.Monitoring = &ec2.RunInstancesMonitoringEnabled{
+				Enabled: i.asg.launchConfiguration.InstanceMonitoring.Enabled}
 		}
 	}
 
