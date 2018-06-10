@@ -3,26 +3,59 @@
 
 [[projects]]
   name = "github.com/aws/aws-lambda-go"
-  packages = ["events","lambda","lambda/messages","lambdacontext"]
+  packages = [
+    "events",
+    "lambda",
+    "lambda/messages",
+    "lambdacontext"
+  ]
   revision = "fafa7e49388b8991caf99308e80655ba91816b72"
   version = "v1.1.0"
 
 [[projects]]
   name = "github.com/aws/aws-sdk-go"
-  packages = ["aws","aws/awserr","aws/awsutil","aws/client","aws/client/metadata","aws/corehandlers","aws/credentials","aws/credentials/ec2rolecreds","aws/credentials/endpointcreds","aws/credentials/stscreds","aws/defaults","aws/ec2metadata","aws/endpoints","aws/request","aws/session","aws/signer/v4","internal/sdkio","internal/sdkrand","internal/shareddefaults","private/protocol","private/protocol/ec2query","private/protocol/query","private/protocol/query/queryutil","private/protocol/rest","private/protocol/xml/xmlutil","service/autoscaling","service/autoscaling/autoscalingiface","service/ec2","service/ec2/ec2iface","service/sts"]
+  packages = [
+    "aws",
+    "aws/awserr",
+    "aws/awsutil",
+    "aws/client",
+    "aws/client/metadata",
+    "aws/corehandlers",
+    "aws/credentials",
+    "aws/credentials/ec2rolecreds",
+    "aws/credentials/endpointcreds",
+    "aws/credentials/stscreds",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/endpoints",
+    "aws/request",
+    "aws/session",
+    "aws/signer/v4",
+    "internal/sdkio",
+    "internal/sdkrand",
+    "internal/shareddefaults",
+    "private/protocol",
+    "private/protocol/ec2query",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/xml/xmlutil",
+    "service/autoscaling",
+    "service/autoscaling/autoscalingiface",
+    "service/ec2",
+    "service/ec2/ec2iface",
+    "service/sts"
+  ]
   revision = "f0872da8a448f8cb10f4f0c95c2100e4f7356448"
   version = "v1.13.16"
 
 [[projects]]
   branch = "master"
-  name = "github.com/cristim/autospotting"
-  packages = ["core"]
-  revision = "236df43395b3e87780b3b2714a9e2a27c6105d95"
-
-[[projects]]
-  branch = "master"
   name = "github.com/cristim/ec2-instances-info"
-  packages = [".","data"]
+  packages = [
+    ".",
+    "data"
+  ]
   revision = "d2ae4817170d37217fffd340b5417b3005cae3d6"
 
 [[projects]]
@@ -57,6 +90,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1c8b84d2d39e1ba15209edcbb1aa1880714244ef8df6fe912c2c3c876843855c"
+  inputs-digest = "bf8355830da4455c4dc5fb4e943f82de7f7566d0112b13412f27d5705d0ea3a1"
   solver-name = "gps-cdcl"
   solver-version = 1
