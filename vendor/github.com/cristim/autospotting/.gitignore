@@ -1,0 +1,12 @@
+build
+debug
+/autospotting
+coverage.out
+.vscode/
+handler.zip
+*.coverprofile
+.idea/
+terraform/.terraform/
+terraform.tfstate*
+Makefile.lambda
+.terraform/

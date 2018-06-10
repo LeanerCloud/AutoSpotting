@@ -1,0 +1,47 @@
+language: go
+
+go:
+- 1.9
+
+sudo: required
+
+services:
+- docker
+
+env:
+  # options: nightly, custom, stable
+  # default: custom
+  - FLAVOR=nightly
+
+script:
+    - make travisci
+    - make terraform-test
+
+after_success:
+  - curl --request POST "https://goreportcard.com/checks" --data "repo=github.com/cristim/autospotting"
+
+deploy:
+  provider: s3
+  access_key_id: AKIAJLFCT4RDMFFFREPA
+  secret_access_key:
+    secure: VUDtwMPZMTrskIIa0hCODIwnS4Zhm0VcHtXeC7rYT+oRPevDgk1khwTQqlbTztd6LYZEiYvhjnznU3aEITww/o2d3d7GrxqIns3dQ2MgTflrnj55Ldpo10TvVDidaK+PJbTXxYzIT3uXzBLepQGnZwEV6ugQskYTQx00UZCQix+McYSgNiRWB5xjPW/4fDvtHaHXR5+3AJZJuZADZsTjnxUR8j4gLvAQSZ96PLAZ1/F2Sg+VPw9cebyN0xKAK7d+ugkg6DlpaKLh0Ixr1zFPQwTk4AEtJyUsfFzj70hR4o5BujYas4Q7XBewbHHosxDYYuEPU2XaAfQdYr6tYynnmsOWwJuH+kueG3ZItuHuMbgeRUPJpRyoXxN+CjkzknYLfsSzV59A43xV1AX+Am5nIK4F0+hZX12GkC9HlZdGp0PpjOyTIDm2PFnilb9erGiN6T68bwSvazwVoTAg1rOqqXqlPmiRWyFwlQ5qpAK5ztggrAgaO6fp4+G7HXdr7cAVQjZfF+HeJFuXIi60sqjr2RWab1EmhOUKKyLlUipeA/VQgNdWjLgZRk3tpYn450SpbmgYBU+DpaRE97ejx/BVZzLueT97p+m5FsSz/BtvqJpIBSg9kbo4J+aK6zPjikTjV31bzFFGf5xzMuV7XVVTuvMVWYwmQGrG23+ONWyT92c=
+  bucket: cloudprowess
+  local-dir: build/s3
+  skip_cleanup: true
+  acl: public_read
+  on:
+    repo: cristim/autospotting
+
+notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/73346abd21785c9a053c
+    # options: [always|never|change] default: always
+    on_success: change
+    on_failure: always
+    on_start: never
+
+addons:
+  code_climate:
+    repo_token:
+      secure: JjgPe1Wx9+XwvYzAlb7YTtS/1XRV8Hoe2bg6VF2D+ZLVmKt83b3Qe+LgeQ2r77rCbmkwSjmu5GCswQ8tJGmgFE66wmNBULGpC2FhQTLG2Lt+8TH4h7aR1GIXLJti37kJJx8ouN3JKSJ0V02VJWQcdlAdwy/nuWoONP1lVeQOslF5TigojK5lHGjZkIceFvmiq3qrgEKhvk4dXpH2zQpdkHsiyvBsHcm2aeH1NzsSlT5g81EZnKyeUtbTXfIiglyY4NYdlyYrmntPxkCzJEFq5l4CpKYWQuoJ5TnXrZzF7fXYmiKOOzl55Afv578neZSzu4Fvy/d5vyA1NJDLUul4465719sk2YUIpuMEPGpekSe7WbkoN9NB7pk+Mea+7s12pkT5909ew1P1YtJiH/DroKPdeEqNTtXXnVnmN+QTHHmpNN/L66HERmRR+EihPalyrYQ8Ep95o84xUg5U/+rWyYKCnTCFUne7QYsGimTlpwBTcccjTkxF0L3S/L+mr16UMVn4TIJeQ9G14gqtmBqVtIQMrZi9YRZpK7+HneMdIBH3LGKoXxCsM49ZNuftzqf+ZCXGwtPA41Yhi71AR4hALgPjgKoc/C5rGGlg443nn1JH1x2eiX19Z6KFTP5Znqw2lAv5z160/3qse1SR0uyK/elybYnr8Ro3bGUQryBXzmo=
