@@ -36,9 +36,9 @@ check_deps:                                                  ## Verify the syste
 .PHONY: check_deps
 
 build_deps:
-	@go get github.com/mattn/goveralls
-	@go get github.com/golang/lint/golint
-	@go get golang.org/x/tools/cmd/cover
+	@go get -u github.com/mattn/goveralls
+	@go get -u github.com/golang/lint/golint
+	@go get -u golang.org/x/tools/cmd/cover
 .PHONY: build_deps
 
 update_deps:												 ## Update all dependencies
