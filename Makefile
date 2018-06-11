@@ -41,6 +41,11 @@ build_deps:
 	@go get -u golang.org/x/tools/cmd/cover
 .PHONY: build_deps
 
+update_deps:												 ## Update all dependencies
+	@dep ensure -update
+	@dep prune
+.PHONY: update_deps
+
 build: build_deps                                            ## Build autospotting binary
 	GOOS=linux go build -ldflags=$(LDFLAGS) -o $(BINARY)
 .PHONY: build
