@@ -3,17 +3,18 @@
 // license that can be found in the LICENSE file.
 
 // These examples demonstrate more intricate uses of the flag package.
-package flag
+package flag_test
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"strings"
 	"time"
 )
 
 // Example 1: A single string flag called "species" with default value "gopher".
-var species = String("species", "gopher", "the species we are studying")
+var species = flag.String("species", "gopher", "the species we are studying")
 
 // Example 2: Two flags sharing a variable, so we can have a shorthand.
 // The order of initialization is undefined, so make sure both use the
@@ -25,21 +26,21 @@ func init() {
 		defaultGopher = "pocket"
 		usage         = "the variety of gopher"
 	)
-	StringVar(&gopherType, "gopher_type", defaultGopher, usage)
-	StringVar(&gopherType, "g", defaultGopher, usage+" (shorthand)")
+	flag.StringVar(&gopherType, "gopher_type", defaultGopher, usage)
+	flag.StringVar(&gopherType, "g", defaultGopher, usage+" (shorthand)")
 }
 
 // Example 3: A user-defined flag type, a slice of durations.
 type interval []time.Duration
 
-// String is the method to format the flag's value, part of the Value interface.
+// String is the method to format the flag's value, part of the flag.Value interface.
 // The String method's output will be used in diagnostics.
 func (i *interval) String() string {
 	return fmt.Sprint(*i)
 }
 
-// Set is the method to set the flag value, part of the Value interface.
-// Set's argument is a string to be parsed to set the
+// Set is the method to set the flag value, part of the flag.Value interface.
+// Set's argument is a string to be parsed to set the flag.
 // It's a comma-separated list, so we split it.
 func (i *interval) Set(value string) error {
 	// If we wanted to allow the flag to be set multiple times,
@@ -69,7 +70,7 @@ var intervalFlag interval
 func init() {
 	// Tie the command-line flag to the intervalFlag variable and
 	// set a usage message.
-	Var(&intervalFlag, "deltaT", "comma-separated list of intervals to use between events")
+	flag.Var(&intervalFlag, "deltaT", "comma-separated list of intervals to use between events")
 }
 
 func Example() {

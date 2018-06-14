@@ -9,6 +9,10 @@ import (
 	"reflect"
 )
 
+type Handler interface {
+	Invoke(ctx context.Context, payload []byte) ([]byte, error)
+}
+
 // lambdaHandler is the generic function type
 type lambdaHandler func(context.Context, []byte) (interface{}, error)
 
