@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -12,6 +12,6 @@ import "os"
 // After calling ResetForTesting, parse errors in flag handling will not
 // exit the program.
 func ResetForTesting(usage func()) {
-    CommandLine = NewFlagSet(os.Args[0], ContinueOnError)
-    Usage = usage
+	CommandLine = NewFlagSet(os.Args[0], ContinueOnError)
+	Usage = usage
 }

@@ -16,13 +16,12 @@ $ cat > gopher.go
     	"github.com/namsral/flag"
 	)
     
-    var age int
-    
-    flag.IntVar(&age, "age", 0, "age of gopher")
-    flag.Parse()
-    
-    fmt.Print("age:", age)
-
+    func main() {
+    	var age int
+	flag.IntVar(&age, "age", 0, "age of gopher")
+	flag.Parse()
+	fmt.Print("age:", age)
+    }
 $ go run gopher.go -age 1
 age: 1
 ```
@@ -57,7 +56,7 @@ The following table shows how flags are translated to environment variables and 
 
 This package is a port of Go's [flag][] package from the standard library with the addition of two functions `ParseEnv` and `ParseFile`.
 
-[flag]: http://golang.org/src/pkg/flagconfiguration
+[flag]: http://golang.org/src/pkg/flag
 
 
 Goals
