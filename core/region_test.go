@@ -12,10 +12,7 @@ import (
 )
 
 func Test_region_enabled(t *testing.T) {
-	type fields struct {
-		name string
-		conf Config
-	}
+
 	tests := []struct {
 		name    string
 		region  string
@@ -154,91 +151,6 @@ func TestAsgFiltersSetupOnRegion(t *testing.T) {
 	}
 }
 
-func TestRequestSpotInstanceTypes(t *testing.T) {
-	tests := []struct {
-		name    string
-		want    []string
-		tregion *region
-	}{
-		{
-			name: "Test with single instance",
-			want: []string{"m3.large"},
-			tregion: &region{
-				instances: makeInstances(),
-				conf:      &Config{},
-				services: connections{
-					ec2: mockEC2{
-						dspho: &ec2.DescribeSpotPriceHistoryOutput{
-							SpotPriceHistory: []*ec2.SpotPrice{
-								{
-									InstanceType: aws.String("m3.large"),
-									SpotPrice:    aws.String("1"),
-								},
-							},
-						},
-						dspherr: nil,
-					},
-				},
-			},
-		},
-		{
-			name: "Test empty instance",
-			want: []string{""},
-			tregion: &region{
-				instances: makeInstances(),
-				conf:      &Config{},
-				services: connections{
-					ec2: mockEC2{
-						dspho: &ec2.DescribeSpotPriceHistoryOutput{
-							SpotPriceHistory: []*ec2.SpotPrice{
-								{
-									InstanceType: aws.String(""),
-									SpotPrice:    aws.String("1"),
-								},
-							},
-						},
-						dspherr: nil,
-					},
-				},
-			},
-		},
-		{
-			name: "Test multiple instances returned",
-			want: []string{"m3.large", "m3.xlarge"},
-			tregion: &region{
-				instances: makeInstances(),
-				conf:      &Config{},
-				services: connections{
-					ec2: mockEC2{
-						dspho: &ec2.DescribeSpotPriceHistoryOutput{
-							SpotPriceHistory: []*ec2.SpotPrice{
-								{
-									InstanceType: aws.String("m3.large"),
-									SpotPrice:    aws.String("1"),
-								},
-								{
-									InstanceType: aws.String("m3.xlarge"),
-									SpotPrice:    aws.String("2"),
-								},
-							},
-						},
-						dspherr: nil,
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := tt.tregion
-			instanceTypes, _ := r.requestSpotInstanceTypes()
-			if !reflect.DeepEqual(tt.want, instanceTypes) {
-				t.Errorf("region.requestSpotInstanceTypes() = %v, want %v", instanceTypes, tt.want)
-			}
-		})
-	}
-}
-
 func TestOnDemandPriceMultiplier(t *testing.T) {
 	tests := []struct {
 		multiplier float64
@@ -294,53 +206,10 @@ func TestOnDemandPriceMultiplier(t *testing.T) {
 	}
 }
 
-func TestContainsString(t *testing.T) {
-	tests := []struct {
-		name string
-		key  string
-		list []*string
-		want bool
-	}{
-		{
-			name: "Test successful match",
-			key:  "test_key",
-			list: []*string{aws.String("test_key"), aws.String("test_key1")},
-			want: true,
-		},
-		{
-			name: "Test zero match",
-			key:  "not_found",
-			list: []*string{aws.String("test_key"), aws.String("test_key1")},
-			want: false,
-		},
-		{
-			name: "Test empty array",
-			key:  "not_found",
-			list: []*string{},
-			want: false,
-		},
-		{
-			name: "Test nil array",
-			key:  "not_found",
-			list: nil,
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			received := containsString(tt.list, tt.key)
-			if tt.want != received {
-				t.Errorf("region.containsString() = %v, want %v", received, tt.want)
-			}
-		})
-	}
-}
-
 func TestDefaultASGFiltering(t *testing.T) {
 	tests := []struct {
 		tregion  *region
 		expected []Tag
-		want     bool
 	}{
 		{
 			expected: []Tag{{Key: "spot-enabled", Value: "true"}},

@@ -284,27 +284,6 @@ func (r *region) requestSpotPrices() error {
 	return nil
 }
 
-func (r *region) requestSpotInstanceTypes() ([]string, error) {
-
-	var instTypes []string
-
-	s := spotPrices{conn: r.services}
-
-	// Retrieve all current spot prices from the current region.
-	// TODO: add support for other OSes
-	err := s.fetch("Linux/UNIX", 0, nil, nil)
-
-	if err != nil {
-		return nil, errors.New("Couldn't fetch spot prices in " + r.name)
-	}
-
-	for _, priceInfo := range s.data {
-		instTypes = append(instTypes, *priceInfo.InstanceType)
-	}
-
-	return instTypes, nil
-}
-
 func tagsMatch(asgTag *autoscaling.TagDescription, filteringTag Tag) bool {
 	return asgTag != nil && *asgTag.Key == filteringTag.Key && *asgTag.Value == filteringTag.Value
 }
@@ -381,18 +360,6 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 		logger.Println("Failed to describe AutoScalingGroups in", r.name, err.Error())
 	}
 
-}
-
-func containsString(list []*string, a string) bool {
-	if list == nil || len(list) == 0 {
-		return false
-	}
-	for _, b := range list {
-		if *b == a {
-			return true
-		}
-	}
-	return false
 }
 
 func (r *region) hasEnabledAutoScalingGroups() bool {
