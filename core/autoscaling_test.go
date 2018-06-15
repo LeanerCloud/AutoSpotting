@@ -1741,7 +1741,10 @@ func TestScanInstances(t *testing.T) {
 			ec2ASG: &autoscaling.Group{
 				Instances: []*autoscaling.Instance{
 					{InstanceId: aws.String("1")},
-					{InstanceId: aws.String("2")},
+					{
+						InstanceId:           aws.String("2"),
+						ProtectedFromScaleIn: aws.Bool(true),
+					},
 					{InstanceId: aws.String("3")},
 				},
 			},
@@ -1764,7 +1767,8 @@ func TestScanInstances(t *testing.T) {
 							},
 						},
 					},
-					price: 0.1,
+					price:     0.1,
+					protected: false,
 				},
 				"2": {
 					Instance: &ec2.Instance{
@@ -1783,7 +1787,8 @@ func TestScanInstances(t *testing.T) {
 							},
 						},
 					},
-					price: 0.8,
+					price:     0.8,
+					protected: true,
 				},
 			},
 		},

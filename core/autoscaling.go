@@ -368,6 +368,11 @@ func (a *autoScalingGroup) scanInstances() instances {
 		}
 
 		i.asg, i.region = a, a.region
+		if inst.ProtectedFromScaleIn == nil {
+			i.protected = false
+		} else {
+			i.protected = *inst.ProtectedFromScaleIn
+		}
 
 		if i.isSpot() {
 			i.price = i.typeInfo.pricing.spot[*i.Placement.AvailabilityZone]
@@ -454,6 +459,9 @@ func (a *autoScalingGroup) getInstance(
 			if !any &&
 				(onDemand && i.isSpot() ||
 					(!onDemand && !i.isSpot())) {
+				continue
+			}
+			if i.isProtected() {
 				continue
 			}
 			if (availabilityZone != nil) &&
