@@ -409,6 +409,12 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		TagSpecifications: i.generateTagsList(),
 	}
 
+	if i.IamInstanceProfile != nil {
+		retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
+			Arn: i.IamInstanceProfile.Arn,
+		}
+	}
+
 	if i.asg.LaunchTemplate != nil {
 		retval.LaunchTemplate = &ec2.LaunchTemplateSpecification{
 			LaunchTemplateId:   i.asg.LaunchTemplate.LaunchTemplateId,
@@ -416,26 +422,36 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		}
 	}
 
-	if i.IamInstanceProfile != nil {
-		retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
-			Arn: i.IamInstanceProfile.Arn,
+	if i.asg.launchConfiguration != nil {
+		lc := i.asg.launchConfiguration
+
+		retval.UserData = lc.UserData
+
+		BDMs := i.convertBlockDeviceMappings(lc)
+
+		if len(BDMs) > 0 {
+			retval.BlockDeviceMappings = BDMs
 		}
-	}
 
-	if i.asg != nil &&
-		i.asg.launchConfiguration != nil {
-		retval.UserData = i.asg.launchConfiguration.UserData
-
-		if i.asg.launchConfiguration.InstanceMonitoring != nil {
+		if lc.InstanceMonitoring != nil {
 			retval.Monitoring = &ec2.RunInstancesMonitoringEnabled{
-				Enabled: i.asg.launchConfiguration.InstanceMonitoring.Enabled}
+				Enabled: lc.InstanceMonitoring.Enabled}
 		}
-	}
 
-	BDMs := i.convertBlockDeviceMappings(i.asg.launchConfiguration)
+		sgIDs := i.convertSecurityGroups()
 
-	if len(BDMs) > 0 {
-		retval.BlockDeviceMappings = BDMs
+		if lc.AssociatePublicIpAddress != nil || i.SubnetId != nil {
+			// Instances are running in a VPC.
+			retval.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
+				{
+					AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
+					DeviceIndex:              aws.Int64(0),
+					SubnetId:                 i.SubnetId,
+					Groups:                   sgIDs,
+				},
+			}
+			retval.SubnetId, retval.SecurityGroupIds = nil, nil
+		}
 	}
 
 	return &retval
