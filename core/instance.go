@@ -94,10 +94,11 @@ func (is *instanceManager) instances() <-chan *instance {
 
 type instance struct {
 	*ec2.Instance
-	typeInfo instanceTypeInformation
-	price    float64
-	region   *region
-	asg      *autoScalingGroup
+	typeInfo  instanceTypeInformation
+	price     float64
+	region    *region
+	protected bool
+	asg       *autoScalingGroup
 }
 
 type instanceTypeInformation struct {
@@ -131,6 +132,10 @@ func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64
 func (i *instance) isSpot() bool {
 	return (i.InstanceLifecycle != nil &&
 		*i.InstanceLifecycle == "spot")
+}
+
+func (i *instance) isProtected() bool {
+	return i.protected
 }
 
 func (i *instance) canTerminate() bool {
@@ -330,6 +335,7 @@ func (i *instance) getPricetoBid(
 	logger.Println("Launching spot instance with a bid =", bufferPrice)
 	return bufferPrice
 }
+
 func (i *instance) convertBlockDeviceMappings(lc *launchConfiguration) []*ec2.BlockDeviceMapping {
 	bds := []*ec2.BlockDeviceMapping{}
 	if lc == nil || len(lc.BlockDeviceMappings) == 0 {
