@@ -171,16 +171,19 @@ Note: Non-trivial code should be submitted according to the contribution
 The source code is and will always be open source, so you can build and run
 it yourself, see how it works and even enhance it if you want.
 
-But if you want to conveniently get started within minutes without setting up a
-build environment or any additional infrastructure, we have proprietary 
-pre-built binaries that will save you significant amounts of time and effort.
+But if you want to conveniently get started or update within minutes without
+setting up and maintaining a build environment or any additional
+infrastructure, we have proprietary pre-built binaries that will save you
+significant amounts of time and effort.
 
-These are free of charge for individuals, non-profits and companies 
-significantly supporting the development of the open source code. Other 
-companies can use them free of charge for up to 14 days, but will need to
-purchase a license in order to legally use them for longer time.
+These are free of charge for individuals and non-profits. Companies can use
+them free of charge for up to 14 days, but will need to purchase a license
+in order to legally use them for longer time.
 
-The license costs $50 monthly for each AWS account and can be paid through 
+Companies supporting the development of the open source code can use it free
+of charge for a year since their latest contribution to the project.
+
+The license costs $40 monthly for each AWS account and can be paid through 
 [Patreon](https://www.patreon.com/bePatron?c=979085).
 
 This income motivates the main author to allocate a proportional amount
@@ -190,10 +193,6 @@ like you.
 *Note:*
 - even though these builds are usually stable enough, they may not have been
   thoroughly tested yet and come with best effort community support.
-- the authors of significant code contributions and/or their employers are
-  allowed to use these builds free of charge. The original author grants
-  these exemptions in written form upon request, and decides on a case by
-  case basis if the contribution is significant enough.
 
 ### Stable binaries ###
 
@@ -206,8 +205,8 @@ successfully run AutoSpotting on your environment so you can get the most
 out of it. Your feature requests and issues will also be treated with high
 priority.
 
-Please get in touch on [gitter](https://gitter.im/cristim) if you are interested
-in getting access to these stable builds.
+Please get in touch on [gitter](https://gitter.im/cristim) if you are 
+interested in getting access to these stable builds.
 
 ## Compiling and Installing ##
 
