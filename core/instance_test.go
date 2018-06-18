@@ -1488,7 +1488,226 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 		want *ec2.RunInstancesInput
 	}{
 		{
-			name: "create run instances input",
+			name: "create run instances input without launch-configuration",
+			inst: instance{
+				asg: &autoScalingGroup{
+					name: "mygroup",
+					Group: &autoscaling.Group{
+						LaunchConfigurationName: aws.String("myLC"),
+						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+							LaunchTemplateId:   aws.String("lt-id"),
+							LaunchTemplateName: aws.String("lt-name"),
+						},
+					},
+					launchConfiguration: nil,
+				},
+				Instance: &ec2.Instance{
+					EbsOptimized: aws.Bool(true),
+
+					IamInstanceProfile: &ec2.IamInstanceProfile{
+						Arn: aws.String("profile-arn"),
+					},
+
+					ImageId:      aws.String("ami-123"),
+					InstanceType: aws.String("t2.medium"),
+					KeyName:      aws.String("mykey"),
+
+					Placement: &ec2.Placement{
+						Affinity: aws.String("foo"),
+					},
+
+					SecurityGroups: []*ec2.GroupIdentifier{
+						{
+							GroupName: aws.String("foo"),
+							GroupId:   aws.String("sg-123"),
+						},
+						{
+							GroupName: aws.String("bar"),
+							GroupId:   aws.String("sg-456"),
+						},
+					},
+
+					SubnetId: aws.String("subnet-123"),
+				},
+			}, args: args{
+				instanceType: "t2.small",
+				price:        1.5,
+			},
+			want: &ec2.RunInstancesInput{
+
+				EbsOptimized: aws.Bool(true),
+
+				IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+					Arn: aws.String("profile-arn"),
+				},
+
+				ImageId: aws.String("ami-123"),
+
+				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
+					MarketType: aws.String("spot"),
+					SpotOptions: &ec2.SpotMarketOptions{
+						MaxPrice: aws.String("1.5"),
+					},
+				},
+
+				InstanceType: aws.String("t2.small"),
+				KeyName:      aws.String("mykey"),
+
+				LaunchTemplate: &ec2.LaunchTemplateSpecification{
+					LaunchTemplateId:   aws.String("lt-id"),
+					LaunchTemplateName: aws.String("lt-name"),
+				},
+
+				MaxCount: aws.Int64(1),
+				MinCount: aws.Int64(1),
+
+				Placement: &ec2.Placement{
+					Affinity: aws.String("foo"),
+				},
+
+				SecurityGroupIds: []*string{
+					aws.String("sg-123"),
+					aws.String("sg-456"),
+				},
+
+				SubnetId: aws.String("subnet-123"),
+
+				TagSpecifications: []*ec2.TagSpecification{{
+					ResourceType: aws.String("instance"),
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("myLC"),
+						},
+						{
+							Key:   aws.String("launched-by-autospotting"),
+							Value: aws.String("true"),
+						},
+						{
+							Key:   aws.String("launched-for-asg"),
+							Value: aws.String("mygroup"),
+						},
+					},
+				},
+				},
+			},
+		},
+		{
+			name: "create run instances input with simple LC",
+			inst: instance{
+				asg: &autoScalingGroup{
+					name: "mygroup",
+					Group: &autoscaling.Group{
+						LaunchConfigurationName: aws.String("myLC"),
+						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+							LaunchTemplateId:   aws.String("lt-id"),
+							LaunchTemplateName: aws.String("lt-name"),
+						},
+					},
+					launchConfiguration: &launchConfiguration{
+						LaunchConfiguration: &autoscaling.LaunchConfiguration{
+							BlockDeviceMappings:      nil,
+							InstanceMonitoring:       nil,
+							UserData:                 aws.String("userdata"),
+							AssociatePublicIpAddress: nil,
+						},
+					},
+				},
+				Instance: &ec2.Instance{
+					EbsOptimized: aws.Bool(true),
+
+					IamInstanceProfile: &ec2.IamInstanceProfile{
+						Arn: aws.String("profile-arn"),
+					},
+
+					ImageId:      aws.String("ami-123"),
+					InstanceType: aws.String("t2.medium"),
+					KeyName:      aws.String("mykey"),
+
+					Placement: &ec2.Placement{
+						Affinity: aws.String("foo"),
+					},
+
+					SecurityGroups: []*ec2.GroupIdentifier{
+						{
+							GroupName: aws.String("foo"),
+							GroupId:   aws.String("sg-123"),
+						},
+						{
+							GroupName: aws.String("bar"),
+							GroupId:   aws.String("sg-456"),
+						},
+					},
+
+					SubnetId: nil,
+				},
+			}, args: args{
+				instanceType: "t2.small",
+				price:        1.5,
+			},
+			want: &ec2.RunInstancesInput{
+
+				EbsOptimized: aws.Bool(true),
+
+				IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+					Arn: aws.String("profile-arn"),
+				},
+
+				ImageId: aws.String("ami-123"),
+
+				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
+					MarketType: aws.String("spot"),
+					SpotOptions: &ec2.SpotMarketOptions{
+						MaxPrice: aws.String("1.5"),
+					},
+				},
+
+				InstanceType: aws.String("t2.small"),
+				KeyName:      aws.String("mykey"),
+
+				LaunchTemplate: &ec2.LaunchTemplateSpecification{
+					LaunchTemplateId:   aws.String("lt-id"),
+					LaunchTemplateName: aws.String("lt-name"),
+				},
+
+				MaxCount: aws.Int64(1),
+				MinCount: aws.Int64(1),
+
+				Placement: &ec2.Placement{
+					Affinity: aws.String("foo"),
+				},
+
+				SecurityGroupIds: []*string{
+					aws.String("sg-123"),
+					aws.String("sg-456"),
+				},
+
+				SubnetId: nil,
+
+				TagSpecifications: []*ec2.TagSpecification{{
+					ResourceType: aws.String("instance"),
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("myLC"),
+						},
+						{
+							Key:   aws.String("launched-by-autospotting"),
+							Value: aws.String("true"),
+						},
+						{
+							Key:   aws.String("launched-for-asg"),
+							Value: aws.String("mygroup"),
+						},
+					},
+				},
+				},
+				UserData: aws.String("userdata"),
+			},
+		},
+
+		{
+			name: "create run instances input with full launch configuration",
 			inst: instance{
 				asg: &autoScalingGroup{
 					name: "mygroup",
@@ -1510,6 +1729,8 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 									DeviceName: aws.String("foo"),
 								},
 							},
+							AssociatePublicIpAddress: aws.Bool(true),
+							UserData:                 aws.String("userdata"),
 						},
 					},
 				},
@@ -1586,12 +1807,17 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					Affinity: aws.String("foo"),
 				},
 
-				SecurityGroupIds: []*string{
-					aws.String("sg-123"),
-					aws.String("sg-456"),
+				NetworkInterfaces: []*ec2.InstanceNetworkInterfaceSpecification{
+					{
+						AssociatePublicIpAddress: aws.Bool(true),
+						DeviceIndex:              aws.Int64(0),
+						SubnetId:                 aws.String("subnet-123"),
+						Groups: []*string{
+							aws.String("sg-123"),
+							aws.String("sg-456"),
+						},
+					},
 				},
-
-				SubnetId: aws.String("subnet-123"),
 
 				TagSpecifications: []*ec2.TagSpecification{{
 					ResourceType: aws.String("instance"),
@@ -1611,6 +1837,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					},
 				},
 				},
+				UserData: aws.String("userdata"),
 			},
 		},
 	}
