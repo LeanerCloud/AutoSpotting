@@ -119,15 +119,17 @@ For more detailed information you can read this [document](START.md)
 
 [![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://www.patreon.com/bePatron?c=979085)
 
-**Note**
+### Note ###
+
 - the binaries launched by this stack are distributed under a proprietary
-[license](BINARY_LICENSE), see the Official Binaries section below for more details.
-- later on, if you're confident enough to roll it out on all your groups by default,
-it can also be configured in an `opt-out` mode, in which it runs against all 
-groups except for those tagged with the (configurable) `spot-enabled` tag set to
-`false`. This can be very useful for large scale Enterprise rollouts against lots
-of AWS accounts, where you can migrate to spot with minimal buy-in or effort from
-the account maintainers.
+  [license](BINARY_LICENSE), see the Official Binaries section below for more
+  details.
+- later on, if you're confident enough to roll it out on all your groups by
+  default, it can also be configured in an `opt-out` mode, in which it runs
+  against all groups except for those tagged with the (configurable)
+  `spot-enabled` tag set to `false`. This can be very useful for large scale
+  Enterprise rollouts against lots of AWS accounts, where you can migrate to
+  spot with minimal buy-in or effort from the account maintainers.
 
 ## Support ##
 
@@ -183,14 +185,15 @@ in order to legally use them for longer time.
 Companies supporting the development of the open source code can use it free
 of charge for a year since their latest contribution to the project.
 
-The license costs $40 monthly for each AWS account and can be paid through 
+The license costs $40 monthly for each AWS account and can be paid through
 [Patreon](https://www.patreon.com/bePatron?c=979085).
 
 This income motivates the main author to allocate a proportional amount
-of time on a monthly basis for improving the software and supporting users 
+of time on a monthly basis for improving the software and supporting users
 like you.
 
-*Note:*
+#### Note: ####
+
 - even though these builds are usually stable enough, they may not have been
   thoroughly tested yet and come with best effort community support.
 
@@ -201,17 +204,17 @@ a custom fee you can negotiate with the original author, also paid monthly
 through [Patreon](https://www.patreon.com/bePatron?c=979085).
 
 They come with support from the author, who will do his best to help you
-successfully run AutoSpotting on your environment so you can get the most 
+successfully run AutoSpotting on your environment so you can get the most
 out of it. Your feature requests and issues will also be treated with high
 priority.
 
-Please get in touch on [gitter](https://gitter.im/cristim) if you are 
+Please get in touch on [gitter](https://gitter.im/cristim) if you are
 interested in getting access to these stable builds.
 
 ## Compiling and Installing ##
 
-It is recommended to use the official or stable binaries, which are easy to 
-install, support further development of the software and allow you to get 
+It is recommended to use the official or stable binaries, which are easy to
+install, support further development of the software and allow you to get
 Enterprise support.
 
 But if you have some special needs that require some customizations or you don't

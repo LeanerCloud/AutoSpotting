@@ -159,7 +159,8 @@ current module parameters.
 
 #### Install module from S3 ####
 
-Instead of using a local ZIP file you can refer to the Lambda code in a location in S3:
+Instead of using a local ZIP file you can refer to the Lambda code in a location
+in S3:
 
 ```hcl
 module "autospotting" {
@@ -229,7 +230,6 @@ stack parameters for the way to override it.
 take over all your groups except of those tagged with the configured tag. The
 default (but also configurable) `opt-out` tag is `spot-enabled=false`. This may
 be risky, please handle with care.
-
 
 ### For Elastic Beanstalk ###
 
