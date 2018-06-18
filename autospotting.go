@@ -106,7 +106,7 @@ func (c *cfgData) initialize() {
 func (c *cfgData) parseCommandLineFlags() {
 	flag.StringVar(&c.AllowedInstanceTypes, "allowed_instance_types", "",
 		"\n\tIf specified, the spot instances will be searched only among these types.\n\tIf missing, any instance type is allowed.\n"+
-			"\tAccepts a list of comma or whitespace seperated instance types (supports globs).\n"+
+			"\tAccepts a list of comma or whitespace separated instance types (supports globs).\n"+
 			"\tExample: ./autospotting -allowed_instance_types 'c5.*,c4.xlarge'\n")
 	flag.StringVar(&c.BiddingPolicy, "bidding_policy", autospotting.DefaultBiddingPolicy,
 		"\n\tPolicy choice for spot bid. If set to 'normal', we bid at the on-demand price(times the multiplier).\n"+
@@ -114,7 +114,7 @@ func (c *cfgData) parseCommandLineFlags() {
 			"\tconfigurable using the spot_price_buffer_percentage.\n")
 	flag.StringVar(&c.DisallowedInstanceTypes, "disallowed_instance_types", "",
 		"\n\tIf specified, the spot instances will _never_ be of these types.\n"+
-			"\tAccepts a list of comma or whitespace seperated instance types (supports globs).\n"+
+			"\tAccepts a list of comma or whitespace separated instance types (supports globs).\n"+
 			"\tExample: ./autospotting -disallowed_instance_types 't2.*,c4.xlarge'\n")
 	flag.Int64Var(&c.MinOnDemandNumber, "min_on_demand_number", autospotting.DefaultMinOnDemandValue,
 		"\n\tNumber of on-demand nodes to be kept running in each of the groups.\n\t"+

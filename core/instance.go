@@ -253,7 +253,6 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 	current := i.typeInfo
 	bestPrice := math.MaxFloat64
 	chosenSpotType := ""
-	attachedVolumesNumber := current.instanceStoreDeviceCount
 	var cheapest instanceTypeInformation
 
 	// Count the ephemeral volumes attached to the original instance's block
@@ -261,7 +260,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 	// instance type.
 
 	usedMappings := i.asg.launchConfiguration.countLaunchConfigEphemeralVolumes()
-	attachedVolumesNumber = min(usedMappings, current.instanceStoreDeviceCount)
+	attachedVolumesNumber := min(usedMappings, current.instanceStoreDeviceCount)
 
 	for _, candidate := range i.region.instanceTypeInformation {
 
