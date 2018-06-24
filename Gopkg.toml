@@ -20,6 +20,7 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
+ignored = ["github.com/cristim/autospotting/core"]
 
 [[constraint]]
   name = "github.com/aws/aws-sdk-go"
@@ -36,6 +37,10 @@
 [[constraint]]
   name = "github.com/namsral/flag"
   branch = "master"
+
+[[constraint]]
+  name = "github.com/aws/aws-xray-sdk-go"
+  version = "1.0.0-rc.5"
 
 [prune]
   go-tests = true

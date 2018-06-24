@@ -3,6 +3,8 @@ package autospotting
 import (
 	"time"
 
+	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
@@ -13,7 +15,9 @@ type spotPrices struct {
 }
 
 // fetch queries all spot prices in the current region
-func (s *spotPrices) fetch(product string,
+func (s *spotPrices) fetch(
+	ctx context.Context,
+	product string,
 	duration time.Duration,
 	availabilityZone *string,
 	instanceTypes []*string) error {
@@ -31,7 +35,7 @@ func (s *spotPrices) fetch(product string,
 		InstanceTypes:    instanceTypes,
 	}
 
-	resp, err := ec2Conn.DescribeSpotPriceHistory(params)
+	resp, err := ec2Conn.DescribeSpotPriceHistoryWithContext(ctx, params)
 
 	if err != nil {
 		logger.Println(s.conn.region, "Failed requesting spot prices:", err.Error())

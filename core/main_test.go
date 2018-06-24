@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
@@ -48,7 +50,7 @@ func Test_getRegions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, err := getRegions(tt.ec2conn)
+			got, err := getRegions(context.Background(), tt.ec2conn)
 			CheckErrors(t, err, tt.wantErr)
 
 			if !reflect.DeepEqual(got, tt.want) {

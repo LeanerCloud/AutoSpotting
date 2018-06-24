@@ -1,6 +1,7 @@
 package autospotting
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"path/filepath"
@@ -143,10 +144,10 @@ func (i *instance) canTerminate() bool {
 		*i.State.Name != ec2.InstanceStateNameShuttingDown
 }
 
-func (i *instance) terminate() error {
+func (i *instance) terminate(ctx context.Context) error {
 	svc := i.region.services.ec2
 	if i.canTerminate() {
-		_, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
+		_, err := svc.TerminateInstancesWithContext(ctx, &ec2.TerminateInstancesInput{
 			InstanceIds: []*string{i.InstanceId},
 		})
 		if err != nil {

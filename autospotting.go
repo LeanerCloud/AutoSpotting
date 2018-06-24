@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/cristim/autospotting/core"
 	"github.com/cristim/ec2-instances-info"
 	"github.com/namsral/flag"
@@ -26,12 +27,11 @@ func main() {
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		lambda.Start(Handler)
 	} else {
-		run()
+		run(context.Background())
 	}
 }
 
-func run() {
-
+func run(ctx context.Context) {
 	log.Println("Starting autospotting agent, build", Version)
 
 	log.Printf("Parsed command line flags: "+
@@ -58,7 +58,8 @@ func run() {
 		conf.TagFilteringMode,
 		conf.SpotProductDescription)
 
-	autospotting.Run(conf.Config)
+	xray.Configure(xray.Config{LogLevel: "error"})
+	autospotting.Run(ctx, conf.Config)
 	log.Println("Execution completed, nothing left to do")
 }
 
@@ -87,8 +88,8 @@ func init() {
 }
 
 // Handler implements the AWS Lambda handler
-func Handler(request events.APIGatewayProxyRequest) {
-	run()
+func Handler(ctx context.Context) {
+	run(ctx)
 }
 
 // Configuration handling

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -69,7 +71,7 @@ func (r *region) enabled() bool {
 	return false
 }
 
-func (r *region) processRegion() {
+func (r *region) processRegion(ctx context.Context) {
 
 	logger.Println("Creating connections to the required AWS services in", r.name)
 	r.services.connect(r.name)
@@ -79,25 +81,25 @@ func (r *region) processRegion() {
 	r.setupAsgFilters()
 
 	logger.Println("Scanning for enabled AutoScaling groups in ", r.name)
-	r.scanForEnabledAutoScalingGroups()
+	r.scanForEnabledAutoScalingGroups(context.Background())
 
 	// only process further the region if there are any enabled autoscaling groups
 	// within it
 	if r.hasEnabledAutoScalingGroups() {
 
 		logger.Println("Scanning full instance information in", r.name)
-		r.determineInstanceTypeInformation(r.conf)
+		r.determineInstanceTypeInformation(ctx, r.conf)
 
 		debug.Println(spew.Sdump(r.instanceTypeInformation))
 
 		logger.Println("Scanning instances in", r.name)
-		err := r.scanInstances()
+		err := r.scanInstances(context.Background())
 		if err != nil {
 			logger.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
 		}
 
 		logger.Println("Processing enabled AutoScaling groups in", r.name)
-		r.processEnabledAutoScalingGroups()
+		r.processEnabledAutoScalingGroups(context.Background())
 	} else {
 		logger.Println(r.name, "has no enabled AutoScaling groups")
 	}
@@ -136,7 +138,7 @@ func splitTagAndValue(value string) *Tag {
 	return nil
 }
 
-func (r *region) scanInstances() error {
+func (r *region) scanInstances(ctx context.Context) error {
 	svc := r.services.ec2
 	input := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
@@ -153,7 +155,8 @@ func (r *region) scanInstances() error {
 	r.instances = makeInstances()
 
 	pageNum := 0
-	err := svc.DescribeInstancesPages(
+	err := svc.DescribeInstancesPagesWithContext(
+		ctx,
 		input,
 		func(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
 			pageNum++
@@ -190,7 +193,7 @@ func (r *region) addInstance(inst *ec2.Instance) {
 	})
 }
 
-func (r *region) determineInstanceTypeInformation(cfg *Config) {
+func (r *region) determineInstanceTypeInformation(ctx context.Context, cfg *Config) {
 
 	r.instanceTypeInformation = make(map[string]instanceTypeInformation)
 
@@ -237,20 +240,20 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 	// return entries about the available instance types, so no invalid instance
 	// types would be returned
 
-	if err := r.requestSpotPrices(); err != nil {
+	if err := r.requestSpotPrices(ctx); err != nil {
 		logger.Println(err.Error())
 	}
 
 	debug.Println(spew.Sdump(r.instanceTypeInformation))
 }
 
-func (r *region) requestSpotPrices() error {
+func (r *region) requestSpotPrices(ctx context.Context) error {
 
 	s := spotPrices{conn: r.services}
 
 	// Retrieve all current spot prices from the current region.
 	// TODO: add support for other OSes
-	err := s.fetch(r.conf.SpotProductDescription, 0, nil, nil)
+	err := s.fetch(ctx, r.conf.SpotProductDescription, 0, nil, nil)
 
 	if err != nil {
 		return errors.New("Couldn't fetch spot prices in " + r.name)
@@ -340,12 +343,13 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
 	return asgs
 }
 
-func (r *region) scanForEnabledAutoScalingGroups() {
+func (r *region) scanForEnabledAutoScalingGroups(ctx context.Context) {
 
 	svc := r.services.autoScaling
 
 	pageNum := 0
-	err := svc.DescribeAutoScalingGroupsPages(
+	err := svc.DescribeAutoScalingGroupsPagesWithContext(
+		ctx,
 		&autoscaling.DescribeAutoScalingGroupsInput{},
 		func(page *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
 			pageNum++
@@ -368,11 +372,11 @@ func (r *region) hasEnabledAutoScalingGroups() bool {
 
 }
 
-func (r *region) processEnabledAutoScalingGroups() {
+func (r *region) processEnabledAutoScalingGroups(ctx context.Context) {
 	for _, asg := range r.enabledASGs {
 		r.wg.Add(1)
 		go func(a autoScalingGroup) {
-			a.process()
+			a.process(ctx)
 			r.wg.Done()
 		}(asg)
 	}

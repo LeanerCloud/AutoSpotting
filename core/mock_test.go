@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -44,6 +45,10 @@ func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput)
 	return m.dspho, m.dspherr
 }
 
+func (m mockEC2) DescribeSpotPriceHistoryWithContext(ctx aws.Context, in *ec2.DescribeSpotPriceHistoryInput, options ...request.Option) (*ec2.DescribeSpotPriceHistoryOutput, error) {
+	return m.DescribeSpotPriceHistory(in)
+}
+
 func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool) error {
 	return m.diperr
 }
@@ -52,8 +57,16 @@ func (m mockEC2) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.Terminat
 	return m.tio, m.tierr
 }
 
+func (m mockEC2) TerminateInstancesWithContext(ctx aws.Context, in *ec2.TerminateInstancesInput, options ...request.Option) (*ec2.TerminateInstancesOutput, error) {
+	return m.TerminateInstances(in)
+}
+
 func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
 	return m.dro, m.drerr
+}
+
+func (m mockEC2) DescribeRegionsWithContext(ctx aws.Context, in *ec2.DescribeRegionsInput, options ...request.Option) (*ec2.DescribeRegionsOutput, error) {
+	return m.DescribeRegions(in)
 }
 
 // For testing we "convert" the SecurityGroupIDs/SecurityGroupNames by
@@ -123,16 +136,32 @@ func (m mockASG) DetachInstances(*autoscaling.DetachInstancesInput) (*autoscalin
 	return m.dio, m.dierr
 }
 
+func (m mockASG) DetachInstancesWithContext(ctx aws.Context, in *autoscaling.DetachInstancesInput, options ...request.Option) (*autoscaling.DetachInstancesOutput, error) {
+	return m.DetachInstances(in)
+}
+
 func (m mockASG) AttachInstances(*autoscaling.AttachInstancesInput) (*autoscaling.AttachInstancesOutput, error) {
 	return m.aio, m.aierr
+}
+
+func (m mockASG) AttachInstancesWithContext(ctx aws.Context, in *autoscaling.AttachInstancesInput, options ...request.Option) (*autoscaling.AttachInstancesOutput, error) {
+	return m.AttachInstances(in)
 }
 
 func (m mockASG) DescribeLaunchConfigurations(*autoscaling.DescribeLaunchConfigurationsInput) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
 	return m.dlco, m.dlcerr
 }
 
+func (m mockASG) DescribeLaunchConfigurationsWithContext(ctx aws.Context, in *autoscaling.DescribeLaunchConfigurationsInput, opts ...request.Option) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
+	return m.DescribeLaunchConfigurations(in)
+}
+
 func (m mockASG) UpdateAutoScalingGroup(*autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
 	return m.uasgo, m.uasgerr
+}
+
+func (m mockASG) UpdateAutoScalingGroupWithContext(ctx aws.Context, in *autoscaling.UpdateAutoScalingGroupInput, opts ...request.Option) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
+	return m.UpdateAutoScalingGroup(in)
 }
 
 func (m mockASG) DescribeTagsPages(input *autoscaling.DescribeTagsInput, function func(*autoscaling.DescribeTagsOutput, bool) bool) error {
@@ -143,4 +172,8 @@ func (m mockASG) DescribeTagsPages(input *autoscaling.DescribeTagsInput, functio
 func (m mockASG) DescribeAutoScalingGroupsPages(input *autoscaling.DescribeAutoScalingGroupsInput, function func(*autoscaling.DescribeAutoScalingGroupsOutput, bool) bool) error {
 	function(m.dasgo, true)
 	return nil
+}
+
+func (m mockASG) DescribeAutoScalingGroupsPagesWithContext(ctx aws.Context, input *autoscaling.DescribeAutoScalingGroupsInput, function func(*autoscaling.DescribeAutoScalingGroupsOutput, bool) bool, options ...request.Option) error {
+	return m.DescribeAutoScalingGroupsPages(input, function)
 }
