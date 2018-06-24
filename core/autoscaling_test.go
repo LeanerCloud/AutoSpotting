@@ -1,6 +1,7 @@
 package autospotting
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -1380,7 +1381,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 			a.DesiredCapacity = tt.desiredCapacity
 			a.instances = tt.asgInstances
 			a.minOnDemand = tt.minOnDemand
-			shouldRun := a.needReplaceOnDemandInstances()
+			shouldRun := a.needReplaceOnDemandInstances(context.Background())
 			if tt.expectedRun != shouldRun {
 				t.Errorf("needReplaceOnDemandInstances returned: %t expected %t",
 					shouldRun, tt.expectedRun)
@@ -1518,7 +1519,7 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 				region:    tt.regionASG,
 				instances: tt.instancesASG,
 			}
-			err := a.detachAndTerminateOnDemandInstance(tt.instanceID)
+			err := a.detachAndTerminateOnDemandInstance(context.Background(), tt.instanceID)
 			CheckErrors(t, err, tt.expected)
 		})
 	}
@@ -1558,7 +1559,7 @@ func TestAttachSpotInstance(t *testing.T) {
 				name:   "testASG",
 				region: tt.regionASG,
 			}
-			err := a.attachSpotInstance(tt.instanceID)
+			err := a.attachSpotInstance(context.Background(), tt.instanceID)
 			CheckErrors(t, err, tt.expected)
 		})
 	}
@@ -1629,7 +1630,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 					LaunchConfigurationName: tt.nameLC,
 				},
 			}
-			err := a.loadLaunchConfiguration()
+			err := a.loadLaunchConfiguration(context.Background())
 			lc := a.launchConfiguration
 
 			if !reflect.DeepEqual(tt.expectedErr, err) {
@@ -1681,7 +1682,7 @@ func TestSetAutoScalingMaxSize(t *testing.T) {
 				name:   "testASG",
 				region: tt.regionASG,
 			}
-			err := a.setAutoScalingMaxSize(tt.maxSize)
+			err := a.setAutoScalingMaxSize(context.Background(), tt.maxSize)
 			CheckErrors(t, err, tt.expected)
 		})
 	}
@@ -2572,7 +2573,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			returned := tt.asg.replaceOnDemandInstanceWithSpot(tt.spotID)
+			returned := tt.asg.replaceOnDemandInstanceWithSpot(context.Background(), tt.spotID)
 			CheckErrors(t, returned, tt.expected)
 		})
 	}

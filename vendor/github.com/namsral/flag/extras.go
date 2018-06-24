@@ -26,7 +26,7 @@ func (f *FlagSet) ParseEnv(environ []string) error {
 		if i < 1 {
 			continue
 		}
-		env[s[0:i]] = s[i+1 : len(s)]
+		env[s[0:i]] = s[i+1:]
 	}
 
 	for _, flag := range m {

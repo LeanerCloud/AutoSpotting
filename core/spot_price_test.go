@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
@@ -65,7 +67,7 @@ func Test_fetch(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.config.fetch(tc.product, tc.duration, tc.availabilityZone, tc.instanceTypes)
+			err := tc.config.fetch(context.Background(), tc.product, tc.duration, tc.availabilityZone, tc.instanceTypes)
 			if len(tc.data) != len(tc.config.data) {
 				t.Errorf("Price data actual: %v\nexpected: %v", tc.config.data, tc.data)
 			}
