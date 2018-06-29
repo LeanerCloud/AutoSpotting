@@ -166,6 +166,19 @@ func (r *region) scanInstances() error {
 				for _, res := range page.Reservations {
 					for _, inst := range res.Instances {
 						r.addInstance(inst)
+
+						// determine and set the API termination protection field
+						diaRes, err := svc.DescribeInstanceAttribute(
+							&ec2.DescribeInstanceAttributeInput{
+								Attribute:  aws.String("disableApiTermination"),
+								InstanceId: inst.InstanceId,
+							})
+
+						if err == nil &&
+							diaRes.DisableApiTermination != nil &&
+							diaRes.DisableApiTermination.Value != nil {
+							r.instances.get(*inst.InstanceId).protected = *diaRes.DisableApiTermination.Value
+						}
 					}
 				}
 			}

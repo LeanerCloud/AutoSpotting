@@ -385,10 +385,8 @@ func (a *autoScalingGroup) scanInstances() instances {
 		}
 
 		i.asg, i.region = a, a.region
-		if inst.ProtectedFromScaleIn == nil {
-			i.protected = false
-		} else {
-			i.protected = *inst.ProtectedFromScaleIn
+		if inst.ProtectedFromScaleIn != nil {
+			i.protected = i.protected || *inst.ProtectedFromScaleIn
 		}
 
 		if i.isSpot() {

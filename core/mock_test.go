@@ -28,8 +28,15 @@ type mockEC2 struct {
 	dspho   *ec2.DescribeSpotPriceHistoryOutput
 	dspherr error
 
-	// Error in DescribeInstancesPages
+	// DescribeInstancesOutput
+	dio *ec2.DescribeInstancesOutput
+
+	// DescribeInstancesPages error
 	diperr error
+
+	// DescribeInstanceAttribute
+	diao   *ec2.DescribeInstanceAttributeOutput
+	diaerr error
 
 	// Terminate Instance
 	tio   *ec2.TerminateInstancesOutput
@@ -46,6 +53,10 @@ func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput)
 
 func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool) error {
 	return m.diperr
+}
+
+func (m mockEC2) DescribeInstanceAttributes(in *ec2.DescribeInstanceAttributeInput, fn func(*ec2.DescribeInstanceAttributeOutput, bool) bool) error {
+	return m.diaerr
 }
 
 func (m mockEC2) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
