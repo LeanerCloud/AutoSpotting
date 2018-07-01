@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/aws/aws-xray-sdk-go/strategy/ctxmissing"
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/cristim/autospotting/core"
 	"github.com/cristim/ec2-instances-info"
@@ -58,7 +59,10 @@ func run(ctx context.Context) {
 		conf.TagFilteringMode,
 		conf.SpotProductDescription)
 
-	xray.Configure(xray.Config{LogLevel: "error"})
+	xray.Configure(xray.Config{
+		ContextMissingStrategy: ctxmissing.NewDefaultLogErrorStrategy(),
+		LogLevel:               "error",
+	})
 	autospotting.Run(ctx, conf.Config)
 	log.Println("Execution completed, nothing left to do")
 }
