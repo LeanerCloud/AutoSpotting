@@ -17,7 +17,7 @@ ifneq ($(FLAVOR), custom)
     LICENSE_FILES += BINARY_LICENSE
 endif
 
-LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD)"
+LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD) -s -w"
 
 all: fmt-check vet-check build test                          ## Build the code
 .PHONY: all
