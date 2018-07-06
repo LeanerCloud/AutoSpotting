@@ -3,7 +3,6 @@ package autospotting
 import (
 	"math"
 	"reflect"
-	"sync"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -520,37 +519,26 @@ func Test_region_scanInstances(t *testing.T) {
 		enabledASGs             []autoScalingGroup
 		services                connections
 		tagsToFilterASGsBy      []Tag
-		wg                      sync.WaitGroup
 	}
 	tests := []struct {
-		name         string
-		regionFields regionFields
-		wantErr      bool
+		name          string
+		regionFields  regionFields
+		wantErr       bool
+		wantInstances instances
 	}{
 		{
 			name: "region with a single instance",
 			regionFields: regionFields{
 				name: "us-east-1",
 				conf: &Config{MinOnDemandNumber: 2},
-
-				instances: makeInstancesWithCatalog(
-					map[string]*instance{
-						"id-1": {
-							Instance: &ec2.Instance{
-								InstanceId:   aws.String("id-1"),
-								InstanceType: aws.String("typeX"),
-							},
-						},
-					},
-				),
 				services: connections{
 					ec2: mockEC2{
 						diperr: nil,
 						dio: &ec2.DescribeInstancesOutput{
 							Reservations: []*ec2.Reservation{
-								&ec2.Reservation{
+								{
 									Instances: []*ec2.Instance{
-										&ec2.Instance{
+										{
 											InstanceId:   aws.String("id-2"),
 											InstanceType: aws.String("typeY"),
 										},
@@ -562,6 +550,16 @@ func Test_region_scanInstances(t *testing.T) {
 				},
 			},
 			wantErr: false,
+			wantInstances: makeInstancesWithCatalog(
+				map[string]*instance{
+					"id-1": {
+						Instance: &ec2.Instance{
+							InstanceId:   aws.String("id-1"),
+							InstanceType: aws.String("typeX"),
+						},
+					},
+				},
+			),
 		},
 	}
 	for _, tt := range tests {
@@ -570,11 +568,9 @@ func Test_region_scanInstances(t *testing.T) {
 				name: tt.regionFields.name,
 				conf: tt.regionFields.conf,
 				instanceTypeInformation: tt.regionFields.instanceTypeInformation,
-				instances:               tt.regionFields.instances,
 				enabledASGs:             tt.regionFields.enabledASGs,
 				services:                tt.regionFields.services,
 				tagsToFilterASGsBy:      tt.regionFields.tagsToFilterASGsBy,
-				wg:                      tt.regionFields.wg,
 			}
 			err := r.scanInstances()
 
@@ -582,9 +578,9 @@ func Test_region_scanInstances(t *testing.T) {
 				t.Errorf("region.scanInstances() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
-			if !reflect.DeepEqual(r.instances.dump(), tt.regionFields.instances.dump()) {
+			if !reflect.DeepEqual(r.instances.dump(), tt.wantInstances.dump()) {
 				t.Errorf("region.scanInstances() received instance data: %+v, expected: %+v",
-					r.instances.dump(), tt.regionFields.instances.dump())
+					r.instances.dump(), tt.wantInstances.dump())
 			}
 
 		})
