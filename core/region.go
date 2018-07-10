@@ -81,7 +81,7 @@ func (r *region) processRegion(ctx context.Context) {
 	r.setupAsgFilters()
 
 	logger.Println("Scanning for enabled AutoScaling groups in ", r.name)
-	r.scanForEnabledAutoScalingGroups(context.Background())
+	r.scanForEnabledAutoScalingGroups(ctx)
 
 	// only process further the region if there are any enabled autoscaling groups
 	// within it
@@ -93,13 +93,13 @@ func (r *region) processRegion(ctx context.Context) {
 		debug.Println(spew.Sdump(r.instanceTypeInformation))
 
 		logger.Println("Scanning instances in", r.name)
-		err := r.scanInstances(context.Background())
+		err := r.scanInstances(ctx)
 		if err != nil {
 			logger.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
 		}
 
 		logger.Println("Processing enabled AutoScaling groups in", r.name)
-		r.processEnabledAutoScalingGroups(context.Background())
+		r.processEnabledAutoScalingGroups(ctx)
 	} else {
 		logger.Println(r.name, "has no enabled AutoScaling groups")
 	}

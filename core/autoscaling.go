@@ -331,7 +331,7 @@ func (a *autoScalingGroup) process(ctx context.Context) {
 				"No running on-demand instances were found, nothing to do here...")
 			return
 		}
-		a.loadLaunchConfiguration(context.Background())
+		a.loadLaunchConfiguration(ctx)
 		err := onDemandInstance.launchSpotReplacement()
 		if err != nil {
 			logger.Printf("Could not launch cheapest spot instance: %s", err)
@@ -416,7 +416,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(ctx context.Context,
 		logger.Println(a.name, "found no on-demand instances that could be",
 			"replaced with the new spot instance", *spotInst.InstanceId,
 			"terminating the spot instance.")
-		spotInst.terminate(context.Background())
+		spotInst.terminate(ctx)
 		return errors.New("couldn't find ondemand instance to replace")
 	}
 	logger.Println(a.name, "found on-demand instance", *odInst.InstanceId,
@@ -626,7 +626,7 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(ctx context.Contex
 	// Wait till detachment initialize is complete before terminate instance
 	time.Sleep(20 * time.Second * a.region.conf.SleepMultiplier)
 
-	return a.instances.get(*instanceID).terminate(context.Background())
+	return a.instances.get(*instanceID).terminate(ctx)
 }
 
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.
