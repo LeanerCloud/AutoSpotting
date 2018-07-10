@@ -46,7 +46,8 @@ func run(ctx context.Context) {
 		"bidding_policy=%s "+
 		"tag_filters=%s "+
 		"tag_filter_mode=%s "+
-		"spot_product_description=%v",
+		"spot_product_description=%v "+
+		"xray_log_level=%s",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
@@ -57,11 +58,12 @@ func run(ctx context.Context) {
 		conf.BiddingPolicy,
 		conf.FilterByTags,
 		conf.TagFilteringMode,
-		conf.SpotProductDescription)
+		conf.SpotProductDescription,
+		conf.XRayLogLevel)
 
 	xray.Configure(xray.Config{
 		ContextMissingStrategy: ctxmissing.NewDefaultLogErrorStrategy(),
-		LogLevel:               "error",
+		LogLevel:               conf.XRayLogLevel,
 	})
 	autospotting.Run(ctx, conf.Config)
 	log.Println("Execution completed, nothing left to do")
@@ -151,6 +153,8 @@ func (c *cfgData) parseCommandLineFlags() {
 		"\tDefault if no value is set will be the equivalent of -tag_filters 'spot-enabled=true'\n"+
 		"\tIn case the tag_filtering_mode is set to opt-out, it defaults to 'spot-enabled=false'\n"+
 		"\tExample: ./autospotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
+	flag.StringVar(&c.XRayLogLevel, "xray_log_level", "error", "\n\tSet log level for X-Ray SDK\n"+
+		"\tValue \"error\" is set by default. See https://github.com/cihub/seelog/blob/master/common_loglevel.go#L41 for all available values\n")
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 	flag.Parse()
 	printVersion(v)
