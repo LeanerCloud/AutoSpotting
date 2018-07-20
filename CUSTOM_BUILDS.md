@@ -64,7 +64,7 @@ your CloudFormation or Terraform stack to use those new binaries.
 
 1. Build the code:
 
-   `make build_local` or `go build` should both work, the only difference is the
+   `make build` or `go build` should both work, the only difference is the
    inclusion of versioning information into the binary, which may not matter
    much anyway.
 
