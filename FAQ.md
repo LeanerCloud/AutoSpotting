@@ -190,7 +190,7 @@ global setting can be overridden on a per-group level.
 You can set an absolute number or a percentage of the total capacity, also using
 tags set on each group.
 
-For more information about these tags, please refer to the Gettins Started
+For more information about these tags, please refer to the Getting Started
 guide.
 
 ## What does it mean "compatible"?
