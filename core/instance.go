@@ -269,7 +269,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 
 		candidatePrice := i.calculatePrice(candidate)
 
-		if (len(candidate.virtualizationTypes) == 0) {
+		if len(candidate.virtualizationTypes) == 0 {
 			candidate.virtualizationTypes = append(candidate.virtualizationTypes, "HVM")
 		}
 		if i.isPriceCompatible(candidatePrice, bestPrice) &&
