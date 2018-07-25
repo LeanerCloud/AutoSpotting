@@ -212,7 +212,9 @@ func (i *instance) isStorageCompatible(spotCandidate instanceTypeInformation, at
 
 func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) bool {
 	current := *i.VirtualizationType
-
+	if len(spotVirtualizationTypes) == 0 {
+		spotVirtualizationTypes = append(spotVirtualizationTypes, "HVM")
+	}
 	debug.Println("Comparing virtualization spot/instance:")
 	debug.Println("\tSpot virtualization: ", spotVirtualizationTypes)
 	debug.Println("\tInstance virtualization: ", current)
@@ -269,9 +271,6 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 
 		candidatePrice := i.calculatePrice(candidate)
 
-		if len(candidate.virtualizationTypes) == 0 {
-			candidate.virtualizationTypes = append(candidate.virtualizationTypes, "HVM")
-		}
 		if i.isPriceCompatible(candidatePrice, bestPrice) &&
 			i.isEBSCompatible(candidate) &&
 			i.isClassCompatible(candidate) &&
