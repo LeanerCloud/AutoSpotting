@@ -213,7 +213,7 @@ func (i *instance) isStorageCompatible(spotCandidate instanceTypeInformation, at
 func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) bool {
 	current := *i.VirtualizationType
 	if len(spotVirtualizationTypes) == 0 {
-		spotVirtualizationTypes = append(spotVirtualizationTypes, "HVM")
+		spotVirtualizationTypes = []string{"HVM"}
 	}
 	debug.Println("Comparing virtualization spot/instance:")
 	debug.Println("\tSpot virtualization: ", spotVirtualizationTypes)
