@@ -132,23 +132,52 @@ any other values.
 ## How about the software costs?
 
 The software itself is free and open source so there is no monthly subscription
-fee if you build the open source code straight from trunk. The software itself
-is largely community-supported, well-documented and is designed to be easy to
-set up so it shouldn't need much support.
+fee if you build and deploy the open source code straight from trunk, but we 
+also have more convenient to use and better supported prebuilt binaries that
+would cost you a small monthly fee and would also support further development
+of the software.
 
-Convenient to install pre-built binaries are available for evaluation for a
-limited period. These can be used for unlimited time by the users who pay a
-small fraction of their monthly savings. Stable, carefully tested and better
-supported binaries are also available for a slightly larger fee.
+You have the following options:
 
-The license fees and payment methods for the prebuilt binaries are documented in
-the main [documentation](README.md)
+### Open source
+- the source code is and will always be distributed under an MIT license, so
+  anyone can build and run their own binaries free of charge on any number
+  of AWS accounts.
+- users can freely fork and customize the code, but these forks may be hard
+  to maintain on the long term if they diverge consistently from mainline. 
+  Do yourself a favor and at least try to upstream your local changes.
+- limited, best-effort community support, even less so if you run a custom
+  fork.
 
-The author also offers custom feature development and deployment support, feel
-free to [get in touch](https://gitter.im/cristim) if you need any help.
+### Individuals and non-profits
+- can use the official pre-built binaries free of charge forever on any
+  number of AWS accounts.
+- limited, best-effort community support.
 
-If you find AutoSpotting useful please consider giving a recurring tip on
-[Patreon](https://www.patreon.com/cristim) to encourage further development.
+### For-profit companies
+- can use the official pre-built binaries for up to two weeks since first
+  installed.
+- limited, best-effort community support.
+- can license them for longer term by becoming code contributors or Patreon
+  backers (see below)
+
+### For profit companies that contribute to the open source development
+- can use the official binaries free of charge for a year after their latest
+  code contribution, on any number of AWS accounts.
+- limited, best-effort community support.
+
+### Patreon backers
+- periodically receive news about the project, regardless of the amount they
+  contribute (individuals are also more than welcome to join)
+- companies contributing at least $40/AWS account monthly can use the official
+  binaries and are entitled to receive support for the deployments and
+  subsequent updates and can subscribe for additional support services (custom
+  development, maintaining forks, etc.), charged additionally.
+- all these support options are also available to individuals or non-profits
+  who decide to contribute the same monthly fee.
+- see the [Patreon page](https://www.patreon.com/bePatron?c=979085) for more
+  details.
+
 
 ## How do I enable it?
 
