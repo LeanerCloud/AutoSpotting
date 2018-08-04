@@ -1,8 +1,8 @@
 package autospotting
 
 import (
+	"context"
 	"errors"
-
 	"math"
 	"strconv"
 	"strings"
@@ -249,7 +249,7 @@ func (a *autoScalingGroup) loadDefaultConfig() bool {
 	return done
 }
 
-func (a *autoScalingGroup) loadLaunchConfiguration() error {
+func (a *autoScalingGroup) loadLaunchConfiguration(ctx context.Context) error {
 	//already done
 	if a.launchConfiguration != nil {
 		return nil
@@ -266,7 +266,7 @@ func (a *autoScalingGroup) loadLaunchConfiguration() error {
 	params := &autoscaling.DescribeLaunchConfigurationsInput{
 		LaunchConfigurationNames: []*string{lcName},
 	}
-	resp, err := svc.DescribeLaunchConfigurations(params)
+	resp, err := svc.DescribeLaunchConfigurationsWithContext(ctx, params)
 
 	if err != nil {
 		logger.Println(err.Error())
@@ -279,7 +279,7 @@ func (a *autoScalingGroup) loadLaunchConfiguration() error {
 	return nil
 }
 
-func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
+func (a *autoScalingGroup) needReplaceOnDemandInstances(ctx context.Context) bool {
 	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, "")
 	if onDemandRunning > a.minOnDemand {
 		logger.Println("Currently more than enough OnDemand instances running")
@@ -298,7 +298,7 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 			} else {
 				logger.Println("Terminating a random spot instance",
 					*randomSpot.Instance.InstanceId)
-				randomSpot.terminate()
+				randomSpot.terminate(ctx)
 			}
 		}
 	}
@@ -310,7 +310,7 @@ func (a *autoScalingGroup) allInstanceRunning() bool {
 	return totalRunning == a.instances.count64()
 }
 
-func (a *autoScalingGroup) process() {
+func (a *autoScalingGroup) process(ctx context.Context) {
 	var spotInstanceID string
 	a.scanInstances()
 	a.loadDefaultConfig()
@@ -331,7 +331,7 @@ func (a *autoScalingGroup) process() {
 				"No running on-demand instances were found, nothing to do here...")
 			return
 		}
-		a.loadLaunchConfiguration()
+		a.loadLaunchConfiguration(ctx)
 		err := onDemandInstance.launchSpotReplacement()
 		if err != nil {
 			logger.Printf("Could not launch cheapest spot instance: %s", err)
@@ -341,7 +341,7 @@ func (a *autoScalingGroup) process() {
 
 	spotInstanceID = *spotInstance.InstanceId
 
-	if !a.needReplaceOnDemandInstances() || !spotInstance.isReadyToAttach(a) {
+	if !a.needReplaceOnDemandInstances(ctx) || !spotInstance.isReadyToAttach(a) {
 		logger.Println("Waiting for next run while processing", a.name)
 		return
 	}
@@ -349,7 +349,7 @@ func (a *autoScalingGroup) process() {
 	logger.Println(a.region.name, "Found spot instance:", spotInstanceID,
 		"Attaching it to", a.name)
 
-	a.replaceOnDemandInstanceWithSpot(spotInstanceID)
+	a.replaceOnDemandInstanceWithSpot(ctx, spotInstanceID)
 
 }
 
@@ -385,7 +385,7 @@ func (a *autoScalingGroup) scanInstances() instances {
 	return a.instances
 }
 
-func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
+func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(ctx context.Context,
 	spotInstanceID string) error {
 
 	minSize, maxSize := *a.MinSize, *a.MaxSize
@@ -394,8 +394,8 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 	// temporarily increase AutoScaling group in case it's of static size
 	if minSize == maxSize {
 		logger.Println(a.name, "Temporarily increasing MaxSize")
-		a.setAutoScalingMaxSize(maxSize + 1)
-		defer a.setAutoScalingMaxSize(maxSize)
+		a.setAutoScalingMaxSize(ctx, maxSize+1)
+		defer a.setAutoScalingMaxSize(ctx, maxSize)
 	}
 
 	// get the details of our spot instance so we can see its AZ
@@ -416,24 +416,24 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 		logger.Println(a.name, "found no on-demand instances that could be",
 			"replaced with the new spot instance", *spotInst.InstanceId,
 			"terminating the spot instance.")
-		spotInst.terminate()
+		spotInst.terminate(ctx)
 		return errors.New("couldn't find ondemand instance to replace")
 	}
 	logger.Println(a.name, "found on-demand instance", *odInst.InstanceId,
 		"replacing with new spot instance", *spotInst.InstanceId)
 	// revert attach/detach order when running on minimum capacity
 	if desiredCapacity == minSize {
-		attachErr := a.attachSpotInstance(spotInstanceID)
+		attachErr := a.attachSpotInstance(ctx, spotInstanceID)
 		if attachErr != nil {
 			logger.Println(a.name, "skipping detaching on-demand due to failure to",
 				"attach the new spot instance", *spotInst.InstanceId)
 			return nil
 		}
 	} else {
-		defer a.attachSpotInstance(spotInstanceID)
+		defer a.attachSpotInstance(ctx, spotInstanceID)
 	}
 
-	return a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
+	return a.detachAndTerminateOnDemandInstance(ctx, odInst.InstanceId)
 }
 
 // Returns the information about the first running instance found in
@@ -558,10 +558,11 @@ func (a *autoScalingGroup) getDisallowedInstanceTypes(baseInstance *instance) []
 	})
 }
 
-func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
+func (a *autoScalingGroup) setAutoScalingMaxSize(ctx context.Context, maxSize int64) error {
 	svc := a.region.services.autoScaling
 
-	_, err := svc.UpdateAutoScalingGroup(
+	_, err := svc.UpdateAutoScalingGroupWithContext(
+		ctx,
 		&autoscaling.UpdateAutoScalingGroupInput{
 			AutoScalingGroupName: aws.String(a.name),
 			MaxSize:              aws.Int64(maxSize),
@@ -576,7 +577,7 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 	return nil
 }
 
-func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string) error {
+func (a *autoScalingGroup) attachSpotInstance(ctx context.Context, spotInstanceID string) error {
 
 	svc := a.region.services.autoScaling
 
@@ -587,7 +588,7 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string) error {
 		},
 	}
 
-	resp, err := svc.AttachInstances(&params)
+	resp, err := svc.AttachInstancesWithContext(ctx, &params)
 
 	if err != nil {
 		logger.Println(err.Error())
@@ -600,7 +601,7 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string) error {
 
 // Terminates an on-demand instance from the group,
 // but only after it was detached from the autoscaling group
-func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
+func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(ctx context.Context,
 	instanceID *string) error {
 	logger.Println(a.region.name,
 		a.name,
@@ -617,7 +618,7 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 
 	asSvc := a.region.services.autoScaling
 
-	if _, err := asSvc.DetachInstances(&detachParams); err != nil {
+	if _, err := asSvc.DetachInstancesWithContext(ctx, &detachParams); err != nil {
 		logger.Println(err.Error())
 		return err
 	}
@@ -625,7 +626,7 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 	// Wait till detachment initialize is complete before terminate instance
 	time.Sleep(20 * time.Second * a.region.conf.SleepMultiplier)
 
-	return a.instances.get(*instanceID).terminate()
+	return a.instances.get(*instanceID).terminate(ctx)
 }
 
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.

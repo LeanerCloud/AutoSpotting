@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -1168,7 +1170,7 @@ func TestTerminate(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		ret := tt.inst.terminate()
+		ret := tt.inst.terminate(context.Background())
 		if ret != nil && ret.Error() != tt.expected.Error() {
 			t.Errorf("error actual: %s, expected: %s", ret.Error(), tt.expected.Error())
 		}

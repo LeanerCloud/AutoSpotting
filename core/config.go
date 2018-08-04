@@ -42,4 +42,8 @@ type Config struct {
 	// Controls how are the tags used to filter the groups.
 	// Available options: 'opt-in' and 'opt-out', default: 'opt-in'
 	TagFilteringMode string
+
+	// Log level for X-Ray SDK
+	// See https://github.com/cihub/seelog/blob/master/common_loglevel.go#L41 for available options, it's used internally by X-Ray SDK
+	XRayLogLevel string
 }

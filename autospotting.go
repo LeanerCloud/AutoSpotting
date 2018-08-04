@@ -1,13 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/aws/aws-xray-sdk-go/strategy/ctxmissing"
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/cristim/autospotting/core"
 	"github.com/cristim/ec2-instances-info"
 	"github.com/namsral/flag"
@@ -26,12 +28,11 @@ func main() {
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		lambda.Start(Handler)
 	} else {
-		run()
+		run(context.Background())
 	}
 }
 
-func run() {
-
+func run(ctx context.Context) {
 	log.Println("Starting autospotting agent, build", Version)
 
 	log.Printf("Parsed command line flags: "+
@@ -45,7 +46,8 @@ func run() {
 		"bidding_policy=%s "+
 		"tag_filters=%s "+
 		"tag_filter_mode=%s "+
-		"spot_product_description=%v",
+		"spot_product_description=%v "+
+		"xray_log_level=%s",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
@@ -56,9 +58,14 @@ func run() {
 		conf.BiddingPolicy,
 		conf.FilterByTags,
 		conf.TagFilteringMode,
-		conf.SpotProductDescription)
+		conf.SpotProductDescription,
+		conf.XRayLogLevel)
 
-	autospotting.Run(conf.Config)
+	xray.Configure(xray.Config{
+		ContextMissingStrategy: ctxmissing.NewDefaultLogErrorStrategy(),
+		LogLevel:               conf.XRayLogLevel,
+	})
+	autospotting.Run(ctx, conf.Config)
 	log.Println("Execution completed, nothing left to do")
 }
 
@@ -87,8 +94,8 @@ func init() {
 }
 
 // Handler implements the AWS Lambda handler
-func Handler(request events.APIGatewayProxyRequest) {
-	run()
+func Handler(ctx context.Context) {
+	run(ctx)
 }
 
 // Configuration handling
@@ -146,6 +153,8 @@ func (c *cfgData) parseCommandLineFlags() {
 		"\tDefault if no value is set will be the equivalent of -tag_filters 'spot-enabled=true'\n"+
 		"\tIn case the tag_filtering_mode is set to opt-out, it defaults to 'spot-enabled=false'\n"+
 		"\tExample: ./autospotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
+	flag.StringVar(&c.XRayLogLevel, "xray_log_level", "error", "\n\tSet log level for X-Ray SDK\n"+
+		"\tValue \"error\" is set by default. See https://github.com/cihub/seelog/blob/master/common_loglevel.go#L41 for all available values\n")
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 	flag.Parse()
 	printVersion(v)

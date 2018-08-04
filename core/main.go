@@ -7,10 +7,13 @@ import (
 	"strings"
 	"sync"
 
+	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-xray-sdk-go/xray"
 )
 
 var logger, debug *log.Logger
@@ -18,7 +21,7 @@ var logger, debug *log.Logger
 // Run starts processing all AWS regions looking for AutoScaling groups
 // enabled and taking action by replacing more pricy on-demand instances with
 // compatible and cheaper spot instances.
-func Run(cfg *Config) {
+func Run(ctx context.Context, cfg *Config) {
 
 	setupLogging(cfg)
 
@@ -26,18 +29,19 @@ func Run(cfg *Config) {
 
 	// use this only to list all the other regions
 	ec2Conn := connectEC2(cfg.MainRegion)
+	xray.AWS(ec2Conn.Client)
 
 	addDefaultFilteringMode(cfg)
 	addDefaultFilter(cfg)
 
-	allRegions, err := getRegions(ec2Conn)
+	allRegions, err := getRegions(ctx, ec2Conn)
 
 	if err != nil {
 		logger.Println(err.Error())
 		return
 	}
 
-	processRegions(allRegions, cfg)
+	processRegions(ctx, allRegions, cfg)
 
 }
 
@@ -80,7 +84,7 @@ func setupLogging(cfg *Config) {
 // processAllRegions iterates all regions in parallel, and replaces instances
 // for each of the ASGs tagged with tags as specified by slice represented by cfg.FilterByTags
 // by default this is all asg with the tag 'spot-enabled=true'.
-func processRegions(regions []string, cfg *Config) {
+func processRegions(ctx context.Context, regions []string, cfg *Config) {
 
 	var wg sync.WaitGroup
 
@@ -93,7 +97,7 @@ func processRegions(regions []string, cfg *Config) {
 
 			if r.enabled() {
 				logger.Printf("Enabled to run in %s, processing region.\n", r.name)
-				r.processRegion()
+				r.processRegion(ctx)
 			} else {
 				debug.Println("Not enabled to run in", r.name)
 				debug.Println("List of enabled regions:", cfg.Regions)
@@ -117,12 +121,12 @@ func connectEC2(region string) *ec2.EC2 {
 }
 
 // getRegions generates a list of AWS regions.
-func getRegions(ec2conn ec2iface.EC2API) ([]string, error) {
+func getRegions(ctx context.Context, ec2conn ec2iface.EC2API) ([]string, error) {
 	var output []string
 
 	logger.Println("Scanning for available AWS regions")
 
-	resp, err := ec2conn.DescribeRegions(&ec2.DescribeRegionsInput{})
+	resp, err := ec2conn.DescribeRegionsWithContext(ctx, &ec2.DescribeRegionsInput{})
 
 	if err != nil {
 		logger.Println(err.Error())

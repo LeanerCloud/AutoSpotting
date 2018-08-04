@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -196,7 +198,7 @@ func TestOnDemandPriceMultiplier(t *testing.T) {
 					dspherr: nil,
 				},
 			}}
-		r.determineInstanceTypeInformation(cfg)
+		r.determineInstanceTypeInformation(context.Background(), cfg)
 
 		actualPrice := r.instanceTypeInformation["m1.small"].pricing.onDemand
 		if math.Abs(actualPrice-tt.want) > 0.000001 {
@@ -498,7 +500,7 @@ func TestFilterAsgs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := tt.tregion
-			r.scanForEnabledAutoScalingGroups()
+			r.scanForEnabledAutoScalingGroups(context.Background())
 			var asgNames []string
 			for _, name := range r.enabledASGs {
 				asgNames = append(asgNames, name.name)

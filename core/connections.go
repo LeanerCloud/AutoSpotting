@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-xray-sdk-go/xray"
 )
 
 type connections struct {
@@ -35,8 +36,16 @@ func (c *connections) connect(region string) {
 	asConn := make(chan *autoscaling.AutoScaling)
 	ec2Conn := make(chan *ec2.EC2)
 
-	go func() { asConn <- autoscaling.New(c.session) }()
-	go func() { ec2Conn <- ec2.New(c.session) }()
+	go func() {
+		c := autoscaling.New(c.session)
+		xray.AWS(c.Client)
+		asConn <- c
+	}()
+	go func() {
+		c := ec2.New(c.session)
+		xray.AWS(c.Client)
+		ec2Conn <- c
+	}()
 
 	c.autoScaling, c.ec2, c.region = <-asConn, <-ec2Conn, region
 
