@@ -45,7 +45,9 @@ func run() {
 		"bidding_policy=%s "+
 		"tag_filters=%s "+
 		"tag_filter_mode=%s "+
-		"spot_product_description=%v",
+		"spot_product_description=%v "+
+		"max_spot_launch_number=%d "+
+		"max_spot_launch_percentage=%.1f\n",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
@@ -56,7 +58,10 @@ func run() {
 		conf.BiddingPolicy,
 		conf.FilterByTags,
 		conf.TagFilteringMode,
-		conf.SpotProductDescription)
+		conf.SpotProductDescription,
+		conf.MaxSpotLaunchNumber,
+		conf.MaxSpotLaunchPercentage,
+	)
 
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")
@@ -116,6 +121,12 @@ func (c *cfgData) parseCommandLineFlags() {
 		"\n\tIf specified, the spot instances will _never_ be of these types.\n"+
 			"\tAccepts a list of comma or whitespace separated instance types (supports globs).\n"+
 			"\tExample: ./autospotting -disallowed_instance_types 't2.*,c4.xlarge'\n")
+	flag.Int64Var(&c.MaxSpotLaunchNumber, "max_spot_launch_number", autospotting.DefaultMaxLaunchNumber,
+		"\n\tMaximum number of instances that will be converted to Spot Instances per invocation.\n"+
+			"\tSet this value to 0 to use max_spot_launch_percentage instead.\n")
+	flag.Float64Var(&c.MaxSpotLaunchPercentage, "max_spot_launch_percentage", 0.0,
+		"\n\tMaximum percentage of instances that will be converted to Spot Instances per invocation.\n"+
+			"\tOnly used if max_spot_launch_number is not declared\n")
 	flag.Int64Var(&c.MinOnDemandNumber, "min_on_demand_number", autospotting.DefaultMinOnDemandValue,
 		"\n\tNumber of on-demand nodes to be kept running in each of the groups.\n\t"+
 			"Can be overridden on a per-group basis using the tag "+autospotting.OnDemandNumberLong+".\n")

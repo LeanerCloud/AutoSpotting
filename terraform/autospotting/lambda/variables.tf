@@ -17,6 +17,9 @@ variable "lambda_memory_size" {}
 
 variable "autospotting_allowed_instance_types" {}
 variable "autospotting_disallowed_instance_types" {}
+variable "autospotting_max_spot_launch_number" {}
+variable "autospotting_max_spot_launch_percentage" {}
+
 variable "autospotting_min_on_demand_number" {}
 variable "autospotting_min_on_demand_percentage" {}
 variable "autospotting_on_demand_price_multiplier" {}

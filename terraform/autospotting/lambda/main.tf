@@ -15,6 +15,8 @@ resource "aws_lambda_function" "autospotting" {
     variables = {
       ALLOWED_INSTANCE_TYPES       = "${var.autospotting_allowed_instance_types}"
       DISALLOWED_INSTANCE_TYPES    = "${var.autospotting_disallowed_instance_types}"
+      MAX_SPOT_LAUNCH_NUMBER       = "${var.autospotting_max_spot_launch_number}"
+      MAX_SPOT_LAUNCH_PERCENTAGE   = "${var.autospotting_max_spot_launch_percentage}"
       MIN_ON_DEMAND_NUMBER         = "${var.autospotting_min_on_demand_number}"
       MIN_ON_DEMAND_PERCENTAGE     = "${var.autospotting_min_on_demand_percentage}"
       ON_DEMAND_PRICE_MULTIPLIER   = "${var.autospotting_on_demand_price_multiplier}"
@@ -45,6 +47,8 @@ resource "aws_lambda_function" "autospotting_from_s3" {
     variables = {
       ALLOWED_INSTANCE_TYPES       = "${var.autospotting_allowed_instance_types}"
       DISALLOWED_INSTANCE_TYPES    = "${var.autospotting_disallowed_instance_types}"
+      MAX_SPOT_LAUNCH_NUMBER       = "${var.autospotting_max_spot_launch_number}"
+      MAX_SPOT_LAUNCH_PERCENTAGE   = "${var.autospotting_max_spot_launch_percentage}"
       MIN_ON_DEMAND_NUMBER         = "${var.autospotting_min_on_demand_number}"
       MIN_ON_DEMAND_PERCENTAGE     = "${var.autospotting_min_on_demand_percentage}"
       ON_DEMAND_PRICE_MULTIPLIER   = "${var.autospotting_on_demand_price_multiplier}"

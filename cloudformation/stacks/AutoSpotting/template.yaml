@@ -74,6 +74,19 @@
       Default: "7"
       Description: "Number of days to keep the Lambda function logs in CloudWatch."
       Type: "Number"
+    MaxSpotLaunchNumber:
+      Default: "1"
+      Description: >
+        "Maximum number of instances that will be converted to Spot Instances
+        per invocation. Set this value to 0 to use MaxSpotLaunchPercentage
+        instead"
+      Type: "Number"
+    MaxSpotLaunchPercentage:
+      Default: "0.0"
+      Description: >
+        "Maximum percentage of instances that will be converted to Spot
+        Instances per invocation."
+      Type: "Number"
     MinOnDemandNumber:
       Default: "0"
       Description: >
@@ -171,6 +184,10 @@
               Ref: "BiddingPolicy"
             DISALLOWED_INSTANCE_TYPES:
               Ref: "DisallowedInstanceTypes"
+            MAX_SPOT_LAUNCH_NUMBER:
+              Ref: "MaxSpotLaunchNumber"
+            MAX_SPOT_LAUNCH_PERCENTAGE:
+              Ref: "MaxSpotLaunchPercentage"
             MIN_ON_DEMAND_NUMBER:
               Ref: "MinOnDemandNumber"
             MIN_ON_DEMAND_PERCENTAGE:

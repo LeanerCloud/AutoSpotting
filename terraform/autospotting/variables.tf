@@ -24,6 +24,23 @@ EOF
   default = ""
 }
 
+variable "autospotting_max_spot_launch_number" {
+  description = <<EOF
+  Maximum number of instances that will be converted to Spot Instances per invocation.
+  Set this value to 0 to use autospotting_max_spot_launch_percentage instead.
+  EOF
+
+  default = "1"
+}
+
+variable "autospotting_max_spot_launch_percentage" {
+  description = <<EOF
+  Maximum percentage of instances that will be converted to Spot Instances per invocation.
+  EOF
+
+  default = "0"
+}
+
 variable "autospotting_min_on_demand_number" {
   description = "Minimum on-demand instances to keep in absolute value"
 }

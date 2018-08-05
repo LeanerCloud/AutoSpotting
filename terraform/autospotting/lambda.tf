@@ -14,6 +14,8 @@ module "aws_lambda_function" {
 
   autospotting_allowed_instance_types       = "${var.autospotting_allowed_instance_types}"
   autospotting_disallowed_instance_types    = "${var.autospotting_disallowed_instance_types}"
+  autospotting_max_spot_launch_number       = "${var.autospotting_max_spot_launch_number}"
+  autospotting_max_spot_launch_percentage   = "${var.autospotting_min_on_demand_percentage}"
   autospotting_min_on_demand_number         = "${var.autospotting_min_on_demand_number}"
   autospotting_min_on_demand_percentage     = "${var.autospotting_min_on_demand_percentage}"
   autospotting_on_demand_price_multiplier   = "${var.autospotting_on_demand_price_multiplier}"

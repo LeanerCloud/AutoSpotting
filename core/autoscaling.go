@@ -46,6 +46,14 @@ const (
 	// instance types are not allowed in the current group
 	DisallowedInstanceTypesTag = "autospotting_disallowed_instance_types"
 
+	// MaxLaunchCountTag is the name of a tag to specify the maximum number of
+	// Spot Instances to launch per execution
+	MaxLaunchCountTag = "autospotting_max_spot_launch_number"
+
+	// MaxLaunchPercentageTag is the name of a tag to specify the maximum
+	// percentage of the current Auto Scaling Group size to launch per execution
+	MaxLaunchPercentageTag = "autospotting_max_spot_launch_percentage"
+
 	// Default constant values should be defined below:
 
 	// DefaultSpotProductDescription stores the default operating system
@@ -63,6 +71,10 @@ const (
 	// DefaultBiddingPolicy stores the default bidding policy for
 	// the spot bid on a per-group level
 	DefaultBiddingPolicy = "normal"
+
+	// DefaultMaxLaunchNumber specifies the maximum number of Spot Instances to launch
+	// per execution.  If set to 0, use maximum launch percentage instead
+	DefaultMaxLaunchNumber = 1
 )
 
 type autoScalingGroup struct {
@@ -73,6 +85,7 @@ type autoScalingGroup struct {
 	launchConfiguration *launchConfiguration
 	instances           instances
 	minOnDemand         int64
+	maxLaunch           int
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -184,6 +197,42 @@ func (a *autoScalingGroup) loadConfSpotPrice() bool {
 	return done
 }
 
+func (a *autoScalingGroup) loadMaxLaunchConf() bool {
+	a.maxLaunch = DefaultMaxLaunchNumber
+
+	// If an absolute value is provided and > 0, use that first
+	if tagVal := a.getTagValue(MaxLaunchCountTag); tagVal != nil {
+		if val, err := strconv.Atoi(*tagVal); err != nil {
+			if val > 0 {
+				a.maxLaunch = minInt(val, a.instances.count())
+				return true
+			}
+			if val < 0 {
+				logger.Printf("Error in %s: value must be >= 0\n", MaxLaunchCountTag)
+				return false
+			}
+		} else {
+			logger.Printf("Error parsing %s: failed to parse value %s\n", MaxLaunchCountTag, *tagVal)
+			return false
+		}
+	}
+	// Fall back to percentage
+	if tagVal := a.getTagValue(MaxLaunchPercentageTag); tagVal != nil {
+		if val, err := strconv.ParseFloat(*tagVal, 64); err != nil {
+			if val > 0 && val <= 100 {
+				a.maxLaunch = int(math.Floor(val / 100.0 * float64(a.instances.count())))
+				return true
+			}
+			logger.Printf("Error in %s: %f is not a valid percentage\n", MaxLaunchPercentageTag, val)
+			return false
+		}
+		logger.Printf("Error parsing %s: failed to parse value %s\n", MaxLaunchPercentageTag, *tagVal)
+		return false
+	}
+
+	return false
+}
+
 // Add configuration of other elements here: prices, whitelisting, etc
 func (a *autoScalingGroup) loadConfigFromTags() bool {
 
@@ -192,6 +241,8 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 	resSpotConf := a.loadConfSpot()
 
 	resSpotPriceConf := a.loadConfSpotPrice()
+
+	resMaxLaunchConf := a.loadMaxLaunchConf()
 
 	if resOnDemandConf {
 		logger.Println("Found and applied configuration for OnDemand value")
@@ -202,7 +253,7 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 	if resSpotPriceConf {
 		logger.Println("Found and applied configuration for Spot Price")
 	}
-	if resOnDemandConf || resSpotConf || resSpotPriceConf {
+	if resOnDemandConf || resSpotConf || resSpotPriceConf || resMaxLaunchConf {
 		return true
 	}
 	return false
@@ -246,6 +297,23 @@ func (a *autoScalingGroup) loadDefaultConfig() bool {
 	} else {
 		logger.Println("No default value for on-demand instances specified, skipping.")
 	}
+
+	if a.region.conf.MaxSpotLaunchNumber == 0 {
+		if a.region.conf.MaxSpotLaunchPercentage > 0 && a.region.conf.MaxSpotLaunchPercentage <= 100 {
+			a.maxLaunch = int(math.Floor(a.region.conf.MaxSpotLaunchPercentage / 100.0 * float64(a.instances.count())))
+			done = true
+		} else {
+			logger.Printf("WARNING: invalid spot launch percentage, defaulting to %d\n", DefaultMaxLaunchNumber)
+			a.maxLaunch = DefaultMaxLaunchNumber
+		}
+	} else if a.region.conf.MaxSpotLaunchNumber < 0 {
+		logger.Printf("WARNING: invalid spot launch number, defaulting to %d\n", DefaultMaxLaunchNumber)
+		a.maxLaunch = DefaultMaxLaunchNumber
+	} else {
+		a.maxLaunch = minInt(int(a.region.conf.MaxSpotLaunchNumber), a.instances.count())
+		done = true
+	}
+
 	return done
 }
 
@@ -311,46 +379,37 @@ func (a *autoScalingGroup) allInstanceRunning() bool {
 }
 
 func (a *autoScalingGroup) process() {
-	var spotInstanceID string
 	a.scanInstances()
 	a.loadDefaultConfig()
 	a.loadConfigFromTags()
 
-	logger.Println("Finding spot instances created for", a.name)
+	logger.Println("Finding detached Spot Instances intended for Auto Scaling Group", a.name)
 
-	spotInstance := a.findUnattachedInstanceLaunchedForThisASG()
+	for spotInstance := a.findUnattachedInstanceLaunchedForThisASG(); spotInstance != nil; {
+		spotInstanceID := spotInstance.InstanceId
 
-	if spotInstance == nil {
-		logger.Println("No spot instances were found for ", a.name)
+		if a.needReplaceOnDemandInstances() && spotInstance.isReadyToAttach(a) {
+			logger.Printf("%s Found spot instance %s, attaching to Auto Scaling Group %s",
+				a.region.name, *spotInstanceID, a.name)
+			a.replaceOnDemandInstanceWithSpot(*spotInstanceID)
+		}
+	}
 
-		// find any given on-demand instance and try to replace it with a spot one
-		onDemandInstance := a.getAnyOnDemandInstance()
-
-		if onDemandInstance == nil {
+	for i := 0; i < a.maxLaunch; i++ {
+		// Find a qualified on-demand instance and try to replace it with a spot one
+		if onDemandInstance := a.getAnyOnDemandInstance(); onDemandInstance != nil {
+			a.loadLaunchConfiguration()
+			err := onDemandInstance.launchSpotReplacement()
+			if err != nil {
+				logger.Printf("Failed to launch Spot Instance to replace instance ID %s: %s",
+					aws.StringValue(onDemandInstance.InstanceId), err)
+			}
+		} else {
 			logger.Println(a.region.name, a.name,
 				"No running on-demand instances were found, nothing to do here...")
 			return
 		}
-		a.loadLaunchConfiguration()
-		err := onDemandInstance.launchSpotReplacement()
-		if err != nil {
-			logger.Printf("Could not launch cheapest spot instance: %s", err)
-		}
-		return
 	}
-
-	spotInstanceID = *spotInstance.InstanceId
-
-	if !a.needReplaceOnDemandInstances() || !spotInstance.isReadyToAttach(a) {
-		logger.Println("Waiting for next run while processing", a.name)
-		return
-	}
-
-	logger.Println(a.region.name, "Found spot instance:", spotInstanceID,
-		"Attaching it to", a.name)
-
-	a.replaceOnDemandInstanceWithSpot(spotInstanceID)
-
 }
 
 func (a *autoScalingGroup) scanInstances() instances {

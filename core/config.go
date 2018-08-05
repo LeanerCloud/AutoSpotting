@@ -21,6 +21,9 @@ type Config struct {
 	// The region where the Lambda function is deployed
 	MainRegion string
 
+	MaxSpotLaunchPercentage float64
+	MaxSpotLaunchNumber     int64
+
 	MinOnDemandNumber         int64
 	MinOnDemandPercentage     float64
 	Regions                   string
