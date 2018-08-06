@@ -100,6 +100,9 @@ func (m mockEC2) DescribeSecurityGroups(input *ec2.DescribeSecurityGroupsInput) 
 // This is useful when methods are doing multiple calls to AWS API
 type mockASG struct {
 	autoscalingiface.AutoScalingAPI
+	// Detach Instances
+	dio   *autoscaling.DetachInstancesOutput
+	dierr error
 	// Terminate Instances
 	tiiasgo   *autoscaling.TerminateInstanceInAutoScalingGroupOutput
 	tiiasgerr error
@@ -117,6 +120,10 @@ type mockASG struct {
 
 	// Describe AutoScaling Group
 	dasgo *autoscaling.DescribeAutoScalingGroupsOutput
+}
+
+func (m mockASG) DetachInstances(*autoscaling.DetachInstancesInput) (*autoscaling.DetachInstancesOutput, error) {
+	return m.dio, m.dierr
 }
 
 func (m mockASG) TerminateInstanceInAutoScalingGroup(*autoscaling.TerminateInstanceInAutoScalingGroupInput) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error) {

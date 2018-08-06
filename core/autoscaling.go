@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"errors"
+	"time"
 
 	"math"
 	"strconv"
@@ -62,6 +63,10 @@ const (
 	// DefaultBiddingPolicy stores the default bidding policy for
 	// the spot bid on a per-group level
 	DefaultBiddingPolicy = "normal"
+
+	// DefaultInstanceTerminationMethod is the default value for the instance termination
+	// method configuration option
+	DefaultInstanceTerminationMethod = AutoScalingTerminationMethod
 )
 
 type autoScalingGroup struct {
@@ -72,6 +77,8 @@ type autoScalingGroup struct {
 	launchConfiguration *launchConfiguration
 	instances           instances
 	minOnDemand         int64
+
+	terminationMethod string
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -297,7 +304,12 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 			} else {
 				logger.Println("Terminating a random spot instance",
 					*randomSpot.Instance.InstanceId)
-				a.terminateInstanceInAutoScalingGroup(randomSpot.Instance.InstanceId)
+				switch a.terminationMethod {
+				case DetachTerminationMethod:
+					randomSpot.terminate()
+				default:
+					a.terminateInstanceInAutoScalingGroup(randomSpot.Instance.InstanceId)
+				}
 			}
 		}
 	}
@@ -432,7 +444,12 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 		defer a.attachSpotInstance(spotInstanceID)
 	}
 
-	return a.terminateInstanceInAutoScalingGroup(odInst.InstanceId)
+	switch a.terminationMethod {
+	case DetachTerminationMethod:
+		return a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
+	default:
+		return a.terminateInstanceInAutoScalingGroup(odInst.InstanceId)
+	}
 }
 
 // Returns the information about the first running instance found in
@@ -595,6 +612,36 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string) error {
 		return err
 	}
 	return nil
+}
+
+// Terminates an on-demand instance from the group,
+// but only after it was detached from the autoscaling group
+func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
+	instanceID *string) error {
+	logger.Println(a.region.name,
+		a.name,
+		"Detaching and terminating instance:",
+		*instanceID)
+	// detach the on-demand instance
+	detachParams := autoscaling.DetachInstancesInput{
+		AutoScalingGroupName: aws.String(a.name),
+		InstanceIds: []*string{
+			instanceID,
+		},
+		ShouldDecrementDesiredCapacity: aws.Bool(true),
+	}
+
+	asSvc := a.region.services.autoScaling
+
+	if _, err := asSvc.DetachInstances(&detachParams); err != nil {
+		logger.Println(err.Error())
+		return err
+	}
+
+	// Wait till detachment initialize is complete before terminate instance
+	time.Sleep(20 * time.Second * a.region.conf.SleepMultiplier)
+
+	return a.instances.get(*instanceID).terminate()
 }
 
 // Terminates an on-demand instance from the group using the
