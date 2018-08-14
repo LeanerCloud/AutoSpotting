@@ -2,11 +2,11 @@ package autospotting
 
 import (
 	"errors"
+	"time"
 
 	"math"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -63,6 +63,10 @@ const (
 	// DefaultBiddingPolicy stores the default bidding policy for
 	// the spot bid on a per-group level
 	DefaultBiddingPolicy = "normal"
+
+	// DefaultInstanceTerminationMethod is the default value for the instance termination
+	// method configuration option
+	DefaultInstanceTerminationMethod = AutoScalingTerminationMethod
 )
 
 type autoScalingGroup struct {
@@ -73,6 +77,8 @@ type autoScalingGroup struct {
 	launchConfiguration *launchConfiguration
 	instances           instances
 	minOnDemand         int64
+
+	terminationMethod string
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -289,7 +295,7 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 		logger.Println("Currently OnDemand running equals to the required number, skipping run")
 		return false
 	}
-	logger.Println("Currently less OnDemand instances than required !")
+	logger.Println("Currently fewer OnDemand instances than required !")
 	if a.allInstanceRunning() && a.instances.count64() >= *a.DesiredCapacity {
 		logger.Println("All instances are running and desired capacity is satisfied")
 		if randomSpot := a.getAnySpotInstance(); randomSpot != nil {
@@ -298,7 +304,12 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 			} else {
 				logger.Println("Terminating a random spot instance",
 					*randomSpot.Instance.InstanceId)
-				randomSpot.terminate()
+				switch a.terminationMethod {
+				case DetachTerminationMethod:
+					randomSpot.terminate()
+				default:
+					a.terminateInstanceInAutoScalingGroup(randomSpot.Instance.InstanceId)
+				}
 			}
 		}
 	}
@@ -433,7 +444,12 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 		defer a.attachSpotInstance(spotInstanceID)
 	}
 
-	return a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
+	switch a.terminationMethod {
+	case DetachTerminationMethod:
+		return a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
+	default:
+		return a.terminateInstanceInAutoScalingGroup(odInst.InstanceId)
+	}
 }
 
 // Returns the information about the first running instance found in
@@ -626,6 +642,29 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 	time.Sleep(20 * time.Second * a.region.conf.SleepMultiplier)
 
 	return a.instances.get(*instanceID).terminate()
+}
+
+// Terminates an on-demand instance from the group using the
+// TerminateInstanceInAutoScalingGroup api call.
+func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
+	instanceID *string) error {
+	logger.Println(a.region.name,
+		a.name,
+		"Terminating instance:",
+		*instanceID)
+	// terminate the on-demand instance
+	terminateParams := autoscaling.TerminateInstanceInAutoScalingGroupInput{
+		InstanceId:                     instanceID,
+		ShouldDecrementDesiredCapacity: aws.Bool(true),
+	}
+
+	asSvc := a.region.services.autoScaling
+	if _, err := asSvc.TerminateInstanceInAutoScalingGroup(&terminateParams); err != nil {
+		logger.Println(err.Error())
+		return err
+	}
+
+	return nil
 }
 
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.

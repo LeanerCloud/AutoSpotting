@@ -370,6 +370,7 @@ func (r *region) hasEnabledAutoScalingGroups() bool {
 
 func (r *region) processEnabledAutoScalingGroups() {
 	for _, asg := range r.enabledASGs {
+		asg.terminationMethod = r.conf.InstanceTerminationMethod
 		r.wg.Add(1)
 		go func(a autoScalingGroup) {
 			a.process()

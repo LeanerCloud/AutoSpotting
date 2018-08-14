@@ -34,6 +34,12 @@
         replacing your instances. Can accept any value documented at
         http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html"
       Type: "String"
+    InstanceTerminationMethod:
+      Default: "autoscaling"
+      Description: >
+        "Instance termination method.  Must be one of 'autoscaling' (default) or
+        'detach' (compatibility mode, not recommended)"
+      Type: "String"
     FilterByTags:
       Default: ""
       Description: >
@@ -171,6 +177,8 @@
               Ref: "BiddingPolicy"
             DISALLOWED_INSTANCE_TYPES:
               Ref: "DisallowedInstanceTypes"
+            INSTANCE_TERMINATION_METHOD:
+              Ref: "InstanceTerminationMethod"
             MIN_ON_DEMAND_NUMBER:
               Ref: "MinOnDemandNumber"
             MIN_ON_DEMAND_PERCENTAGE:
@@ -214,6 +222,7 @@
                 - "autoscaling:DescribeLaunchConfigurations"
                 - "autoscaling:AttachInstances"
                 - "autoscaling:DetachInstances"
+                - "autoscaling:TerminateInstanceInAutoScalingGroup"
                 - "autoscaling:DescribeTags"
                 - "autoscaling:UpdateAutoScalingGroup"
                 - "ec2:CreateTags"

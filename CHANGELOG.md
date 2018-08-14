@@ -1,5 +1,18 @@
 # ChangeLog
 
+## build XXX
+
+### New features since the last update
+
+- The method by which AutoSpotting terminates existing Auto Scaling Group
+  instances has changed.  By default, AutoSpotting now uses the EC2
+  `TerminateInstanceInAutoScalingGroup` API.  This API call ensures that any
+  Termination Lifecycle Hooks that might be configured on the Group are
+  respected, which was not the case in previous AutoSpotting versions. Users who
+  depend upon the legacy behavior, which was to detach the instance from the
+  Auto Scaling Group and terminate it, can set `instance_termination_method` to
+  `detach` in their deployment configurations.
+
 ## 24 January 2018, build 622
 
 A lot of time passed since the previous Changelog update, so this is a really

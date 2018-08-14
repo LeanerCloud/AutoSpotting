@@ -1196,6 +1196,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 		minOnDemand     int64
 		desiredCapacity *int64
 		expectedRun     bool
+		regionASG       *region
 	}{
 		{name: "ASG has no instance at all - 1 on-demand required",
 			asgInstances:    makeInstances(),
@@ -1285,6 +1286,13 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 			minOnDemand:     2,
 			desiredCapacity: aws.Int64(0),
 			expectedRun:     false,
+			regionASG: &region{
+				name: "regionTest",
+				services: connections{
+					autoScaling: mockASG{},
+				},
+				conf: &Config{},
+			},
 		},
 		{name: "ASG has just enough on-demand instances running",
 			asgInstances: makeInstancesWithCatalog(
@@ -1380,6 +1388,7 @@ func TestNeedReplaceOnDemandInstances(t *testing.T) {
 			a.DesiredCapacity = tt.desiredCapacity
 			a.instances = tt.asgInstances
 			a.minOnDemand = tt.minOnDemand
+			a.region = tt.regionASG
 			shouldRun := a.needReplaceOnDemandInstances()
 			if tt.expectedRun != shouldRun {
 				t.Errorf("needReplaceOnDemandInstances returned: %t expected %t",
@@ -1519,6 +1528,85 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 				instances: tt.instancesASG,
 			}
 			err := a.detachAndTerminateOnDemandInstance(tt.instanceID)
+			CheckErrors(t, err, tt.expected)
+		})
+	}
+}
+
+func TestTerminateInstanceInAutoScalingGroup(t *testing.T) {
+	tests := []struct {
+		name         string
+		instancesASG instances
+		regionASG    *region
+		instanceID   *string
+		expected     error
+	}{
+		{name: "no err during terminate",
+			instancesASG: makeInstancesWithCatalog(
+				map[string]*instance{
+					"1": {
+						Instance: &ec2.Instance{
+							InstanceId: aws.String("1"),
+							State: &ec2.InstanceState{
+								Name: aws.String(ec2.InstanceStateNameRunning),
+							},
+						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{},
+							},
+						},
+					},
+				},
+			),
+			regionASG: &region{
+				name: "regionTest",
+				services: connections{
+					autoScaling: mockASG{tiiasgerr: nil},
+				},
+				conf: &Config{},
+			},
+			instanceID: aws.String("1"),
+			expected:   nil,
+		},
+		{name: "errors during terminate",
+			instancesASG: makeInstancesWithCatalog(
+				map[string]*instance{
+					"1": {
+						Instance: &ec2.Instance{
+							InstanceId: aws.String("1"),
+							State: &ec2.InstanceState{
+								Name: aws.String(ec2.InstanceStateNameRunning),
+							},
+						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{},
+							},
+						},
+					},
+				},
+			),
+			regionASG: &region{
+				name: "regionTest",
+				services: connections{
+					autoScaling: mockASG{tiiasgerr: errors.New("terminate-asg")},
+				},
+				conf: &Config{},
+			},
+			instanceID: aws.String("1"),
+			expected:   errors.New("terminate-asg"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := autoScalingGroup{
+				name:      "testASG",
+				region:    tt.regionASG,
+				instances: tt.instancesASG,
+			}
+			err := a.terminateInstanceInAutoScalingGroup(tt.instanceID)
 			CheckErrors(t, err, tt.expected)
 		})
 	}
@@ -2309,8 +2397,10 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 										tierr: nil,
 									},
 									autoScaling: &mockASG{
-										aio:   nil,
-										aierr: nil,
+										aio:       nil,
+										aierr:     nil,
+										tiiasgo:   nil,
+										tiiasgerr: nil,
 									},
 								},
 							},
@@ -2338,10 +2428,12 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 					conf: &Config{},
 					services: connections{
 						autoScaling: &mockASG{
-							uasgo:   nil,
-							uasgerr: nil,
-							dio:     nil,
-							dierr:   nil,
+							uasgo:     nil,
+							uasgerr:   nil,
+							dio:       nil,
+							dierr:     nil,
+							tiiasgo:   nil,
+							tiiasgerr: nil,
 						},
 						ec2: &mockEC2{
 							tio:   nil,
@@ -2438,10 +2530,12 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 					conf: &Config{},
 					services: connections{
 						autoScaling: &mockASG{
-							uasgo:   nil,
-							uasgerr: nil,
-							dio:     nil,
-							dierr:   nil,
+							uasgo:     nil,
+							uasgerr:   nil,
+							dio:       nil,
+							dierr:     nil,
+							tiiasgo:   nil,
+							tiiasgerr: nil,
 						},
 						ec2: &mockEC2{
 							tio:   nil,
@@ -2486,10 +2580,12 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 					conf: &Config{},
 					services: connections{
 						autoScaling: &mockASG{
-							uasgo:   nil,
-							uasgerr: nil,
-							dio:     nil,
-							dierr:   nil,
+							uasgo:     nil,
+							uasgerr:   nil,
+							dio:       nil,
+							dierr:     nil,
+							tiiasgo:   nil,
+							tiiasgerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(
@@ -2539,10 +2635,12 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 					conf: &Config{},
 					services: connections{
 						autoScaling: &mockASG{
-							uasgo:   nil,
-							uasgerr: nil,
-							dio:     nil,
-							dierr:   nil,
+							uasgo:     nil,
+							uasgerr:   nil,
+							dio:       nil,
+							dierr:     nil,
+							tiiasgo:   nil,
+							tiiasgerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(
@@ -2572,6 +2670,11 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			returned := tt.asg.replaceOnDemandInstanceWithSpot(tt.spotID)
+			CheckErrors(t, returned, tt.expected)
+		})
+		t.Run(tt.name+"-detach-method", func(t *testing.T) {
+			tt.asg.terminationMethod = "detach"
 			returned := tt.asg.replaceOnDemandInstanceWithSpot(tt.spotID)
 			CheckErrors(t, returned, tt.expected)
 		})
