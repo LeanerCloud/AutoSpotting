@@ -45,7 +45,8 @@ func run() {
 		"bidding_policy=%s "+
 		"tag_filters=%s "+
 		"tag_filter_mode=%s "+
-		"spot_product_description=%v",
+		"spot_product_description=%v "+
+		"instance_termination_method=%s\n",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
@@ -56,7 +57,8 @@ func run() {
 		conf.BiddingPolicy,
 		conf.FilterByTags,
 		conf.TagFilteringMode,
-		conf.SpotProductDescription)
+		conf.SpotProductDescription,
+		conf.InstanceTerminationMethod)
 
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")
@@ -116,6 +118,9 @@ func (c *cfgData) parseCommandLineFlags() {
 		"\n\tIf specified, the spot instances will _never_ be of these types.\n"+
 			"\tAccepts a list of comma or whitespace separated instance types (supports globs).\n"+
 			"\tExample: ./autospotting -disallowed_instance_types 't2.*,c4.xlarge'\n")
+	flag.StringVar(&c.InstanceTerminationMethod, "instance_termination_method", autospotting.DefaultInstanceTerminationMethod,
+		"\n\tInstance termination method.  Must be one of '"+autospotting.DefaultInstanceTerminationMethod+"' (default),\n"+
+			"\t or 'detach' (compatibility mode, not recommended)\n")
 	flag.Int64Var(&c.MinOnDemandNumber, "min_on_demand_number", autospotting.DefaultMinOnDemandValue,
 		"\n\tNumber of on-demand nodes to be kept running in each of the groups.\n\t"+
 			"Can be overridden on a per-group basis using the tag "+autospotting.OnDemandNumberLong+".\n")
@@ -146,6 +151,7 @@ func (c *cfgData) parseCommandLineFlags() {
 		"\tDefault if no value is set will be the equivalent of -tag_filters 'spot-enabled=true'\n"+
 		"\tIn case the tag_filtering_mode is set to opt-out, it defaults to 'spot-enabled=false'\n"+
 		"\tExample: ./autospotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
+
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 	flag.Parse()
 	printVersion(v)

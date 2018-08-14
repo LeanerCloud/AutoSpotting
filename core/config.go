@@ -7,6 +7,20 @@ import (
 	"github.com/cristim/ec2-instances-info"
 )
 
+const (
+	// AutoScalingTerminationMethod uses the TerminateInstanceInAutoScalingGroup
+	// API method to terminate instances.  This method is recommended because it
+	// will require termination Lifecycle Hooks that have been configured on the
+	// Auto Scaling Group to be invoked before terminating the instance.  It's
+	// also safe even if there are no such hooks configured.
+	AutoScalingTerminationMethod = "autoscaling"
+
+	// DetachTerminationMethod detaches the instance from the Auto Scaling Group
+	// and then terminates it.  This method exists for historical reasons and is
+	// no longer recommended.
+	DetachTerminationMethod = "detach"
+)
+
 // Config contains a number of flags and static data storing the EC2 instance
 // information.
 type Config struct {
@@ -42,4 +56,7 @@ type Config struct {
 	// Controls how are the tags used to filter the groups.
 	// Available options: 'opt-in' and 'opt-out', default: 'opt-in'
 	TagFilteringMode string
+
+	// Instance termination method
+	InstanceTerminationMethod string
 }
