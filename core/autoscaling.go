@@ -425,7 +425,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 		*az, "looking for an on-demand instance there")
 
 	// find an on-demand instance from the same AZ as our spot instance
-	odInst := a.getOnDemandInstanceInAZ(az)
+	odInst := a.getUnprotectedOnDemandInstanceInAZ(az)
 
 	if odInst == nil {
 		logger.Println(a.name, "found no on-demand instances that could be",
@@ -461,14 +461,12 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 // group. It can also filter by AZ and Lifecycle.
 func (a *autoScalingGroup) getInstance(
 	availabilityZone *string,
-	onDemand bool, any bool) *instance {
-
-	var retI *instance
+	onDemand bool,
+	any bool,
+	considerInstanceProtection bool,
+) *instance {
 
 	for i := range a.instances.instances() {
-		if retI != nil {
-			continue
-		}
 
 		// instance is running
 		if *i.State.Name == ec2.InstanceStateNameRunning {
@@ -481,29 +479,31 @@ func (a *autoScalingGroup) getInstance(
 					(!onDemand && !i.isSpot())) {
 				continue
 			}
-			if i.isProtected() {
-				continue
+			if considerInstanceProtection {
+				if i.isProtectedFromScaleIn() || i.isProtectedFromTermination() {
+					continue
+				}
 			}
 			if (availabilityZone != nil) &&
 				(*availabilityZone != *i.Placement.AvailabilityZone) {
 				continue
 			}
-			retI = i
+			return i
 		}
 	}
-	return retI
+	return nil
 }
 
-func (a *autoScalingGroup) getOnDemandInstanceInAZ(az *string) *instance {
-	return a.getInstance(az, true, false)
+func (a *autoScalingGroup) getUnprotectedOnDemandInstanceInAZ(az *string) *instance {
+	return a.getInstance(az, true, false, true)
 }
 
 func (a *autoScalingGroup) getAnyOnDemandInstance() *instance {
-	return a.getInstance(nil, true, false)
+	return a.getInstance(nil, true, false, false)
 }
 
 func (a *autoScalingGroup) getAnySpotInstance() *instance {
-	return a.getInstance(nil, false, false)
+	return a.getInstance(nil, false, false, false)
 }
 
 func (a *autoScalingGroup) hasMemberInstance(inst *instance) bool {

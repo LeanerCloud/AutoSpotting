@@ -14,7 +14,7 @@ import (
 )
 
 func TestMake(t *testing.T) {
-	expected := map[string]*instance{}
+	expected := instanceMap{}
 	is := &instanceManager{}
 
 	is.make()
@@ -28,33 +28,33 @@ func TestMake(t *testing.T) {
 func TestAdd(t *testing.T) {
 	tests := []struct {
 		name     string
-		catalog  map[string]*instance
-		expected map[string]*instance
+		catalog  instanceMap
+		expected instanceMap
 	}{
 		{name: "map contains a nil pointer",
-			catalog: map[string]*instance{
+			catalog: instanceMap{
 				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 				"inst2": nil,
 			},
-			expected: map[string]*instance{
+			expected: instanceMap{
 				"1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 			},
 		},
 		{name: "map has 1 instance",
-			catalog: map[string]*instance{
+			catalog: instanceMap{
 				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 			},
-			expected: map[string]*instance{
+			expected: instanceMap{
 				"1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 			},
 		},
 		{name: "map has several instances",
-			catalog: map[string]*instance{
+			catalog: instanceMap{
 				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 				"inst2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
 				"inst3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
 			},
-			expected: map[string]*instance{
+			expected: instanceMap{
 				"1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 				"2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
 				"3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
@@ -79,12 +79,12 @@ func TestAdd(t *testing.T) {
 func TestGet(t *testing.T) {
 	tests := []struct {
 		name     string
-		catalog  map[string]*instance
+		catalog  instanceMap
 		idToGet  string
 		expected *instance
 	}{
 		{name: "map contains the required instance",
-			catalog: map[string]*instance{
+			catalog: instanceMap{
 				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 				"inst2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
 				"inst3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
@@ -93,7 +93,7 @@ func TestGet(t *testing.T) {
 			expected: &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
 		},
 		{name: "catalog doesn't contain the instance",
-			catalog: map[string]*instance{
+			catalog: instanceMap{
 				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
 				"inst2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
 				"inst3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
@@ -119,7 +119,7 @@ func TestGet(t *testing.T) {
 func TestCount(t *testing.T) {
 	tests := []struct {
 		name     string
-		catalog  map[string]*instance
+		catalog  instanceMap
 		expected int
 	}{
 		{name: "map is nil",
@@ -127,17 +127,17 @@ func TestCount(t *testing.T) {
 			expected: 0,
 		},
 		{name: "map is empty",
-			catalog:  map[string]*instance{},
+			catalog:  instanceMap{},
 			expected: 0,
 		},
 		{name: "map has 1 instance",
-			catalog: map[string]*instance{
+			catalog: instanceMap{
 				"id-1": {},
 			},
 			expected: 1,
 		},
 		{name: "map has several instances",
-			catalog: map[string]*instance{
+			catalog: instanceMap{
 				"id-1": {},
 				"id-2": {},
 				"id-3": {},
@@ -161,7 +161,7 @@ func TestCount(t *testing.T) {
 func TestCount64(t *testing.T) {
 	tests := []struct {
 		name     string
-		catalog  map[string]*instance
+		catalog  instanceMap
 		expected int64
 	}{
 		{name: "map is nil",
@@ -169,17 +169,17 @@ func TestCount64(t *testing.T) {
 			expected: 0,
 		},
 		{name: "map is empty",
-			catalog:  map[string]*instance{},
+			catalog:  instanceMap{},
 			expected: 0,
 		},
 		{name: "map has 1 instance",
-			catalog: map[string]*instance{
+			catalog: instanceMap{
 				"id-1": {},
 			},
 			expected: 1,
 		},
 		{name: "map has several instances",
-			catalog: map[string]*instance{
+			catalog: instanceMap{
 				"id-1": {},
 				"id-2": {},
 				"id-3": {},
@@ -719,7 +719,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			asg: &autoScalingGroup{
 				name: "test-asg",
 				instances: makeInstancesWithCatalog(
-					map[string]*instance{
+					instanceMap{
 						"id-1": {
 							Instance: &ec2.Instance{
 								InstanceId:        aws.String("id-1"),
@@ -793,7 +793,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			asg: &autoScalingGroup{
 				name: "test-asg",
 				instances: makeInstancesWithCatalog(
-					map[string]*instance{
+					instanceMap{
 						"id-1": {
 							Instance: &ec2.Instance{
 								InstanceId:        aws.String("id-1"),
@@ -868,7 +868,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			asg: &autoScalingGroup{
 				name: "test-asg",
 				instances: makeInstancesWithCatalog(
-					map[string]*instance{
+					instanceMap{
 						"id-1": {
 							Instance: &ec2.Instance{
 								InstanceId:        aws.String("id-1"),
@@ -943,7 +943,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			asg: &autoScalingGroup{
 				name: "test-asg",
 				instances: makeInstancesWithCatalog(
-					map[string]*instance{
+					instanceMap{
 						"id-1": {
 							Instance: &ec2.Instance{
 								InstanceId:        aws.String("id-1"),
@@ -1019,7 +1019,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			asg: &autoScalingGroup{
 				name: "test-asg",
 				instances: makeInstancesWithCatalog(
-					map[string]*instance{
+					instanceMap{
 						"id-1": {
 							Instance: &ec2.Instance{
 								InstanceId:        aws.String("id-1"),
