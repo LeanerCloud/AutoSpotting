@@ -342,6 +342,12 @@ func (a *autoScalingGroup) process() {
 				"No running on-demand instances were found, nothing to do here...")
 			return
 		}
+
+		if !a.needReplaceOnDemandInstances() {
+			logger.Println("Not allowed to replace any of the running OD instances in ", a.name)
+			return
+		}
+
 		a.loadLaunchConfiguration()
 		err := onDemandInstance.launchSpotReplacement()
 		if err != nil {
