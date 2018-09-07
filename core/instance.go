@@ -16,9 +16,11 @@ import (
 
 // The key in this map is the instance ID, useful for quick retrieval of
 // instance attributes.
+type instanceMap map[string]*instance
+
 type instanceManager struct {
 	sync.RWMutex
-	catalog map[string]*instance
+	catalog instanceMap
 }
 
 type instances interface {
@@ -32,10 +34,10 @@ type instances interface {
 }
 
 func makeInstances() instances {
-	return &instanceManager{catalog: map[string]*instance{}}
+	return &instanceManager{catalog: instanceMap{}}
 }
 
-func makeInstancesWithCatalog(catalog map[string]*instance) instances {
+func makeInstancesWithCatalog(catalog instanceMap) instances {
 	return &instanceManager{catalog: catalog}
 }
 
@@ -44,10 +46,9 @@ func (is *instanceManager) dump() string {
 	defer is.RUnlock()
 	return spew.Sdump(is.catalog)
 }
-
 func (is *instanceManager) make() {
 	is.Lock()
-	is.catalog = make(map[string]*instance)
+	is.catalog = make(instanceMap)
 	is.Unlock()
 }
 
@@ -134,8 +135,34 @@ func (i *instance) isSpot() bool {
 		*i.InstanceLifecycle == "spot")
 }
 
-func (i *instance) isProtected() bool {
-	return i.protected
+func (i *instance) isProtectedFromTermination() bool {
+
+	// determine and set the API termination protection field
+	diaRes, err := i.region.services.ec2.DescribeInstanceAttribute(
+		&ec2.DescribeInstanceAttributeInput{
+			Attribute:  aws.String("disableApiTermination"),
+			InstanceId: i.InstanceId,
+		})
+
+	if err == nil &&
+		diaRes.DisableApiTermination != nil &&
+		diaRes.DisableApiTermination.Value != nil {
+		return *diaRes.DisableApiTermination.Value
+	}
+	return false
+}
+
+func (i *instance) isProtectedFromScaleIn() bool {
+	if i.asg == nil {
+		return false
+	}
+
+	for _, inst := range i.asg.Instances {
+		if *inst.InstanceId == *i.InstanceId {
+			return *inst.ProtectedFromScaleIn
+		}
+	}
+	return false
 }
 
 func (i *instance) canTerminate() bool {

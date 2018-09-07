@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/cristim/ec2-instances-info"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func Test_region_enabled(t *testing.T) {
@@ -505,6 +506,145 @@ func TestFilterAsgs(t *testing.T) {
 			}
 			if !reflect.DeepEqual(tt.want, asgNames) {
 				t.Errorf("region.scanForEnabledAutoScalingGroups() = %v, want %v", asgNames, tt.want)
+			}
+		})
+	}
+}
+
+func Test_region_scanInstances(t *testing.T) {
+
+	tests := []struct {
+		name          string
+		regionInfo    *region
+		wantErr       bool
+		wantInstances instances
+	}{
+		{
+			name: "region with a single instance",
+			regionInfo: &region{
+				name: "us-east-1",
+				conf: &Config{MinOnDemandNumber: 2},
+				services: connections{
+					ec2: mockEC2{
+						diperr: nil,
+						dio: &ec2.DescribeInstancesOutput{
+							Reservations: []*ec2.Reservation{
+								{
+									Instances: []*ec2.Instance{
+										{
+											InstanceId:   aws.String("id-1"),
+											InstanceType: aws.String("typeX"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+			wantInstances: makeInstancesWithCatalog(
+				instanceMap{
+					"id-1": {
+						Instance: &ec2.Instance{
+							InstanceId:   aws.String("id-1"),
+							InstanceType: aws.String("typeX"),
+						},
+					},
+				},
+			),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := tt.regionInfo
+			err := r.scanInstances()
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("region.scanInstances() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			for inst := range r.instances.instances() {
+				wantedInstance := tt.wantInstances.get(*inst.InstanceId).Instance
+
+				if !reflect.DeepEqual(inst.Instance, wantedInstance) {
+					t.Errorf("region.scanInstances() \nreceived instance data: \n %+v\nexpected: \n %+v",
+						spew.Sdump(inst.Instance), spew.Sdump(wantedInstance))
+
+				}
+			}
+
+		})
+	}
+}
+
+func Test_region_processDescribeInstancesPage(t *testing.T) {
+	type regionFields struct {
+		name      string
+		instances instances
+	}
+	type args struct {
+		page     *ec2.DescribeInstancesOutput
+		lastPage bool
+	}
+	tests := []struct {
+		name          string
+		regionFields  regionFields
+		args          args
+		want          bool
+		wantInstances instances
+	}{
+		{
+			name: "region with a single instance",
+			regionFields: regionFields{
+				name:      "us-east-1",
+				instances: makeInstancesWithCatalog(instanceMap{}),
+			},
+			args: args{
+				page: &ec2.DescribeInstancesOutput{
+					Reservations: []*ec2.Reservation{
+						{
+							Instances: []*ec2.Instance{{
+								InstanceId:   aws.String("id-1"),
+								InstanceType: aws.String("typeX"),
+							},
+								{
+									InstanceId:   aws.String("id-2"),
+									InstanceType: aws.String("typeY"),
+								},
+							},
+						},
+					},
+				},
+				lastPage: true,
+			},
+			want: true,
+			wantInstances: makeInstancesWithCatalog(
+				instanceMap{
+					"id-1": {
+						Instance: &ec2.Instance{
+							InstanceId:   aws.String("id-1"),
+							InstanceType: aws.String("typeX"),
+						},
+					},
+					"id-2": {
+						Instance: &ec2.Instance{
+							InstanceId:   aws.String("id-2"),
+							InstanceType: aws.String("typeY"),
+						},
+					},
+				},
+			),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &region{
+				name:      tt.regionFields.name,
+				instances: tt.regionFields.instances,
+			}
+			if got := r.processDescribeInstancesPage(tt.args.page, tt.args.lastPage); got != tt.want {
+				t.Errorf("region.processDescribeInstancesPage() = %v, want %v", got, tt.want)
 			}
 		})
 	}

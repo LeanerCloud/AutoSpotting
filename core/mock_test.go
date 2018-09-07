@@ -13,7 +13,7 @@ import (
 )
 
 func CheckErrors(t *testing.T, err error, expected error) {
-	if err != nil && !reflect.DeepEqual(err, expected) {
+	if err != nil && expected != nil && !reflect.DeepEqual(err, expected) {
 		t.Errorf("Error received: '%v' expected '%v'",
 			err.Error(), expected.Error())
 	}
@@ -28,8 +28,15 @@ type mockEC2 struct {
 	dspho   *ec2.DescribeSpotPriceHistoryOutput
 	dspherr error
 
-	// Error in DescribeInstancesPages
+	// DescribeInstancesOutput
+	dio *ec2.DescribeInstancesOutput
+
+	// DescribeInstancesPages error
 	diperr error
+
+	// DescribeInstanceAttribute
+	diao   *ec2.DescribeInstanceAttributeOutput
+	diaerr error
 
 	// Terminate Instance
 	tio   *ec2.TerminateInstancesOutput
@@ -44,8 +51,13 @@ func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput)
 	return m.dspho, m.dspherr
 }
 
-func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool) error {
-	return m.diperr
+func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, f func(*ec2.DescribeInstancesOutput, bool) bool) error {
+	f(m.dio, true)
+	return nil
+}
+
+func (m mockEC2) DescribeInstanceAttribute(in *ec2.DescribeInstanceAttributeInput) (*ec2.DescribeInstanceAttributeOutput, error) {
+	return m.diao, m.diaerr
 }
 
 func (m mockEC2) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
