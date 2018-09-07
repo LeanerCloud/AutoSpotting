@@ -334,7 +334,6 @@ func (a *autoScalingGroup) process() {
 	if spotInstance == nil {
 		logger.Println("No spot instances were found for ", a.name)
 
-		// find any given on-demand instance and try to replace it with a spot one
 		onDemandInstance := a.getAnyUnprotectedOnDemandInstance()
 
 		if onDemandInstance == nil {
@@ -424,7 +423,6 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 	logger.Println(a.name, spotInstanceID, "is in the availability zone",
 		*az, "looking for an on-demand instance there")
 
-	// find an on-demand instance from the same AZ as our spot instance
 	odInst := a.getUnprotectedOnDemandInstanceInAZ(az)
 
 	if odInst == nil {
