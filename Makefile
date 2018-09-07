@@ -43,7 +43,6 @@ build_deps:
 
 update_deps:												 ## Update all dependencies
 	@dep ensure -update
-	@dep prune
 .PHONY: update_deps
 
 build: build_deps                                            ## Build autospotting binary
