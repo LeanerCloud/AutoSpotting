@@ -206,31 +206,30 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 		price.spot = make(spotPriceMap)
 		price.ebsSurcharge = it.Pricing[r.name].EBSSurcharge
 
-		// if at this point the instance price is still zero, then that
-		// particular instance type doesn't even exist in the current
-		// region, so we don't even need to create an empty spot pricing
-		// data structure for it
-		if price.onDemand > 0 {
-			// for each instance type populate the HW spec information
-			info = instanceTypeInformation{
-				instanceType:        it.InstanceType,
-				vCPU:                it.VCPU,
-				memory:              it.Memory,
-				GPU:                 it.GPU,
-				pricing:             price,
-				virtualizationTypes: it.LinuxVirtualizationTypes,
-				hasEBSOptimization:  it.EBSOptimized,
-			}
-
-			if it.Storage != nil {
-				info.hasInstanceStore = true
-				info.instanceStoreDeviceSize = it.Storage.Size
-				info.instanceStoreDeviceCount = it.Storage.Devices
-				info.instanceStoreIsSSD = it.Storage.SSD
-			}
-			debug.Println(info)
-			r.instanceTypeInformation[it.InstanceType] = info
+		if price.onDemand == 0 {
+			logger.Printf("Missing on-demand price information for %s, "+
+				"we won't be able to replace on-demand nodes of this instance type\n",
+				it.InstanceType)
 		}
+
+		info = instanceTypeInformation{
+			instanceType:        it.InstanceType,
+			vCPU:                it.VCPU,
+			memory:              it.Memory,
+			GPU:                 it.GPU,
+			pricing:             price,
+			virtualizationTypes: it.LinuxVirtualizationTypes,
+			hasEBSOptimization:  it.EBSOptimized,
+		}
+
+		if it.Storage != nil {
+			info.hasInstanceStore = true
+			info.instanceStoreDeviceSize = it.Storage.Size
+			info.instanceStoreDeviceCount = it.Storage.Devices
+			info.instanceStoreIsSSD = it.Storage.SSD
+		}
+		debug.Println(info)
+		r.instanceTypeInformation[it.InstanceType] = info
 	}
 	// this is safe to do once outside of the loop because the call will only
 	// return entries about the available instance types, so no invalid instance
@@ -261,18 +260,16 @@ func (r *region) requestSpotPrices() error {
 
 		instType, az := *priceInfo.InstanceType, *priceInfo.AvailabilityZone
 
-		// failure to parse this means that the instance is not available on the
-		// spot market
 		price, err := strconv.ParseFloat(*priceInfo.SpotPrice, 64)
 		if err != nil {
 			logger.Println(r.name, "Instance type ", instType,
-				"is not available on the spot market")
+				"Coudln't parse spot price, may not be available on the spot market")
 			continue
 		}
 
 		if r.instanceTypeInformation[instType].pricing.spot == nil {
-			logger.Println(r.name, "Instance data missing for", instType, "in", az,
-				"skipping because this region is currently not supported")
+			logger.Println(r.name, "Spot pricing data missing for", instType, "in", az,
+				"this instance type may not available on the spot market here")
 			continue
 		}
 
