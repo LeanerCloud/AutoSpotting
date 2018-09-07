@@ -136,6 +136,22 @@ func splitTagAndValue(value string) *Tag {
 	return nil
 }
 
+func (r *region) processDescribeInstancesPage(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
+	logger.Println("Processing page of DescribeInstancesPages for", r.name)
+	debug.Println(page)
+
+	if len(page.Reservations) > 0 &&
+		page.Reservations[0].Instances != nil {
+
+		for _, res := range page.Reservations {
+			for _, inst := range res.Instances {
+				r.addInstance(inst)
+			}
+		}
+	}
+	return true
+}
+
 func (r *region) scanInstances() error {
 	svc := r.services.ec2
 	input := &ec2.DescribeInstancesInput{
@@ -152,26 +168,9 @@ func (r *region) scanInstances() error {
 
 	r.instances = makeInstances()
 
-	pageNum := 0
 	err := svc.DescribeInstancesPages(
 		input,
-		func(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
-			pageNum++
-			logger.Println("Processing page", pageNum, "of DescribeInstancesPages for", r.name)
-
-			debug.Println(page)
-			if len(page.Reservations) > 0 &&
-				page.Reservations[0].Instances != nil {
-
-				for _, res := range page.Reservations {
-					for _, inst := range res.Instances {
-						r.addInstance(inst)
-					}
-				}
-			}
-			return true
-		},
-	)
+		r.processDescribeInstancesPage)
 
 	if err != nil {
 		return err

@@ -3,21 +3,22 @@
   "Statement": [
     {
       "Action": [
+        "autoscaling:AttachInstances",
         "autoscaling:DescribeAutoScalingGroups",
         "autoscaling:DescribeLaunchConfigurations",
-        "autoscaling:AttachInstances",
+        "autoscaling:DescribeTags",
         "autoscaling:DetachInstances",
         "autoscaling:TerminateInstanceInAutoScalingGroup",
-        "autoscaling:DescribeTags",
         "autoscaling:UpdateAutoScalingGroup",
         "ec2:CreateTags",
+        "ec2:DescribeInstanceAttribute",
         "ec2:DescribeInstances",
         "ec2:DescribeRegions",
         "ec2:DescribeSpotPriceHistory",
         "ec2:RunInstances",
         "ec2:TerminateInstances",
-        "iam:PassRole",
         "iam:CreateServiceLinkedRole",
+        "iam:PassRole",
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
         "logs:PutLogEvents"
