@@ -1,0 +1,48 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: autospotting
+spec:
+  schedule: "*/5 * * * *" # run every 5 minutes
+  startingDeadlineSeconds: 10 # skip if it hasn't started in this many seconds
+  concurrencyPolicy: Forbid # either allow|forbid|replace
+  successfulJobsHistoryLimit: 3 # how many completed jobs should be kept
+  failedJobsHistoryLimit: 1 # how many failed jobs should be kept
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: autospotting-cron-job
+              image: cristim/autospotting:latest
+              # Environment variables for the AutoSpotting pod
+              # Feel free to configure them to suit your needs
+              env:
+                # These hardcoded credentials could be removed if using a secret
+                # object or Kube2IAM
+                # (patches always welcome if you get this working otherwise)
+                - name: AWS_ACCESS_KEY_ID
+                  value: "AKIA..."
+                - name: AWS_SECRET_ACCESS_KEY
+                  value: ""
+                - name: AWS_SESSION_TOKEN
+                  value: ""
+                - name: ALLOWED_INSTANCE_TYPES
+                  value: "*"
+                - name: BIDDING_POLICY
+                  value: "normal"
+                - name: DISALLOWED_INSTANCE_TYPES
+                  value: "t1.*"
+                - name: INSTANCE_TERMINATION_METHOD
+                  value: "autoscaling"
+                - name: MIN_ON_DEMAND_NUMBER
+                  value: "0"
+                - name: MIN_ON_DEMAND_PERCENTAGE
+                  value: "0.0"
+                - name: ON_DEMAND_PRICE_MULTIPLIER
+                  value: "1.0"
+                - name: REGIONS
+                  value: "us-east-1,eu-west-1"
+                - name: SPOT_PRICE_BUFFER_PERCENTAGE
+                  value: "10.0"
