@@ -1,4 +1,4 @@
-FROM golang:1.10.0-alpine as golang
+FROM golang:1.11-alpine as golang
 RUN apk add -U --no-cache ca-certificates git make
 RUN go get -v github.com/cristim/autospotting/...
 WORKDIR /go/src/github.com/cristim/autospotting/
