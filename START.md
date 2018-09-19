@@ -197,6 +197,33 @@ module "autospotting" {
 }
 ```
 
+### Install as Kubernetes cronjob ###
+
+We have an example configuration file that allows you to run AutoSpotting as a
+Kubernetes cron job, instead of running it in AWS Lambda.
+
+<!-- markdownlint-disable MD013 -->
+
+``` shell
+curl https://raw.githubusercontent.com/cristim/autospotting/master/kubernetes/autospotting-cron.yaml.example > autospotting-cron.yaml
+```
+
+<!-- markdownlint-enable MD013 -->
+
+You can then edit it locally, tweaking it to suit your needs.
+Once you're happy with it, you can launch it on your Kubernetes cluster:
+
+``` shell
+kubectl create -f kubernetes/autospotting-cron.yaml
+```
+
+You can tweak the configuration later using `kubectl edit cronjob autospotting`.
+
+Keep in mind that this job automatically updates to the latest official
+binaries, so you may want to host your own Docker images if you want to stick to
+a certain version or you don't want to comply with the terms of our binary
+license.
+
 ## Enable autospotting ##
 
 ### For an AutoScaling group ###
@@ -370,10 +397,14 @@ than the percentage value. So the percentage will be ignored if
 The order of priority from strongest to lowest for minimum on-demand
 configuration is as following:
 
+<!-- markdownlint-disable MD029 -->
+
 1. Tag `autospotting_min_on_demand_number` in ASG
-1. Tag `autospotting_min_on_demand_percentage` in ASG
-1. Option `-min_on_demand_number` in CLI
-1. Option `-min_on_demand_percentage` in CLI
+2. Tag `autospotting_min_on_demand_percentage` in ASG
+3. Option `-min_on_demand_number` in CLI
+4. Option `-min_on_demand_percentage` in CLI
+
+<!-- markdownlint-enable MD029 -->
 
 **Note:** the percentage does round up values. Therefore if we have for example
 3 instances running in an autoscaling-group, and you specify 10%, autospotting

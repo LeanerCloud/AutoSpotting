@@ -132,7 +132,7 @@ any other values.
 ## How about the software costs?
 
 The software itself is free and open source so there is no monthly subscription
-fee if you build and deploy the open source code straight from trunk, but we 
+fee if you build and deploy the open source code straight from trunk, but we
 also have more convenient to use and better supported prebuilt binaries that
 would cost you a small monthly fee and would also support further development
 of the software.
@@ -140,21 +140,24 @@ of the software.
 You have the following options:
 
 ### Open source
+
 - the source code is and will always be distributed under an MIT license, so
   anyone can build and run their own binaries free of charge on any number
   of AWS accounts.
 - users can freely fork and customize the code, but these forks may be hard
-  to maintain on the long term if they diverge consistently from mainline. 
+  to maintain on the long term if they diverge consistently from mainline.
   Do yourself a favor and at least try to upstream your local changes.
 - limited, best-effort community support, even less so if you run a custom
   fork.
 
 ### Individuals and non-profits
+
 - can use the official pre-built binaries free of charge forever on any
   number of AWS accounts.
 - limited, best-effort community support.
 
 ### For-profit companies
+
 - can use the official pre-built binaries for up to two weeks since first
   installed.
 - limited, best-effort community support.
@@ -162,11 +165,13 @@ You have the following options:
   backers (see below)
 
 ### For profit companies that contribute to the open source development
+
 - can use the official binaries free of charge for a year after their latest
   code contribution, on any number of AWS accounts.
 - limited, best-effort community support.
 
 ### Patreon backers
+
 - periodically receive news about the project, regardless of the amount they
   contribute (individuals are also more than welcome to join)
 - companies contributing at least $40/AWS account monthly can use the official
@@ -177,7 +182,6 @@ You have the following options:
   who decide to contribute the same monthly fee.
 - see the [Patreon page](https://www.patreon.com/bePatron?c=979085) for more
   details.
-
 
 ## How do I enable it?
 
