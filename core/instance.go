@@ -445,7 +445,7 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 
 	if i.asg.LaunchTemplate != nil {
 		retval.LaunchTemplate = &ec2.LaunchTemplateSpecification{
-			LaunchTemplateId:   i.asg.LaunchTemplate.LaunchTemplateId,
+			LaunchTemplateId: i.asg.LaunchTemplate.LaunchTemplateId,
 		}
 	}
 
