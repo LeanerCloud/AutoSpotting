@@ -73,16 +73,6 @@ else
 endif
 .PHONY: vet-check
 
-fmt-check:                                                   ## Verify fmt compliance
-ifeq ($(shell gofmt -l -s $(GOFILES) | wc -l | tr -d '[:space:]'), 0)
-	@printf "ok\tall files passed go fmt\n"
-else
-	@printf "error\tsome files did not pass go fmt, fix the following formatting diff:\n"
-	@gofmt -l -s -d $(GOFILES)
-	@exit 1
-endif
-.PHONY: fmt-check
-
 test:                                                        ## Test go code and coverage
 	@go test -covermode=count -coverprofile=$(COVER_PROFILE) $(BINARY_PKG)
 .PHONY: test
