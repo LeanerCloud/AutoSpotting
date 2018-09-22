@@ -1501,7 +1501,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						LaunchConfigurationName: aws.String("myLC"),
 						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
 							LaunchTemplateId:   aws.String("lt-id"),
-							LaunchTemplateName: aws.String("lt-name"),
 						},
 					},
 					launchConfiguration: nil,
@@ -1560,7 +1559,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 
 				LaunchTemplate: &ec2.LaunchTemplateSpecification{
 					LaunchTemplateId:   aws.String("lt-id"),
-					LaunchTemplateName: aws.String("lt-name"),
 				},
 
 				MaxCount: aws.Int64(1),
@@ -1606,7 +1604,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						LaunchConfigurationName: aws.String("myLC"),
 						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
 							LaunchTemplateId:   aws.String("lt-id"),
-							LaunchTemplateName: aws.String("lt-name"),
 						},
 					},
 					launchConfiguration: &launchConfiguration{
@@ -1672,7 +1669,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 
 				LaunchTemplate: &ec2.LaunchTemplateSpecification{
 					LaunchTemplateId:   aws.String("lt-id"),
-					LaunchTemplateName: aws.String("lt-name"),
 				},
 
 				MaxCount: aws.Int64(1),
@@ -1720,7 +1716,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						LaunchConfigurationName: aws.String("myLC"),
 						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
 							LaunchTemplateId:   aws.String("lt-id"),
-							LaunchTemplateName: aws.String("lt-name"),
 						},
 					},
 					launchConfiguration: &launchConfiguration{
@@ -1798,7 +1793,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 
 				LaunchTemplate: &ec2.LaunchTemplateSpecification{
 					LaunchTemplateId:   aws.String("lt-id"),
-					LaunchTemplateName: aws.String("lt-name"),
 				},
 
 				MaxCount: aws.Int64(1),
