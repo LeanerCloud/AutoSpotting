@@ -19,7 +19,7 @@ endif
 
 LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD) -s -w"
 
-all: fmt-check vet-check build test                          ## Build the code
+all: vet-check build test                          ## Build the code
 .PHONY: all
 
 clean:                                                       ## Remove installed packages/temporary files
