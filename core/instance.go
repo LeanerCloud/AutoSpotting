@@ -100,6 +100,7 @@ type instance struct {
 	region    *region
 	protected bool
 	asg       *autoScalingGroup
+	failed    []string
 }
 
 type instanceTypeInformation struct {
@@ -319,14 +320,14 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 	return cheapest, fmt.Errorf("No cheaper spot instance types could be found")
 }
 
-func (i *instance) launchSpotReplacement() error {
+func (i *instance) launchSpotReplacement() (bool, error) {
 	instanceType, err := i.getCheapestCompatibleSpotInstanceType(
 		i.asg.getAllowedInstanceTypes(i),
 		i.asg.getDisallowedInstanceTypes(i))
 
 	if err != nil {
 		logger.Println("Couldn't determine the cheapest compatible spot instance type")
-		return err
+		return false, err
 	}
 
 	bidPrice := i.getPricetoBid(instanceType.pricing.onDemand,
@@ -336,9 +337,17 @@ func (i *instance) launchSpotReplacement() error {
 	resp, err := i.region.services.ec2.RunInstances(runInstancesInput)
 
 	if err != nil {
+		if strings.Contains(err.Error(), "InsufficientInstanceCapacity") {
+			i.asg.region.conf.DisallowedInstanceTypes = strings.TrimLeft(fmt.Sprintf("%s,%s", i.asg.region.conf.DisallowedInstanceTypes, instanceType.instanceType), ",")
+			return true, nil
+		}
 		logger.Println("Couldn't launch spot instance:", err.Error())
 		debug.Println(runInstancesInput)
-		return err
+		return false, err
+	}
+
+	if len(i.asg.region.conf.DisallowedInstanceTypes) {
+		i.asg.region.conf.DisallowedInstanceTypes = ""
 	}
 
 	spotInst := resp.Instances[0]
@@ -346,7 +355,7 @@ func (i *instance) launchSpotReplacement() error {
 
 	debug.Println("RunInstances response:", spew.Sdump(resp))
 
-	return nil
+	return false, nil
 }
 
 func (i *instance) getPricetoBid(

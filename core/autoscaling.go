@@ -348,11 +348,18 @@ func (a *autoScalingGroup) process() {
 		}
 
 		a.loadLaunchConfiguration()
-		err := onDemandInstance.launchSpotReplacement()
+		retry, err := onDemandInstance.launchSpotReplacement()
 		if err != nil {
 			logger.Printf("Could not launch cheapest spot instance: %s", err)
+			return
 		}
-		return
+		for retry {
+			retry, err = onDemandInstance.launchSpotReplacement()
+			if err != nil {
+				logger.Printf("Could not launch cheapest spot instance: %s", err)
+				return
+			}
+		}
 	}
 
 	spotInstanceID = *spotInstance.InstanceId
