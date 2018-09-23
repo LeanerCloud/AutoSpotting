@@ -346,7 +346,7 @@ func (i *instance) launchSpotReplacement() (bool, error) {
 		return false, err
 	}
 
-	if len(i.asg.region.conf.DisallowedInstanceTypes) {
+	if len(i.asg.region.conf.DisallowedInstanceTypes) > 0 {
 		i.asg.region.conf.DisallowedInstanceTypes = ""
 	}
 
