@@ -284,7 +284,15 @@ func (r *region) requestSpotPrices() error {
 }
 
 func tagsMatch(asgTag *autoscaling.TagDescription, filteringTag Tag) bool {
-	return asgTag != nil && *asgTag.Key == filteringTag.Key && *asgTag.Value == filteringTag.Value
+	if asgTag != nil && *asgTag.Key == filteringTag.Key {
+		matched, err := filepath.Match(filteringTag.Value, *asgTag.Value)
+		if err != nil {
+			logger.Printf("%s Invalid glob expression or text input in filter %s, the instance list may be smaller than expected", filteringTag.Key, filteringTag.Value)
+			return false
+		}
+		return matched
+	}
+	return false
 }
 
 func isASGWithMatchingTag(tagToMatch Tag, asgTags []*autoscaling.TagDescription) bool {
