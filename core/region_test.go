@@ -256,6 +256,8 @@ func TestDefaultASGFiltering(t *testing.T) {
 }
 
 func TestFilterAsgs(t *testing.T) {
+	// Test invalid regular expression
+	var nullSlice []string
 	tests := []struct {
 		name    string
 		want    []string
@@ -494,6 +496,90 @@ func TestFilterAsgs(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			name: "Test with multiple secondary filters with glob expression",
+			tregion: &region{
+				tagsToFilterASGsBy: []Tag{
+					{Key: "spot-enabled", Value: "true"},
+					{Key: "environment", Value: "sandbox*"},
+					{Key: "team", Value: "interactive"},
+				},
+				conf: &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+							AutoScalingGroups: []*autoscaling.Group{
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("customer1-dev"), ResourceId: aws.String("asg1")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
+									},
+									AutoScalingGroupName: aws.String("asg1"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("sandbox-dev"), ResourceId: aws.String("asg2")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
+										{Key: aws.String("team"), Value: aws.String("interactive"), ResourceId: aws.String("asg2")},
+									},
+									AutoScalingGroupName: aws.String("asg2"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg3")},
+									},
+									AutoScalingGroupName: aws.String("asg3"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("sandbox-qa"), ResourceId: aws.String("asg4")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg4")},
+										{Key: aws.String("team"), Value: aws.String("interactive"), ResourceId: aws.String("asg4")},
+									},
+									AutoScalingGroupName: aws.String("asg4"),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: []string{"asg2", "asg4"},
+		},
+		{
+			name: "Test  filters with invalid glob expression",
+			tregion: &region{
+				tagsToFilterASGsBy: []Tag{
+					{Key: "spot-enabled", Value: "true"},
+					{Key: "environment", Value: "($"},
+					{Key: "team", Value: "interactive"},
+				},
+				conf: &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+							AutoScalingGroups: []*autoscaling.Group{
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("customer1-dev"), ResourceId: aws.String("asg1")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
+									},
+									AutoScalingGroupName: aws.String("asg1"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
+										{Key: aws.String("team"), Value: aws.String("interactive"), ResourceId: aws.String("asg2")},
+									},
+									AutoScalingGroupName: aws.String("asg2"),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: nullSlice,
 		},
 	}
 	for _, tt := range tests {
