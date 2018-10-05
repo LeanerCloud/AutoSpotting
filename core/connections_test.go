@@ -2,23 +2,12 @@ package autospotting
 
 import (
 	"testing"
-
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 )
 
 func Test_connections_connect(t *testing.T) {
-	type fields struct {
-		session     *session.Session
-		autoScaling autoscalingiface.AutoScalingAPI
-		ec2         ec2iface.EC2API
-		region      string
-	}
 
 	tests := []struct {
 		name   string
-		fields fields
 		region string
 		match  bool
 	}{

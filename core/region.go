@@ -136,6 +136,22 @@ func splitTagAndValue(value string) *Tag {
 	return nil
 }
 
+func (r *region) processDescribeInstancesPage(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
+	logger.Println("Processing page of DescribeInstancesPages for", r.name)
+	debug.Println(page)
+
+	if len(page.Reservations) > 0 &&
+		page.Reservations[0].Instances != nil {
+
+		for _, res := range page.Reservations {
+			for _, inst := range res.Instances {
+				r.addInstance(inst)
+			}
+		}
+	}
+	return true
+}
+
 func (r *region) scanInstances() error {
 	svc := r.services.ec2
 	input := &ec2.DescribeInstancesInput{
@@ -152,26 +168,9 @@ func (r *region) scanInstances() error {
 
 	r.instances = makeInstances()
 
-	pageNum := 0
 	err := svc.DescribeInstancesPages(
 		input,
-		func(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
-			pageNum++
-			logger.Println("Processing page", pageNum, "of DescribeInstancesPages for", r.name)
-
-			debug.Println(page)
-			if len(page.Reservations) > 0 &&
-				page.Reservations[0].Instances != nil {
-
-				for _, res := range page.Reservations {
-					for _, inst := range res.Instances {
-						r.addInstance(inst)
-					}
-				}
-			}
-			return true
-		},
-	)
+		r.processDescribeInstancesPage)
 
 	if err != nil {
 		return err
@@ -284,29 +283,16 @@ func (r *region) requestSpotPrices() error {
 	return nil
 }
 
-func (r *region) requestSpotInstanceTypes() ([]string, error) {
-
-	var instTypes []string
-
-	s := spotPrices{conn: r.services}
-
-	// Retrieve all current spot prices from the current region.
-	// TODO: add support for other OSes
-	err := s.fetch("Linux/UNIX", 0, nil, nil)
-
-	if err != nil {
-		return nil, errors.New("Couldn't fetch spot prices in " + r.name)
-	}
-
-	for _, priceInfo := range s.data {
-		instTypes = append(instTypes, *priceInfo.InstanceType)
-	}
-
-	return instTypes, nil
-}
-
 func tagsMatch(asgTag *autoscaling.TagDescription, filteringTag Tag) bool {
-	return asgTag != nil && *asgTag.Key == filteringTag.Key && *asgTag.Value == filteringTag.Value
+	if asgTag != nil && *asgTag.Key == filteringTag.Key {
+		matched, err := filepath.Match(filteringTag.Value, *asgTag.Value)
+		if err != nil {
+			logger.Printf("%s Invalid glob expression or text input in filter %s, the instance list may be smaller than expected", filteringTag.Key, filteringTag.Value)
+			return false
+		}
+		return matched
+	}
+	return false
 }
 
 func isASGWithMatchingTag(tagToMatch Tag, asgTags []*autoscaling.TagDescription) bool {
@@ -383,18 +369,6 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 
 }
 
-func containsString(list []*string, a string) bool {
-	if list == nil || len(list) == 0 {
-		return false
-	}
-	for _, b := range list {
-		if *b == a {
-			return true
-		}
-	}
-	return false
-}
-
 func (r *region) hasEnabledAutoScalingGroups() bool {
 
 	return len(r.enabledASGs) > 0
@@ -403,6 +377,7 @@ func (r *region) hasEnabledAutoScalingGroups() bool {
 
 func (r *region) processEnabledAutoScalingGroups() {
 	for _, asg := range r.enabledASGs {
+		asg.terminationMethod = r.conf.InstanceTerminationMethod
 		r.wg.Add(1)
 		go func(a autoScalingGroup) {
 			a.process()

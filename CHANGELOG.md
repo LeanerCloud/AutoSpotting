@@ -1,5 +1,47 @@
 # ChangeLog
 
+<!-- markdownlint-disable MD024 -->
+
+## 19 September 2018, build 942
+
+Yet another really beefy entry, but most of this was also captured in much more
+detail in this blog
+[post](https://mcristi.wordpress.com/2018/07/14/new-autospotting-version/).
+
+Many thanks to HERE Technologies for supporting a lot of the development effort,
+to the Patreon supporters and to everyone who contributed code to this release.
+
+### New features since the last update
+
+- The method by which AutoSpotting terminates existing Auto Scaling Group
+  instances has changed. By default, AutoSpotting now uses the EC2
+  `TerminateInstanceInAutoScalingGroup` API. This API call ensures that any
+  Termination Lifecycle Hooks that might be configured on the Group are
+  respected, which was not the case in previous AutoSpotting versions. Users who
+  depend upon the legacy behavior, which was to detach the instance from the
+  Auto Scaling Group and terminate it, can set `instance_termination_method` to
+  `detach` in their deployment configurations.
+- Better handling of out of capacity situations.
+- Better handling of VPC, DefaultVPC and EC2 Classic security groups.
+- Support running in opt-out mode.
+- Tagging launched spot instances with `launched-by-autospotting=true`.
+- Obey the scale-in protection and termination protection for on-demand
+  instances that previously were being replaced.
+- Terraform module in the Terraform Registry.
+- Documentation for running as a Kubernetes cron job instead of Lambda.
+- Instance type updates and regional expansions. Note: some recent instance
+  types are still not supported yet due to missing upstream pricing information.
+
+### Under the hood changes
+
+- AutoSpotting now launches spot instances using the `RunInstances` API call,
+  which allows us to simplify the logic considerably and fix a number of bugs.
+- The spot bidding engine was heavily refactored, using less memory and being
+  much more scalable on large installations.
+- Fix compilation of macOS.
+- Smaller binaries.
+- Build AutoSpotting using Go 1.11
+
 ## 24 January 2018, build 622
 
 A lot of time passed since the previous Changelog update, so this is a really

@@ -17,7 +17,7 @@ ifneq ($(FLAVOR), custom)
     LICENSE_FILES += BINARY_LICENSE
 endif
 
-LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD)"
+LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD) -s -w"
 
 all: fmt-check vet-check build test                          ## Build the code
 .PHONY: all
@@ -36,10 +36,14 @@ check_deps:                                                  ## Verify the syste
 .PHONY: check_deps
 
 build_deps:
-	@go get github.com/mattn/goveralls
-	@go get github.com/golang/lint/golint
-	@go get golang.org/x/tools/cmd/cover
+	@go get -u github.com/mattn/goveralls
+	@go get -u github.com/golang/lint/golint
+	@go get -u golang.org/x/tools/cmd/cover
 .PHONY: build_deps
+
+update_deps:												 ## Update all dependencies
+	@dep ensure -update
+.PHONY: update_deps
 
 build: build_deps                                            ## Build autospotting binary
 	GOOS=linux go build -ldflags=$(LDFLAGS) -o $(BINARY)
@@ -65,7 +69,7 @@ upload: archive                                              ## Upload binary
 .PHONY: upload
 
 vet-check:                                                   ## Verify vet compliance
-ifeq ($(shell go tool vet -all -shadow=true $(GOFILES) 2>&1 | wc -l), 0)
+ifeq ($(shell go tool vet -all -shadow=true $(GOFILES) 2>&1 | wc -l | tr -d '[:space:]'), 0)
 	@printf "ok\tall files passed go vet\n"
 else
 	@printf "error\tsome files did not pass go vet\n"
@@ -74,12 +78,12 @@ endif
 .PHONY: vet-check
 
 fmt-check:                                                   ## Verify fmt compliance
-ifneq ($(shell gofmt -l -s $(GOFILES) | wc -l), 0)
+ifeq ($(shell gofmt -l -s $(GOFILES) | wc -l | tr -d '[:space:]'), 0)
+	@printf "ok\tall files passed go fmt\n"
+else
 	@printf "error\tsome files did not pass go fmt, fix the following formatting diff:\n"
 	@gofmt -l -s -d $(GOFILES)
 	@exit 1
-else
-	@printf "ok\tall files passed go fmt\n"
 endif
 .PHONY: fmt-check
 

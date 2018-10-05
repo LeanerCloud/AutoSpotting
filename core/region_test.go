@@ -9,13 +9,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/cristim/ec2-instances-info"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func Test_region_enabled(t *testing.T) {
-	type fields struct {
-		name string
-		conf Config
-	}
+
 	tests := []struct {
 		name    string
 		region  string
@@ -154,91 +152,6 @@ func TestAsgFiltersSetupOnRegion(t *testing.T) {
 	}
 }
 
-func TestRequestSpotInstanceTypes(t *testing.T) {
-	tests := []struct {
-		name    string
-		want    []string
-		tregion *region
-	}{
-		{
-			name: "Test with single instance",
-			want: []string{"m3.large"},
-			tregion: &region{
-				instances: makeInstances(),
-				conf:      &Config{},
-				services: connections{
-					ec2: mockEC2{
-						dspho: &ec2.DescribeSpotPriceHistoryOutput{
-							SpotPriceHistory: []*ec2.SpotPrice{
-								{
-									InstanceType: aws.String("m3.large"),
-									SpotPrice:    aws.String("1"),
-								},
-							},
-						},
-						dspherr: nil,
-					},
-				},
-			},
-		},
-		{
-			name: "Test empty instance",
-			want: []string{""},
-			tregion: &region{
-				instances: makeInstances(),
-				conf:      &Config{},
-				services: connections{
-					ec2: mockEC2{
-						dspho: &ec2.DescribeSpotPriceHistoryOutput{
-							SpotPriceHistory: []*ec2.SpotPrice{
-								{
-									InstanceType: aws.String(""),
-									SpotPrice:    aws.String("1"),
-								},
-							},
-						},
-						dspherr: nil,
-					},
-				},
-			},
-		},
-		{
-			name: "Test multiple instances returned",
-			want: []string{"m3.large", "m3.xlarge"},
-			tregion: &region{
-				instances: makeInstances(),
-				conf:      &Config{},
-				services: connections{
-					ec2: mockEC2{
-						dspho: &ec2.DescribeSpotPriceHistoryOutput{
-							SpotPriceHistory: []*ec2.SpotPrice{
-								{
-									InstanceType: aws.String("m3.large"),
-									SpotPrice:    aws.String("1"),
-								},
-								{
-									InstanceType: aws.String("m3.xlarge"),
-									SpotPrice:    aws.String("2"),
-								},
-							},
-						},
-						dspherr: nil,
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := tt.tregion
-			instanceTypes, _ := r.requestSpotInstanceTypes()
-			if !reflect.DeepEqual(tt.want, instanceTypes) {
-				t.Errorf("region.requestSpotInstanceTypes() = %v, want %v", instanceTypes, tt.want)
-			}
-		})
-	}
-}
-
 func TestOnDemandPriceMultiplier(t *testing.T) {
 	tests := []struct {
 		multiplier float64
@@ -294,53 +207,10 @@ func TestOnDemandPriceMultiplier(t *testing.T) {
 	}
 }
 
-func TestContainsString(t *testing.T) {
-	tests := []struct {
-		name string
-		key  string
-		list []*string
-		want bool
-	}{
-		{
-			name: "Test successful match",
-			key:  "test_key",
-			list: []*string{aws.String("test_key"), aws.String("test_key1")},
-			want: true,
-		},
-		{
-			name: "Test zero match",
-			key:  "not_found",
-			list: []*string{aws.String("test_key"), aws.String("test_key1")},
-			want: false,
-		},
-		{
-			name: "Test empty array",
-			key:  "not_found",
-			list: []*string{},
-			want: false,
-		},
-		{
-			name: "Test nil array",
-			key:  "not_found",
-			list: nil,
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			received := containsString(tt.list, tt.key)
-			if tt.want != received {
-				t.Errorf("region.containsString() = %v, want %v", received, tt.want)
-			}
-		})
-	}
-}
-
 func TestDefaultASGFiltering(t *testing.T) {
 	tests := []struct {
 		tregion  *region
 		expected []Tag
-		want     bool
 	}{
 		{
 			expected: []Tag{{Key: "spot-enabled", Value: "true"}},
@@ -386,6 +256,8 @@ func TestDefaultASGFiltering(t *testing.T) {
 }
 
 func TestFilterAsgs(t *testing.T) {
+	// Test invalid regular expression
+	var nullSlice []string
 	tests := []struct {
 		name    string
 		want    []string
@@ -625,6 +497,90 @@ func TestFilterAsgs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Test with multiple secondary filters with glob expression",
+			tregion: &region{
+				tagsToFilterASGsBy: []Tag{
+					{Key: "spot-enabled", Value: "true"},
+					{Key: "environment", Value: "sandbox*"},
+					{Key: "team", Value: "interactive"},
+				},
+				conf: &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+							AutoScalingGroups: []*autoscaling.Group{
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("customer1-dev"), ResourceId: aws.String("asg1")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
+									},
+									AutoScalingGroupName: aws.String("asg1"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("sandbox-dev"), ResourceId: aws.String("asg2")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
+										{Key: aws.String("team"), Value: aws.String("interactive"), ResourceId: aws.String("asg2")},
+									},
+									AutoScalingGroupName: aws.String("asg2"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg3")},
+									},
+									AutoScalingGroupName: aws.String("asg3"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("sandbox-qa"), ResourceId: aws.String("asg4")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg4")},
+										{Key: aws.String("team"), Value: aws.String("interactive"), ResourceId: aws.String("asg4")},
+									},
+									AutoScalingGroupName: aws.String("asg4"),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: []string{"asg2", "asg4"},
+		},
+		{
+			name: "Test  filters with invalid glob expression",
+			tregion: &region{
+				tagsToFilterASGsBy: []Tag{
+					{Key: "spot-enabled", Value: "true"},
+					{Key: "environment", Value: "($"},
+					{Key: "team", Value: "interactive"},
+				},
+				conf: &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+							AutoScalingGroups: []*autoscaling.Group{
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("customer1-dev"), ResourceId: aws.String("asg1")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
+									},
+									AutoScalingGroupName: aws.String("asg1"),
+								},
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
+										{Key: aws.String("team"), Value: aws.String("interactive"), ResourceId: aws.String("asg2")},
+									},
+									AutoScalingGroupName: aws.String("asg2"),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: nullSlice,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -636,6 +592,145 @@ func TestFilterAsgs(t *testing.T) {
 			}
 			if !reflect.DeepEqual(tt.want, asgNames) {
 				t.Errorf("region.scanForEnabledAutoScalingGroups() = %v, want %v", asgNames, tt.want)
+			}
+		})
+	}
+}
+
+func Test_region_scanInstances(t *testing.T) {
+
+	tests := []struct {
+		name          string
+		regionInfo    *region
+		wantErr       bool
+		wantInstances instances
+	}{
+		{
+			name: "region with a single instance",
+			regionInfo: &region{
+				name: "us-east-1",
+				conf: &Config{MinOnDemandNumber: 2},
+				services: connections{
+					ec2: mockEC2{
+						diperr: nil,
+						dio: &ec2.DescribeInstancesOutput{
+							Reservations: []*ec2.Reservation{
+								{
+									Instances: []*ec2.Instance{
+										{
+											InstanceId:   aws.String("id-1"),
+											InstanceType: aws.String("typeX"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+			wantInstances: makeInstancesWithCatalog(
+				instanceMap{
+					"id-1": {
+						Instance: &ec2.Instance{
+							InstanceId:   aws.String("id-1"),
+							InstanceType: aws.String("typeX"),
+						},
+					},
+				},
+			),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := tt.regionInfo
+			err := r.scanInstances()
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("region.scanInstances() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			for inst := range r.instances.instances() {
+				wantedInstance := tt.wantInstances.get(*inst.InstanceId).Instance
+
+				if !reflect.DeepEqual(inst.Instance, wantedInstance) {
+					t.Errorf("region.scanInstances() \nreceived instance data: \n %+v\nexpected: \n %+v",
+						spew.Sdump(inst.Instance), spew.Sdump(wantedInstance))
+
+				}
+			}
+
+		})
+	}
+}
+
+func Test_region_processDescribeInstancesPage(t *testing.T) {
+	type regionFields struct {
+		name      string
+		instances instances
+	}
+	type args struct {
+		page     *ec2.DescribeInstancesOutput
+		lastPage bool
+	}
+	tests := []struct {
+		name          string
+		regionFields  regionFields
+		args          args
+		want          bool
+		wantInstances instances
+	}{
+		{
+			name: "region with a single instance",
+			regionFields: regionFields{
+				name:      "us-east-1",
+				instances: makeInstancesWithCatalog(instanceMap{}),
+			},
+			args: args{
+				page: &ec2.DescribeInstancesOutput{
+					Reservations: []*ec2.Reservation{
+						{
+							Instances: []*ec2.Instance{{
+								InstanceId:   aws.String("id-1"),
+								InstanceType: aws.String("typeX"),
+							},
+								{
+									InstanceId:   aws.String("id-2"),
+									InstanceType: aws.String("typeY"),
+								},
+							},
+						},
+					},
+				},
+				lastPage: true,
+			},
+			want: true,
+			wantInstances: makeInstancesWithCatalog(
+				instanceMap{
+					"id-1": {
+						Instance: &ec2.Instance{
+							InstanceId:   aws.String("id-1"),
+							InstanceType: aws.String("typeX"),
+						},
+					},
+					"id-2": {
+						Instance: &ec2.Instance{
+							InstanceId:   aws.String("id-2"),
+							InstanceType: aws.String("typeY"),
+						},
+					},
+				},
+			),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &region{
+				name:      tt.regionFields.name,
+				instances: tt.regionFields.instances,
+			}
+			if got := r.processDescribeInstancesPage(tt.args.page, tt.args.lastPage); got != tt.want {
+				t.Errorf("region.processDescribeInstancesPage() = %v, want %v", got, tt.want)
 			}
 		})
 	}

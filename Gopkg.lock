@@ -9,8 +9,8 @@
     "lambda/messages",
     "lambdacontext"
   ]
-  revision = "fafa7e49388b8991caf99308e80655ba91816b72"
-  version = "v1.1.0"
+  revision = "2d482ef09017ae953b1e8d5a6ddac5b696663a3c"
+  version = "v1.6.0"
 
 [[projects]]
   name = "github.com/aws/aws-sdk-go"
@@ -25,6 +25,7 @@
     "aws/credentials/ec2rolecreds",
     "aws/credentials/endpointcreds",
     "aws/credentials/stscreds",
+    "aws/csm",
     "aws/defaults",
     "aws/ec2metadata",
     "aws/endpoints",
@@ -33,6 +34,7 @@
     "aws/signer/v4",
     "internal/sdkio",
     "internal/sdkrand",
+    "internal/sdkuri",
     "internal/shareddefaults",
     "private/protocol",
     "private/protocol/ec2query",
@@ -46,8 +48,8 @@
     "service/ec2/ec2iface",
     "service/sts"
   ]
-  revision = "f0872da8a448f8cb10f4f0c95c2100e4f7356448"
-  version = "v1.13.16"
+  revision = "9333060a8d957db41bff1c80603a802aa674fad8"
+  version = "v1.15.30"
 
 [[projects]]
   branch = "master"
@@ -56,19 +58,19 @@
     ".",
     "data"
   ]
-  revision = "d2ae4817170d37217fffd340b5417b3005cae3d6"
+  revision = "73c042a5558cd6d8b61fb82502d6f7aec334e9ed"
 
 [[projects]]
+  branch = "master"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
-  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
-  version = "v1.1.0"
+  revision = "d8f796af33cc11cb798c1aaeb27a4ebc5099927d"
 
 [[projects]]
   name = "github.com/go-ini/ini"
   packages = ["."]
-  revision = "6333e38ac20b8949a8dd68baa3650f4dee8f39f0"
-  version = "v1.33.0"
+  revision = "5cf292cae48347c2490ac1a58fe36735fb78df7e"
+  version = "v1.38.2"
 
 [[projects]]
   name = "github.com/jmespath/go-jmespath"
@@ -76,10 +78,10 @@
   revision = "0b12d6b5"
 
 [[projects]]
+  branch = "master"
   name = "github.com/namsral/flag"
   packages = ["."]
-  revision = "71ceffbeb0ba60fccc853971bb3ed4d7d90bfd04"
-  version = "v1.7.4-pre"
+  revision = "67f268f20922975c067ed799e4be6bacf152208c"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -90,6 +92,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bf8355830da4455c4dc5fb4e943f82de7f7566d0112b13412f27d5705d0ea3a1"
+  inputs-digest = "599003886305d66092780cfcd1c549fdf532dc5d044e2700cc10ecaf60ab4418"
   solver-name = "gps-cdcl"
   solver-version = 1

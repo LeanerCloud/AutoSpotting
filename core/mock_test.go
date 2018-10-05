@@ -13,7 +13,7 @@ import (
 )
 
 func CheckErrors(t *testing.T, err error, expected error) {
-	if err != nil && !reflect.DeepEqual(err, expected) {
+	if err != nil && expected != nil && !reflect.DeepEqual(err, expected) {
 		t.Errorf("Error received: '%v' expected '%v'",
 			err.Error(), expected.Error())
 	}
@@ -24,75 +24,44 @@ func CheckErrors(t *testing.T, err error, expected error) {
 type mockEC2 struct {
 	ec2iface.EC2API
 
-	// Create tags
-	cto   *ec2.CreateTagsOutput
-	cterr error
-
-	// Wait Until Spot Instance Request Fulfilled
-	wusirferr error
-
-	// Describe Instance Request
-	dsiro   *ec2.DescribeSpotInstanceRequestsOutput
-	dsirerr error
-
 	// Describe Spot Price History
 	dspho   *ec2.DescribeSpotPriceHistoryOutput
 	dspherr error
 
-	// Error in DescribeInstancesPages
+	// DescribeInstancesOutput
+	dio *ec2.DescribeInstancesOutput
+
+	// DescribeInstancesPages error
 	diperr error
+
+	// DescribeInstanceAttribute
+	diao   *ec2.DescribeInstanceAttributeOutput
+	diaerr error
 
 	// Terminate Instance
 	tio   *ec2.TerminateInstancesOutput
 	tierr error
 
-	// Request Spot Instance
-	rsio   *ec2.RequestSpotInstancesOutput
-	rsierr error
-
-	// Describe Spot Instance Requests
-	dspiro   *ec2.DescribeSpotInstanceRequestsOutput
-	dspirerr error
-
 	// Describe Regions
 	dro   *ec2.DescribeRegionsOutput
 	drerr error
-
-	// Cancel Spot instance request
-	csiro   *ec2.CancelSpotInstanceRequestsOutput
-	csirerr error
-}
-
-func (m mockEC2) CreateTags(in *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
-	return m.cto, m.cterr
-}
-
-func (m mockEC2) WaitUntilSpotInstanceRequestFulfilled(in *ec2.DescribeSpotInstanceRequestsInput) error {
-	return m.wusirferr
-}
-
-func (m mockEC2) DescribeSpotInstanceRequests(in *ec2.DescribeSpotInstanceRequestsInput) (*ec2.DescribeSpotInstanceRequestsOutput, error) {
-	return m.dsiro, m.dsirerr
 }
 
 func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
 	return m.dspho, m.dspherr
 }
 
-func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool) error {
-	return m.diperr
+func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, f func(*ec2.DescribeInstancesOutput, bool) bool) error {
+	f(m.dio, true)
+	return nil
+}
+
+func (m mockEC2) DescribeInstanceAttribute(in *ec2.DescribeInstanceAttributeInput) (*ec2.DescribeInstanceAttributeOutput, error) {
+	return m.diao, m.diaerr
 }
 
 func (m mockEC2) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
 	return m.tio, m.tierr
-}
-
-func (m mockEC2) RequestSpotInstances(*ec2.RequestSpotInstancesInput) (*ec2.RequestSpotInstancesOutput, error) {
-	return m.rsio, m.rsierr
-}
-
-func (m mockEC2) CancelSpotInstanceRequests(*ec2.CancelSpotInstanceRequestsInput) (*ec2.CancelSpotInstanceRequestsOutput, error) {
-	return m.csiro, m.csirerr
 }
 
 func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
@@ -146,6 +115,9 @@ type mockASG struct {
 	// Detach Instances
 	dio   *autoscaling.DetachInstancesOutput
 	dierr error
+	// Terminate Instances
+	tiiasgo   *autoscaling.TerminateInstanceInAutoScalingGroupOutput
+	tiiasgerr error
 	// Attach Instances
 	aio   *autoscaling.AttachInstancesOutput
 	aierr error
@@ -156,15 +128,18 @@ type mockASG struct {
 	uasgo   *autoscaling.UpdateAutoScalingGroupOutput
 	uasgerr error
 	// Describe Tags
-	dto   *autoscaling.DescribeTagsOutput
-	dterr error
+	dto *autoscaling.DescribeTagsOutput
+
 	// Describe AutoScaling Group
-	dasgo   *autoscaling.DescribeAutoScalingGroupsOutput
-	dasgerr error
+	dasgo *autoscaling.DescribeAutoScalingGroupsOutput
 }
 
 func (m mockASG) DetachInstances(*autoscaling.DetachInstancesInput) (*autoscaling.DetachInstancesOutput, error) {
 	return m.dio, m.dierr
+}
+
+func (m mockASG) TerminateInstanceInAutoScalingGroup(*autoscaling.TerminateInstanceInAutoScalingGroupInput) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error) {
+	return m.tiiasgo, m.tiiasgerr
 }
 
 func (m mockASG) AttachInstances(*autoscaling.AttachInstancesInput) (*autoscaling.AttachInstancesOutput, error) {

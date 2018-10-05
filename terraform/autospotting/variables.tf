@@ -24,6 +24,15 @@ EOF
   default = ""
 }
 
+variable "autospotting_instance_termination_method" {
+  description = <<EOF
+  Instance termination method.  Must be one of 'autoscaling' (default) or
+  'detach' (compatibility mode, not recommended)
+  EOF
+
+  default = "autoscaling"
+}
+
 variable "autospotting_min_on_demand_number" {
   description = "Minimum on-demand instances to keep in absolute value"
 }
