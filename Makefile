@@ -37,7 +37,7 @@ check_deps:                                                  ## Verify the syste
 
 build_deps:
 	@go get -u github.com/mattn/goveralls
-	@go get -u github.com/golang/lint/golint
+	@go get -u golang.org/x/lint/golint
 	@go get -u golang.org/x/tools/cmd/cover
 .PHONY: build_deps
 
