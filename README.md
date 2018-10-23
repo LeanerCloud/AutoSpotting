@@ -162,13 +162,13 @@ These donations will pay for hosting infrastructure of the easy to install
 binaries and the project website, and will also encourage further development
 by the main author.
 
-If you can, try also convincing your organization to use the official easy to
-install binaries (see below for more details).
+Companies can also use the official stable and easy to install binaries (see
+below for more details).
 
 Note: Non-trivial code should be submitted according to the contribution
 [guidelines](CONTRIBUTING.md).
 
-### Official binaries ###
+### Evaluation builds ###
 
 The source code is and will always be open source, so you can build and run
 it yourself, see how it works and even enhance it if you want.
@@ -178,44 +178,46 @@ setting up and maintaining a build environment or any additional
 infrastructure, we have proprietary pre-built binaries that will save you
 significant amounts of time and effort.
 
-These are free of charge for individuals and non-profits. Companies can use
-them free of charge for up to 14 days, but will need to purchase a license
-in order to legally use them for longer time.
+These easy to install evaluation binaries are available to Patreon backers
+that contribute at least $1, and can be used indefinitely by individuals and
+non-profits as long as they keep contributing at least $1 monthly.
+
+For-profit companies will need to purchase a license(also paid through 
+Patreon) in order to legally use them for longer than 14 days.
+
+The license costs vary by group, region and AWS account coverage and can 
+also be paid through [Patreon](https://www.patreon.com/bePatron?c=979085).
 
 Companies supporting the development of the open source code can use it free
 of charge for a year since their latest contribution to the project.
 
-The license costs $40 monthly for each AWS account and can be paid through
-[Patreon](https://www.patreon.com/bePatron?c=979085).
-
-This income motivates the main author to allocate a proportional amount
-of time on a monthly basis for improving the software and supporting users
-like you.
-
 #### Note: ####
 
-- even though these builds are usually stable enough, they may not have been
-  thoroughly tested yet and come with best effort community support.
+- even though these evaluation builds are usually stable enough, they may
+  not have been thoroughly tested yet and come with best effort community
+  support.
+- the docker images available on DockerHub are also distributed under the 
+  same binary license and the license costs are the same.
 
-### Stable binaries ###
+### Stable builds ###
 
-Carefully tested builds suitable for Enterprise use are also available for
-a custom fee you can negotiate with the original author, also paid monthly
-through [Patreon](https://www.patreon.com/bePatron?c=979085).
+Carefully tested builds suitable for Enterprise use will be communicated
+to [Patreon](https://www.patreon.com/bePatron?c=979085) backers as soon as
+they join.
 
 They come with support from the author, who will do his best to help you
 successfully run AutoSpotting on your environment so you can get the most
-out of it. Your feature requests and issues will also be treated with high
-priority.
+out of it. The feature requests and issues will also be prioritized based
+on the Patreon tier you licensed.
 
-Please get in touch on [gitter](https://gitter.im/cristim) if you are
-interested in getting access to these stable builds.
+Please get in touch on [gitter](https://gitter.im/cristim) if you have any
+questions about these stable builds.
 
 ## Compiling and Installing ##
 
-It is recommended to use the official or stable binaries, which are easy to
+It is recommended to use the evaluation or stable binaries, which are easy to
 install, support further development of the software and allow you to get
-Enterprise support.
+support.
 
 But if you have some special needs that require some customizations or you don't
 want to rely on the author's infrastructure or contribute anything for longer
