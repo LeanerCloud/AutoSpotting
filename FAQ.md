@@ -152,13 +152,13 @@ You have the following options:
 
 ### Individuals and non-profits
 
-- can use the official pre-built binaries free of charge forever on any
-  number of AWS accounts.
+- can use the evaluation binaries indefinitely on any number of AWS accounts
+  for a small monthly fee of $1.
 - limited, best-effort community support.
 
 ### For-profit companies
 
-- can use the official pre-built binaries for up to two weeks since first
+- can use the evaluation binaries for up to two weeks since first
   installed.
 - limited, best-effort community support.
 - can license them for longer term by becoming code contributors or Patreon
@@ -174,11 +174,10 @@ You have the following options:
 
 - periodically receive news about the project, regardless of the amount they
   contribute (individuals are also more than welcome to join)
-- companies contributing at least $40/AWS account monthly can use the official
-  binaries and are entitled to receive support for the deployments and
-  subsequent updates and can subscribe for additional support services (custom
-  development, maintaining forks, etc.), charged additionally.
-- all these support options are also available to individuals or non-profits
+- are periodically notofied about the latest thoroughy tested stable binaries
+  and are entitled to receive support for the deployments of AutoSpotting on
+  their infrastructure.
+  - these support options are also available to individuals or non-profits
   who decide to contribute the same monthly fee.
 - see the [Patreon page](https://www.patreon.com/bePatron?c=979085) for more
   details.
