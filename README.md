@@ -11,7 +11,7 @@
 [![IssueCount](https://codeclimate.com/github/cristim/autospotting/badges/issue_count.svg)](https://codeclimate.com/github/cristim/autospotting)
 [![ChatOnGitter](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![Open Source Helpers](https://www.codetriage.com/cristim/autospotting/badges/users.svg)](https://www.codetriage.com/cristim/autospotting)
-[![Patreon](https://img.shields.io/badge/patreon-donate-yellow.svg)](https://www.patreon.com/bePatron?c=979085)
+[![Patreon](https://img.shields.io/badge/patreon-donate-yellow.svg)](https://www.patreon.com/cristim/overview)
 
 A simple and easy to use tool designed to significantly lower your Amazon AWS
 costs by automating the use of [spot](https://aws.amazon.com/ec2/spot)
@@ -157,7 +157,7 @@ help would be greatly appreciated and would make a huge difference to the
 project.
 
 You can also contribute financially, we gladly accept recurrent tips on
-[Patreon](https://www.patreon.com/bePatron?c=979085), regardless of the amount.
+[Patreon](https://www.patreon.com/cristim/overview), regardless of the amount.
 These donations will pay for hosting infrastructure of the easy to install
 binaries and the project website, and will also encourage further development
 by the main author.
@@ -186,7 +186,7 @@ For-profit companies will need to purchase a license(also paid through
 Patreon) in order to legally use them for longer than 14 days.
 
 The license costs vary by group, region and AWS account coverage and can 
-also be paid through [Patreon](https://www.patreon.com/bePatron?c=979085).
+also be paid through [Patreon](https://www.patreon.com/cristim/overview).
 
 Companies supporting the development of the open source code can use it free
 of charge for a year since their latest contribution to the project.
@@ -202,7 +202,7 @@ of charge for a year since their latest contribution to the project.
 ### Stable builds ###
 
 Carefully tested builds suitable for Enterprise use will be communicated
-to [Patreon](https://www.patreon.com/bePatron?c=979085) backers as soon as
+to [Patreon](https://www.patreon.com/cristim/overview) backers as soon as
 they join.
 
 They come with support from the author, who will do his best to help you
