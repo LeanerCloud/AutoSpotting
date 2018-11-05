@@ -19,7 +19,7 @@ endif
 
 LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD) -s -w"
 
-all: vet-check build test                          ## Build the code
+all: fmt-check vet-check build test                          ## Build the code
 .PHONY: all
 
 clean:                                                       ## Remove installed packages/temporary files
@@ -37,7 +37,7 @@ check_deps:                                                  ## Verify the syste
 
 build_deps:
 	@go get -u github.com/mattn/goveralls
-	@go get -u github.com/golang/lint/golint
+	@go get -u golang.org/x/lint/golint
 	@go get -u golang.org/x/tools/cmd/cover
 .PHONY: build_deps
 
@@ -72,6 +72,16 @@ else
 	@go tool vet -all -shadow=true $(GOFILES) 2>&1
 endif
 .PHONY: vet-check
+
+fmt-check:                                                   ## Verify fmt compliance
+ifeq ($(shell gofmt -l -s $(GOFILES) | wc -l | tr -d '[:space:]'), 0)
+	@printf "ok\tall files passed go fmt\n"
+else
+	@printf "error\tsome files did not pass go fmt, fix the following formatting diff:\n"
+	@gofmt -l -s -d $(GOFILES)
+	@exit 1
+endif
+.PHONY: fmt-check
 
 test:                                                        ## Test go code and coverage
 	@go test -covermode=count -coverprofile=$(COVER_PROFILE) $(BINARY_PKG)

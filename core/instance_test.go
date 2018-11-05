@@ -236,6 +236,7 @@ func TestIsSpot(t *testing.T) {
 		})
 	}
 }
+
 func TestIsEBSCompatible(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -322,32 +323,6 @@ func TestIsPriceCompatible(t *testing.T) {
 			bestPrice:        0.7,
 			expected:         false,
 		},
-		{name: "Spot price is higher than bestPrice",
-			spotPrices: prices{
-				spot: map[string]float64{
-					"eu-central-1": 0.5,
-					"eu-west-1":    1.0,
-					"eu-west-2":    2.0,
-				},
-			},
-			availabilityZone: aws.String("eu-west-1"),
-			instancePrice:    5.0,
-			bestPrice:        0.7,
-			expected:         false,
-		},
-		{name: "Spot price is lower than bestPrice",
-			spotPrices: prices{
-				spot: map[string]float64{
-					"eu-central-1": 0.5,
-					"eu-west-1":    1.0,
-					"eu-west-2":    2.0,
-				},
-			},
-			availabilityZone: aws.String("eu-west-1"),
-			instancePrice:    5.0,
-			bestPrice:        1.4,
-			expected:         true,
-		},
 		{name: "Spot price is 0.0",
 			spotPrices: prices{
 				spot: map[string]float64{
@@ -387,7 +362,7 @@ func TestIsPriceCompatible(t *testing.T) {
 			candidate := instanceTypeInformation{pricing: prices{}}
 			candidate.pricing = tt.spotPrices
 			spotPrice := i.calculatePrice(candidate)
-			retValue := i.isPriceCompatible(spotPrice, tt.bestPrice)
+			retValue := i.isPriceCompatible(spotPrice)
 			if retValue != tt.expected {
 				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
 			}
@@ -654,19 +629,19 @@ func TestIsVirtualizationCompatible(t *testing.T) {
 
 func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 	tests := []struct {
-		name           string
-		spotInfos      map[string]instanceTypeInformation
-		instanceInfo   *instance
-		asg            *autoScalingGroup
-		expectedString string
-		expectedError  error
-		allowedList    []string
-		disallowedList []string
+		name                  string
+		spotInfos             map[string]instanceTypeInformation
+		instanceInfo          *instance
+		asg                   *autoScalingGroup
+		expectedCandidateList []string
+		expectedError         error
+		allowedList           []string
+		disallowedList        []string
 	}{
 		{name: "better/cheaper spot instance found",
 			spotInfos: map[string]instanceTypeInformation{
 				"1": {
-					instanceType: "type1",
+					instanceType: "type1", // cheapest, cheaper than ondemand
 					pricing: prices{
 						spot: map[string]float64{
 							"eu-central-1": 0.5,
@@ -682,7 +657,23 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 					virtualizationTypes:      []string{"PV", "else"},
 				},
 				"2": {
-					instanceType: "type2",
+					instanceType: "type2", // less cheap, but cheaper than ondemand
+					pricing: prices{
+						spot: map[string]float64{
+							"eu-central-1": 0.7,
+							"eu-west-1":    1.0,
+							"eu-west-2":    2.0,
+						},
+					},
+					vCPU:   10,
+					memory: 2.5,
+					instanceStoreDeviceCount: 1,
+					instanceStoreDeviceSize:  50.0,
+					instanceStoreIsSSD:       false,
+					virtualizationTypes:      []string{"PV", "else"},
+				},
+				"3": {
+					instanceType: "type3", // more expensive than ondemand
 					pricing: prices{
 						spot: map[string]float64{
 							"eu-central-1": 0.8,
@@ -734,8 +725,8 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			expectedString: "type1",
-			expectedError:  nil,
+			expectedCandidateList: []string{"type1", "type2"},
+			expectedError:         nil,
 		},
 		{name: "better/cheaper spot instance found but marked as disallowed",
 			spotInfos: map[string]instanceTypeInformation{
@@ -808,9 +799,9 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			disallowedList: []string{"type*"},
-			expectedString: "",
-			expectedError:  errors.New("No cheaper spot instance types could be found"),
+			disallowedList:        []string{"type*"},
+			expectedCandidateList: nil,
+			expectedError:         errors.New("No cheaper spot instance types could be found"),
 		},
 		{name: "better/cheaper spot instance found but not marked as allowed",
 			spotInfos: map[string]instanceTypeInformation{
@@ -883,9 +874,9 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			allowedList:    []string{"asdf*"},
-			expectedString: "",
-			expectedError:  errors.New("No cheaper spot instance types could be found"),
+			allowedList:           []string{"asdf*"},
+			expectedCandidateList: nil,
+			expectedError:         errors.New("No cheaper spot instance types could be found"),
 		},
 		{name: "better/cheaper spot instance found and marked as allowed",
 			spotInfos: map[string]instanceTypeInformation{
@@ -959,9 +950,9 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 				},
 			},
 
-			allowedList:    []string{"ty*"},
-			expectedString: "type1",
-			expectedError:  nil,
+			allowedList:           []string{"ty*"},
+			expectedCandidateList: []string{"type1"},
+			expectedError:         nil,
 		},
 		{name: "better/cheaper spot instance not found",
 			spotInfos: map[string]instanceTypeInformation{
@@ -1034,8 +1025,8 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			expectedString: "",
-			expectedError:  errors.New("No cheaper spot instance types could be found"),
+			expectedCandidateList: nil,
+			expectedError:         errors.New("No cheaper spot instance types could be found"),
 		},
 	}
 
@@ -1046,15 +1037,20 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			i.asg = tt.asg
 			allowedList := tt.allowedList
 			disallowedList := tt.disallowedList
-			retValue, err := i.getCheapestCompatibleSpotInstanceType(allowedList, disallowedList)
+			//hier muss ne liste zurückkommen
+			retValue, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allowedList, disallowedList)
+			var retInstTypes []string
+			for _, retval := range retValue {
+				retInstTypes = append(retInstTypes, retval.instanceType)
+			}
 			if err == nil && tt.expectedError != err {
-				t.Errorf("Error received: %v expected %v", err, tt.expectedError.Error())
+				t.Errorf("1 Error received: %v expected %v", err, tt.expectedError.Error())
 			} else if err != nil && tt.expectedError == nil {
-				t.Errorf("Error received: %s expected %s", err.Error(), tt.expectedError)
+				t.Errorf("2 Error received: %s expected %s", err.Error(), tt.expectedError)
 			} else if err != nil && tt.expectedError != nil && err.Error() != tt.expectedError.Error() {
-				t.Errorf("Error received: %s expected %s", err.Error(), tt.expectedError.Error())
-			} else if retValue.instanceType != tt.expectedString {
-				t.Errorf("Value received: %s expected %s", retValue.instanceType, tt.expectedString)
+				t.Errorf("3 Error received: %s expected %s", err.Error(), tt.expectedError.Error())
+			} else if !reflect.DeepEqual(retInstTypes, tt.expectedCandidateList) {
+				t.Errorf("4 Value received: %s expected %s", retInstTypes, tt.expectedCandidateList)
 			}
 		})
 	}
@@ -1220,6 +1216,10 @@ func TestGenerateTagList(t *testing.T) {
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("testLC0"),
+						},
+						{
 							Key:   aws.String("launched-by-autospotting"),
 							Value: aws.String("true"),
 						},
@@ -1248,6 +1248,10 @@ func TestGenerateTagList(t *testing.T) {
 				{
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("testLC0"),
+						},
 						{
 							Key:   aws.String("launched-by-autospotting"),
 							Value: aws.String("true"),
@@ -1571,6 +1575,10 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("myLC"),
+						},
+						{
 							Key:   aws.String("launched-by-autospotting"),
 							Value: aws.String("true"),
 						},
@@ -1676,6 +1684,10 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				TagSpecifications: []*ec2.TagSpecification{{
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("myLC"),
+						},
 						{
 							Key:   aws.String("launched-by-autospotting"),
 							Value: aws.String("true"),
@@ -1805,6 +1817,10 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				TagSpecifications: []*ec2.TagSpecification{{
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("myLC"),
+						},
 						{
 							Key:   aws.String("launched-by-autospotting"),
 							Value: aws.String("true"),
