@@ -23,6 +23,20 @@
     * [Uninstall via cloudformation](#uninstall-via-cloudformation)
     * [Uninstall via terraform](#uninstall-via-terraform)
 
+## Binary License Notice ## 
+
+All pre-build binaries mentioned in this page are distributed under a
+proprietary [license](BINARY_LICENSE), and can only be used legally for
+up to 14 days, for evaluation purposes.
+
+Project patrons and code contributors can get a long term license. 
+[Here](https://www.patreon.com/cristim) you can also become a patron and 
+see what other benefits this can bring you.
+
+If you don't agree with the terms of this license nor you want to become
+a patron, you can still build it from source code yourself but you'll get very 
+limited support if you do so.
+
 ## Requirements ##
 
 * You will need credentials to an AWS account able to start CloudFormation
