@@ -15,7 +15,7 @@ spec:
           restartPolicy: Never
           containers:
             - name: autospotting-cron-job
-              image: cristim/autospotting:latest
+              image: AutoSpotting/AutoSpotting:latest
               # Environment variables for the AutoSpotting pod
               # Feel free to configure them to suit your needs
               env:
