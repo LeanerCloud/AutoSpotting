@@ -107,14 +107,14 @@ on your machine.
 #### Default install ####
 
 Pre-built binaries easier to install are available when using the Terraform
-[module](https://registry.terraform.io/modules/cristim/autospotting/aws)
+[module](https://registry.terraform.io/modules/AutoSpotting/AutoSpotting/aws)
 available from the Terraform Registry.
 
 Copy and paste the below snippet into your Terraform configuration:
 
 ```hcl
 module "autospotting" {
-  source  = "cristim/autospotting/aws"
+  source  = "AutoSpotting/AutoSpotting/aws"
   version = "0.0.9" # this version is subject to change
 }
 ```
@@ -172,7 +172,7 @@ use the module directly:
 
 ```hcl
 module "autospotting" {
-  source = "github.com/cristim/autospotting//terraform/autospotting"
+  source = "github.com/AutoSpotting/AutoSpotting//terraform/autospotting"
 
 
   autospotting_disallowed_instance_types    = "t2.*"
@@ -204,7 +204,7 @@ in S3:
 
 ```hcl
 module "autospotting" {
-  source = "github.com/cristim/autospotting//terraform/autospotting"
+  source = "github.com/AutoSpotting/AutoSpotting//terraform/autospotting"
 
   lambda_s3_bucket = "lambda-releases"
   lambda_s3_key    = "autospotting.zip"
@@ -219,7 +219,7 @@ Kubernetes cron job, instead of running it in AWS Lambda.
 <!-- markdownlint-disable MD013 -->
 
 ``` shell
-curl https://raw.githubusercontent.com/cristim/autospotting/master/kubernetes/autospotting-cron.yaml.example > autospotting-cron.yaml
+curl https://raw.githubusercontent.com/AutoSpotting/AutoSpotting/master/kubernetes/autospotting-cron.yaml.example > autospotting-cron.yaml
 ```
 
 <!-- markdownlint-enable MD013 -->
@@ -464,7 +464,7 @@ The full list of the objects available in the bucket can be seen
 [here](http://s3.amazonaws.com/cloudprowess/index.html).
 
 The full list of TravisCI builds and their respective git commits can be seen on
-the Travis CI [builds page](https://travis-ci.org/cristim/autospotting/builds)
+the Travis CI [builds page](https://travis-ci.org/AutoSpotting/AutoSpotting/builds)
 
 ### Compatibility notices ###
 

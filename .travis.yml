@@ -18,7 +18,7 @@ script:
     - make terraform-test
 
 after_success:
-  - curl --request POST "https://goreportcard.com/checks" --data "repo=github.com/cristim/autospotting"
+  - curl --request POST "https://goreportcard.com/checks" --data "repo=github.com/AutoSpotting/AutoSpotting"
 
 deploy:
   provider: s3
@@ -30,7 +30,7 @@ deploy:
   skip_cleanup: true
   acl: public_read
   on:
-    repo: cristim/autospotting
+    repo: AutoSpotting/AutoSpotting
 
 notifications:
   webhooks:
