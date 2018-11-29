@@ -1,11 +1,11 @@
 # Contribution guidelines #
 
-[![Chat on Gitter](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Chat on Gitter](https://badges.gitter.im/AutoSpotting/AutoSpotting.svg)](https://gitter.im/AutoSpotting/AutoSpotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 The usual GitHub contribution model applies, but if you would like to [raise an
-issue](https://github.com/cristim/autospotting/issues/new) or start working on a
-[pull request](https://github.com/cristim/autospotting/pulls), please get in
-touch on [gitter](https://gitter.im/cristim/autospotting) to discuss it first so
+issue](https://github.com/AutoSpotting/AutoSpotting/issues/new) or start working on a
+[pull request](https://github.com/AutoSpotting/AutoSpotting/pulls), please get in
+touch on [gitter](https://gitter.im/AutoSpotting/AutoSpotting) to discuss it first so
 we make sure everything is clear and that nobody else is already working on it.
 
 Any random questions are also better asked there.

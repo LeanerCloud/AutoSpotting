@@ -39,7 +39,7 @@ your CloudFormation or Terraform stack to use those new binaries.
 1. Run the following command to install the AutoSpotting project into your
    GOPATH directory:
 
-   `go get github.com/cristim/autospotting`
+   `go get github.com/AutoSpotting/AutoSpotting`
 
    This downloads the source from GitHub, pulls in all necessary dependencies,
    builds it for local execution and deploys the binary into the golang binary
@@ -47,7 +47,7 @@ your CloudFormation or Terraform stack to use those new binaries.
 
 1. Navigate to the root of the AutoSpotting repository:
 
-   `cd $GOPATH/src/github.com/cristim/autospotting`
+   `cd $GOPATH/src/github.com/AutoSpotting/AutoSpotting`
 
 1. (Optional) You may want to make a minor change to the source code so you can
    tell when the tool is running your own custom-built version. If so, add a
@@ -159,6 +159,6 @@ This also accepts all the autospotting command-line arguments, including `-help`
 which explains all the available options.
 
 Pre-built Docker images for the latest builds are also available on Dockerhub at
-[cristim/autospotting](https://hub.docker.com/r/cristim/autospotting/)
+[AutoSpotting/AutoSpotting](https://hub.docker.com/r/AutoSpotting/AutoSpotting/)
 
 [Back to the main Readme](./README.md)
