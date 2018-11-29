@@ -4,13 +4,13 @@
 
 <img src="logo.png" width="150" align="right">
 
-[![BuildStatus](https://travis-ci.org/cristim/autospotting.svg?branch=master)](https://travis-ci.org/cristim/autospotting)
-[![GoReportCard](https://goreportcard.com/badge/github.com/cristim/autospotting)](https://goreportcard.com/report/github.com/cristim/autospotting)
-[![CoverageStatus](https://coveralls.io/repos/github/cristim/autospotting/badge.svg?branch=master)](https://coveralls.io/github/cristim/autospotting?branch=master)
-[![CodeClimate](https://codeclimate.com/github/cristim/autospotting/badges/gpa.svg)](https://codeclimate.com/github/cristim/autospotting)
-[![IssueCount](https://codeclimate.com/github/cristim/autospotting/badges/issue_count.svg)](https://codeclimate.com/github/cristim/autospotting)
-[![ChatOnGitter](https://badges.gitter.im/cristim/autospotting.svg)](https://gitter.im/cristim/autospotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-[![Open Source Helpers](https://www.codetriage.com/cristim/autospotting/badges/users.svg)](https://www.codetriage.com/cristim/autospotting)
+[![BuildStatus](https://travis-ci.org/AutoSpotting/AutoSpotting.svg?branch=master)](https://travis-ci.org/AutoSpotting/AutoSpotting)
+[![GoReportCard](https://goreportcard.com/badge/github.com/AutoSpotting/AutoSpotting)](https://goreportcard.com/report/github.com/AutoSpotting/AutoSpotting)
+[![CoverageStatus](https://coveralls.io/repos/github/AutoSpotting/AutoSpotting/badge.svg?branch=master)](https://coveralls.io/github/AutoSpotting/AutoSpotting?branch=master)
+[![CodeClimate](https://codeclimate.com/github/AutoSpotting/AutoSpotting/badges/gpa.svg)](https://codeclimate.com/github/AutoSpotting/AutoSpotting)
+[![IssueCount](https://codeclimate.com/github/AutoSpotting/AutoSpotting/badges/issue_count.svg)](https://codeclimate.com/github/AutoSpotting/AutoSpotting)
+[![ChatOnGitter](https://badges.gitter.im/AutoSpotting/AutoSpotting.svg)](https://gitter.im/AutoSpotting/AutoSpotting?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Open Source Helpers](https://www.codetriage.com/AutoSpotting/AutoSpotting/badges/users.svg)](https://www.codetriage.com/AutoSpotting/AutoSpotting)
 [![Patreon](https://img.shields.io/badge/patreon-donate-yellow.svg)](https://www.patreon.com/cristim/overview)
 
 A simple and easy to use tool designed to significantly lower your Amazon AWS
@@ -108,7 +108,7 @@ and we'll do our best to answer them either there or on Gitter.
 ## Getting Started ##
 
 Just like in the above animation, it's as easy as launching a CloudFormation (or
-[Terraform](https://github.com/cristim/autospotting/tree/master/terraform))
+[Terraform](https://github.com/AutoSpotting/AutoSpotting/tree/master/terraform))
 stack and setting the (configurable) `spot-enabled` tag on the AutoScaling
 groups where you want it enabled to `true`.
 
@@ -134,7 +134,7 @@ For more detailed information you can read this [document](START.md)
 ## Support ##
 
 Community support is available on the
-[gitter](https://gitter.im/cristim/autospotting) chat room, where the main
+[gitter](https://gitter.im/AutoSpotting/AutoSpotting) chat room, where the main
 authors and other users are likely to help you solve issues with these official
 binaries.
 
@@ -150,7 +150,7 @@ appreciate the work they put in it, please consider contributing to the
 development effort as well.
 
 You can just try it out and give
-[feedback](https://gitter.im/cristim/autospotting), report issues, improve the
+[feedback](https://gitter.im/AutoSpotting/AutoSpotting), report issues, improve the
 documentation, write some code or assign a developer to work on it, or even just
 spread the word among your peers who might be interested in it. Any amount of
 help would be greatly appreciated and would make a huge difference to the

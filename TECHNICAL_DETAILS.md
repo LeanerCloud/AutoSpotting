@@ -4,11 +4,11 @@
 
 ## Summary of supported features & options ##
 
-| Option  | Status | [Override using ASG tags](https://github.com/cristim/autospotting/blob/master/core/autoscaling.go#L16) |
+| Option  | Status | [Override using ASG tags](https://github.com/AutoSpotting/AutoSpotting/blob/master/core/autoscaling.go#L16) |
 | ------- | :----: | :-------------------: |
 | Run on multiple regions | :white_check_mark:  (default: all)| :heavy_minus_sign: |
-| [Keep a fixed minimum percentage of on-demand](https://github.com/cristim/autospotting/blob/master/START.md#minimum-on-demand-configuration) | :white_check_mark: (default: 0%) | :white_check_mark: |
-| [Keep a fixed minimum number of on-demand](https://github.com/cristim/autospotting/blob/master/START.md#minimum-on-demand-configuration) | :white_check_mark: (default: 0) | :white_check_mark: |
+| [Keep a fixed minimum percentage of on-demand](https://github.com/AutoSpotting/AutoSpotting/blob/master/START.md#minimum-on-demand-configuration) | :white_check_mark: (default: 0%) | :white_check_mark: |
+| [Keep a fixed minimum number of on-demand](https://github.com/AutoSpotting/AutoSpotting/blob/master/START.md#minimum-on-demand-configuration) | :white_check_mark: (default: 0) | :white_check_mark: |
 | Bid at a certain percentage of the on-demand price | :white_check_mark: (default: 100%) | :white_check_mark: |
 | Can bid the current spot price plus a certain percentage | :white_check_mark: | :white_check_mark: |
 | Automatically determine the cheapest compatible instance type | :white_check_mark: (default) | :white_check_mark: |
@@ -21,17 +21,17 @@
 
 For the options not directly linked to any specific part of the doc, please
 check the
-[configuration](https://github.com/cristim/autospotting/blob/master/START.md#configuration-of-autospotting) page.
+[configuration](https://github.com/AutoSpotting/AutoSpotting/blob/master/START.md#configuration-of-autospotting) page.
 
 | Feature | Status |
 | ------- | :----: |
-| [Easy installation via Cloudformation](https://github.com/cristim/autospotting/blob/master/START.md#install-via-cloudformation) | :white_check_mark: |
-| [Easy installation via Terraform](https://github.com/cristim/autospotting/blob/master/START.md#install-via-terraform) | :white_check_mark: |
-| [Available as Docker container image](https://hub.docker.com/r/cristim/autospotting/) | :white_check_mark: :wrench: |
+| [Easy installation via Cloudformation](https://github.com/AutoSpotting/AutoSpotting/blob/master/START.md#install-via-cloudformation) | :white_check_mark: |
+| [Easy installation via Terraform](https://github.com/AutoSpotting/AutoSpotting/blob/master/START.md#install-via-terraform) | :white_check_mark: |
+| [Available as Docker container image](https://hub.docker.com/r/AutoSpotting/AutoSpotting/) | :white_check_mark: :wrench: |
 | [Works with Code Deploy](CODEDEPLOY.md) | :white_check_mark: :wrench: |
-| [Works with Elastic Beanstalk](https://github.com/cristim/autospotting/blob/053135e97082511fb99b689dce4a7a7830f3327c/START.md#for-elastic-beanstalk) | :white_check_mark: |
+| [Works with Elastic Beanstalk](https://github.com/AutoSpotting/AutoSpotting/blob/053135e97082511fb99b689dce4a7a7830f3327c/START.md#for-elastic-beanstalk) | :white_check_mark: |
 | Support AWS VPC| :white_check_mark: |
-| Support AWS EC2Classic|[:beetle:](https://github.com/cristim/autospotting/issues/48) :pencil: |
+| Support AWS EC2Classic|[:beetle:](https://github.com/AutoSpotting/AutoSpotting/issues/48) :pencil: |
 | Support AWS DefaultVPC| :white_check_mark: |
 | [Rancher compliance](http://rancher.com/reducing-aws-spend/) | :white_check_mark: |
 | Lambda X-Ray support | :x: |
@@ -55,7 +55,7 @@ check the
 
 Some of them can be clicked for more information, you can see if you hover them
 with your mouse pointer, but if you have any questions you can always get in
-touch on [Gitter](https://gitter.im/cristim/autospotting).
+touch on [Gitter](https://gitter.im/AutoSpotting/AutoSpotting).
 
 ## Features and Benefits ##
 

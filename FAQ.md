@@ -545,7 +545,7 @@ after spot instances are terminated and on-demand instances are launched again
 in the group.
 
 This behavior may be changed once implementing
-[#119](https://github.com/cristim/autospotting/issues/119), in which we may
+[#119](https://github.com/AutoSpotting/AutoSpotting/issues/119), in which we may
 implement a strategy bidding closer to the current spot price in order to avoid
 running that spot instance after significant spot price increases.
 
@@ -559,9 +559,9 @@ Have a look at the logs for more details.
 Spot instances may fail to launch for a number of reasons, such as market
 conditions that manifest in high prices across all the compatible instance
 types, but also known bugs or limitations in the current implementation, such as
-[#105](https://github.com/cristim/autospotting/issues/105),
-[#106](https://github.com/cristim/autospotting/issues/106) and
-[110](https://github.com/cristim/autospotting/issues/110), which would need to
+[#105](https://github.com/AutoSpotting/AutoSpotting/issues/105),
+[#106](https://github.com/AutoSpotting/AutoSpotting/issues/106) and
+[110](https://github.com/AutoSpotting/AutoSpotting/issues/110), which would need to
 be fixed or simply implemented. If you are impacted by such issues please
 consider [contributing](CONTRIBUTING.md) a fix.
 
@@ -593,7 +593,7 @@ actions against your instances and autoscaling groups.
 This configuration was carefully crafted to contain the minimum amount of
 permissions needed for the instance replacement and logging its actions. The
 full list can be seen in the Cloudformation stack
-[template](https://github.com/cristim/autospotting/blob/master/cloudformation/stacks/AutoSpotting/template.yaml#L199),
+[template](https://github.com/AutoSpotting/AutoSpotting/blob/master/cloudformation/stacks/AutoSpotting/template.yaml#L199),
 but it basically boils down to the following:
 
 - describing the resources you have in order to decide what needs to be done

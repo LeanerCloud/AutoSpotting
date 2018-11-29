@@ -9,10 +9,11 @@
     "lambda/messages",
     "lambdacontext"
   ]
-  revision = "2d482ef09017ae953b1e8d5a6ddac5b696663a3c"
-  version = "v1.6.0"
+  revision = "fb8f88d824489a878aee1e0badde7d8e129f8767"
+  version = "v1.7.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -32,6 +33,7 @@
     "aws/request",
     "aws/session",
     "aws/signer/v4",
+    "internal/ini",
     "internal/sdkio",
     "internal/sdkrand",
     "internal/sdkuri",
@@ -48,8 +50,7 @@
     "service/ec2/ec2iface",
     "service/sts"
   ]
-  revision = "9333060a8d957db41bff1c80603a802aa674fad8"
-  version = "v1.15.30"
+  revision = "3cf1f9e5abce217d906b66f1b092c86bae66209f"
 
 [[projects]]
   branch = "master"
@@ -58,19 +59,13 @@
     ".",
     "data"
   ]
-  revision = "73c042a5558cd6d8b61fb82502d6f7aec334e9ed"
+  revision = "8e18ab8c896bbe65d6ee10d6815c4fd87fdc11e0"
 
 [[projects]]
   branch = "master"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "d8f796af33cc11cb798c1aaeb27a4ebc5099927d"
-
-[[projects]]
-  name = "github.com/go-ini/ini"
-  packages = ["."]
-  revision = "5cf292cae48347c2490ac1a58fe36735fb78df7e"
-  version = "v1.38.2"
 
 [[projects]]
   name = "github.com/jmespath/go-jmespath"
