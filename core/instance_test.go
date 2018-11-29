@@ -1107,14 +1107,13 @@ func TestGetPricetoBid(t *testing.T) {
 				name: "us-east-1",
 				conf: cfg,
 			},
+			price: tt.currentOnDemandPrice,
 		}
 
-		currentSpotPrice := tt.currentSpotPrice
-		currentOnDemandPrice := tt.currentOnDemandPrice
-		actualPrice := i.getPricetoBid(currentOnDemandPrice, currentSpotPrice)
+		actualPrice := i.getPricetoBid(tt.currentSpotPrice)
 		if math.Abs(actualPrice-tt.want) > 0.000001 {
-			t.Errorf("percentage = %.2f, policy = %s, expected price = %.5f, want %.5f, currentSpotPrice = %.5f",
-				tt.spotPercentage, tt.policy, actualPrice, tt.want, currentSpotPrice)
+			t.Errorf("percentage = %.2f, policy = %s, bid_price = %.5f, expected_price %.5f, currentSpotPrice = %.5f",
+				tt.spotPercentage, tt.policy, actualPrice, tt.want, tt.currentSpotPrice)
 		}
 	}
 }

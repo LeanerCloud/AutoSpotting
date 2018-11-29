@@ -293,8 +293,8 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 
 	for _, candidate := range i.region.instanceTypeInformation {
 
-		logger.Println("Comparing ", candidate.instanceType, " with ",
-			current.instanceType)
+		logger.Printf("Comparing %s with %s ",
+			current.instanceType, candidate.instanceType)
 
 		candidatePrice := i.calculatePrice(candidate)
 
@@ -307,7 +307,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 			bestPrice = candidatePrice
 			chosenSpotType = candidate.instanceType
 			cheapest = candidate
-			debug.Println("Best option is now: ", chosenSpotType, " at ", bestPrice)
+			logger.Println("Found compatible instance type: ", chosenSpotType, " at ", bestPrice)
 		} else if chosenSpotType != "" {
 			debug.Println("Current best option: ", chosenSpotType, " at ", bestPrice)
 		}
@@ -320,7 +320,7 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 }
 
 func (i *instance) launchSpotReplacement() error {
-	instanceType, err := i.getCheapestCompatibleSpotInstanceType(
+	spotInstanceType, err := i.getCheapestCompatibleSpotInstanceType(
 		i.asg.getAllowedInstanceTypes(i),
 		i.asg.getDisallowedInstanceTypes(i))
 
@@ -329,10 +329,9 @@ func (i *instance) launchSpotReplacement() error {
 		return err
 	}
 
-	bidPrice := i.getPricetoBid(instanceType.pricing.onDemand,
-		instanceType.pricing.spot[*i.Placement.AvailabilityZone])
+	bidPrice := i.getPricetoBid(spotInstanceType.pricing.spot[*i.Placement.AvailabilityZone])
 
-	runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
+	runInstancesInput := i.createRunInstancesInput(spotInstanceType.instanceType, bidPrice)
 	resp, err := i.region.services.ec2.RunInstances(runInstancesInput)
 
 	if err != nil {
@@ -349,18 +348,20 @@ func (i *instance) launchSpotReplacement() error {
 	return nil
 }
 
-func (i *instance) getPricetoBid(
-	baseOnDemandPrice float64, currentSpotPrice float64) float64 {
+func (i *instance) getPricetoBid(currentSpotPrice float64) float64 {
 
 	logger.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
 
 	if i.region.conf.BiddingPolicy == DefaultBiddingPolicy {
-		logger.Println("Launching spot instance with a bid =", baseOnDemandPrice)
-		return baseOnDemandPrice
+		logger.Println("Launching spot instance with bid price", i.price,
+			"set to the price of the original on-demand instances")
+		return i.price
 	}
-
-	bufferPrice := math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))
-	logger.Println("Launching spot instance with a bid =", bufferPrice)
+	p := i.region.conf.SpotPriceBufferPercentage
+	bufferPrice := math.Min(i.price, currentSpotPrice*(1.0+p/100.0))
+	logger.Printf("Launching spot instance with bid price %.5f set based on "+
+		"the current spot price %.5f with an additional buffer of %.2f%%\n",
+		bufferPrice, currentSpotPrice, p)
 	return bufferPrice
 }
 
