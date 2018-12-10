@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -102,6 +103,11 @@ type instance struct {
 	asg       *autoScalingGroup
 }
 
+type acceptableInstance struct {
+	instanceTI instanceTypeInformation
+	price      float64
+}
+
 type instanceTypeInformation struct {
 	instanceType             string
 	vCPU                     int
@@ -131,8 +137,8 @@ func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64
 }
 
 func (i *instance) isSpot() bool {
-	return (i.InstanceLifecycle != nil &&
-		*i.InstanceLifecycle == "spot")
+	return i.InstanceLifecycle != nil &&
+		*i.InstanceLifecycle == "spot"
 }
 
 func (i *instance) isProtectedFromTermination() bool {
@@ -184,8 +190,8 @@ func (i *instance) terminate() error {
 	return nil
 }
 
-func (i *instance) isPriceCompatible(spotPrice float64, bestPrice float64) bool {
-	return spotPrice != 0 && spotPrice <= i.price && spotPrice <= bestPrice
+func (i *instance) isPriceCompatible(spotPrice float64) bool {
+	return spotPrice != 0 && spotPrice <= i.price
 }
 
 func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool {
@@ -278,11 +284,10 @@ func (i *instance) isAllowed(instanceType string, allowedList []string, disallow
 	return true
 }
 
-func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, disallowedList []string) (instanceTypeInformation, error) {
+func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allowedList []string,
+	disallowedList []string) ([]instanceTypeInformation, error) {
 	current := i.typeInfo
-	bestPrice := math.MaxFloat64
-	chosenSpotType := ""
-	var cheapest instanceTypeInformation
+	var acceptableInstanceTypes []acceptableInstance
 
 	// Count the ephemeral volumes attached to the original instance's block
 	// device mappings, this number is used later when comparing with each
@@ -291,36 +296,46 @@ func (i *instance) getCheapestCompatibleSpotInstanceType(allowedList []string, d
 	usedMappings := i.asg.launchConfiguration.countLaunchConfigEphemeralVolumes()
 	attachedVolumesNumber := min(usedMappings, current.instanceStoreDeviceCount)
 
+	// Find all compatible and not blocked instance types
 	for _, candidate := range i.region.instanceTypeInformation {
 
-		logger.Println("Comparing ", candidate.instanceType, " with ",
-			current.instanceType)
-
 		candidatePrice := i.calculatePrice(candidate)
+		logger.Println("Comparing candidate ", candidate.instanceType, " with price ", candidatePrice, " to current type ",
+			current.instanceType, " with price ", i.price)
 
-		if i.isPriceCompatible(candidatePrice, bestPrice) &&
+		if i.isPriceCompatible(candidatePrice) &&
 			i.isEBSCompatible(candidate) &&
 			i.isClassCompatible(candidate) &&
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) &&
 			i.isAllowed(candidate.instanceType, allowedList, disallowedList) {
-			bestPrice = candidatePrice
-			chosenSpotType = candidate.instanceType
-			cheapest = candidate
-			debug.Println("Best option is now: ", chosenSpotType, " at ", bestPrice)
-		} else if chosenSpotType != "" {
-			debug.Println("Current best option: ", chosenSpotType, " at ", bestPrice)
+			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice})
+			debug.Println("Found compatible and allowed instancetype: ", candidate.instanceType, " at ", candidatePrice, " added to launchcandiatelist")
+		} else if candidate.instanceType != "" {
+			debug.Println("Non compatible option found: ", candidate.instanceType, " at ", candidatePrice, " - discarding")
+		} else {
+
 		}
 	}
-	if chosenSpotType != "" {
-		debug.Println("Cheapest compatible spot instance found: ", chosenSpotType)
-		return cheapest, nil
+
+	if acceptableInstanceTypes != nil {
+		sort.Slice(acceptableInstanceTypes, func(i, j int) bool {
+			return acceptableInstanceTypes[i].price < acceptableInstanceTypes[j].price
+		})
+		debug.Println("List of cheapest compatible spot instances found, sorted ascending by price: ",
+			acceptableInstanceTypes)
+		var result []instanceTypeInformation
+		for _, ai := range acceptableInstanceTypes {
+			result = append(result, ai.instanceTI)
+		}
+		return result, nil
 	}
-	return cheapest, fmt.Errorf("No cheaper spot instance types could be found")
+
+	return nil, fmt.Errorf("No cheaper spot instance types could be found")
 }
 
 func (i *instance) launchSpotReplacement() error {
-	instanceType, err := i.getCheapestCompatibleSpotInstanceType(
+	instanceTypes, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(
 		i.asg.getAllowedInstanceTypes(i),
 		i.asg.getDisallowedInstanceTypes(i))
 
@@ -329,24 +344,34 @@ func (i *instance) launchSpotReplacement() error {
 		return err
 	}
 
-	bidPrice := i.getPricetoBid(instanceType.pricing.onDemand,
-		instanceType.pricing.spot[*i.Placement.AvailabilityZone])
+	//Go through all compatible instances until one type launches or we are out of options.
+	for _, instanceType := range instanceTypes {
+		bidPrice := i.getPricetoBid(instanceType.pricing.onDemand,
+			instanceType.pricing.spot[*i.Placement.AvailabilityZone])
 
-	runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
-	resp, err := i.region.services.ec2.RunInstances(runInstancesInput)
+		runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
+		resp, err := i.region.services.ec2.RunInstances(runInstancesInput)
 
-	if err != nil {
-		logger.Println("Couldn't launch spot instance:", err.Error())
-		debug.Println(runInstancesInput)
-		return err
+		if err != nil {
+			if strings.Contains(err.Error(), "InsufficientInstanceCapacity") {
+				logger.Println("Couldn't launch spot instance due to lack of capcity, trying next instance type:", err.Error())
+			} else {
+				logger.Println("Couldn't launch spot instance:", err.Error())
+				debug.Println(runInstancesInput)
+				return err
+			}
+		} else {
+			spotInst := resp.Instances[0]
+			logger.Println(i.asg.name, "Created spot instance", *spotInst.InstanceId)
+
+			debug.Println("RunInstances response:", spew.Sdump(resp))
+
+			return nil
+		}
 	}
 
-	spotInst := resp.Instances[0]
-	logger.Println(i.asg.name, "Created spot instance", *spotInst.InstanceId)
-
-	debug.Println("RunInstances response:", spew.Sdump(resp))
-
-	return nil
+	logger.Println(i.asg.name, "Exhausted all compatible instance types without launch success. Aborting.")
+	return err
 }
 
 func (i *instance) getPricetoBid(
