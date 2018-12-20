@@ -220,6 +220,7 @@
               Action:
                 - "autoscaling:AttachInstances"
                 - "autoscaling:DescribeAutoScalingGroups"
+                - "autoscaling:DescribeAutoScalingInstances"
                 - "autoscaling:DescribeLaunchConfigurations"
                 - "autoscaling:DescribeTags"
                 - "autoscaling:DetachInstances"
@@ -281,4 +282,23 @@
                 - "Arn"
             Id: "AutoSpottingEventGenerator"
       Type: "AWS::Events::Rule"
-
+    SpotTerminationEventRule:
+      Properties: 
+        Description: "EventRule for launching AutoSpotting Lambda function when a spot instance termination notification is triggered"
+        EventPattern: {
+          "source": [
+            "aws.ec2"
+          ],
+          "detail-type": [
+            "EC2 Spot Instance Interruption Warning"
+          ]
+        }
+        State: "ENABLED"
+        Targets:
+          -
+            Arn:
+              Fn::GetAtt:
+                - "LambdaFunction"
+                - "Arn"
+            Id: "AutoSpottingTerminationEventGenerator"    
+      Type: AWS::Events::Rule
