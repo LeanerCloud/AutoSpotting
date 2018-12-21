@@ -99,8 +99,8 @@ func Handler(ctx context.Context, event events.CloudWatchEvent) {
 	}
 
 	if instanceID != nil {
-		spotTermination := autospotting.SpotTermination{}
-		spotTermination.DetachInstance(instanceID, event.Region)
+		spotTermination := autospotting.NewSpotTermination(event.Region)
+		spotTermination.DetachInstance(instanceID)
 	} else {
 		run()
 	}

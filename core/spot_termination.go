@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -23,6 +24,20 @@ type instanceData struct {
 	InstanceAction string `json:"instance-action"`
 }
 
+//NewSpotTermination is a constructor for creating an instance of spotTermination to call DetachInstance
+func NewSpotTermination(region string) SpotTermination {
+
+	log.Println("Connection to region ", region)
+
+	session := session.Must(
+		session.NewSession(&aws.Config{Region: aws.String(region)}))
+
+	return SpotTermination{
+
+		asSvc: autoscaling.New(session),
+	}
+}
+
 //GetInstanceIDDueForTermination checks if the given CloudWatch event data is triggered from a spot termination
 //If it is a termination event for a spot instance, it returns the instance id present in the event data
 func GetInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, error) {
@@ -42,19 +57,16 @@ func GetInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, erro
 
 //DetachInstance detaches the instance from autoscaling group without decrementing the desired capacity
 //This makes sure that the autoscaling group spawns a new instance as soon as this instance is detached
-func (s *SpotTermination) DetachInstance(instanceID *string, region string) error {
+func (s *SpotTermination) DetachInstance(instanceID *string) error {
 
-	log.Printf("Detaching instance %s in region %s", *instanceID, region)
 	if s.asSvc == nil {
-		session := session.Must(
-			session.NewSession(&aws.Config{Region: aws.String(region)}))
-		s.asSvc = autoscaling.New(session)
+		return errors.New("AutoScaling service not defined. Please use NewSpotTermination()")
 	}
 
 	asgName, err := s.getAsgName(instanceID)
 
 	if err != nil {
-		log.Println("Failed to detach instance ", *instanceID)
+		log.Printf("Failed to detach instance %s with err: %s\n", err.Error(), *instanceID)
 		return err
 	}
 
@@ -82,11 +94,10 @@ func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
 
 	result, err := s.asSvc.DescribeAutoScalingInstances(&asParams)
 
-	if err != nil {
-		log.Println(err.Error())
-		return "", err
+	var asgName = ""
+	if err == nil {
+		asgName = *result.AutoScalingInstances[0].AutoScalingGroupName
 	}
 
-	asgName := *result.AutoScalingInstances[0].AutoScalingGroupName
 	return asgName, err
 }

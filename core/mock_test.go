@@ -134,7 +134,8 @@ type mockASG struct {
 	dasgo *autoscaling.DescribeAutoScalingGroupsOutput
 
 	// Describe AutoScalingInstances
-	dasio *autoscaling.DescribeAutoScalingInstancesOutput
+	dasio   *autoscaling.DescribeAutoScalingInstancesOutput
+	dasierr error
 }
 
 func (m mockASG) DetachInstances(*autoscaling.DetachInstancesInput) (*autoscaling.DetachInstancesOutput, error) {
@@ -168,5 +169,5 @@ func (m mockASG) DescribeAutoScalingGroupsPages(input *autoscaling.DescribeAutoS
 }
 
 func (m mockASG) DescribeAutoScalingInstances(inout *autoscaling.DescribeAutoScalingInstancesInput) (*autoscaling.DescribeAutoScalingInstancesOutput, error) {
-	return m.dasio, nil
+	return m.dasio, m.dasierr
 }
