@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -89,8 +90,20 @@ func init() {
 }
 
 // Handler implements the AWS Lambda handler
-func Handler(request events.APIGatewayProxyRequest) {
-	run()
+func Handler(ctx context.Context, event events.CloudWatchEvent) {
+
+	instanceID, err := autospotting.GetInstanceIDDueForTermination(event)
+
+	if err != nil {
+		return
+	}
+
+	if instanceID != nil {
+		spotTermination := autospotting.NewSpotTermination(event.Region)
+		spotTermination.DetachInstance(instanceID)
+	} else {
+		run()
+	}
 }
 
 // Configuration handling
