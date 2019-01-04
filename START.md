@@ -23,19 +23,20 @@
     * [Uninstall via cloudformation](#uninstall-via-cloudformation)
     * [Uninstall via terraform](#uninstall-via-terraform)
 
-## Binary License Notice ## 
+## Binary License Notice ##
 
 All pre-build binaries mentioned in this page are distributed under a
-proprietary [license](BINARY_LICENSE), and can only be used legally for
-up to 14 days, for evaluation purposes.
+proprietary [license](BINARY_LICENSE), and can only be used for evaluation
+purposes as long as the generated savings are less than $1000 monthly.
 
-Project patrons and code contributors can get a long term license. 
-[Here](https://www.patreon.com/cristim) you can also become a patron and 
-see what other benefits this can bring you.
+Project patrons and code contributors can get access to stable builds, which
+have been thoroughly tested and come with enterprise-grade support.
 
 If you don't agree with the terms of this license nor you want to become
-a patron, you can still build it from source code yourself but you'll get very 
-limited support if you do so.
+a patron, you can still build it from source code yourself but you'll get very
+limited community support if you do so.
+
+See https://autospotting.org for more details.
 
 ## Requirements ##
 
@@ -49,7 +50,7 @@ limited support if you do so.
 
 ### Installation options ###
 
-Autospotting can be installed via Cloudformation or Terraform, both install
+Autospotting can be installed via CloudFormation or Terraform, both install
 methods take a number of parameters, which allows you to configure it for
 your own environment. The defaults should be safe enough for most use cases,
 but for testing or more advanced use cases you may want to tweak some of them.
@@ -63,19 +64,19 @@ at the AutoScaling group level based on additional tags set on the group.
 
 The full list of parameters, including relatively detailed explanations about
 them and their overriding group tags can be seen in the CloudFormation AWS
-console or in the variables.tf file.
+console or in the variables.tf file for Terraform.
 
 In case you may want to change some of them later, you can do it at any time by
-updating the stack via Cloudformation or Terraform.
+updating the stack via CloudFormation or Terraform.
 
-Note: even though the Cloudformation stack template is not changing so often
+Note: even though the CloudFormation stack template is not changing so often
 and it may often support multiple software versions, due to possible
 compatibility issues, it is recommended to also update the stack template when
 updating the software version.
 
-### Install via cloudformation ###
+### Install via CloudFormation ###
 
-To install it via cloudformation, you only need to launch a CloudFormation
+To install it via CloudFormation, you only need to launch a CloudFormation
 stack in your account. Click the button below and follow the launch wizard to
 completion, you can safely use the default stack parameters.
 
@@ -300,17 +301,18 @@ be risky, please handle with care.
 
 ### For Elastic Beanstalk ###
 
-* In order to add tags to existing Elastic Beanstalk environment, you will
-  need to rebuild the environment with the spot-enabled tag. Follow this
+* In order to add tags to existing Elastic Beanstalk environment, you will need
+  to rebuild or update the environment with the `spot-enabled` tag. For more
+  details you can follow this
   [guide](http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments)
 
-## Configuration of autospotting ##
+## Configuration of AutoSpotting ##
 
 ### Testing configuration ###
 
-Normally AutoSPotting runs from AWS Lambda, but for testing purposes it can also
+Normally AutoSpotting runs from AWS Lambda, but for testing purposes it can also
 be compiled and executed locally as a command-line tool, which can be very
-useful for implementing and testing new functionality.
+useful for troubleshooting, implementing and testing new functionality.
 
 The algorithm can use custom command-line flags. Much like many other
 command-line tools, you can use the `-h` command line flag to see all the
@@ -391,9 +393,14 @@ have the tag `spot-enabled=true`.   If you wish to narrow the operation of
 autospotting to ASGs that match more specific criteria you can specify the matching
 tags as you see fit.  i.e. `-tag_filters 'spot-enabled=true,Environment=dev,Team=vision'`
 
-**Note**: These configurations are also implemented when running from Lambda,
-where they are actually passed as environment variables set by CloudFormation
-in the Lambda function's configuration.
+#### Note ####
+
+* These configurations are also implemented when running from Lambda, where they
+  are actually passed as environment variables set by CloudFormation in the
+  Lambda function's configuration.
+* The above list may not be up-to-date, please run it locally to see the latest
+  list of supported flags, and if you notice any difference please report it in
+  a Pull request.
 
 ### Running configuration ###
 
@@ -429,10 +436,10 @@ still understand that you want 0 instances, because `0.16 * 3` is equal to
 one instance (`0.17 * 3 = 0.51`). All in all it should work as you expect, but
 this was just to explain some more the functionning of the percentage's math.
 
-### Debug autospotting ###
+### Debugging ###
 
 In certain situations you might want to add verbosity to the project in order
-to understand a bit better what its doing. If you want to do so please run it
+to understand a bit better what it's doing. If you want to do so please run it
 with the following environment variable `AUTOSPOTTING_DEBUG`.
 
 You can do it locally with some custom binary:
@@ -445,11 +452,13 @@ Or you can do it via the Lambda console under the `Environment variables`
 section. Please note those variables aren't exposed via Cloudformation nor via
 terraform.
 
+Please attach the debug output when reporting any issues.
+
 ## Updates and Downgrades ##
 
-The software doesn't auto-update anymore(it used to in the first few versions),
-so you will need to manually perform updates using CloudFormation, based on the
-Travis CI build number of the version you would like to use going forward.
+The software doesn't auto-update, so you will need to manually perform updates
+using CloudFormation, based on the Travis CI build number of the version you
+would like to use going forward.
 
 This method can be used both for upgrades and downgrades, so assuming you would
 like to switch to the build with the number 45, you will need to perform a
@@ -468,16 +477,9 @@ the Travis CI [builds page](https://travis-ci.org/AutoSpotting/AutoSpotting/buil
 
 ### Compatibility notices ###
 
-* As of build 79 the CloudFormation template is also versioned for every
-  subsequent build, but unfortunately **this build also breaks compatibility
-  with older stacks**. If you run an older build you will also need to update
-  the stack when updating to a build later than 79. Although the template rarely
-  changes, it's recommended that you always keep it at the same build as the
-  binary. Make sure you use the following stack parameter on any newer builds:
-
-``` yaml
-LambdaHandlerFunction: handler.Handle
-```
+* The CloudFormation template is also versioned for every build. Although the
+  template rarely changes, it's recommended that you always keep it at the same
+  build number as the binary.
 
 ## Uninstallation ##
 
@@ -487,10 +489,10 @@ outbid and terminated, then replaced by AutoScaling with on-demand ones. This
 is eventually bringing the group to the initial state. If you want, you can
 speed up the process by gradually terminating the spot instances yourself.
 
-The tags set on the group can be deleted at any time you want it to be
-disabled for that group.
+The tags set on the group can be deleted at any time you want it to be disabled
+for that group.
 
-### Uninstall via cloudformation ###
+### Uninstall via CloudFormation ###
 
 You just need to delete the CloudFormation stack:
 
@@ -498,9 +500,9 @@ You just need to delete the CloudFormation stack:
  aws cloudformation delete-stack --stack-name AutoSpotting
 ```
 
-### Uninstall via terraform ###
+### Uninstall via Terraform ###
 
-You just need to delete the elements via terraform:
+You just need to destroy the terraform stack:
 
 ``` shell
  cd terraform/
