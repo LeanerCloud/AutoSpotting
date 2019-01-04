@@ -55,7 +55,7 @@ check the
 
 Some of them can be clicked for more information, you can see if you hover them
 with your mouse pointer, but if you have any questions you can always get in
-touch on [Gitter](https://gitter.im/AutoSpotting/AutoSpotting).
+touch on [Gitter](https://gitter.im/cristim/autospotting).
 
 ## Features and Benefits ##
 
