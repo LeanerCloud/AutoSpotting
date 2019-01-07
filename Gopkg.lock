@@ -9,8 +9,8 @@
     "lambda/messages",
     "lambdacontext"
   ]
-  revision = "fb8f88d824489a878aee1e0badde7d8e129f8767"
-  version = "v1.7.0"
+  revision = "928161204cad89472f9e6b5dd49ce16bc91230de"
+  version = "v1.8.1"
 
 [[projects]]
   branch = "master"
@@ -25,6 +25,7 @@
     "aws/credentials",
     "aws/credentials/ec2rolecreds",
     "aws/credentials/endpointcreds",
+    "aws/credentials/processcreds",
     "aws/credentials/stscreds",
     "aws/csm",
     "aws/defaults",
@@ -50,7 +51,7 @@
     "service/ec2/ec2iface",
     "service/sts"
   ]
-  revision = "3cf1f9e5abce217d906b66f1b092c86bae66209f"
+  revision = "923b7b1b0525654010bcf282e5dc2f7fd455027a"
 
 [[projects]]
   branch = "master"
@@ -59,7 +60,7 @@
     ".",
     "data"
   ]
-  revision = "8e18ab8c896bbe65d6ee10d6815c4fd87fdc11e0"
+  revision = "cb8daac97592ecb47d63475de1af6ea3103ad637"
 
 [[projects]]
   branch = "master"
@@ -70,7 +71,7 @@
 [[projects]]
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
-  revision = "0b12d6b5"
+  revision = "c2b33e84"
 
 [[projects]]
   branch = "master"
@@ -81,8 +82,8 @@
 [[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
-  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
-  version = "v0.8.0"
+  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
+  version = "v0.8.1"
 
 [solve-meta]
   analyzer-name = "dep"

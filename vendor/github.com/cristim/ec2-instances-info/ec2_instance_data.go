@@ -17,6 +17,7 @@ type jsonInstance struct {
 	EnhancedNetworking bool            `json:"enhanced_networking"`
 	VCPURaw            json.RawMessage `json:"vCPU"`
 	VCPU               int
+	PhysicalProcessor  string                  `json:"physical_processor"`
 	Generation         string                  `json:"generation"`
 	EBSIOPS            float32                 `json:"ebs_iops"`
 	NetworkPerformance string                  `json:"network_performance"`
@@ -52,6 +53,7 @@ type StorageConfiguration struct {
 	SSD     bool    `json:"ssd"`
 	Devices int     `json:"devices"`
 	Size    float32 `json:"size"`
+	NVMeSSD bool    `json:"nvme_ssd"`
 }
 
 type RegionPrices struct {
