@@ -111,6 +111,7 @@ type acceptableInstance struct {
 type instanceTypeInformation struct {
 	instanceType             string
 	vCPU                     int
+	PhysicalProcessor        string
 	GPU                      int
 	pricing                  prices
 	memory                   float32
@@ -203,9 +204,41 @@ func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool
 	debug.Println("\tInstance CPU/memory/GPU: ", current.vCPU,
 		" / ", current.memory, " / ", current.GPU)
 
-	return spotCandidate.vCPU >= current.vCPU &&
+	return i.isSameArch(spotCandidate) &&
+		spotCandidate.vCPU >= current.vCPU &&
 		spotCandidate.memory >= current.memory &&
 		spotCandidate.GPU >= current.GPU
+}
+
+func (i *instance) isSameArch(other instanceTypeInformation) bool {
+	thisCPU := i.typeInfo.PhysicalProcessor
+	otherCPU := other.PhysicalProcessor
+
+	ret := (isIntelCompatible(thisCPU) && isIntelCompatible(otherCPU)) ||
+		(isARM(thisCPU) && isARM(otherCPU))
+
+	if !ret {
+		debug.Println("\tInstance CPU architecture mismatch ", thisCPU, otherCPU)
+	}
+	return ret
+}
+
+func isIntelCompatible(cpuName string) bool {
+	return isIntel(cpuName) || isAMD(cpuName)
+}
+
+func isIntel(cpuName string) bool {
+	// t1.micro seems to be the only one to have this set to 'Variable'
+	return strings.Contains(cpuName, "Intel") || strings.Contains(cpuName, "Variable")
+}
+
+func isAMD(cpuName string) bool {
+	return strings.Contains(cpuName, "AMD")
+}
+
+func isARM(cpuName string) bool {
+	// The ARM chips are so far all called "AWS Graviton Processor"
+	return strings.Contains(cpuName, "AWS")
 }
 
 func (i *instance) isEBSCompatible(spotCandidate instanceTypeInformation) bool {

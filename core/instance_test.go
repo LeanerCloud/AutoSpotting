@@ -381,8 +381,9 @@ func TestIsClassCompatible(t *testing.T) {
 	}{
 		{name: "Spot is higher in both CPU & memory",
 			spotInfo: instanceTypeInformation{
-				vCPU:   10,
-				memory: 2.5,
+				vCPU:              10,
+				memory:            2.5,
+				PhysicalProcessor: "Intel",
 			},
 			instanceCPU:    5,
 			instanceMemory: 1.0,
@@ -390,8 +391,9 @@ func TestIsClassCompatible(t *testing.T) {
 		},
 		{name: "Spot is lower in CPU but higher in memory",
 			spotInfo: instanceTypeInformation{
-				vCPU:   10,
-				memory: 2.5,
+				vCPU:              10,
+				memory:            2.5,
+				PhysicalProcessor: "Intel",
 			},
 			instanceCPU:    15,
 			instanceMemory: 1.0,
@@ -399,8 +401,9 @@ func TestIsClassCompatible(t *testing.T) {
 		},
 		{name: "Spot is lower in memory but higher in CPU",
 			spotInfo: instanceTypeInformation{
-				vCPU:   10,
-				memory: 2.5,
+				vCPU:              10,
+				memory:            2.5,
+				PhysicalProcessor: "Intel",
 			},
 			instanceCPU:    5,
 			instanceMemory: 10.0,
@@ -408,8 +411,9 @@ func TestIsClassCompatible(t *testing.T) {
 		},
 		{name: "Spot is lower in both CPU & memory",
 			spotInfo: instanceTypeInformation{
-				vCPU:   10,
-				memory: 2.5,
+				vCPU:              10,
+				memory:            2.5,
+				PhysicalProcessor: "Intel",
 			},
 			instanceCPU:    15,
 			instanceMemory: 5.0,
@@ -417,9 +421,10 @@ func TestIsClassCompatible(t *testing.T) {
 		},
 		{name: "Spot is lower in CPU, memory and GPU ",
 			spotInfo: instanceTypeInformation{
-				vCPU:   10,
-				memory: 2.5,
-				GPU:    0,
+				vCPU:              10,
+				memory:            2.5,
+				GPU:               0,
+				PhysicalProcessor: "Intel",
 			},
 			instanceCPU:    15,
 			instanceMemory: 5.0,
@@ -429,9 +434,10 @@ func TestIsClassCompatible(t *testing.T) {
 
 		{name: "Spot is higher in CPU, memory and GPU ",
 			spotInfo: instanceTypeInformation{
-				vCPU:   10,
-				memory: 20,
-				GPU:    4,
+				vCPU:              10,
+				memory:            20,
+				GPU:               4,
+				PhysicalProcessor: "Intel",
 			},
 			instanceCPU:    8,
 			instanceMemory: 4,
@@ -443,8 +449,9 @@ func TestIsClassCompatible(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			i := &instance{typeInfo: instanceTypeInformation{
-				vCPU:   tt.instanceCPU,
-				memory: tt.instanceMemory,
+				vCPU:              tt.instanceCPU,
+				memory:            tt.instanceMemory,
+				PhysicalProcessor: "Intel",
 			},
 			}
 			retValue := i.isClassCompatible(tt.spotInfo)
@@ -650,6 +657,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						},
 					},
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -666,6 +674,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						},
 					},
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -682,6 +691,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						},
 					},
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -698,6 +708,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 				},
 				typeInfo: instanceTypeInformation{
 					instanceType:             "typeX",
+					PhysicalProcessor:        "Intel",
 					vCPU:                     10,
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
@@ -740,6 +751,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						},
 					},
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -756,6 +768,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						},
 					},
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -773,6 +786,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 				typeInfo: instanceTypeInformation{
 					instanceType:             "typeX",
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -786,6 +800,9 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"id-1": {
+							typeInfo: instanceTypeInformation{
+								PhysicalProcessor: "Intel",
+							},
 							Instance: &ec2.Instance{
 								InstanceId:        aws.String("id-1"),
 								InstanceType:      aws.String("typeX"),
@@ -815,6 +832,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						},
 					},
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -831,6 +849,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						},
 					},
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -847,6 +866,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 				},
 				typeInfo: instanceTypeInformation{
 					instanceType:             "typeX",
+					PhysicalProcessor:        "Intel",
 					vCPU:                     10,
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
@@ -890,6 +910,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						},
 					},
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -906,6 +927,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						},
 					},
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -923,6 +945,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 				typeInfo: instanceTypeInformation{
 					instanceType:             "typeX",
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -966,6 +989,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						},
 					},
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -982,6 +1006,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 						},
 					},
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -999,6 +1024,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 				typeInfo: instanceTypeInformation{
 					instanceType:             "typeX",
 					vCPU:                     10,
+					PhysicalProcessor:        "Intel",
 					memory:                   2.5,
 					instanceStoreDeviceCount: 1,
 					instanceStoreDeviceSize:  50.0,
@@ -1925,6 +1951,167 @@ func Test_instance_isReadyToAttach(t *testing.T) {
 
 			if got := tt.instance.isReadyToAttach(tt.asg); got != tt.want {
 				t.Errorf("instance.isReadyToAttach() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_instance_isSameArch(t *testing.T) {
+
+	tests := []struct {
+		name          string
+		instance      instance
+		spotCandidate instanceTypeInformation
+		want          bool
+	}{
+		{
+			name: "Same architecture: both Intel",
+			instance: instance{
+				typeInfo: instanceTypeInformation{
+					PhysicalProcessor: "Intel",
+				},
+			},
+			spotCandidate: instanceTypeInformation{
+				PhysicalProcessor: "Intel",
+			},
+			want: true,
+		},
+
+		{
+			name: "Same architecture: both AMD",
+			instance: instance{
+				typeInfo: instanceTypeInformation{
+					PhysicalProcessor: "AMD",
+				},
+			},
+			spotCandidate: instanceTypeInformation{
+				PhysicalProcessor: "AMD",
+			},
+			want: true,
+		},
+
+		{
+			name: "Same architecture: Intel and AMD",
+			instance: instance{
+				typeInfo: instanceTypeInformation{
+					PhysicalProcessor: "Intel",
+				},
+			},
+			spotCandidate: instanceTypeInformation{
+				PhysicalProcessor: "AMD",
+			},
+			want: true,
+		},
+
+		{
+			name: "Same architecture: AMD and Intel",
+			instance: instance{
+				typeInfo: instanceTypeInformation{
+					PhysicalProcessor: "AMD",
+				},
+			},
+			spotCandidate: instanceTypeInformation{
+				PhysicalProcessor: "Intel",
+			},
+			want: true,
+		},
+
+		{
+			name: "Same architecture: Intel and Variable",
+			instance: instance{
+				typeInfo: instanceTypeInformation{
+					PhysicalProcessor: "Intel",
+				},
+			},
+			spotCandidate: instanceTypeInformation{
+				PhysicalProcessor: "Variable",
+			},
+			want: true,
+		},
+
+		{
+			name: "Same architecture: Variable and Intel",
+			instance: instance{
+				typeInfo: instanceTypeInformation{
+					PhysicalProcessor: "Variable",
+				},
+			},
+			spotCandidate: instanceTypeInformation{
+				PhysicalProcessor: "Intel",
+			},
+			want: true,
+		},
+
+		{
+			name: "Same architecture, both ARM-based",
+			instance: instance{
+				typeInfo: instanceTypeInformation{
+					PhysicalProcessor: "AWS",
+				},
+			},
+			spotCandidate: instanceTypeInformation{
+				PhysicalProcessor: "AWS",
+			},
+			want: true,
+		},
+
+		{
+			name: "Different architecture, Intel and ARM",
+			instance: instance{
+				typeInfo: instanceTypeInformation{
+					PhysicalProcessor: "Intel",
+				},
+			},
+			spotCandidate: instanceTypeInformation{
+				PhysicalProcessor: "AWS",
+			},
+			want: false,
+		},
+
+		{
+			name: "Different architecture, AMD and ARM",
+			instance: instance{
+				typeInfo: instanceTypeInformation{
+					PhysicalProcessor: "Intel",
+				},
+			},
+			spotCandidate: instanceTypeInformation{
+				PhysicalProcessor: "AWS",
+			},
+			want: false,
+		},
+
+		{
+			name: "Different architecture, ARM and Intel",
+			instance: instance{
+				typeInfo: instanceTypeInformation{
+					PhysicalProcessor: "AWS",
+				},
+			},
+			spotCandidate: instanceTypeInformation{
+				PhysicalProcessor: "Intel",
+			},
+			want: false,
+		},
+
+		{
+			name: "Different architecture, ARM and AMD",
+			instance: instance{
+				typeInfo: instanceTypeInformation{
+					PhysicalProcessor: "AWS",
+				},
+			},
+			spotCandidate: instanceTypeInformation{
+				PhysicalProcessor: "AMD",
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.instance.isSameArch(tt.spotCandidate); got != tt.want {
+				t.Errorf("instance.isSameArch() = %v, want %v", got, tt.want)
 			}
 		})
 	}
