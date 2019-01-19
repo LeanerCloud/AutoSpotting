@@ -215,6 +215,7 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 			info = instanceTypeInformation{
 				instanceType:        it.InstanceType,
 				vCPU:                it.VCPU,
+				PhysicalProcessor:   it.PhysicalProcessor,
 				memory:              it.Memory,
 				GPU:                 it.GPU,
 				pricing:             price,
