@@ -21,4 +21,6 @@ module "autospotting" {
   lambda_timeout       = "${var.lambda_timeout}"
   lambda_run_frequency = "${var.lambda_run_frequency}"
   lambda_tags          = "${var.lambda_tags}"
+
+  label_context        = "${module.label.context}"
 }

@@ -119,3 +119,9 @@ variable "lambda_tags" {
   description = "Tags to be applied to the Lambda function"
   type        = "map"
 }
+
+# Label configuration
+variable "label_context" {
+  type        = "map"
+  description = "Used to pass in label module context"
+}
