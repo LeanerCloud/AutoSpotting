@@ -22,5 +22,12 @@ module "autospotting" {
   lambda_run_frequency = "${var.lambda_run_frequency}"
   lambda_tags          = "${var.lambda_tags}"
 
-  label_context        = "${module.label.context}"
+  label_context     = "${module.label.context}"
+  label_namespace   = "${module.label.namespace}"
+  label_environment = "${module.label.environment}"
+  label_stage       = "${module.label.stage}"
+  label_name        = "${module.label.name}"
+  label_attributes  = "${module.label.attributes}"
+  label_tags        = "${module.label.tags}"
+  label_delimiter   = "${module.label.delimiter}"
 }
