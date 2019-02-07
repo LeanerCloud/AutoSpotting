@@ -119,3 +119,47 @@ variable "lambda_tags" {
   description = "Tags to be applied to the Lambda function"
   type        = "map"
 }
+
+# Label configuration
+variable "label_context" {
+  description = "Used to pass in label module context"
+  type        = "map"
+  default     = {}
+}
+
+variable "label_namespace" {
+  description = "Namespace, which could be your organization name or abbreviation"
+  default     = ""
+}
+
+variable "label_environment" {
+  description = "Environment, e.g. 'prod', 'staging', 'dev', 'pre-prod', 'UAT'"
+  default     = ""
+}
+
+variable "label_stage" {
+  description = "Stage, e.g. 'prod', 'staging', 'dev', OR 'source', 'build', 'test', 'deploy', 'release'"
+  default     = ""
+}
+
+variable "label_name" {
+  description = "Solution name, e.g. 'autospotting' or 'autospotting-storage-optimized'"
+  default     = "autospotting"
+}
+
+variable "label_attributes" {
+  type        = "list"
+  description = "Additional attributes (e.g. 1)"
+  default     = []
+}
+
+variable "label_tags" {
+  description = "Additional tags (e.g. map('BusinessUnit','XYZ')"
+  type        = "map"
+  default     = {}
+}
+
+variable "label_delimiter" {
+  description = "Delimiter to be used between namespace, environment, stage, name and attributes"
+  default     = "-"
+}
