@@ -21,7 +21,7 @@ module "autospotting" {
 }
 ```
 
-You can also use the module from this repository, but you'll also need to provide a reference to the autospotting binaries: 
+You can also use the module from this repository, but you'll also need to provide a reference to the autospotting binaries:
 
 ```hcl
 module "autospotting" {
@@ -69,7 +69,6 @@ Or you can pass them in on the command line:
 ```
 
 Note: due to version differences between the Terraform Registry module and the module in this repository, the available variables might be different.
-
 
 ## Using custom binaries ##
 
