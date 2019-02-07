@@ -24,17 +24,19 @@ module "aws_lambda_function" {
   autospotting_regions_enabled              = "${var.autospotting_regions_enabled}"
   autospotting_tag_filters                  = "${var.autospotting_tag_filters}"
   autospotting_tag_filtering_mode           = "${var.autospotting_tag_filtering_mode}"
+
+  label_context = "${module.label.context}"
 }
 
 resource "aws_iam_role" "autospotting_role" {
-  name                  = "autospotting"
+  name                  = "${module.label.id}"
   path                  = "/lambda/"
   assume_role_policy    = "${file("${path.module}/lambda-policy.json")}"
   force_detach_policies = true
 }
 
 resource "aws_iam_role_policy" "autospotting_policy" {
-  name   = "policy_for_autospotting"
+  name   = "policy_for_${module.label.id}"
   role   = "${aws_iam_role.autospotting_role.id}"
   policy = "${file("${path.module}/autospotting-policy.json")}"
 }
@@ -54,11 +56,11 @@ resource "aws_cloudwatch_event_target" "cloudwatch_target" {
 }
 
 resource "aws_cloudwatch_event_rule" "cloudwatch_frequency" {
-  name                = "autospotting_frequency"
+  name                = "${module.label.id}_frequency"
   schedule_expression = "${var.lambda_run_frequency}"
 }
 
 resource "aws_cloudwatch_log_group" "log_group_autospotting" {
-  name              = "/aws/lambda/${module.aws_lambda_function.function_name}"
+  name              = "/aws/lambda/${module.label.id}"
   retention_in_days = 7
 }
