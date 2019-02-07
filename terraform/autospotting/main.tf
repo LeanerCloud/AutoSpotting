@@ -1,11 +1,23 @@
+module "label" {
+  source      = "git::https://github.com/cloudposse/terraform-null-label.git?ref=0.5.4"
+  context     = "${var.label_context}"
+  namespace   = "${var.label_namespace}"
+  environment = "${var.label_environment}"
+  stage       = "${var.label_stage}"
+  name        = "${var.label_name}"
+  attributes  = ["${var.label_attributes}"]
+  tags        = "${var.label_tags}"
+  delimiter   = "${var.label_delimiter}"
+}
+
 module "aws_lambda_function" {
   source = "./lambda"
 
-  lambda_zipname = "${var.lambda_zipname}"
+  label_context = "${module.label.context}"
 
-  lambda_s3_bucket = "${var.lambda_s3_bucket}"
-  lambda_s3_key    = "${var.lambda_s3_key}"
-
+  lambda_zipname     = "${var.lambda_zipname}"
+  lambda_s3_bucket   = "${var.lambda_s3_bucket}"
+  lambda_s3_key      = "${var.lambda_s3_key}"
   lambda_role_arn    = "${aws_iam_role.autospotting_role.arn}"
   lambda_runtime     = "${var.lambda_runtime}"
   lambda_timeout     = "${var.lambda_timeout}"
@@ -24,8 +36,6 @@ module "aws_lambda_function" {
   autospotting_regions_enabled              = "${var.autospotting_regions_enabled}"
   autospotting_tag_filters                  = "${var.autospotting_tag_filters}"
   autospotting_tag_filtering_mode           = "${var.autospotting_tag_filtering_mode}"
-
-  label_context = "${module.label.context}"
 }
 
 resource "aws_iam_role" "autospotting_role" {
