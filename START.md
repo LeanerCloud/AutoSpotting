@@ -18,7 +18,6 @@
     * [Compatibility notices](#compatibility-notices)
   * [Uninstallation](#uninstallation)
     * [Uninstall via cloudformation](#uninstall-via-cloudformation)
-    * [Uninstall via terraform](#uninstall-via-terraform)
 
 ## Binary License Notice ##
 
@@ -99,10 +98,7 @@ Notes:
 
 ### Install via terraform ###
 
-You need to have [terraform](https://www.terraform.io/downloads.html) installed
-on your machine.
-
-For detailed information on using our terraform module you can read this [document](terraform/README.md)
+A terraform module for AutoSpotting is published in at [https://github.com/AutoSpotting/terraform-aws-autospotting](https://github.com/AutoSpotting/terraform-aws-autospotting).
 
 ### Install as Kubernetes cronjob ###
 
@@ -391,7 +387,3 @@ You just need to delete the CloudFormation stack:
 ``` shell
  aws cloudformation delete-stack --stack-name AutoSpotting
 ```
-
-### Uninstall via Terraform ###
-
-[Instructions](terraform/README.md#uninstall)

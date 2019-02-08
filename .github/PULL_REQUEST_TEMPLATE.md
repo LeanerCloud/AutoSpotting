@@ -51,7 +51,7 @@ The code review should be largely a matter of going through this checklist.
    variables which are also passed as parameters to the
    [CloudFormation](https://github.com/cristim/autospotting/blob/master/cloudformation/stacks/AutoSpotting/template.yaml)
    and
-   [Terraform](https://github.com/cristim/autospotting/blob/master/terraform/autospotting.tf)
+   [Terraform](https://github.com/autospotting/terraform-aws-autospotting/main.tf)
    stacks defined as infrastructure code.
 1. [ ] Global configurations set from the infrastructure stack level should also
    support per-group overrides using tags.
