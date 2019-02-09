@@ -133,7 +133,7 @@ answer them while reviewing the pull request.
 ## Getting Started ##
 
 Just like in the above animation, it's as easy as launching a CloudFormation (or
-[Terraform](https://github.com/AutoSpotting/AutoSpotting/tree/master/terraform))
+[Terraform](https://github.com/AutoSpotting/terraform-aws-autospotting))
 stack and setting the (configurable) `spot-enabled` tag on the AutoScaling
 groups where you want it enabled to `true`.
 
