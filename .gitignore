@@ -6,7 +6,4 @@ coverage.out
 handler.zip
 *.coverprofile
 .idea/
-terraform/.terraform/
-terraform.tfstate*
 Makefile.lambda
-.terraform/
