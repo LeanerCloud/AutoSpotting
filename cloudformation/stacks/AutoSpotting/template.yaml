@@ -251,6 +251,8 @@
                 - "sns:GetTopicAttributes"
                 - "sns:SetTopicAttributes"
                 - "sns:Subscribe"
+                - "lambda:AddPermission"
+                - "lambda:RemovePermission"
               Effect: "Allow"
               Resource: "*"
         PolicyName: "LambdaPolicy"
@@ -332,6 +334,42 @@
                           "Protocol": "lambda"
                         }
                       ]                  
+                    }
+                  },
+                  "LambdaPermissionAutoSpotTerminationNotificationTopic": {
+                    "Type": "AWS::Lambda::Permission",
+                    "Properties": {
+                      "Action": "lambda:InvokeFunction",
+                      "FunctionName": lambda_arn,
+                      "Principal": "sns.amazonaws.com",
+                      "SourceArn": {
+                        "Ref": "AutoSpotTerminationNotificationTopic"
+                      }
+                    }
+                  },
+                  "SNSTopicPolicyAutoSpotTeminationEventRule": {
+                    "Type": "AWS::SNS::TopicPolicy",
+                    "Properties": {
+                      "PolicyDocument": {
+                        "Statement": [
+                          {
+                            "Action": "sns:Publish",
+                            "Effect": "Allow",
+                            "Principal": {
+                              "Service": "events.amazonaws.com"
+                            },
+                            "Resource": {
+                              "Ref": "AutoSpotTerminationNotificationTopic"
+                            }
+                          }
+                        ],
+                        "Version": "2012-10-17"
+                      },
+                      "Topics": [
+                        {
+                          "Ref": "AutoSpotTerminationNotificationTopic"
+                        }
+                      ]
                     }
                   },
                   "AutoSpotTeminationEventRule": {
