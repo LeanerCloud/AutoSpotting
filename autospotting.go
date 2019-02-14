@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"strings"
-	"encoding/json"
 
 	"github.com/AutoSpotting/AutoSpotting/core"
 	"github.com/aws/aws-lambda-go/events"
@@ -102,7 +102,7 @@ func Handler(ctx context.Context, rawEvent json.RawMessage) {
 	}
 
 	if snsEvent.Records == nil {
-	        run()
+		run()
 	} else {
 		snsRecord := snsEvent.Records[0]
 		snsRegion := strings.Split(snsRecord.EventSubscriptionArn, ":")[3]
@@ -110,18 +110,18 @@ func Handler(ctx context.Context, rawEvent json.RawMessage) {
 		var cloudwatchEvent events.CloudWatchEvent
 
 		if err := json.Unmarshal(snsMessage, &cloudwatchEvent); err != nil {
-		        log.Println(err.Error())
+			log.Println(err.Error())
 			return
 		}
 
 		instanceID, err := autospotting.GetInstanceIDDueForTermination(cloudwatchEvent)
 
 		if err != nil {
-		        return
+			return
 		}
 
 		if instanceID != nil {
-		        spotTermination := autospotting.NewSpotTermination(snsRegion)
+			spotTermination := autospotting.NewSpotTermination(snsRegion)
 			spotTermination.DetachInstance(instanceID)
 		}
 	}
