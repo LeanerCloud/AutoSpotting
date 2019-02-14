@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/AutoSpotting/AutoSpotting/core"
 	"github.com/aws/aws-lambda-go/events"
@@ -90,19 +92,38 @@ func init() {
 }
 
 // Handler implements the AWS Lambda handler
-func Handler(ctx context.Context, event events.CloudWatchEvent) {
+func Handler(ctx context.Context, rawEvent json.RawMessage) {
 
-	instanceID, err := autospotting.GetInstanceIDDueForTermination(event)
+	var snsEvent events.SNSEvent
 
-	if err != nil {
+	if err := json.Unmarshal(rawEvent, &snsEvent); err != nil {
+		log.Println(err.Error())
 		return
 	}
 
-	if instanceID != nil {
-		spotTermination := autospotting.NewSpotTermination(event.Region)
-		spotTermination.DetachInstance(instanceID)
-	} else {
+	if snsEvent.Records == nil {
 		run()
+	} else {
+		snsRecord := snsEvent.Records[0]
+		snsRegion := strings.Split(snsRecord.EventSubscriptionArn, ":")[3]
+		var snsMessage = []byte(snsRecord.SNS.Message)
+		var cloudwatchEvent events.CloudWatchEvent
+
+		if err := json.Unmarshal(snsMessage, &cloudwatchEvent); err != nil {
+			log.Println(err.Error())
+			return
+		}
+
+		instanceID, err := autospotting.GetInstanceIDDueForTermination(cloudwatchEvent)
+
+		if err != nil {
+			return
+		}
+
+		if instanceID != nil {
+			spotTermination := autospotting.NewSpotTermination(snsRegion)
+			spotTermination.DetachInstance(instanceID)
+		}
 	}
 }
 
