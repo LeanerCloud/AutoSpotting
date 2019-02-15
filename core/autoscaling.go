@@ -357,14 +357,14 @@ func (a *autoScalingGroup) process() {
 
 	spotInstanceID = *spotInstance.InstanceId
 
-	if !a.needReplaceOnDemandInstances() {
-		logger.Println("Spot instance", spotInstanceID, "is not need anymore by ASG",
-			a.name, "terminating the spot instance.")
-		spotInstance.terminate()
-		return
-	}
-	if !spotInstance.isReadyToAttach(a) {
-		logger.Println("Waiting for next run while processing", a.name)
+	if !a.needReplaceOnDemandInstances() || !spotInstance.isReadyToAttach(a) {
+		if !a.needReplaceOnDemandInstances() {
+			logger.Println("Spot instance", spotInstanceID, "is not need anymore by ASG",
+				a.name, "terminating the spot instance.")
+			spotInstance.terminate()
+		} else {
+			logger.Println("Waiting for next run while processing", a.name)
+		}
 		return
 	}
 
