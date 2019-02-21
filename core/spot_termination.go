@@ -117,7 +117,7 @@ func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
 	return asgName, err
 }
 
-// ExecuteAction execute the proper termination action (terminate|detach) based on the value of 
+// ExecuteAction execute the proper termination action (terminate|detach) based on the value of
 // terminationNotificationAction and the presence of a LifecycleHook on ASG.
 func (s *SpotTermination) ExecuteAction(instanceID *string, terminationNotificationAction string) error {
 	if s.asSvc == nil {
