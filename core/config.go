@@ -21,18 +21,18 @@ const (
 	DetachTerminationMethod = "detach"
 
 	// TerminateTerminationNotificationAction terminate the spot instance, which will be terminated
-	// by AWS in 2 minutes, without reducing the ASG capcity, so that a new instance will 
+	// by AWS in 2 minutes, without reducing the ASG capcity, so that a new instance will
 	// be launched. LifeCycle Hooks are triggered.
 	TerminateTerminationNotificationAction = "terminate"
 
 	// DetachTerminationNotificationAction detach the spot instance, which will be terminated
-	// by AWS in 2 minutes, without reducing the ASG capcity, so that a new instance will 
+	// by AWS in 2 minutes, without reducing the ASG capcity, so that a new instance will
 	// be launched. LifeCycle Hooks are not triggered.
-	DetachTerminationNotificationAction =  "detach"
+	DetachTerminationNotificationAction = "detach"
 
 	// AutoTerminationNotificationAction if ASG has a LifeCycleHook with LifecycleTransition = EC2_INSTANCE_TERMINATING
 	// terminate the spot instance (as TerminateTerminationNotificationAction), if not detach it.
-	AutoTerminationNotificationAction =  "auto"
+	AutoTerminationNotificationAction = "auto"
 )
 
 // Config contains a number of flags and static data storing the EC2 instance

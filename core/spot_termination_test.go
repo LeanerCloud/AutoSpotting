@@ -75,7 +75,7 @@ func TestGetInstanceIDDueForTermination(t *testing.T) {
 	}
 }
 
-func TestDetachInstance(t *testing.T) {
+func TestdetachInstance(t *testing.T) {
 
 	asgName := "dummyASGName"
 	instanceID := "dummyInstanceID"
@@ -113,7 +113,7 @@ func TestDetachInstance(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.spotTermination.DetachInstance(&instanceID, asgName)
+			err := tc.spotTermination.detachInstance(&instanceID, asgName)
 			if err != nil && err.Error() != tc.expectedError.Error() {
 				t.Errorf("Error in DetachInstance: expected %s actual %s", tc.expectedError.Error(), err.Error())
 			}
@@ -122,7 +122,7 @@ func TestDetachInstance(t *testing.T) {
 	}
 }
 
-func TestTerminateInstance(t *testing.T) {
+func TestterminateInstance(t *testing.T) {
 
 	asgName := "dummyASGName"
 	instanceID := "dummyInstanceID"
@@ -156,7 +156,7 @@ func TestTerminateInstance(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.spotTermination.TerminateInstance(&instanceID, asgName)
+			err := tc.spotTermination.terminateInstance(&instanceID, asgName)
 			if err != nil && err.Error() != tc.expectedError.Error() {
 				t.Errorf("Error in TerminateInstance: expected %s actual %s", tc.expectedError.Error(), err.Error())
 			}

@@ -63,7 +63,7 @@ func GetInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, erro
 
 //DetachInstance detaches the instance from autoscaling group without decrementing the desired capacity
 //This makes sure that the autoscaling group spawns a new instance as soon as this instance is detached
-func (s *SpotTermination) DetachInstance(instanceID *string, asgName string) error {
+func (s *SpotTermination) detachInstance(instanceID *string, asgName string) error {
 
 	detachParams := autoscaling.DetachInstancesInput{
 		AutoScalingGroupName: aws.String(asgName),
@@ -84,7 +84,7 @@ func (s *SpotTermination) DetachInstance(instanceID *string, asgName string) err
 //TerminateInstance terminate the instance from autoscaling group without decrementing the desired capacity
 //This makes sure that any LifeCycle Hook configured is triggered and the autoscaling group spawns a new instance
 // as soon as this instance begin terminating.
-func (s *SpotTermination) TerminateInstance(instanceID *string, asgName string) error {
+func (s *SpotTermination) terminateInstance(instanceID *string, asgName string) error {
 
 	log.Println(asgName,
 		"Terminating instance:",
@@ -117,6 +117,8 @@ func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
 	return asgName, err
 }
 
+// ExecuteAction execute the proper termination action (terminate|detach) based on the value of 
+// terminationNotificationAction and the presence of a LifecycleHook on ASG.
 func (s *SpotTermination) ExecuteAction(instanceID *string, terminationNotificationAction string) error {
 	if s.asSvc == nil {
 		return errors.New("AutoScaling service not defined. Please use NewSpotTermination()")
@@ -131,21 +133,21 @@ func (s *SpotTermination) ExecuteAction(instanceID *string, terminationNotificat
 
 	switch terminationNotificationAction {
 	case "detach":
-		s.DetachInstance(instanceID, asgName)
+		s.detachInstance(instanceID, asgName)
 	case "terminate":
-		s.TerminateInstance(instanceID, asgName)
+		s.terminateInstance(instanceID, asgName)
 	default:
-		if s.AsgHasHook(&asgName) {
-			s.TerminateInstance(instanceID, asgName)
+		if s.asgHasHook(&asgName) {
+			s.terminateInstance(instanceID, asgName)
 		} else {
-			s.DetachInstance(instanceID, asgName)
+			s.detachInstance(instanceID, asgName)
 		}
 	}
 
 	return nil
 }
 
-func (s *SpotTermination) AsgHasHook(autoScalingGroupName *string) bool {
+func (s *SpotTermination) asgHasHook(autoScalingGroupName *string) bool {
 	asParams := autoscaling.DescribeLifecycleHooksInput{
 		AutoScalingGroupName: autoScalingGroupName,
 	}
