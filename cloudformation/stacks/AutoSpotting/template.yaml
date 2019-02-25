@@ -45,7 +45,7 @@
         - "auto"
         - "detach"
         - "terminate"
-      Default: "terminate"
+      Default: "auto"
       Description: >
         "Action to do when receiving a Spot Instance Termination Notification.
         Must be one of 'auto' (terminate if lifecyclehook else detach) [default],

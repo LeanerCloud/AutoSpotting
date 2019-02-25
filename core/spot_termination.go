@@ -137,7 +137,7 @@ func (s *SpotTermination) ExecuteAction(instanceID *string, terminationNotificat
 	case "terminate":
 		s.terminateInstance(instanceID, asgName)
 	default:
-		if s.asgHasHook(&asgName) {
+		if s.asgHasTerminationLifecycleHook(&asgName) {
 			s.terminateInstance(instanceID, asgName)
 		} else {
 			s.detachInstance(instanceID, asgName)
@@ -147,7 +147,7 @@ func (s *SpotTermination) ExecuteAction(instanceID *string, terminationNotificat
 	return nil
 }
 
-func (s *SpotTermination) asgHasHook(autoScalingGroupName *string) bool {
+func (s *SpotTermination) asgHasTerminationLifecycleHook(autoScalingGroupName *string) bool {
 	asParams := autoscaling.DescribeLifecycleHooksInput{
 		AutoScalingGroupName: autoScalingGroupName,
 	}
