@@ -211,16 +211,16 @@ func TestgetAsgName(t *testing.T) {
 
 func TestExecuteAction(t *testing.T) {
 
-	terminationNotificationAction := "auto"
 	instanceID := "dummyInstanceID"
 	asgName := "dummyASGName"
 	lfhName := "dummyLFHName"
-	lfhTransition := "EC2_INSTANCE_TERMINATING"
+	lfhTransition := "autoscaling:EC2_INSTANCE_TERMINATING"
 
 	tests := []struct {
-		name            string
-		spotTermination *SpotTermination
-		expectedError   error
+		name                          string
+		spotTermination               *SpotTermination
+		expectedError                 error
+		terminationNotificationAction string
 	}{
 		{
 			name:            "When AutoScaling service is nil",
@@ -235,7 +235,7 @@ func TestExecuteAction(t *testing.T) {
 			expectedError: errors.New(""),
 		},
 		{
-			name: "When AutoScaling service returns asgName",
+			name: "When AutoScaling service returns asgName and action is auto",
 			spotTermination: &SpotTermination{
 				asSvc: mockASG{
 					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
@@ -256,13 +256,46 @@ func TestExecuteAction(t *testing.T) {
 					},
 				},
 			},
-			expectedError: nil,
+			expectedError:                 nil,
+			terminationNotificationAction: "auto",
+		},
+		{
+			name: "When AutoScaling service returns asgName and action is terminate",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{
+					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+						AutoScalingInstances: []*autoscaling.InstanceDetails{
+							{
+								AutoScalingGroupName: &asgName,
+							},
+						},
+					},
+				},
+			},
+			expectedError:                 nil,
+			terminationNotificationAction: "terminate",
+		},
+		{
+			name: "When AutoScaling service returns asgName and action is detach",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{
+					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+						AutoScalingInstances: []*autoscaling.InstanceDetails{
+							{
+								AutoScalingGroupName: &asgName,
+							},
+						},
+					},
+				},
+			},
+			expectedError:                 nil,
+			terminationNotificationAction: "detach",
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			err := tc.spotTermination.ExecuteAction(&instanceID, terminationNotificationAction)
+			err := tc.spotTermination.ExecuteAction(&instanceID, tc.terminationNotificationAction)
 
 			if err != nil && err.Error() != tc.expectedError.Error() {
 				t.Errorf("Error in ExecuteAction: expected %s actual %s", tc.expectedError.Error(), err.Error())
