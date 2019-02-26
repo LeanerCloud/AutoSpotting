@@ -79,6 +79,8 @@ func TestDetachInstance(t *testing.T) {
 
 	asgName := "dummyASGName"
 	instanceID := "dummyInstanceID"
+	description := "Detaching EC2 instance: " + instanceID
+	statusCode := "InProgress"
 
 	tests := []struct {
 		name            string
@@ -86,19 +88,101 @@ func TestDetachInstance(t *testing.T) {
 		expectedError   error
 	}{
 		{
-			name:            "When AutoScaling service is nil",
-			spotTermination: &SpotTermination{},
-			expectedError:   errors.New("AutoScaling service not defined. Please use NewSpotTermination()"),
+			name: "When DetachInstances returns error",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{dierr: errors.New("")},
+			},
+			expectedError: errors.New(""),
 		},
 		{
-			name: "When AutoScaling service returns error",
+			name: "When DetachInstances execute successfully",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{dio: &autoscaling.DetachInstancesOutput{
+					Activities: []*autoscaling.Activity{
+						{
+							AutoScalingGroupName: &asgName,
+							Description:          &description,
+							StatusCode:           &statusCode,
+						},
+					},
+				}},
+			},
+			expectedError: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.spotTermination.detachInstance(&instanceID, asgName)
+			if err != nil && err.Error() != tc.expectedError.Error() {
+				t.Errorf("Error in DetachInstance: expected %s actual %s", tc.expectedError.Error(), err.Error())
+			}
+
+		})
+	}
+}
+
+func TestTerminateInstance(t *testing.T) {
+
+	asgName := "dummyASGName"
+	instanceID := "dummyInstanceID"
+	statusCode := "InProgress"
+
+	tests := []struct {
+		name            string
+		spotTermination *SpotTermination
+		expectedError   error
+	}{
+		{
+			name: "When TerminateInstance returns error",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{tiiasgerr: errors.New("")},
+			},
+			expectedError: errors.New(""),
+		},
+		{
+			name: "When TerminateInstance execute successfully",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{tiiasgo: &autoscaling.TerminateInstanceInAutoScalingGroupOutput{
+					Activity: &autoscaling.Activity{
+						AutoScalingGroupName: &asgName,
+						StatusCode:           &statusCode,
+					},
+				}},
+			},
+			expectedError: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.spotTermination.terminateInstance(&instanceID, asgName)
+			if err != nil && err.Error() != tc.expectedError.Error() {
+				t.Errorf("Error in TerminateInstance: expected %s actual %s", tc.expectedError.Error(), err.Error())
+			}
+
+		})
+	}
+}
+
+func TestGetAsgName(t *testing.T) {
+	asgName := "dummyASGName"
+	instanceID := "dummyInstanceID"
+
+	tests := []struct {
+		name            string
+		spotTermination *SpotTermination
+		expectedError   error
+	}{
+		{
+			name: "When DescribeAutoScalingInstances return error",
 			spotTermination: &SpotTermination{
 				asSvc: mockASG{dasierr: errors.New("")},
 			},
 			expectedError: errors.New(""),
 		},
 		{
-			name: "When AutoScaling service returns asgName",
+			name: "When DescribeAutoScalingInstances returns asgName",
 			spotTermination: &SpotTermination{
 				asSvc: mockASG{dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
 					AutoScalingInstances: []*autoscaling.InstanceDetails{
@@ -114,10 +198,107 @@ func TestDetachInstance(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			err := tc.spotTermination.DetachInstance(&instanceID)
+			_, err := tc.spotTermination.getAsgName(&instanceID)
 
 			if err != nil && err.Error() != tc.expectedError.Error() {
-				t.Errorf("Error in DetachInstance: expected %s actual %s", tc.expectedError.Error(), err.Error())
+				t.Errorf("Error in getAsgName: expected %s actual %s", tc.expectedError.Error(), err.Error())
+			}
+
+		})
+	}
+
+}
+
+func TestExecuteAction(t *testing.T) {
+
+	instanceID := "dummyInstanceID"
+	asgName := "dummyASGName"
+	lfhName := "dummyLFHName"
+	lfhTransition := "autoscaling:EC2_INSTANCE_TERMINATING"
+
+	tests := []struct {
+		name                          string
+		spotTermination               *SpotTermination
+		expectedError                 error
+		terminationNotificationAction string
+	}{
+		{
+			name:            "When AutoScaling service is nil",
+			spotTermination: &SpotTermination{},
+			expectedError:   errors.New("AutoScaling service not defined. Please use NewSpotTermination()"),
+		},
+		{
+			name: "When AutoScaling service returns error",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{dasierr: errors.New("")},
+			},
+			expectedError: errors.New(""),
+		},
+		{
+			name: "When AutoScaling service returns asgName and action is auto",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{
+					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+						AutoScalingInstances: []*autoscaling.InstanceDetails{
+							{
+								AutoScalingGroupName: &asgName,
+							},
+						},
+					},
+					dlho: &autoscaling.DescribeLifecycleHooksOutput{
+						LifecycleHooks: []*autoscaling.LifecycleHook{
+							{
+								AutoScalingGroupName: &asgName,
+								LifecycleHookName:    &lfhName,
+								LifecycleTransition:  &lfhTransition,
+							},
+						},
+					},
+				},
+			},
+			expectedError:                 nil,
+			terminationNotificationAction: "auto",
+		},
+		{
+			name: "When AutoScaling service returns asgName and action is terminate",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{
+					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+						AutoScalingInstances: []*autoscaling.InstanceDetails{
+							{
+								AutoScalingGroupName: &asgName,
+							},
+						},
+					},
+				},
+			},
+			expectedError:                 nil,
+			terminationNotificationAction: "terminate",
+		},
+		{
+			name: "When AutoScaling service returns asgName and action is detach",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{
+					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+						AutoScalingInstances: []*autoscaling.InstanceDetails{
+							{
+								AutoScalingGroupName: &asgName,
+							},
+						},
+					},
+				},
+			},
+			expectedError:                 nil,
+			terminationNotificationAction: "detach",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+
+			err := tc.spotTermination.ExecuteAction(&instanceID, tc.terminationNotificationAction)
+
+			if err != nil && err.Error() != tc.expectedError.Error() {
+				t.Errorf("Error in ExecuteAction: expected %s actual %s", tc.expectedError.Error(), err.Error())
 			}
 
 		})

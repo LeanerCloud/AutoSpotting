@@ -49,7 +49,8 @@ func run() {
 		"tag_filters=%s "+
 		"tag_filter_mode=%s "+
 		"spot_product_description=%v "+
-		"instance_termination_method=%s\n",
+		"instance_termination_method=%s "+
+		"termination_notification_action=%s\n",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
@@ -61,7 +62,8 @@ func run() {
 		conf.FilterByTags,
 		conf.TagFilteringMode,
 		conf.SpotProductDescription,
-		conf.InstanceTerminationMethod)
+		conf.InstanceTerminationMethod,
+		conf.TerminationNotificationAction)
 
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")
@@ -122,7 +124,7 @@ func Handler(ctx context.Context, rawEvent json.RawMessage) {
 
 		if instanceID != nil {
 			spotTermination := autospotting.NewSpotTermination(snsRegion)
-			spotTermination.DetachInstance(instanceID)
+			spotTermination.ExecuteAction(instanceID, conf.TerminationNotificationAction)
 		}
 	}
 }
@@ -155,6 +157,12 @@ func (c *cfgData) parseCommandLineFlags() {
 	flag.StringVar(&c.InstanceTerminationMethod, "instance_termination_method", autospotting.DefaultInstanceTerminationMethod,
 		"\n\tInstance termination method.  Must be one of '"+autospotting.DefaultInstanceTerminationMethod+"' (default),\n"+
 			"\t or 'detach' (compatibility mode, not recommended)\n")
+	flag.StringVar(&c.TerminationNotificationAction, "termination_notification_action", autospotting.DefaultTerminationNotificationAction,
+		"\n\tTermination Notification Action.\n"+
+			"\tValid choices:\n"+
+			"\t'"+autospotting.DefaultTerminationNotificationAction+
+			"' (terminate if lifecyclehook else detach) | 'terminate' (lifecyclehook triggered)"+
+			" | 'detach' (lifecyclehook not triggered)\n")
 	flag.Int64Var(&c.MinOnDemandNumber, "min_on_demand_number", autospotting.DefaultMinOnDemandValue,
 		"\n\tNumber of on-demand nodes to be kept running in each of the groups.\n\t"+
 			"Can be overridden on a per-group basis using the tag "+autospotting.OnDemandNumberLong+".\n")

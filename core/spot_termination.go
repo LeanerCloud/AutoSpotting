@@ -12,6 +12,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 )
 
+const (
+	// DefaultTerminationNotificationAction is the default value for the termination notification
+	// action configuration option
+	DefaultTerminationNotificationAction = AutoTerminationNotificationAction
+)
+
 //SpotTermination is used to detach an instance, used when a spot instance is due for termination
 type SpotTermination struct {
 	asSvc autoscalingiface.AutoScalingAPI
@@ -57,18 +63,7 @@ func GetInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, erro
 
 //DetachInstance detaches the instance from autoscaling group without decrementing the desired capacity
 //This makes sure that the autoscaling group spawns a new instance as soon as this instance is detached
-func (s *SpotTermination) DetachInstance(instanceID *string) error {
-
-	if s.asSvc == nil {
-		return errors.New("AutoScaling service not defined. Please use NewSpotTermination()")
-	}
-
-	asgName, err := s.getAsgName(instanceID)
-
-	if err != nil {
-		log.Printf("Failed to detach instance %s with err: %s\n", err.Error(), *instanceID)
-		return err
-	}
+func (s *SpotTermination) detachInstance(instanceID *string, asgName string) error {
 
 	detachParams := autoscaling.DetachInstancesInput{
 		AutoScalingGroupName: aws.String(asgName),
@@ -86,8 +81,28 @@ func (s *SpotTermination) DetachInstance(instanceID *string) error {
 	return nil
 }
 
-func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
+//TerminateInstance terminate the instance from autoscaling group without decrementing the desired capacity
+//This makes sure that any LifeCycle Hook configured is triggered and the autoscaling group spawns a new instance
+// as soon as this instance begin terminating.
+func (s *SpotTermination) terminateInstance(instanceID *string, asgName string) error {
 
+	log.Println(asgName,
+		"Terminating instance:",
+		*instanceID)
+	// terminate the spot instance
+	terminateParams := autoscaling.TerminateInstanceInAutoScalingGroupInput{
+		InstanceId:                     instanceID,
+		ShouldDecrementDesiredCapacity: aws.Bool(false),
+	}
+
+	if _, err := s.asSvc.TerminateInstanceInAutoScalingGroup(&terminateParams); err != nil {
+		logger.Println(err.Error())
+		return err
+	}
+	return nil
+}
+
+func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
 	asParams := autoscaling.DescribeAutoScalingInstancesInput{
 		InstanceIds: []*string{instanceID},
 	}
@@ -100,4 +115,58 @@ func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
 	}
 
 	return asgName, err
+}
+
+// ExecuteAction execute the proper termination action (terminate|detach) based on the value of
+// terminationNotificationAction and the presence of a LifecycleHook on ASG.
+func (s *SpotTermination) ExecuteAction(instanceID *string, terminationNotificationAction string) error {
+	if s.asSvc == nil {
+		return errors.New("AutoScaling service not defined. Please use NewSpotTermination()")
+	}
+
+	asgName, err := s.getAsgName(instanceID)
+
+	if err != nil {
+		log.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
+		return err
+	}
+
+	switch terminationNotificationAction {
+	case "detach":
+		s.detachInstance(instanceID, asgName)
+	case "terminate":
+		s.terminateInstance(instanceID, asgName)
+	default:
+		if s.asgHasTerminationLifecycleHook(&asgName) {
+			s.terminateInstance(instanceID, asgName)
+		} else {
+			s.detachInstance(instanceID, asgName)
+		}
+	}
+
+	return nil
+}
+
+func (s *SpotTermination) asgHasTerminationLifecycleHook(autoScalingGroupName *string) bool {
+	asParams := autoscaling.DescribeLifecycleHooksInput{
+		AutoScalingGroupName: autoScalingGroupName,
+	}
+
+	result, err := s.asSvc.DescribeLifecycleHooks(&asParams)
+
+	if err != nil {
+		logger.Println(err.Error())
+		return false
+	}
+
+	var hasHook = false
+	for _, lfh := range result.LifecycleHooks {
+		if *lfh.LifecycleTransition == "autoscaling:EC2_INSTANCE_TERMINATING" {
+			hasHook = true
+			logger.Println("Found Hook", *lfh.LifecycleHookName)
+			break
+		}
+	}
+
+	return hasHook
 }
