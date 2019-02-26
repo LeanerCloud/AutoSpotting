@@ -75,7 +75,7 @@ func TestGetInstanceIDDueForTermination(t *testing.T) {
 	}
 }
 
-func TestdetachInstance(t *testing.T) {
+func TestDetachInstance(t *testing.T) {
 
 	asgName := "dummyASGName"
 	instanceID := "dummyInstanceID"
@@ -122,7 +122,7 @@ func TestdetachInstance(t *testing.T) {
 	}
 }
 
-func TestterminateInstance(t *testing.T) {
+func TestTerminateInstance(t *testing.T) {
 
 	asgName := "dummyASGName"
 	instanceID := "dummyInstanceID"
@@ -165,7 +165,7 @@ func TestterminateInstance(t *testing.T) {
 	}
 }
 
-func TestgetAsgName(t *testing.T) {
+func TestGetAsgName(t *testing.T) {
 	asgName := "dummyASGName"
 	instanceID := "dummyInstanceID"
 
