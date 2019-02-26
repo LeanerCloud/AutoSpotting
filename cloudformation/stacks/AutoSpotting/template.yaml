@@ -40,6 +40,17 @@
         "Instance termination method.  Must be one of 'autoscaling' (default) or
         'detach' (compatibility mode, not recommended)"
       Type: "String"
+    TerminationNotificationAction:
+      AllowedValues:
+        - "auto"
+        - "detach"
+        - "terminate"
+      Default: "auto"
+      Description: >
+        "Action to do when receiving a Spot Instance Termination Notification.
+        Must be one of 'auto' (terminate if lifecyclehook else detach) [default],
+        'terminate' (lifecyclehook triggered), 'detach' (lifecyclehook not triggered)"
+      Type: "String"
     FilterByTags:
       Default: ""
       Description: >
@@ -195,6 +206,8 @@
               Ref: "TagFilteringMode"
             TAG_FILTERS:
               Ref: "FilterByTags"
+            TERMINATION_NOTIFICATION_ACTION:
+              Ref: "TerminationNotificationAction"
         Handler:
           Ref: "LambdaHandlerFunction"
         MemorySize:
@@ -226,6 +239,7 @@
                 - "autoscaling:DetachInstances"
                 - "autoscaling:TerminateInstanceInAutoScalingGroup"
                 - "autoscaling:UpdateAutoScalingGroup"
+                - "autoscaling:DescribeLifecycleHooks"
                 - "cloudformation:CreateStack"
                 - "cloudformation:DeleteStack"
                 - "cloudformation:Describe*"
