@@ -10,6 +10,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 )
 
 const (
@@ -20,7 +22,8 @@ const (
 
 //SpotTermination is used to detach an instance, used when a spot instance is due for termination
 type SpotTermination struct {
-	asSvc autoscalingiface.AutoScalingAPI
+	asSvc  autoscalingiface.AutoScalingAPI
+	ec2Svc ec2iface.EC2API
 }
 
 //InstanceData represents JSON structure of the Detail property of CloudWatch event when a spot instance is terminated
@@ -40,7 +43,8 @@ func NewSpotTermination(region string) SpotTermination {
 
 	return SpotTermination{
 
-		asSvc: autoscaling.New(session),
+		asSvc:  autoscaling.New(session),
+		ec2Svc: ec2.New(session),
 	}
 }
 
@@ -78,6 +82,9 @@ func (s *SpotTermination) detachInstance(instanceID *string, asgName string) err
 	}
 
 	log.Printf("Detached instance %s successfully", *instanceID)
+
+	s.deleteTagInstanceLaunchedForAsg(instanceID)
+
 	return nil
 }
 
@@ -143,6 +150,29 @@ func (s *SpotTermination) ExecuteAction(instanceID *string, terminationNotificat
 			s.detachInstance(instanceID, asgName)
 		}
 	}
+
+	return nil
+}
+
+func (s *SpotTermination) deleteTagInstanceLaunchedForAsg(instanceID *string) error {
+	ec2Params := ec2.DeleteTagsInput{
+		Resources: []*string{
+			aws.String(*instanceID),
+		},
+		Tags: []*ec2.Tag{
+			{
+				Key: aws.String("launched-for-asg"),
+			},
+		},
+	}
+	_, err := s.ec2Svc.DeleteTags(&ec2Params)
+
+	if err != nil {
+		logger.Printf("Failed to delete Tag 'launched-for-asg' from spot instance %s with err: %s\n", *instanceID, err.Error())
+		return err
+	}
+
+	log.Printf("Tag 'launched-for-asg' delete from spot instance %s", *instanceID)
 
 	return nil
 }
