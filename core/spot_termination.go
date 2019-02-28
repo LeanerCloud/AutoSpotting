@@ -172,7 +172,7 @@ func (s *SpotTermination) deleteTagInstanceLaunchedForAsg(instanceID *string) er
 		return err
 	}
 
-	log.Printf("Tag 'launched-for-asg' delete from spot instance %s", *instanceID)
+	log.Printf("Tag 'launched-for-asg' deleted from spot instance %s", *instanceID)
 
 	return nil
 }
