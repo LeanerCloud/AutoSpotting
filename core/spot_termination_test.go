@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
 func TestNewSpotTermination(t *testing.T) {
@@ -14,7 +15,7 @@ func TestNewSpotTermination(t *testing.T) {
 	region := "foo"
 	spotTermination := NewSpotTermination(region)
 
-	if spotTermination.asSvc == nil {
+	if spotTermination.asSvc == nil || spotTermination.ec2Svc == nil {
 		t.Errorf("Unable to connect to region %s", region)
 	}
 }
@@ -106,6 +107,7 @@ func TestDetachInstance(t *testing.T) {
 						},
 					},
 				}},
+				ec2Svc: mockEC2{dto: &ec2.DeleteTagsOutput{}},
 			},
 			expectedError: nil,
 		},
@@ -209,6 +211,42 @@ func TestGetAsgName(t *testing.T) {
 
 }
 
+func TestDeleteTagInstanceLaunchedForAsg(t *testing.T) {
+	instanceID := "dummyInstanceID"
+
+	tests := []struct {
+		name            string
+		spotTermination *SpotTermination
+		expectedError   error
+	}{
+		{
+			name: "When DeleteTags return error",
+			spotTermination: &SpotTermination{
+				ec2Svc: mockEC2{dterr: errors.New("")},
+			},
+			expectedError: errors.New(""),
+		},
+		{
+			name: "When DeleteTags execute successfully",
+			spotTermination: &SpotTermination{
+				ec2Svc: mockEC2{dto: &ec2.DeleteTagsOutput{}},
+			},
+			expectedError: nil,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+
+			err := tc.spotTermination.deleteTagInstanceLaunchedForAsg(&instanceID)
+
+			if err != nil && err.Error() != tc.expectedError.Error() {
+				t.Errorf("Error in deleteTagInstanceLaunchedForAsg: expected %s actual %s", tc.expectedError.Error(), err.Error())
+
+			}
+		})
+	}
+}
+
 func TestExecuteAction(t *testing.T) {
 
 	instanceID := "dummyInstanceID"
@@ -286,6 +324,9 @@ func TestExecuteAction(t *testing.T) {
 							},
 						},
 					},
+				},
+				ec2Svc: mockEC2{
+					dto: &ec2.DeleteTagsOutput{},
 				},
 			},
 			expectedError:                 nil,
