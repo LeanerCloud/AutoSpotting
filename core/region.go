@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -317,11 +318,46 @@ func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch []Tag) bool {
 	return matchedTags == len(tagsToMatch)
 }
 
+func getTagValueFromASGWithMatchingTag(asg *autoscaling.Group, tagToMatch Tag) *string {
+	for _, asgTag := range asg.Tags {
+		if tagsMatch(asgTag, tagToMatch) {
+			return asgTag.Value
+		}
+	}
+	return nil
+}
+
+func (r *region) isStackUpdating(stackName *string) (string, bool) {
+	stackCompleteStatuses := map[string]struct{}{
+		"CREATE_COMPLETE":          {},
+		"UPDATE_COMPLETE":          {},
+		"UPDATE_ROLLBACK_COMPLETE": {},
+	}
+
+	svc := r.services.cloudFormation
+	input := cloudformation.DescribeStacksInput{
+		StackName: stackName,
+	}
+
+	if output, err := svc.DescribeStacks(&input); err != nil {
+		logger.Println("Failed to describe stack", *stackName, "with error:", err.Error())
+	} else {
+		stackStatus := output.Stacks[0].StackStatus
+		if _, exists := stackCompleteStatuses[*stackStatus]; exists == false {
+			return *stackStatus, true
+		}
+	}
+
+	return "", false
+}
+
 func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
 	tagsToMatch []Tag) []autoScalingGroup {
 
 	var asgs []autoScalingGroup
 	var optInFilterMode = (r.conf.TagFilteringMode != "opt-out")
+
+	tagCloudFormationStackName := Tag{Key: "aws:cloudformation:stack-name", Value: "*"}
 
 	for _, group := range groups {
 		asgName := *group.AutoScalingGroupName
@@ -334,6 +370,15 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
 				"configured filtering mode (%s) and tag filters do not align\n",
 				asgName, r.conf.TagFilteringMode)
 			continue
+		}
+
+		if stackName := getTagValueFromASGWithMatchingTag(group, tagCloudFormationStackName); stackName != nil {
+			logger.Println("Stack: ", *stackName)
+			if status, updating := r.isStackUpdating(stackName); updating {
+				logger.Printf("Skipping group %s because stack %s is in state %s\n",
+					asgName, *stackName, status)
+				continue
+			}
 		}
 
 		logger.Printf("Enabling group %s for processing because its tags, the "+

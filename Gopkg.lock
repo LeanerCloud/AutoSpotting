@@ -47,6 +47,8 @@
     "private/protocol/xml/xmlutil",
     "service/autoscaling",
     "service/autoscaling/autoscalingiface",
+    "service/cloudformation",
+    "service/cloudformation/cloudformationiface",
     "service/ec2",
     "service/ec2/ec2iface",
     "service/sts"
