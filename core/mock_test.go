@@ -8,6 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
+	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 )
@@ -47,7 +49,7 @@ type mockEC2 struct {
 	drerr error
 
 	// Delete Tags
-	dto *ec2.DeleteTagsOutput
+	dto   *ec2.DeleteTagsOutput
 	dterr error
 }
 
@@ -186,4 +188,17 @@ func (m mockASG) DescribeAutoScalingInstances(inout *autoscaling.DescribeAutoSca
 
 func (m mockASG) DescribeLifecycleHooks(*autoscaling.DescribeLifecycleHooksInput) (*autoscaling.DescribeLifecycleHooksOutput, error) {
 	return m.dlho, m.dlherr
+}
+
+// All fields are composed of the abbreviation of their method
+// This is useful when methods are doing multiple calls to AWS API
+type mockCloudFormation struct {
+	cloudformationiface.CloudFormationAPI
+	// DescribeStacks
+	dso   *cloudformation.DescribeStacksOutput
+	dserr error
+}
+
+func (m mockCloudFormation) DescribeStacks(*cloudformation.DescribeStacksInput) (*cloudformation.DescribeStacksOutput, error) {
+	return m.dso, m.dserr
 }

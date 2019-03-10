@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/cristim/ec2-instances-info"
 	"github.com/davecgh/go-spew/spew"
@@ -258,6 +259,9 @@ func TestDefaultASGFiltering(t *testing.T) {
 func TestFilterAsgs(t *testing.T) {
 	// Test invalid regular expression
 	var nullSlice []string
+	stackName := "dummyStackName"
+	stackStatus := "UPDATE_COMPLETE"
+
 	tests := []struct {
 		name    string
 		want    []string
@@ -585,6 +589,16 @@ func TestFilterAsgs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := tt.tregion
+			r.services.cloudFormation = mockCloudFormation{
+				dso: &cloudformation.DescribeStacksOutput{
+					Stacks: []*cloudformation.Stack{
+						{
+							StackName:   &stackName,
+							StackStatus: &stackStatus,
+						},
+					},
+				},
+			}
 			r.scanForEnabledAutoScalingGroups()
 			var asgNames []string
 			for _, name := range r.enabledASGs {
@@ -592,6 +606,60 @@ func TestFilterAsgs(t *testing.T) {
 			}
 			if !reflect.DeepEqual(tt.want, asgNames) {
 				t.Errorf("region.scanForEnabledAutoScalingGroups() = %v, want %v", asgNames, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsStackUpdating(t *testing.T) {
+	stackName := "dummyStackName"
+
+	tests := []struct {
+		name   string
+		region *region
+		want   bool
+	}{
+		{
+			name: "Stack is not updating",
+			region: &region{
+				services: connections{
+					cloudFormation: mockCloudFormation{
+						dso: &cloudformation.DescribeStacksOutput{
+							Stacks: []*cloudformation.Stack{
+								{
+									StackName:   &stackName,
+									StackStatus: aws.String("UPDATE_COMPLETE"),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "Stack is updating",
+			region: &region{
+				services: connections{
+					cloudFormation: mockCloudFormation{
+						dso: &cloudformation.DescribeStacksOutput{
+							Stacks: []*cloudformation.Stack{
+								{
+									StackName:   &stackName,
+									StackStatus: aws.String("UPDATE_IN_PROGRESS"),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, got := tt.region.isStackUpdating(&stackName); got != tt.want {
+				t.Errorf("Error in isStackUpdating: expected %s actual %s", tt.want, got)
 			}
 		})
 	}
