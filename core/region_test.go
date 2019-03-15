@@ -659,7 +659,7 @@ func TestIsStackUpdating(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if _, got := tt.region.isStackUpdating(&stackName); got != tt.want {
-				t.Errorf("Error in isStackUpdating: expected %s actual %s", tt.want, got)
+				t.Errorf("Error in isStackUpdating: expected %v actual %v", tt.want, got)
 			}
 		})
 	}

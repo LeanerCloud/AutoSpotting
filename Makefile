@@ -2,7 +2,8 @@ DEPS := "wget git go docker golint zip"
 
 BINARY := autospotting
 BINARY_PKG := ./core
-GOFILES := $(shell find . -type f -name '*.go' -not -path "./vendor/*")
+CORE_GOFILES := $(shell find core -type f -name '*.go')
+MAIN_GOFILES := $(shell find . -type f -name '*.go' -not -path "./core/*" -not -path "./vendor/*" )
 COVER_PROFILE := /tmp/coverage.out
 BUCKET_NAME ?= cloudprowess
 FLAVOR ?= custom
@@ -63,20 +64,33 @@ upload: archive                                              ## Upload binary
 .PHONY: upload
 
 vet-check:                                                   ## Verify vet compliance
-ifeq ($(shell go tool vet -all -shadow=true $(GOFILES) 2>&1 | wc -l | tr -d '[:space:]'), 0)
-	@printf "ok\tall files passed go vet\n"
+ifeq ($(shell go vet -all $(CORE_GOFILES) 2>&1 | wc -l | tr -d '[:space:]'), 0)
+	@printf "ok\tall core files passed go vet\n"
 else
-	@printf "error\tsome files did not pass go vet\n"
-	@go tool vet -all -shadow=true $(GOFILES) 2>&1
+	@printf "error\tsome core files did not pass go vet\n"
+	@go vet -all $(CORE_GOFILES) 2>&1
+endif
+ifeq ($(shell go vet -all $(MAIN_GOFILES) 2>&1 | wc -l | tr -d '[:space:]'), 0)
+	@printf "ok\tall main files passed go vet\n"
+else
+	@printf "error\tsome main files did not pass go vet\n"
+	@go vet -all $(MAIN_GOFILES) 2>&1
 endif
 .PHONY: vet-check
 
 fmt-check:                                                   ## Verify fmt compliance
-ifeq ($(shell gofmt -l -s $(GOFILES) | wc -l | tr -d '[:space:]'), 0)
-	@printf "ok\tall files passed go fmt\n"
+ifeq ($(shell gofmt -l -s $(CORE_GOFILES) | wc -l | tr -d '[:space:]'), 0)
+	@printf "ok\tall core files passed go fmt\n"
 else
-	@printf "error\tsome files did not pass go fmt, fix the following formatting diff:\n"
-	@gofmt -l -s -d $(GOFILES)
+	@printf "error\tsome core files did not pass go fmt, fix the following formatting diff:\n"
+	@gofmt -l -s -d $(CORE_GOFILES)
+	@exit 1
+endif
+ifeq ($(shell gofmt -l -s $(MAIN_GOFILES) | wc -l | tr -d '[:space:]'), 0)
+	@printf "ok\tall main files passed go fmt\n"
+else
+	@printf "error\tsome main files did not pass go fmt, fix the following formatting diff:\n"
+	@gofmt -l -s -d $(MAIN_GOFILES)
 	@exit 1
 endif
 .PHONY: fmt-check

@@ -218,8 +218,8 @@ func (i *instance) isSameArch(other instanceTypeInformation) bool {
 		(isARM(thisCPU) && isARM(otherCPU))
 
 	if !ret {
-    debug.Println("\tInstance CPU architecture mismatch, current CPU architecture",
-     thisCPU, " is incompatible with candidate CPU architecture ", otherCPU)
+		debug.Println("\tInstance CPU architecture mismatch, current CPU architecture",
+			thisCPU, " is incompatible with candidate CPU architecture ", otherCPU)
 	}
 	return ret
 }
