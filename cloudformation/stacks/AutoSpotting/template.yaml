@@ -315,7 +315,7 @@
     TerminationEventRuleFunction:
       Type: AWS::Lambda::Function
       Properties:
-        Description: "Creates, deletes EventRule for launching AutoSpotting Lambda function on spot instance termination notification"
+        Description: "Creates, deletes EventRule and launches AutoSpotting Lambda function on spot instance termination notification"
         Handler: "index.handler"
         Runtime: "python3.6"
         Timeout: "300"
@@ -348,7 +348,7 @@
                           "Endpoint": lambda_arn,
                           "Protocol": "lambda"
                         }
-                      ]                  
+                      ]
                     }
                   },
                   "LambdaPermissionAutoSpotTerminationNotificationTopic": {
@@ -396,11 +396,11 @@
                         "source": ["aws.ec2"]
                       },
                       "State" : "ENABLED",
-                      "Targets" : [ 
+                      "Targets" : [
                         {
                           "Id": "AutoSpottingTerminationEventGenerator",
                           "Arn": { "Ref":  "AutoSpotTerminationNotificationTopic" }
-                        }  
+                        }
                       ]
                     }
                   }
@@ -421,16 +421,16 @@
                     StackName=stack_name
                   )
                   wait_for_deletion = True
-                except botocore.exceptions.ClientError:  
+                except botocore.exceptions.ClientError:
                   pass
 
-              #Wait only for last otherwise stack deletion will take forever  
+              #Wait only for last otherwise stack deletion will take forever
               if wait_for_deletion == True:
                 waiter = client.get_waiter('stack_delete_complete')
                 waiter.wait(
                   StackName=stack_name
-                ) 
-            
+                )
+
             def handle_create(event):
               ec2 = boto3.client('ec2')
               lambda_arn = event['ResourceProperties']['LambdaARN']
@@ -442,7 +442,7 @@
                   client.describe_stacks(
                     StackName=stack_name
                   )
-                except botocore.exceptions.ClientError:  
+                except botocore.exceptions.ClientError:
                   client.create_stack(
                     StackName=stack_name,
                     TemplateBody=json.dumps(get_cf_template(lambda_arn))
@@ -452,7 +452,7 @@
               try:
                 if event['RequestType'] == 'Delete':
                   handle_delete(event)
-                
+
                 if event['RequestType'] == 'Create':
                   handle_create(event)
                 cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
@@ -461,15 +461,15 @@
                 print("Unexpected error:", sys.exc_info()[0])
                 cfnresponse.send(event, context, cfnresponse.FAILED, {})
 
-    TerminationEventRuleCallout:        
+    TerminationEventRuleCallout:
       Type: "Custom::LambdaCallout"
-      Properties: 
+      Properties:
         ServiceToken:
           Fn::GetAtt:
             - "TerminationEventRuleFunction"
             - "Arn"
-        LambdaARN: 
+        LambdaARN:
           Fn::GetAtt:
             - "LambdaFunction"
             - "Arn"
-      DependsOn: LambdaPolicy      
+      DependsOn: LambdaPolicy
