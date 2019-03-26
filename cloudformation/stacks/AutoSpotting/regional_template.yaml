@@ -1,0 +1,58 @@
+---
+  AWSTemplateFormatVersion: "2010-09-09"
+  Description: "Notification stack for spot termination event"
+  Parameters:
+    AutoSpottingLambdaARN:
+      Description: "The ARN of the main AutoSpotting Lambda function"
+      Type: "String"
+  Resources:
+    AutoSpotTerminationNotificationTopic:
+      Type: "AWS::SNS::Topic"
+      Properties:
+        DisplayName: "autospotting-termination-notification-topic"
+        Subscription:
+          -
+            Endpoint:
+              Ref: "AutoSpottingLambdaARN"
+            Protocol: "lambda"
+    LambdaPermissionAutoSpotTerminationNotificationTopic:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName:
+          Ref: "AutoSpottingLambdaARN"
+        Principal: "sns.amazonaws.com"
+        SourceArn:
+          Ref: "AutoSpotTerminationNotificationTopic"
+    SNSTopicPolicyAutoSpotTeminationEventRule:
+      Type: "AWS::SNS::TopicPolicy"
+      Properties:
+        PolicyDocument:
+          Statement:
+            -
+              Action: "sns:Publish"
+              Effect: "Allow"
+              Principal:
+                Service: "events.amazonaws.com"
+              Resource:
+                Ref: "AutoSpotTerminationNotificationTopic"
+          Version: "2012-10-17"
+        Topics:
+          -
+            Ref: "AutoSpotTerminationNotificationTopic"
+    AutoSpotTeminationEventRule:
+      Type: "AWS::Events::Rule"
+      Properties:
+        Description: "This rule is triggered 2 minutes before AWS terminates a spot instance"
+        EventPattern:
+          detail-type:
+            - "EC2 Spot Instance Interruption Warning"
+          source:
+            - "aws.ec2"
+        State: "ENABLED"
+        Targets:
+          -
+            Id: "AutoSpottingTerminationEventGenerator"
+            Arn:
+              Ref: "AutoSpotTerminationNotificationTopic"
+

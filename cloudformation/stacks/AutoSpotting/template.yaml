@@ -316,7 +316,7 @@
       Type: AWS::Lambda::Function
       Properties:
         Description: "Creates, deletes EventRule and launches AutoSpotting Lambda function on spot instance termination notification"
-        Handler: "index.handler"
+        Handler: "regional_stack_lambda.handler"
         Runtime: "python3.6"
         Timeout: "300"
         Role:
@@ -324,143 +324,9 @@
             - "LambdaExecutionRole"
             - "Arn"
         Code:
-          ZipFile: |
-            import boto3
-            import botocore
-            import cfnresponse
-            import json
-            import sys
-            import traceback
-
-            stack_name = 'AutoSpotTerminationEvent'
-
-            def get_cf_template(lambda_arn):
-              return {
-                "AWSTemplateFormatVersion" : "2010-09-09",
-                "Description" : "Notification stack for spot termination event",
-                "Resources": {
-                  "AutoSpotTerminationNotificationTopic": {
-                    "Type" : "AWS::SNS::Topic",
-                    "Properties" : {
-                      "DisplayName" : "autospotting-termination-notification-topic",
-                      "Subscription": [
-                        {
-                          "Endpoint": lambda_arn,
-                          "Protocol": "lambda"
-                        }
-                      ]
-                    }
-                  },
-                  "LambdaPermissionAutoSpotTerminationNotificationTopic": {
-                    "Type": "AWS::Lambda::Permission",
-                    "Properties": {
-                      "Action": "lambda:InvokeFunction",
-                      "FunctionName": lambda_arn,
-                      "Principal": "sns.amazonaws.com",
-                      "SourceArn": {
-                        "Ref": "AutoSpotTerminationNotificationTopic"
-                      }
-                    }
-                  },
-                  "SNSTopicPolicyAutoSpotTeminationEventRule": {
-                    "Type": "AWS::SNS::TopicPolicy",
-                    "Properties": {
-                      "PolicyDocument": {
-                        "Statement": [
-                          {
-                            "Action": "sns:Publish",
-                            "Effect": "Allow",
-                            "Principal": {
-                              "Service": "events.amazonaws.com"
-                            },
-                            "Resource": {
-                              "Ref": "AutoSpotTerminationNotificationTopic"
-                            }
-                          }
-                        ],
-                        "Version": "2012-10-17"
-                      },
-                      "Topics": [
-                        {
-                          "Ref": "AutoSpotTerminationNotificationTopic"
-                        }
-                      ]
-                    }
-                  },
-                  "AutoSpotTeminationEventRule": {
-                    "Type" : "AWS::Events::Rule",
-                    "Properties" : {
-                      "Description" : "This rule is triggered 2 minutes before AWS terminates a spot instance",
-                      "EventPattern" : {
-                        "detail-type": ["EC2 Spot Instance Interruption Warning"],
-                        "source": ["aws.ec2"]
-                      },
-                      "State" : "ENABLED",
-                      "Targets" : [
-                        {
-                          "Id": "AutoSpottingTerminationEventGenerator",
-                          "Arn": { "Ref":  "AutoSpotTerminationNotificationTopic" }
-                        }
-                      ]
-                    }
-                  }
-                }
-              }
-
-            def handle_delete(event):
-              ec2 = boto3.client('ec2')
-              wait_for_deletion = False
-              for region in ec2.describe_regions()['Regions']:
-                client = boto3.client('cloudformation', region['RegionName'])
-                #try except to make sure stack exists before deletion
-                try:
-                  client.describe_stacks(
-                    StackName=stack_name
-                  )
-                  client.delete_stack(
-                    StackName=stack_name
-                  )
-                  wait_for_deletion = True
-                except botocore.exceptions.ClientError:
-                  pass
-
-              #Wait only for last otherwise stack deletion will take forever
-              if wait_for_deletion == True:
-                waiter = client.get_waiter('stack_delete_complete')
-                waiter.wait(
-                  StackName=stack_name
-                )
-
-            def handle_create(event):
-              ec2 = boto3.client('ec2')
-              lambda_arn = event['ResourceProperties']['LambdaARN']
-
-              for region in ec2.describe_regions()['Regions']:
-                client = boto3.client('cloudformation', region['RegionName'])
-                #try except to make sure stack does not exist before creation
-                try:
-                  client.describe_stacks(
-                    StackName=stack_name
-                  )
-                except botocore.exceptions.ClientError:
-                  client.create_stack(
-                    StackName=stack_name,
-                    TemplateBody=json.dumps(get_cf_template(lambda_arn))
-                  )
-
-            def handler(event, context):
-              try:
-                if event['RequestType'] == 'Delete':
-                  handle_delete(event)
-
-                if event['RequestType'] == 'Create':
-                  handle_create(event)
-                cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-              except:
-                traceback.print_exc()
-                print("Unexpected error:", sys.exc_info()[0])
-                cfnresponse.send(event, context, cfnresponse.FAILED, {})
-
+          S3Bucket:
+            Ref: "LambdaS3Bucket"
+          S3Key: nightly/regional_stack_lambda.zip
     TerminationEventRuleCallout:
       Type: "Custom::LambdaCallout"
       Properties:
