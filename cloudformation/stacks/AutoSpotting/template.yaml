@@ -1,7 +1,6 @@
 ---
   AWSTemplateFormatVersion: "2010-09-09"
-  Description: >
-    "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling"
+  Description: "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling"
   Parameters:
     AllowedInstanceTypes:
       Default: ""
@@ -172,6 +171,18 @@
                   - "lambda.amazonaws.com"
         Path: "/lambda/"
       Type: "AWS::IAM::Role"
+    LambdaRegionalStackExecutionRole:
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            -
+              Action: "sts:AssumeRole"
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - "lambda.amazonaws.com"
+        Path: "/lambda/"
+      Type: "AWS::IAM::Role"
     LambdaFunction:
       Properties:
         Code:
@@ -240,8 +251,6 @@
                 - "autoscaling:TerminateInstanceInAutoScalingGroup"
                 - "autoscaling:UpdateAutoScalingGroup"
                 - "autoscaling:DescribeLifecycleHooks"
-                - "cloudformation:CreateStack"
-                - "cloudformation:DeleteStack"
                 - "cloudformation:Describe*"
                 - "ec2:CreateTags"
                 - "ec2:DeleteTags"
@@ -251,12 +260,40 @@
                 - "ec2:DescribeSpotPriceHistory"
                 - "ec2:RunInstances"
                 - "ec2:TerminateInstances"
+                - "iam:CreateServiceLinkedRole"
+                - "iam:PassRole"
+                - "logs:CreateLogGroup"
+                - "logs:CreateLogStream"
+                - "logs:PutLogEvents"
+              Effect: "Allow"
+              Resource: "*"
+        PolicyName: "LambdaPolicy"
+        Roles:
+          -
+            Ref: "LambdaExecutionRole"
+      Type: "AWS::IAM::Policy"
+    # This allows the creation and deletion of the regional CloudFormation templates
+    # and it used by the secondary Lambda function, backing the custom resource
+    LambdaRegionalStackPolicy:
+      Properties:
+        PolicyDocument:
+          Statement:
+            -
+              Action:
+                - "ec2:DescribeRegions"
+                - "cloudformation:CreateStack"
+                - "cloudformation:DeleteStack"
+                - "cloudformation:Describe*"
                 - "events:PutRule"
                 - "events:PutTargets"
                 - "events:DeleteRule"
                 - "events:DescribeRule"
                 - "events:RemoveTargets"
-                - "iam:CreateServiceLinkedRole"
+                - "iam:PutRolePolicy"
+                - "iam:DeleteRolePolicy"
+                - "iam:CreateRole"
+                - "iam:DeleteRole"
+                - "iam:GetRole"
                 - "iam:PassRole"
                 - "logs:CreateLogGroup"
                 - "logs:CreateLogStream"
@@ -268,12 +305,15 @@
                 - "sns:Subscribe"
                 - "lambda:AddPermission"
                 - "lambda:RemovePermission"
+                - "lambda:CreateFunction"
+                - "lambda:DeleteFunction"
+                - "lambda:GetFunctionConfiguration"
               Effect: "Allow"
               Resource: "*"
-        PolicyName: "LambdaPolicy"
+        PolicyName: "LambdaRegionalStackPolicy"
         Roles:
           -
-            Ref: "LambdaExecutionRole"
+            Ref: "LambdaRegionalStackExecutionRole"
       Type: "AWS::IAM::Policy"
     LogGroup:
       Properties:
@@ -298,6 +338,14 @@
             - "ScheduledRule"
             - "Arn"
       Type: "AWS::Lambda::Permission"
+    PermissionForInvokingTheLambdaFunctionFromOtherRegions:
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName:
+          Ref: "LambdaFunction"
+        Principal: "lambda.amazonaws.com"
+        SourceAccount: !Ref 'AWS::AccountId'
+      Type: "AWS::Lambda::Permission"
     ScheduledRule:
       Properties:
         Description: "ScheduledRule for launching the AutoSpotting Lambda function"
@@ -312,27 +360,28 @@
                 - "Arn"
             Id: "AutoSpottingEventGenerator"
       Type: "AWS::Events::Rule"
-    TerminationEventRuleFunction:
+    RegionalStackCreationLambdaFunction:
       Type: AWS::Lambda::Function
+      DependsOn: LambdaPolicy
       Properties:
-        Description: "Creates, deletes EventRule and launches AutoSpotting Lambda function on spot instance termination notification"
+        Description: "Creates regional CloudFormation stacks that trigger the main Lambda function on spot instance termination notification"
         Handler: "regional_stack_lambda.handler"
         Runtime: "python3.6"
         Timeout: "300"
         Role:
           Fn::GetAtt:
-            - "LambdaExecutionRole"
+            - "LambdaRegionalStackExecutionRole"
             - "Arn"
         Code:
           S3Bucket:
             Ref: "LambdaS3Bucket"
           S3Key: nightly/regional_stack_lambda.zip
-    TerminationEventRuleCallout:
+    RegionalStackCustomResource:
       Type: "Custom::LambdaCallout"
       Properties:
         ServiceToken:
           Fn::GetAtt:
-            - "TerminationEventRuleFunction"
+            - "RegionalStackCreationLambdaFunction"
             - "Arn"
         LambdaARN:
           Fn::GetAtt:

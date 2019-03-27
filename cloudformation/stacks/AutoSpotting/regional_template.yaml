@@ -6,21 +6,90 @@
       Description: "The ARN of the main AutoSpotting Lambda function"
       Type: "String"
   Resources:
+    TerminationEventRuleFunction:
+      Type: AWS::Lambda::Function
+      Properties:
+        Description: "Invokes the main AutoSpotting Lambda function on spot instance termination notification"
+        Handler: "index.handler"
+        Runtime: "python3.6"
+        Timeout: "300"
+        Environment:
+          Variables:
+            AUTOSPOTTING_LAMBDA_ARN:
+              Ref: "AutoSpottingLambdaARN"
+        Role:
+          Fn::GetAtt:
+            - "LambdaExecutionRole"
+            - "Arn"
+        Code:
+          ZipFile: |
+            import boto3
+            import botocore
+            import json
+            import os
+            import sys
+            import traceback
+
+            lambda_arn = (os.environ['AUTOSPOTTING_LAMBDA_ARN'])
+
+            def parse_region_from_arn(arn):
+                return arn.split(':')[3]
+
+            def handler(event, context):
+                try:
+                    client = boto3.client('lambda', region_name=parse_region_from_arn(lambda_arn))
+                    response = client.invoke(
+                        FunctionName=lambda_arn,
+                        LogType='Tail',
+                        Payload=json.dumps(event),
+                    )
+                except:
+                    traceback.print_exc()
+                    print("Unexpected error:", sys.exc_info()[0])
+
+    LambdaExecutionRole:
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            -
+              Action: "sts:AssumeRole"
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - "lambda.amazonaws.com"
+        Path: "/lambda/"
+      Type: "AWS::IAM::Role"
+    LambdaPolicy:
+      Properties:
+        PolicyDocument:
+          Statement:
+            -
+              Action:
+                - "lambda:InvokeFunction"
+                - "logs:CreateLogGroup"
+                - "logs:CreateLogStream"
+                - "logs:PutLogEvents"
+              Effect: "Allow"
+              Resource: "*"
+        PolicyName: "LambdaPolicy"
+        Roles:
+          -
+            Ref: "LambdaExecutionRole"
+      Type: "AWS::IAM::Policy"
     AutoSpotTerminationNotificationTopic:
       Type: "AWS::SNS::Topic"
       Properties:
         DisplayName: "autospotting-termination-notification-topic"
         Subscription:
           -
-            Endpoint:
-              Ref: "AutoSpottingLambdaARN"
+            Endpoint: !GetAtt TerminationEventRuleFunction.Arn
             Protocol: "lambda"
     LambdaPermissionAutoSpotTerminationNotificationTopic:
       Type: "AWS::Lambda::Permission"
       Properties:
         Action: "lambda:InvokeFunction"
         FunctionName:
-          Ref: "AutoSpottingLambdaARN"
+          Ref: "TerminationEventRuleFunction"
         Principal: "sns.amazonaws.com"
         SourceArn:
           Ref: "AutoSpotTerminationNotificationTopic"
