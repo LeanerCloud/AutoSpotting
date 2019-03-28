@@ -3,11 +3,11 @@
     Lambda function
 '''
 
-import traceback
 
 from json import dumps
 from sys import exc_info
 from threading import Thread
+from traceback import print_exc
 
 from boto3 import client
 from botocore.exceptions import ClientError
@@ -101,7 +101,7 @@ def handler(event, context):
             handle_delete()
         send(event, context, SUCCESS, {})
     except ClientError:
-        traceback.print_exc()
+        print_exc()
         print("Unexpected error:", exc_info()[0])
         send(event, context, FAILED, {})
 
