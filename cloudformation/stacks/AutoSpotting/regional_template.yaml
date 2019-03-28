@@ -23,29 +23,29 @@
             - "Arn"
         Code:
           ZipFile: |
-            import boto3
-            import botocore
-            import json
-            import os
-            import sys
-            import traceback
+            from boto3 import client
+            from json import dumps
+            from os import environ
+            from sys import exc_info
+            from traceback import print_exc
 
-            lambda_arn = (os.environ['AUTOSPOTTING_LAMBDA_ARN'])
+            lambda_arn = (environ['AUTOSPOTTING_LAMBDA_ARN'])
 
             def parse_region_from_arn(arn):
                 return arn.split(':')[3]
 
             def handler(event, context):
                 try:
-                    client = boto3.client('lambda', region_name=parse_region_from_arn(lambda_arn))
-                    response = client.invoke(
+                    svc = client('lambda', region_name=parse_region_from_arn(lambda_arn))
+                    response = svc.invoke(
                         FunctionName=lambda_arn,
                         LogType='Tail',
                         Payload=json.dumps(event),
                     )
+                    print(response)
                 except:
-                    traceback.print_exc()
-                    print("Unexpected error:", sys.exc_info()[0])
+                    print_exc()
+                    print("Unexpected error:", exc_info()[0])
 
     LambdaExecutionRole:
       Properties:
