@@ -88,11 +88,14 @@ your CloudFormation or Terraform stack to use those new binaries.
 1. The build system can use a `BUCKET_NAME` variable that tells it where to
    upload new binaries. Set it into your environment to the name of your S3
    bucket.
-
    `export BUCKET_NAME=my-bucket`
 
 1. Define some AWS credentials or profile information into your
    [environment](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-environment).
+
+1. (Optional) You can also create the lambda deployment package using the below
+   command, the zip file is generated in the `build` directory.
+   `make archive`
 
 1. Build and upload your binaries to the S3 bucket.
    `make upload`
