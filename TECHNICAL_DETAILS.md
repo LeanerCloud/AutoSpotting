@@ -12,12 +12,13 @@
 | Bid at a certain percentage of the on-demand price | :white_check_mark: (default: 100%) | :white_check_mark: |
 | Can bid the current spot price plus a certain percentage | :white_check_mark: | :white_check_mark: |
 | Automatically determine the cheapest compatible instance type | :white_check_mark: (default) | :white_check_mark: |
-| Can restrict to the same instance type only | :white_check_mark: | :white_check_mark: |
+| Can restrict to the same instance type only | :white_check_mark: - use `current` for the allowed instance types | :white_check_mark: - use `current` for the allowed instance types |
 | Can restrict to only certain instance types | :white_check_mark: | :white_check_mark: |
 | Blacklisting of certain instance types | :white_check_mark: | :white_check_mark: |
 | Filter on multiple & custom group tags | :white_check_mark:  (default: `spot-enabled=true`)  | :heavy_minus_sign: |
 | Configurable filtering modes(`opt-in` and `opt-out`) | :white_check_mark:  (default: `opt-in`)| :heavy_minus_sign: |
 | Set a desired spot product name | :white_check_mark: | :x: :wrench: - install multiple stacks, each with its own spot product|
+| Configurable spot termination notification action | :white_check_mark: (Only available when installed using CloudFormation) | :white_check_mark: (Only available when installed via CloudFormation) |
 
 For the options not directly linked to any specific part of the doc, please
 check the
@@ -28,16 +29,20 @@ check the
 | [Easy installation via Cloudformation](https://github.com/AutoSpotting/AutoSpotting/blob/master/START.md#install-via-cloudformation) | :white_check_mark: |
 | [Easy installation via Terraform](https://github.com/AutoSpotting/AutoSpotting/blob/master/START.md#install-via-terraform) | :white_check_mark: |
 | [Available as Docker container image](https://hub.docker.com/r/AutoSpotting/AutoSpotting/) | :white_check_mark: :wrench: |
+| [Installable as Kubernetes cron job](https://raw.githubusercontent.com/AutoSpotting/AutoSpotting/master/kubernetes/autospotting-cron.yaml.example) | :white_check_mark: :wrench: |
+| [Helm chart](https://github.com/reactiveops/charts/tree/master/incubator/autospotting) available as well | :white_check_mark: :wrench: |
 | [Works with Code Deploy](CODEDEPLOY.md) | :white_check_mark: :wrench: |
 | [Works with Elastic Beanstalk](https://github.com/AutoSpotting/AutoSpotting/blob/053135e97082511fb99b689dce4a7a7830f3327c/START.md#for-elastic-beanstalk) | :white_check_mark: |
 | Support AWS VPC| :white_check_mark: |
-| Support AWS EC2Classic|[:beetle:](https://github.com/AutoSpotting/AutoSpotting/issues/48) :pencil: |
+| Support AWS EC2Classic| :wrench: - unsupported instance types need to be explicitely blacklisted |
 | Support AWS DefaultVPC| :white_check_mark: |
-| [Rancher compliance](http://rancher.com/reducing-aws-spend/) | :white_check_mark: |
+| Automatically handles the spot termination signal | :white_check_mark: (Only available when installed using CloudFormation)|
+| Do not process AutoScaling groups while the CloudFormation stack that created them is in progress | :white_check_mark: |
+
+| Desired missing features | Status |
 | Lambda X-Ray support | :x: |
 | Graphing savings | :x: :wrench: - use the Billing dashboard |
-| Windows support | :wrench: - set the proper Spot product on the stack |
-| Handle spot termination's signal | :x: :wrench: |
+| Cleaner Windows support | :wrench: - set the proper Spot product on the stack |
 | SNS notifications on success/failure | :x: |
 
 ### Meaning of the above icons ##
@@ -158,6 +163,9 @@ touch on [Gitter](https://gitter.im/cristim/autospotting).
   - supports keeping a configurable number of on-demand instances in the group,
     either an absolute number or a percentage of the instances from the group.
 
+- **Automatically handles the spot termination notifications**
+  - see the dedicated section below for more details
+
 ## Replacement logic ##
 
 Once enabled on an AutoScaling group, it is gradually replacing all the
@@ -244,6 +252,20 @@ frequency is every 5 minutes, but it is configurable using stack parameters.
   availability zone, in order to survive instance termination when outbid for
   a certain instance type.
 
+## Regional spot termination stacks
+
+- Additional CloudFormation stacks automatically deployed in every region when
+  installing the main CloudFormation stack (currently not supported when
+  installing using Terraform)
+- Install a few regional components (SNS topic, CloudWatch event rule, regional
+  Lambda function, etc.) configured to trigger the main Lambda function deployed
+  in us-east-1 when instances in the current region are about to be terminated.
+- The main Lambda function will take action based on these events. By default it
+  will terminate the instance (executing its termination lifecycle hooks) if
+  these lifecycle hooks are defined. Alternatively it will detach the instance
+  from its AutoScaling group which will detach it from the load balancer as
+  early as possible.
+
 ## Running example ##
 
 ![Workflow](https://autospotting.org/img/autospotting.gif)
@@ -300,6 +322,8 @@ especially important when using more volatile spot instances.
 
 ## Spot termination notifications ##
 
+### EC2 Metadata ###
+
 AWS
 [notifies](https://aws.amazon.com/blogs/aws/new-ec2-spot-instance-termination-notices/)
 your spot instances when they are about to be terminated by setting a dedicated
@@ -307,19 +331,65 @@ metadata field, so you can make use of that information to save whatever
 temporary state you may still have on your running spot instances or to
 gracoiusly remove them from the group.
 
-There are existing third party tools which implement such a termination
-notification handler, such as [seespot](https://github.com/acksin/seespot). This
-will need to be integrated into your user_data script, for more details you can
-read see the seespot tool's documentation.
+This information is only visible from within your instances, so AutoSpotting
+won't have any visibility on it to take any action.
+
+Fortunately, there are existing third party tools such as
+[seespot](https://github.com/acksin/seespot) which you can run yourself,
+implementing such a termination notification handler.
+
+This will need to be integrated into your user_data script, for more details you
+can read see the seespot tool's documentation.
+
+#### Pros ####
+
+- you have full control over what the instance can execute before being
+  terminated
+
+#### Cons ####
+
+- requires some configuration changes on all your instances
+
+### CloudWatch events ###
+
+In addition, AWS also generates CloudWatch events for these termination
+notifications. AutoSpotting will automatically intercept these events and
+proactively tries to take some draining actions immediately.
+
+These actions consist in executing the termination lifecycle hooks, if present,
+or alternatively detaching the soon to be terminated instances from their
+AutoScaling group, which in turn will detach them from the load balancer
+configured on the group. This should be relatively graceful if you use
+connection draining on the load balancer.
+
+#### Pros ####
+
+- doesn'require any configuration changes
+- instances behind ELBs are detached automatically (or start to be drained) as
+  soon as the imminent spot termination event is received.
+- if you already have lifecycle hooks they will be executed, but in this case we
+  can't detach the instances, so you may need to do this from within the
+  lifacycle hook logic.
+- this action can also be overridden on a per group basis using tags, if you
+  need to.
+
+#### Cons ####
+
+- Less flexible, you will need to have lifecycle hooks if you need to run some
+  complex logic when terminating the instances.
+- Currently only supported when using the CloudFormation installation method.
 
 ### Instances behind an ELB ###
 
 Instances behind an ELB can be graciously
 [removed](https://aws.amazon.com/blogs/aws/elb-connection-draining-remove-instances-from-service-with-care/)
 from the load balancer without losing connections. You should enable the
-connection draining feature, and then you just need to append a snippet to
-your user_data script, assuming your instances have enough IAM role permissions
-to remove themselves from the load balancer.
+connection draining feature.
+
+As mentioned above, AutoSpotting will automatically detach them from the load
+balancer unless you have termination lifecycle hooks configured on your
+AutoScaling group. Note: this is currently only supported when AutoSpotting is
+installed using CloudFormation.
 
 ### ECS container hosts ###
 
