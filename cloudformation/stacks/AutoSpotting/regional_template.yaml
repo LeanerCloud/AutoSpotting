@@ -40,7 +40,7 @@
                     response = svc.invoke(
                         FunctionName=lambda_arn,
                         LogType='Tail',
-                        Payload=json.dumps(event),
+                        Payload=dumps(event),
                     )
                     print(response)
                 except:

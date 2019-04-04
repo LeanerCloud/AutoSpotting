@@ -234,7 +234,7 @@
               Ref: "LambdaFunctionTagKey"
             Value:
               Ref: "LambdaFunctionTagValue"
-        Timeout: "300"
+        Timeout: "900"
       Type: "AWS::Lambda::Function"
     LambdaPolicy:
       Properties:
@@ -367,7 +367,7 @@
         Description: "Creates regional CloudFormation stacks that trigger the main Lambda function on spot instance termination notification"
         Handler: "regional_stack_lambda.handler"
         Runtime: "python3.6"
-        Timeout: "300"
+        Timeout: "900"
         Role:
           Fn::GetAtt:
             - "LambdaRegionalStackExecutionRole"
