@@ -32,7 +32,7 @@ If you don't agree with the terms of this license nor you want to become
 a patron, you can still build it from source code yourself but you'll get very
 limited community support if you do so.
 
-See https://autospotting.org for more details.
+See [autospotting.org](https://autospotting.org) for more details.
 
 ## Requirements ##
 

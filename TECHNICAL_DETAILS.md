@@ -45,6 +45,8 @@ check the
 | Cleaner Windows support | :wrench: - set the proper Spot product on the stack |
 | SNS notifications on success/failure | :x: |
 
+<!-- markdownlint-enable MD013 -->
+
 ### Meaning of the above icons ##
 
 - :white_check_mark: - supported and known to work well so far
@@ -252,7 +254,7 @@ frequency is every 5 minutes, but it is configurable using stack parameters.
   availability zone, in order to survive instance termination when outbid for
   a certain instance type.
 
-## Regional spot termination stacks
+## Regional spot termination stacks ##
 
 - Additional CloudFormation stacks automatically deployed in every region when
   installing the main CloudFormation stack (currently not supported when
@@ -362,6 +364,8 @@ AutoScaling group, which in turn will detach them from the load balancer
 configured on the group. This should be relatively graceful if you use
 connection draining on the load balancer.
 
+<!-- markdownlint-disable MD024 -->
+
 #### Pros ####
 
 - doesn'require any configuration changes
@@ -378,6 +382,8 @@ connection draining on the load balancer.
 - Less flexible, you will need to have lifecycle hooks if you need to run some
   complex logic when terminating the instances.
 - Currently only supported when using the CloudFormation installation method.
+
+<!-- markdownlint-enable MD024 -->
 
 ### Instances behind an ELB ###
 

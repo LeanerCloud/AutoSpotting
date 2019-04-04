@@ -3,10 +3,11 @@
 [![Chat on Gitter](https://badges.gitter.im/AutoSpotting/AutoSpotting.svg)](https://gitter.im/cristim/autospotting)
 
 The usual GitHub contribution model applies, but if you would like to [raise an
-issue](https://github.com/AutoSpotting/AutoSpotting/issues/new) or start working on a
-[pull request](https://github.com/AutoSpotting/AutoSpotting/pulls), please get in
-touch on [gitter](https://gitter.im/cristim/autospotting) to discuss it first so
-we make sure everything is clear and that nobody else is already working on it.
+issue](https://github.com/AutoSpotting/AutoSpotting/issues/new) or start working
+on a [pull request](https://github.com/AutoSpotting/AutoSpotting/pulls), please
+get in touch on [gitter](https://gitter.im/cristim/autospotting) to discuss it
+first so we make sure everything is clear and that nobody else is already
+working on it.
 
 Any random questions are also better asked there.
 
