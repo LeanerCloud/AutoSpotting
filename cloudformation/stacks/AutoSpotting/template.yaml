@@ -362,7 +362,7 @@
       Type: "AWS::Events::Rule"
     RegionalStackCreationLambdaFunction:
       Type: AWS::Lambda::Function
-      DependsOn: LambdaPolicy
+      DependsOn: LambdaRegionalStackPolicy
       Properties:
         Description: "Creates regional CloudFormation stacks that trigger the main Lambda function on spot instance termination notification"
         Handler: "regional_stack_lambda.handler"
@@ -387,4 +387,4 @@
           Fn::GetAtt:
             - "LambdaFunction"
             - "Arn"
-      DependsOn: LambdaPolicy
+      DependsOn: LambdaRegionalStackPolicy
