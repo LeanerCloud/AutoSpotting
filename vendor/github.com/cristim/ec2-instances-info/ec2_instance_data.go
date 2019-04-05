@@ -6,6 +6,7 @@ package ec2instancesinfo
 
 import (
 	"encoding/json"
+	"strconv"
 
 	"github.com/cristim/ec2-instances-info/data"
 	"github.com/pkg/errors"
@@ -15,6 +16,8 @@ import (
 type jsonInstance struct {
 	Family             string          `json:"family"`
 	EnhancedNetworking bool            `json:"enhanced_networking"`
+	ECURaw             json.RawMessage `json:"ECU"`
+	ECU                string
 	VCPURaw            json.RawMessage `json:"vCPU"`
 	VCPU               int
 	PhysicalProcessor  string                  `json:"physical_processor"`
@@ -95,11 +98,18 @@ func Data() (*InstanceData, error) {
 		return nil, errors.Errorf("couldn't read the data asset: %s", err.Error())
 	}
 
-	// Handle "N/A" values in the VCPU field for i3.metal instance type
+	// Handle "N/A" values in the VCPU field for i3.metal instance type and
+	// string ("variable") and integer values in the ECU field
 	for i := range d {
-		var n int
-		if err = json.Unmarshal(d[i].VCPURaw, &n); err == nil {
-			d[i].VCPU = n
+		var vcpu, intECU int
+		var stringECU string
+		if err = json.Unmarshal(d[i].VCPURaw, &vcpu); err == nil {
+			d[i].VCPU = vcpu
+		}
+		if err = json.Unmarshal(d[i].ECURaw, &intECU); err == nil {
+			d[i].ECU = strconv.Itoa(intECU)
+		} else if err = json.Unmarshal(d[i].ECURaw, &stringECU); err == nil {
+			d[i].ECU = stringECU
 		}
 	}
 

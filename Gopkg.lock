@@ -6,11 +6,12 @@
   packages = [
     "events",
     "lambda",
+    "lambda/handlertrace",
     "lambda/messages",
     "lambdacontext"
   ]
-  revision = "928161204cad89472f9e6b5dd49ce16bc91230de"
-  version = "v1.8.1"
+  revision = "08d251dc58f204411d79012fd6f1beefb7107fea"
+  version = "v1.10.0"
 
 [[projects]]
   branch = "master"
@@ -53,7 +54,7 @@
     "service/ec2/ec2iface",
     "service/sts"
   ]
-  revision = "923b7b1b0525654010bcf282e5dc2f7fd455027a"
+  revision = "3ef79e6ee13bcdb585ec75e207e349cde24ae8bc"
 
 [[projects]]
   branch = "master"
@@ -62,7 +63,7 @@
     ".",
     "data"
   ]
-  revision = "cb8daac97592ecb47d63475de1af6ea3103ad637"
+  revision = "83e9ebdd6081baf5f657bc061fb57053e8c4b215"
 
 [[projects]]
   branch = "master"
@@ -90,6 +91,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "599003886305d66092780cfcd1c549fdf532dc5d044e2700cc10ecaf60ab4418"
+  inputs-digest = "3c964ba471df95134ee39ec133dc30ece1755b28a025336555753ed5a990f364"
   solver-name = "gps-cdcl"
   solver-version = 1
