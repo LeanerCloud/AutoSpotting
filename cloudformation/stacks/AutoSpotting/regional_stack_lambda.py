@@ -108,7 +108,7 @@ def handler(event, context):
 
 def send(event, context, response_status, response_data):
     ''' Informs CloudFormation about the state of the custom resource '''
-    response_url = event['response_url']
+    response_url = event['ResponseURL']
 
     print(response_url)
 
