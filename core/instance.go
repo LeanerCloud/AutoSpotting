@@ -347,8 +347,6 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 			debug.Println("Found compatible and allowed instancetype: ", candidate.instanceType, " at ", candidatePrice, " added to launchcandiatelist")
 		} else if candidate.instanceType != "" {
 			debug.Println("Non compatible option found: ", candidate.instanceType, " at ", candidatePrice, " - discarding")
-		} else {
-
 		}
 	}
 
@@ -390,9 +388,8 @@ func (i *instance) launchSpotReplacement() error {
 			if strings.Contains(err.Error(), "InsufficientInstanceCapacity") {
 				logger.Println("Couldn't launch spot instance due to lack of capcity, trying next instance type:", err.Error())
 			} else {
-				logger.Println("Couldn't launch spot instance:", err.Error())
+				logger.Println("Couldn't launch spot instance:", err.Error(), "trying next instance type")
 				debug.Println(runInstancesInput)
-				return err
 			}
 		} else {
 			spotInst := resp.Instances[0]
