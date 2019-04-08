@@ -52,8 +52,10 @@ archive: build                                               ## Create archive t
 	@rm -rf $(LOCAL_PATH)
 	@mkdir -p $(LOCAL_PATH)
 	@zip $(LOCAL_PATH)/lambda.zip $(BINARY) $(LICENSE_FILES)
-	@cp -f cloudformation/stacks/AutoSpotting/template.yaml $(LOCAL_PATH)/template.yaml
+	@cp -f cloudformation/stacks/AutoSpotting/template.yaml $(LOCAL_PATH)/
 	@cp -f cloudformation/stacks/AutoSpotting/template.yaml $(LOCAL_PATH)/template_build_$(BUILD).yaml
+	@zip -j $(LOCAL_PATH)/regional_stack_lambda.zip cloudformation/stacks/AutoSpotting/regional_stack_lambda.py
+	@cp -f cloudformation/stacks/AutoSpotting/regional_template.yaml $(LOCAL_PATH)/
 	@sed -i "s#lambda\.zip#lambda_build_$(BUILD).zip#" $(LOCAL_PATH)/template_build_$(BUILD).yaml
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(BUILD).zip
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(SHA).zip
