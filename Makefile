@@ -35,13 +35,14 @@ check_deps:                                                  ## Verify the syste
 .PHONY: check_deps
 
 build_deps:
-	@go get -u github.com/mattn/goveralls
-	@go get -u golang.org/x/lint/golint
-	@go get -u golang.org/x/tools/cmd/cover
+	@command -v goveralls || go get github.com/mattn/goveralls
+	@command -v golint || go get golang.org/x/lint/golint
+	@go tool cover -V || go get golang.org/x/tools/cmd/cover
 .PHONY: build_deps
 
 update_deps:												 ## Update all dependencies
-	@dep ensure -update
+	@go get -u
+	@go mod tidy
 .PHONY: update_deps
 
 build: build_deps                                            ## Build the AutoSpotting binary
