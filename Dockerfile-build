@@ -1,0 +1,9 @@
+FROM golang:1.12-alpine as golang
+RUN apk add -U --no-cache ca-certificates git make zip
+
+COPY . /src
+WORKDIR /src
+
+# cache the build deps in a Docker storage layer so the entrypoint runs much
+# faster for local execution
+RUN CGO_ENABLED=0 make

@@ -66,7 +66,7 @@ upload: archive                                              ## Upload binary
 	aws s3 sync build/s3/ s3://$(BUCKET_NAME)/
 .PHONY: upload
 
-vet-check:                                                   ## Verify vet compliance
+vet-check: build_deps                                        ## Verify vet compliance
 ifeq ($(shell go vet -all $(CORE_GOFILES) 2>&1 | wc -l | tr -d '[:space:]'), 0)
 	@printf "ok\tall core files passed go vet\n"
 else
@@ -81,7 +81,7 @@ else
 endif
 .PHONY: vet-check
 
-fmt-check:                                                   ## Verify fmt compliance
+fmt-check: build_deps                                        ## Verify fmt compliance
 ifeq ($(shell gofmt -l -s $(CORE_GOFILES) | wc -l | tr -d '[:space:]'), 0)
 	@printf "ok\tall core files passed go fmt\n"
 else
@@ -102,7 +102,7 @@ test:                                                        ## Test go code and
 	@go test -covermode=count -coverprofile=$(COVER_PROFILE) $(BINARY_PKG)
 .PHONY: test
 
-lint:
+lint: build_deps
 	@golint -set_exit_status $(BINARY_PKG)
 	@golint -set_exit_status .
 .PHONY: lint
@@ -121,8 +121,12 @@ travisci-cover: html-cover                                   ## Test & generate 
 travisci-checks: fmt-check vet-check lint                    ## Pass fmt / vet & lint format
 .PHONY: travisci-checks
 
-travisci: archive travisci-checks travisci-cover             ## Executed by TravisCI
+travisci: archive travisci-checks travisci-cover             ## Executes inside the TravisCI Docker builder
 .PHONY: travisci
+
+travisci-docker: 											 ## Executed by TravisCI
+	@docker-compose up --build
+.PHONY: travisci-docker
 
 help:                                                        ## Show this help
 	@printf "Rules:\n"
