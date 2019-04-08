@@ -1,6 +1,6 @@
 DEPS := "wget git go docker golint zip"
 
-BINARY := autospotting
+BINARY := AutoSpotting
 BINARY_PKG := ./core
 CORE_GOFILES := $(shell find core -type f -name '*.go')
 MAIN_GOFILES := $(shell find . -type f -name '*.go' -not -path "./core/*" -not -path "./vendor/*" )
@@ -44,7 +44,7 @@ update_deps:												 ## Update all dependencies
 	@dep ensure -update
 .PHONY: update_deps
 
-build: build_deps                                            ## Build autospotting binary
+build: build_deps                                            ## Build the AutoSpotting binary
 	GOOS=linux go build -ldflags=$(LDFLAGS) -o $(BINARY)
 .PHONY: build
 

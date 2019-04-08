@@ -209,13 +209,13 @@ available options:
 <!-- markdownlint-disable MD013 -->
 
 ``` text
-$ ./autospotting -h
-Usage of ./autospotting:
+$ ./AutoSpotting -h
+Usage of ./AutoSpotting:
   -allowed_instance_types="":
         If specified, the spot instances will be of these types.
         If missing, the type is autodetected frome each ASG based on it's Launch Configuration.
         Accepts a list of comma or whitespace seperated instance types (supports globs).
-        Example: ./autospotting -allowed_instance_types 'c5.*,c4.xlarge'
+        Example: ./AutoSpotting -allowed_instance_types 'c5.*,c4.xlarge'
 
   -bidding_policy="normal":
         Policy choice for spot bid. If set to 'normal', we bid at the on-demand price.
@@ -224,7 +224,7 @@ Usage of ./autospotting:
   -disallowed_instance_types="":
         If specified, the spot instances will _never_ be of these types.
         Accepts a list of comma or whitespace seperated instance types (supports globs).
-        Example: ./autospotting -disallowed_instance_types 't2.*,c4.xlarge'
+        Example: ./AutoSpotting -disallowed_instance_types 't2.*,c4.xlarge'
 
   -min_on_demand_number=0:
         On-demand capacity (as absolute number) ensured to be running in each of your groups.
@@ -242,7 +242,7 @@ Usage of ./autospotting:
 
   -regions="":
         Regions where it should be activated (comma or whitespace separated list, also supports globs), by default it runs on all regions.
-        Example: ./autospotting -regions 'eu-*,us-east-1'
+        Example: ./AutoSpotting -regions 'eu-*,us-east-1'
 
   -spot_price_buffer_percentage=10:
         Percentage Value of the bid above the current spot price. A spot bid would be placed at a value :
@@ -257,7 +257,7 @@ Usage of ./autospotting:
         Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)
 
   -tag_filters=[{spot-enabled true}]: Set of tags to filter the ASGs on.  Default is -tag_filters 'spot-enabled=true'
-        Example: ./autospotting -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'
+        Example: ./AutoSpotting -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'
 ```
 
 <!-- markdownlint-enable MD013 -->
@@ -333,7 +333,7 @@ with the following environment variable `AUTOSPOTTING_DEBUG`.
 You can do it locally with some custom binary:
 
 ``` shell
- AUTOSPOTTING_DEBUG=true ./autospotting
+ AUTOSPOTTING_DEBUG=true ./AutoSpotting
 ```
 
 Or you can do it via the Lambda console under the `Environment variables`
