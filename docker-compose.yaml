@@ -6,6 +6,7 @@ services:
           dockerfile: Dockerfile-build
         environment:
         - FLAVOR=nightly
+        - CGO_ENABLED=0
         - COVERALLS_TOKEN
         entrypoint:
           - make

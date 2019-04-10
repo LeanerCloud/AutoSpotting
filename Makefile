@@ -1,9 +1,7 @@
 DEPS := "wget git go docker golint zip"
 
 BINARY := AutoSpotting
-BINARY_PKG := ./core
-CORE_GOFILES := $(shell find core -type f -name '*.go')
-MAIN_GOFILES := $(shell find . -type f -name '*.go' -not -path "./core/*" -not -path "./vendor/*" )
+
 COVER_PROFILE := /tmp/coverage.out
 BUCKET_NAME ?= cloudprowess
 FLAVOR ?= custom
@@ -40,7 +38,7 @@ build_deps:
 	@go tool cover -V || go get golang.org/x/tools/cmd/cover
 .PHONY: build_deps
 
-update_deps:												 ## Update all dependencies
+update_deps:                                                 ## Update all dependencies
 	@go get -u
 	@go mod tidy
 .PHONY: update_deps
@@ -67,44 +65,33 @@ upload: archive                                              ## Upload binary
 .PHONY: upload
 
 vet-check: build_deps                                        ## Verify vet compliance
-ifeq ($(shell go vet -all $(CORE_GOFILES) 2>&1 | wc -l | tr -d '[:space:]'), 0)
-	@printf "ok\tall core files passed go vet\n"
+ifeq ($(shell go vet -all . | wc -l | tr -d '[:space:]'), 0)
+	@printf "ok\tall files passed go vet\n"
 else
-	@printf "error\tsome core files did not pass go vet\n"
-	@go vet -all $(CORE_GOFILES) 2>&1
+	@printf "error\tsome files did not pass go vet\n"
+	@go vet -all . 2>&1
+	@exit 1
 endif
-ifeq ($(shell go vet -all $(MAIN_GOFILES) 2>&1 | wc -l | tr -d '[:space:]'), 0)
-	@printf "ok\tall main files passed go vet\n"
-else
-	@printf "error\tsome main files did not pass go vet\n"
-	@go vet -all $(MAIN_GOFILES) 2>&1
-endif
+
 .PHONY: vet-check
 
 fmt-check: build_deps                                        ## Verify fmt compliance
-ifeq ($(shell gofmt -l -s $(CORE_GOFILES) | wc -l | tr -d '[:space:]'), 0)
-	@printf "ok\tall core files passed go fmt\n"
+ifeq ($(shell gofmt -l -s . | wc -l | tr -d '[:space:]'), 0)
+	@printf "ok\tall files passed go fmt\n"
 else
-	@printf "error\tsome core files did not pass go fmt, fix the following formatting diff:\n"
-	@gofmt -l -s -d $(CORE_GOFILES)
+	@printf "error\tsome files did not pass go fmt, fix the following formatting diff:\n"
+	@gofmt -l -s -d .
 	@exit 1
 endif
-ifeq ($(shell gofmt -l -s $(MAIN_GOFILES) | wc -l | tr -d '[:space:]'), 0)
-	@printf "ok\tall main files passed go fmt\n"
-else
-	@printf "error\tsome main files did not pass go fmt, fix the following formatting diff:\n"
-	@gofmt -l -s -d $(MAIN_GOFILES)
-	@exit 1
-endif
+
 .PHONY: fmt-check
 
 test:                                                        ## Test go code and coverage
-	@go test -covermode=count -coverprofile=$(COVER_PROFILE) $(BINARY_PKG)
+	@go test -covermode=count -coverprofile=$(COVER_PROFILE) ./...
 .PHONY: test
 
 lint: build_deps
-	@golint -set_exit_status $(BINARY_PKG)
-	@golint -set_exit_status .
+	@golint -set_exit_status ./...
 .PHONY: lint
 
 full-test: fmt-check vet-check test lint                     ## Pass test / fmt / vet / lint
@@ -124,8 +111,8 @@ travisci-checks: fmt-check vet-check lint                    ## Pass fmt / vet &
 travisci: archive travisci-checks travisci-cover             ## Executes inside the TravisCI Docker builder
 .PHONY: travisci
 
-travisci-docker: 											 ## Executed by TravisCI
-	@docker-compose up --build
+travisci-docker:                                             ## Executed by TravisCI
+	@docker-compose up --build --exit-code-from autospotting
 .PHONY: travisci-docker
 
 help:                                                        ## Show this help
