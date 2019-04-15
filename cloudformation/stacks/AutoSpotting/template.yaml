@@ -7,7 +7,7 @@
       Description: >
         "Comma separated list of allowed instance types for spot, in case you
         may want to limit it to a smaller set of instance types  (also support
-        globs). If unset, instances will be chosen by autospotting's algorithm.
+        globs). If unset, instances will be chosen by AutoSpotting's algorithm.
         Example: 'm4.xlarge,r4.xlarge,m5.*'"
       Type: "String"
     BiddingPolicy:
@@ -54,7 +54,7 @@
       Default: ""
       Description: >
         "Comma separated list of tag=value on which to filter the ASGs that
-        autospotting considers.  By default (if no filters are specific) then
+        AutoSpotting considers.  By default (if no filters are specific) then
         'spot-enabled=true' is used.  Example:
         'spot-enabled=true,environment=dev'"
       Type: "String"
@@ -64,10 +64,10 @@
       Type: "String"
     LambdaFunctionTagValue:
       Description: "Value of the tag to be applied to the Lambda function"
-      Default: "autospotting"
+      Default: "AutoSpotting"
       Type: "String"
     LambdaHandlerFunction:
-      Default: "autospotting"
+      Default: "AutoSpotting"
       Description: "Handler function for Lambda"
       Type: "String"
     LambdaMemorySize:
