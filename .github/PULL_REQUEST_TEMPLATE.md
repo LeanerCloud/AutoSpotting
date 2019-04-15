@@ -39,6 +39,8 @@ Gitter and should only be cleared after the PR is merged.
 The code review should be largely a matter of going through this checklist.
 -->
 
+1. [ ] I hereby allow the Copyright holder the rights to distribute this piece of
+   code under any software license.
 1. [ ] The contribution fixes a single existing github issue, and it is linked
    to it.
 1. [ ] The code is as simple as possible, readable and follows the idiomatic Go
