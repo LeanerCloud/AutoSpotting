@@ -270,7 +270,7 @@ development effort (listed in alphabetical order):
 
 ## License ##
 
-This software is distributed under the terms of the MIT [license](LICENSE).
+This software is distributed under the terms of the OSL-3.0 [license](LICENSE).
 
 The official binaries are licensed under this proprietary
 [license](BINARY_LICENSE).
