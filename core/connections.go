@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 // This stores a bunch of sessions to various AWS APIs, in order to avoid
 // connecting to them over and over again.
 
