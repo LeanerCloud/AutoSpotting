@@ -73,7 +73,7 @@ your CloudFormation or Terraform stack to use those new binaries.
 1. Run the code, assuming you have AWS credentials defined in your environment
    or in the default AWS credentials profile:
 
-   `./autospotting`
+   `./AutoSpotting`
 
    You may also pass some command line flags, see the --help for more
    information on the available options.
@@ -158,7 +158,7 @@ to have defined some AWS credential environment variables.
 You can also invoke the container entrypoint directly using
     `docker-compose run autospotting`
 
-This also accepts all the autospotting command-line arguments, including `-help`
+This also accepts all the AutoSpotting command-line arguments, including `-help`
 which explains all the available options.
 
 Pre-built Docker images for the latest builds are also available on Dockerhub at

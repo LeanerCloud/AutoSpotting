@@ -1,22 +1,17 @@
-version: '3'
+version: '3.2'
 services:
-  autospotting:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      - AWS_ACCESS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY
-      - AWS_SESSION_TOKEN
-      - ALLOWED_INSTANCE_TYPES
-      - BIDDING_POLICY
-      - DISALLOWED_INSTANCE_TYPES
-      - INSTANCE_TERMINATION_METHOD
-      - MIN_ON_DEMAND_NUMBER
-      - MIN_ON_DEMAND_PERCENTAGE
-      - ON_DEMAND_PRICE_MULTIPLIER
-      - REGIONS
-      - SPOT_PRICE_BUFFER_PERCENTAGE
-      - SPOT_PRODUCT_DESCRIPTION
-      - TAG_FILTERS
-
+    autospotting:
+        build:
+          context: .
+          dockerfile: Dockerfile-build
+        environment:
+        - FLAVOR=nightly
+        - CGO_ENABLED=0
+        - COVERALLS_TOKEN
+        entrypoint:
+          - make
+          - travisci
+        volumes:
+          - type: bind
+            source: ./build
+            target: /src/build

@@ -1,6 +1,7 @@
 build
 debug
 /autospotting
+/AutoSpotting
 coverage.out
 .vscode/
 handler.zip

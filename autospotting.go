@@ -145,7 +145,7 @@ func (c *cfgData) parseCommandLineFlags() {
 	flag.StringVar(&c.AllowedInstanceTypes, "allowed_instance_types", "",
 		"\n\tIf specified, the spot instances will be searched only among these types.\n\tIf missing, any instance type is allowed.\n"+
 			"\tAccepts a list of comma or whitespace separated instance types (supports globs).\n"+
-			"\tExample: ./autospotting -allowed_instance_types 'c5.*,c4.xlarge'\n")
+			"\tExample: ./AutoSpotting -allowed_instance_types 'c5.*,c4.xlarge'\n")
 	flag.StringVar(&c.BiddingPolicy, "bidding_policy", autospotting.DefaultBiddingPolicy,
 		"\n\tPolicy choice for spot bid. If set to 'normal', we bid at the on-demand price(times the multiplier).\n"+
 			"\tIf set to 'aggressive', we bid at a percentage value above the spot price \n"+
@@ -153,7 +153,7 @@ func (c *cfgData) parseCommandLineFlags() {
 	flag.StringVar(&c.DisallowedInstanceTypes, "disallowed_instance_types", "",
 		"\n\tIf specified, the spot instances will _never_ be of these types.\n"+
 			"\tAccepts a list of comma or whitespace separated instance types (supports globs).\n"+
-			"\tExample: ./autospotting -disallowed_instance_types 't2.*,c4.xlarge'\n")
+			"\tExample: ./AutoSpotting -disallowed_instance_types 't2.*,c4.xlarge'\n")
 	flag.StringVar(&c.InstanceTerminationMethod, "instance_termination_method", autospotting.DefaultInstanceTerminationMethod,
 		"\n\tInstance termination method.  Must be one of '"+autospotting.DefaultInstanceTerminationMethod+"' (default),\n"+
 			"\t or 'detach' (compatibility mode, not recommended)\n")
@@ -172,12 +172,12 @@ func (c *cfgData) parseCommandLineFlags() {
 			"\n\tIt is ignored if min_on_demand_number is also set.\n")
 	flag.Float64Var(&c.OnDemandPriceMultiplier, "on_demand_price_multiplier", 1.0,
 		"\n\tMultiplier for the on-demand price. Numbers less than 1.0 are useful for volume discounts.\n"+
-			"\tExample: ./autospotting -on_demand_price_multiplier 0.6 will have the on-demand price "+
+			"\tExample: ./AutoSpotting -on_demand_price_multiplier 0.6 will have the on-demand price "+
 			"considered at 60% of the actual value.\n")
 	flag.StringVar(&c.Regions, "regions", "",
 		"\n\tRegions where it should be activated (separated by comma or whitespace, also supports globs).\n"+
 			"\tBy default it runs on all regions.\n"+
-			"\tExample: ./autospotting -regions 'eu-*,us-east-1'\n")
+			"\tExample: ./AutoSpotting -regions 'eu-*,us-east-1'\n")
 	flag.Float64Var(&c.SpotPriceBufferPercentage, "spot_price_buffer_percentage", autospotting.DefaultSpotPriceBufferPercentage,
 		"\n\tBid a given percentage above the current spot price.\n\tProtects the group from running spot"+
 			"instances that got significantly more expensive than when they were initially launched\n"+
@@ -188,11 +188,11 @@ func (c *cfgData) parseCommandLineFlags() {
 			"\tValid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | \n"+
 			"\tSUSE Linux (Amazon VPC) | Windows (Amazon VPC)\n\tDefault value: "+autospotting.DefaultSpotProductDescription+"\n")
 	flag.StringVar(&c.TagFilteringMode, "tag_filtering_mode", "opt-in", "\n\tControls the behavior of the tag_filters option.\n"+
-		"\tValid choices: opt-in | opt-out\n\tDefault value: 'opt-in'\n\tExample: ./autospotting --tag_filtering_mode opt-out\n")
+		"\tValid choices: opt-in | opt-out\n\tDefault value: 'opt-in'\n\tExample: ./AutoSpotting --tag_filtering_mode opt-out\n")
 	flag.StringVar(&c.FilterByTags, "tag_filters", "", "\n\tSet of tags to filter the ASGs on.\n"+
 		"\tDefault if no value is set will be the equivalent of -tag_filters 'spot-enabled=true'\n"+
 		"\tIn case the tag_filtering_mode is set to opt-out, it defaults to 'spot-enabled=false'\n"+
-		"\tExample: ./autospotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
+		"\tExample: ./AutoSpotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
 
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 	flag.Parse()

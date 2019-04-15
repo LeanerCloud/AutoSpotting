@@ -17,7 +17,7 @@ LambdaFunctionTagValue: autospotting
 # the Python shim for Go before AWS released official Go support for Lambda.
 # Because Lambda caches the code based on the path, you likely also need to
 # update the LambdaZipPath to explicitly pick up a more recent build.
-LambdaHandlerFunction: autospotting
+LambdaHandlerFunction: AutoSpotting
 
 # You may need to change this on large installations if you run into out of
 # memory situations.
