@@ -61,6 +61,25 @@ const (
 	DefaultInstanceTerminationMethod = AutoScalingTerminationMethod
 )
 
+// AutoScalingConfig stores some group-specific configurations that can override
+// their corresponding global values
+type AutoScalingConfig struct {
+	MinOnDemandNumber         int64
+	MinOnDemandPercentage     float64
+	AllowedInstanceTypes      string
+	DisallowedInstanceTypes   string
+	OnDemandPriceMultiplier   float64
+	SpotPriceBufferPercentage float64
+	SpotProductDescription    string
+	BiddingPolicy             string
+	TerminationMethod         string
+	// Instance termination method
+	InstanceTerminationMethod string
+
+	// Termination Notification action
+	TerminationNotificationAction string
+}
+
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
 	percentage, err := strconv.ParseFloat(*tagValue, 64)
 	if err != nil {

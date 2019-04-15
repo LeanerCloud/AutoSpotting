@@ -18,8 +18,7 @@ type autoScalingGroup struct {
 	launchConfiguration *launchConfiguration
 	instances           instances
 	minOnDemand         int64
-
-	terminationMethod string
+	config              AutoScalingConfig
 }
 
 func (a *autoScalingGroup) loadLaunchConfiguration() error {
@@ -71,7 +70,7 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 			} else {
 				logger.Println("Terminating a random spot instance",
 					*randomSpot.Instance.InstanceId)
-				switch a.terminationMethod {
+				switch a.config.TerminationMethod {
 				case DetachTerminationMethod:
 					randomSpot.terminate()
 				default:
@@ -219,7 +218,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 		defer a.attachSpotInstance(spotInstanceID)
 	}
 
-	switch a.terminationMethod {
+	switch a.config.TerminationMethod {
 	case DetachTerminationMethod:
 		return a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
 	default:

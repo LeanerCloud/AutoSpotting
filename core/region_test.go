@@ -185,7 +185,9 @@ func TestOnDemandPriceMultiplier(t *testing.T) {
 					},
 				},
 			},
-			OnDemandPriceMultiplier: tt.multiplier,
+			AutoScalingConfig: AutoScalingConfig{
+				OnDemandPriceMultiplier: tt.multiplier,
+			},
 		}
 		r := region{
 			name: "us-east-1",
@@ -677,7 +679,11 @@ func Test_region_scanInstances(t *testing.T) {
 			name: "region with a single instance",
 			regionInfo: &region{
 				name: "us-east-1",
-				conf: &Config{MinOnDemandNumber: 2},
+				conf: &Config{
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber: 2,
+					},
+				},
 				services: connections{
 					ec2: mockEC2{
 						diperr: nil,

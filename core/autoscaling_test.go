@@ -418,9 +418,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "No configuration given",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     0,
-					MinOnDemandPercentage: 0.0,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     0,
+						MinOnDemandPercentage: 0.0,
+					}},
 			},
 			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
@@ -430,9 +431,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "Percentage value out of range (0-100)",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     0,
-					MinOnDemandPercentage: 142.2,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     0,
+						MinOnDemandPercentage: 142.2,
+					}},
 			},
 			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
@@ -442,9 +444,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "Percentage value out of range - negative (0-100)",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     0,
-					MinOnDemandPercentage: -22.2,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     0,
+						MinOnDemandPercentage: -22.2,
+					}},
 			},
 			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
@@ -454,9 +457,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "Percentage equals 33.0%",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     0,
-					MinOnDemandPercentage: 33.0,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     0,
+						MinOnDemandPercentage: 33.0,
+					}},
 			},
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
@@ -472,9 +476,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "Percentage equals 75.0%",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     0,
-					MinOnDemandPercentage: 75.0,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     0,
+						MinOnDemandPercentage: 75.0,
+					}},
 			},
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
@@ -490,9 +495,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "Percentage equals 100.0%",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     0,
-					MinOnDemandPercentage: 100,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     0,
+						MinOnDemandPercentage: 100,
+					}},
 			},
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
@@ -508,9 +514,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "Number passed out of range (negative)",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     -4,
-					MinOnDemandPercentage: 0,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     -4,
+						MinOnDemandPercentage: 0,
+					}},
 			},
 			asgInstances:    makeInstances(),
 			maxSize:         aws.Int64(10),
@@ -520,9 +527,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "Number superior to ASG size",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     50,
-					MinOnDemandPercentage: 0,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     50,
+						MinOnDemandPercentage: 0,
+					}},
 			},
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
@@ -538,9 +546,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "Number is valid 1",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     1,
-					MinOnDemandPercentage: 0,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     1,
+						MinOnDemandPercentage: 0,
+					}},
 			},
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
@@ -556,9 +565,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "Number has priority on percentage value",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     2,
-					MinOnDemandPercentage: 75,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     2,
+						MinOnDemandPercentage: 75,
+					}},
 			},
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
@@ -575,9 +585,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "Number is invalid so percentage value is used",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     -20,
-					MinOnDemandPercentage: 75.0,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     -20,
+						MinOnDemandPercentage: 75.0,
+					}},
 			},
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
@@ -594,9 +605,10 @@ func TestLoadDefaultConf(t *testing.T) {
 		{name: "Both number and percentage are invalid",
 			region: &region{
 				conf: &Config{
-					MinOnDemandNumber:     -10,
-					MinOnDemandPercentage: 142.2,
-				},
+					AutoScalingConfig: AutoScalingConfig{
+						MinOnDemandNumber:     -10,
+						MinOnDemandPercentage: 142.2,
+					}},
 			},
 			maxSize:         aws.Int64(10),
 			asgInstances:    makeInstances(),
@@ -692,9 +704,10 @@ func TestLoadConfigFromTags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &Config{
-				BiddingPolicy:             "normal",
-				SpotPriceBufferPercentage: 10.0,
-			}
+				AutoScalingConfig: AutoScalingConfig{
+					BiddingPolicy:             "normal",
+					SpotPriceBufferPercentage: 10.0,
+				}}
 			a := autoScalingGroup{Group: &autoscaling.Group{},
 				region: &region{
 					name: "us-east-1",
@@ -824,8 +837,9 @@ func TestLoadConfSpot(t *testing.T) {
 	}
 	for _, tt := range tests {
 		cfg := &Config{
-			BiddingPolicy: "normal",
-		}
+			AutoScalingConfig: AutoScalingConfig{
+				BiddingPolicy: "normal",
+			}}
 		a := autoScalingGroup{Group: &autoscaling.Group{},
 			region: &region{
 				name: "us-east-1",
@@ -891,8 +905,9 @@ func TestLoadConfSpotPrice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		cfg := &Config{
-			SpotPriceBufferPercentage: 10.0,
-		}
+			AutoScalingConfig: AutoScalingConfig{
+				SpotPriceBufferPercentage: 10.0,
+			}}
 		a := autoScalingGroup{Group: &autoscaling.Group{},
 			region: &region{
 				name: "us-east-1",
@@ -2989,7 +3004,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 			CheckErrors(t, returned, tt.expected)
 		})
 		t.Run(tt.name+"-detach-method", func(t *testing.T) {
-			tt.asg.terminationMethod = "detach"
+			tt.asg.config.TerminationMethod = "detach"
 			returned := tt.asg.replaceOnDemandInstanceWithSpot(tt.spotID)
 			CheckErrors(t, returned, tt.expected)
 		})
@@ -3016,8 +3031,9 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						AllowedInstanceTypes: "",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							AllowedInstanceTypes: "",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3042,8 +3058,9 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						AllowedInstanceTypes: "c2.xlarge",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							AllowedInstanceTypes: "c2.xlarge",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3063,8 +3080,9 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						AllowedInstanceTypes: "current",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							AllowedInstanceTypes: "current",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3084,8 +3102,9 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						AllowedInstanceTypes: "c2.xlarge",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							AllowedInstanceTypes: "c2.xlarge",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3110,8 +3129,9 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						AllowedInstanceTypes: "c4.xlarge",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							AllowedInstanceTypes: "c4.xlarge",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3136,8 +3156,9 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						AllowedInstanceTypes: "c2.xlarge,t2.medium,c3.small",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							AllowedInstanceTypes: "c2.xlarge,t2.medium,c3.small",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3157,8 +3178,9 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						AllowedInstanceTypes: "c2.xlarge t2.medium c3.small",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							AllowedInstanceTypes: "c2.xlarge t2.medium c3.small",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3178,8 +3200,9 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						AllowedInstanceTypes: ",,c2.xlarge,,,t2.medium,c3.small,,",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							AllowedInstanceTypes: ",,c2.xlarge,,,t2.medium,c3.small,,",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3199,8 +3222,9 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						AllowedInstanceTypes: "   c2.xlarge    t2.medium  c3.small  ",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							AllowedInstanceTypes: "   c2.xlarge    t2.medium  c3.small  ",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3244,8 +3268,9 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						DisallowedInstanceTypes: "",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							DisallowedInstanceTypes: "",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3270,8 +3295,9 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						DisallowedInstanceTypes: "c2.xlarge",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							DisallowedInstanceTypes: "c2.xlarge",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3291,8 +3317,9 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						DisallowedInstanceTypes: "c2.xlarge",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							DisallowedInstanceTypes: "c2.xlarge",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3317,8 +3344,9 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						DisallowedInstanceTypes: "c2.xlarge,t2.medium,c3.small",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							DisallowedInstanceTypes: "c2.xlarge,t2.medium,c3.small",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3338,8 +3366,9 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						DisallowedInstanceTypes: "c2.xlarge t2.medium c3.small",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							DisallowedInstanceTypes: "c2.xlarge t2.medium c3.small",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3359,8 +3388,9 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						DisallowedInstanceTypes: ",,c2.xlarge,,,t2.medium,c3.small,,",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							DisallowedInstanceTypes: ",,c2.xlarge,,,t2.medium,c3.small,,",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
@@ -3380,8 +3410,9 @@ func TestGetDisallowedInstanceTypes(t *testing.T) {
 				name: "TestASG",
 				region: &region{
 					conf: &Config{
-						DisallowedInstanceTypes: "   c2.xlarge    t2.medium  c3.small  ",
-					},
+						AutoScalingConfig: AutoScalingConfig{
+							DisallowedInstanceTypes: "   c2.xlarge    t2.medium  c3.small  ",
+						}},
 				},
 				Group: &autoscaling.Group{
 					DesiredCapacity: aws.Int64(4),
