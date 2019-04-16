@@ -5,6 +5,9 @@
     AutoSpottingLambdaARN:
       Description: "The ARN of the main AutoSpotting Lambda function"
       Type: "String"
+    LambdaRegionalExecutionRoleARN:
+      Description: "Execution Role ARN for Regional Lambda"
+      Type: "String"
   Resources:
     TerminationEventRuleFunction:
       Type: AWS::Lambda::Function
@@ -18,9 +21,7 @@
             AUTOSPOTTING_LAMBDA_ARN:
               Ref: "AutoSpottingLambdaARN"
         Role:
-          Fn::GetAtt:
-            - "LambdaExecutionRole"
-            - "Arn"
+          Ref: "LambdaRegionalExecutionRoleARN"
         Code:
           ZipFile: |
             from boto3 import client
@@ -35,80 +36,41 @@
                 return arn.split(':')[3]
 
             def handler(event, context):
+                snsEvent = {
+                    'Records': [
+                        {
+                            'Event': 'aws:sns',
+                            'EventSource': '1.0',
+                            'EventSubscriptionArn': 'arn:aws:sns:' + event['region'] + ':FakeAccountId:FakeTopic',
+                            'Sns': {
+                                'Type': 'Notification',
+                                'Message': dumps(event),
+                            }
+                        }
+                    ]
+                }
                 try:
                     svc = client('lambda', region_name=parse_region_from_arn(lambda_arn))
                     response = svc.invoke(
                         FunctionName=lambda_arn,
                         LogType='Tail',
-                        Payload=dumps(event),
+                        Payload=dumps(snsEvent),
                     )
                     print(response)
                 except:
                     print_exc()
                     print("Unexpected error:", exc_info()[0])
-
-    LambdaExecutionRole:
-      Properties:
-        AssumeRolePolicyDocument:
-          Statement:
-            -
-              Action: "sts:AssumeRole"
-              Effect: "Allow"
-              Principal:
-                Service:
-                  - "lambda.amazonaws.com"
-        Path: "/lambda/"
-      Type: "AWS::IAM::Role"
-    LambdaPolicy:
-      Properties:
-        PolicyDocument:
-          Statement:
-            -
-              Action:
-                - "lambda:InvokeFunction"
-                - "logs:CreateLogGroup"
-                - "logs:CreateLogStream"
-                - "logs:PutLogEvents"
-              Effect: "Allow"
-              Resource: "*"
-        PolicyName: "LambdaPolicy"
-        Roles:
-          -
-            Ref: "LambdaExecutionRole"
-      Type: "AWS::IAM::Policy"
-    AutoSpotTerminationNotificationTopic:
-      Type: "AWS::SNS::Topic"
-      Properties:
-        DisplayName: "autospotting-termination-notification-topic"
-        Subscription:
-          -
-            Endpoint: !GetAtt TerminationEventRuleFunction.Arn
-            Protocol: "lambda"
-    LambdaPermissionAutoSpotTerminationNotificationTopic:
+    LambdaPermissionAutoSpotTeminationEventRule:
       Type: "AWS::Lambda::Permission"
       Properties:
         Action: "lambda:InvokeFunction"
         FunctionName:
           Ref: "TerminationEventRuleFunction"
-        Principal: "sns.amazonaws.com"
+        Principal: "events.amazonaws.com"
         SourceArn:
-          Ref: "AutoSpotTerminationNotificationTopic"
-    SNSTopicPolicyAutoSpotTeminationEventRule:
-      Type: "AWS::SNS::TopicPolicy"
-      Properties:
-        PolicyDocument:
-          Statement:
-            -
-              Action: "sns:Publish"
-              Effect: "Allow"
-              Principal:
-                Service: "events.amazonaws.com"
-              Resource:
-                Ref: "AutoSpotTerminationNotificationTopic"
-          Version: "2012-10-17"
-        Topics:
-          -
-            Ref: "AutoSpotTerminationNotificationTopic"
+          Fn::GetAtt:
+            - "AutoSpotTeminationEventRule"
+            - "Arn"
     AutoSpotTeminationEventRule:
       Type: "AWS::Events::Rule"
       Properties:
@@ -123,5 +85,6 @@
           -
             Id: "AutoSpottingTerminationEventGenerator"
             Arn:
-              Ref: "AutoSpotTerminationNotificationTopic"
-
+              Fn::GetAtt:
+                - "TerminationEventRuleFunction"
+                - "Arn"
