@@ -72,13 +72,26 @@ def handle_create(event):
     role_arn = event['ResourceProperties']['LambdaRegionalExecutionRoleARN']
     bucket = event['ResourceProperties']['S3Bucket']
     path = event['ResourceProperties']['S3BucketPrefix']
-    template_url = 'https://' + bucket + '.s3.amazonaws.com/' + path + '/regional_template.yaml'
+    template_url = (
+        'https://' +
+        bucket +
+        '.s3.amazonaws.com/' +
+        path +
+        '/regional_template.yaml'
+    )
     threads = []
 
     # create concurrently in all regions
     for region in ec2.describe_regions()['Regions']:
-        process = Thread(target=create_stack,
-                         args=[region['RegionName'], lambda_arn, role_arn, template_url])
+        process = Thread(
+            target=create_stack,
+            args=[
+                region['RegionName'],
+                lambda_arn,
+                role_arn,
+                template_url,
+            ]
+        )
         process.start()
         threads.append(process)
 
