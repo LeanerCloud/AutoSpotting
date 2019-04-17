@@ -17,11 +17,9 @@ from botocore.vendored.requests.exceptions import RequestException
 SUCCESS = "SUCCESS"
 FAILED = "FAILED"
 STACK_NAME = 'AutoSpottingRegionalResources'
-TEMPLATE_URL = \
-    'https://s3.amazonaws.com/cloudprowess/nightly/regional_template.yaml'
 
 
-def create_stack(region, lambda_arn):
+def create_stack(region, lambda_arn, role_arn, template_url):
     '''Creates a regional CloudFormation stack'''
     cfn = client('cloudformation', region)
     response = {}
@@ -34,12 +32,16 @@ def create_stack(region, lambda_arn):
 
     response = cfn.create_stack(
         StackName=STACK_NAME,
-        TemplateURL=TEMPLATE_URL,
+        TemplateURL=template_url,
         Capabilities=['CAPABILITY_IAM'],
         Parameters=[
             {
                 'ParameterKey': 'AutoSpottingLambdaARN',
                 'ParameterValue': lambda_arn,
+            },
+            {
+                'ParameterKey': 'LambdaRegionalExecutionRoleARN',
+                'ParameterValue': role_arn,
             },
         ],
     )
@@ -50,8 +52,11 @@ def delete_stack(region):
     ''' Deletes a regional CloudFormation stack'''
     cfn = client('cloudformation', region)
 
-    response = cfn.delete_stack(StackName=STACK_NAME)
-    print(response)
+    try:
+        response = cfn.delete_stack(StackName=STACK_NAME)
+        print(response)
+    except ClientError:
+        pass
 
     waiter = cfn.get_waiter('stack_delete_complete')
     waiter.wait(
@@ -64,12 +69,29 @@ def handle_create(event):
     ''' Creates regional stacks in all available AWS regions concurrently '''
     ec2 = client('ec2')
     lambda_arn = event['ResourceProperties']['LambdaARN']
+    role_arn = event['ResourceProperties']['LambdaRegionalExecutionRoleARN']
+    bucket = event['ResourceProperties']['S3Bucket']
+    path = event['ResourceProperties']['S3BucketPrefix']
+    template_url = (
+        'https://' +
+        bucket +
+        '.s3.amazonaws.com/' +
+        path +
+        '/regional_template.yaml'
+    )
     threads = []
 
     # create concurrently in all regions
     for region in ec2.describe_regions()['Regions']:
-        process = Thread(target=create_stack,
-                         args=[region['RegionName'], lambda_arn])
+        process = Thread(
+            target=create_stack,
+            args=[
+                region['RegionName'],
+                lambda_arn,
+                role_arn,
+                template_url,
+            ]
+        )
         process.start()
         threads.append(process)
 

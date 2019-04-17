@@ -78,12 +78,16 @@
       Default: "cloudprowess"
       Description: "S3 bucket that contains the function"
       Type: "String"
-    LambdaZipPath:
-      Default: "nightly/lambda.zip"
+    LambdaS3BucketPrefix:
+      Default: "nightly"
+      Description: "S3 bucket prefix to use as source of lambdas and template"
+      Type: "String"
+    LambdaZipName:
+      Default: "lambda.zip"
       Description: >
-        "Path to the Lambda function zip file inside the S3 bucket. Can be used
+        "Name of Lambda function zip file inside the S3 bucket. Can be used
         to update to a more recent version, such as
-        'nightly/lambda_build_57.zip'. Build numbers can be taken from TravisCI:
+        'lambda_build_57.zip'. Build numbers can be taken from TravisCI:
         https://travis-ci.org/AutoSpotting/AutoSpotting/builds"
       Type: "String"
     LogRetentionPeriod:
@@ -189,7 +193,7 @@
           S3Bucket:
             Ref: "LambdaS3Bucket"
           S3Key:
-            Ref: "LambdaZipPath"
+            Fn::Sub: "${LambdaS3BucketPrefix}/${LambdaZipName}"
         Description: "Implements SPOT instance automation"
         Environment:
           Variables:
@@ -315,6 +319,35 @@
           -
             Ref: "LambdaRegionalStackExecutionRole"
       Type: "AWS::IAM::Policy"
+    LambdaRegionalExecutionRole:
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            -
+              Action: "sts:AssumeRole"
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - "lambda.amazonaws.com"
+        Path: "/lambda/"
+      Type: "AWS::IAM::Role"
+    LambdaRegionalPolicy:
+      Properties:
+        PolicyDocument:
+          Statement:
+            -
+              Action:
+                - "lambda:InvokeFunction"
+                - "logs:CreateLogGroup"
+                - "logs:CreateLogStream"
+                - "logs:PutLogEvents"
+              Effect: "Allow"
+              Resource: "*"
+        PolicyName: "LambdaPolicy"
+        Roles:
+          -
+            Ref: "LambdaRegionalExecutionRole"
+      Type: "AWS::IAM::Policy"
     LogGroup:
       Properties:
         LogGroupName:
@@ -375,7 +408,8 @@
         Code:
           S3Bucket:
             Ref: "LambdaS3Bucket"
-          S3Key: nightly/regional_stack_lambda.zip
+          S3Key:
+            Fn::Sub: "${LambdaS3BucketPrefix}/regional_stack_lambda.zip"
     RegionalStackCustomResource:
       Type: "Custom::LambdaCallout"
       Properties:
@@ -387,4 +421,12 @@
           Fn::GetAtt:
             - "LambdaFunction"
             - "Arn"
+        LambdaRegionalExecutionRoleARN:
+          Fn::GetAtt:
+            - "LambdaRegionalExecutionRole"
+            - "Arn"
+        S3Bucket:
+          Ref: "LambdaS3Bucket"
+        S3BucketPrefix:
+          Ref: "LambdaS3BucketPrefix"
       DependsOn: LambdaRegionalStackPolicy
