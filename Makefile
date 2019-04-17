@@ -102,7 +102,9 @@ html-cover: test                                             ## Display coverage
 .PHONY: html-cover
 
 travisci-cover: html-cover                                   ## Test & generate coverage in the TravisCI format, fails unless executed from TravisCI
+ifdef COVERALLS_TOKEN
 	@goveralls -coverprofile=$(COVER_PROFILE) -service=travis-ci -repotoken=$(COVERALLS_TOKEN)
+endif
 .PHONY: travisci-cover
 
 travisci-checks: fmt-check vet-check lint                    ## Pass fmt / vet & lint format
