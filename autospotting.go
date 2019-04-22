@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/AutoSpotting/AutoSpotting/core"
 	"github.com/aws/aws-lambda-go/events"
@@ -97,35 +96,38 @@ func init() {
 func Handler(ctx context.Context, rawEvent json.RawMessage) {
 
 	var snsEvent events.SNSEvent
+	var cloudwatchEvent events.CloudWatchEvent
+	parseEvent := rawEvent
 
-	if err := json.Unmarshal(rawEvent, &snsEvent); err != nil {
+	// Try to parse event as an Sns Message
+	if err := json.Unmarshal(parseEvent, &snsEvent); err != nil {
 		log.Println(err.Error())
 		return
 	}
 
-	if snsEvent.Records == nil {
-		run()
-	} else {
+	// If event is from Sns - extract Cloudwatch's one
+	if snsEvent.Records != nil {
 		snsRecord := snsEvent.Records[0]
-		snsRegion := strings.Split(snsRecord.EventSubscriptionArn, ":")[3]
-		var snsMessage = []byte(snsRecord.SNS.Message)
-		var cloudwatchEvent events.CloudWatchEvent
+		parseEvent = []byte(snsRecord.SNS.Message)
+	}
 
-		if err := json.Unmarshal(snsMessage, &cloudwatchEvent); err != nil {
-			log.Println(err.Error())
+	// Try to parse event as Cloudwatch Event Rule
+	if err := json.Unmarshal(parseEvent, &cloudwatchEvent); err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	// If event is Instance Spot Interruption
+	if cloudwatchEvent.DetailType == "EC2 Spot Instance Interruption Warning" {
+		if instanceID, err := autospotting.GetInstanceIDDueForTermination(cloudwatchEvent); err != nil {
 			return
-		}
-
-		instanceID, err := autospotting.GetInstanceIDDueForTermination(cloudwatchEvent)
-
-		if err != nil {
-			return
-		}
-
-		if instanceID != nil {
-			spotTermination := autospotting.NewSpotTermination(snsRegion)
+		} else if instanceID != nil {
+			spotTermination := autospotting.NewSpotTermination(cloudwatchEvent.Region)
 			spotTermination.ExecuteAction(instanceID, conf.TerminationNotificationAction)
 		}
+	} else {
+		// Event is Autospotting Cron Scheduling
+		run()
 	}
 }
 
