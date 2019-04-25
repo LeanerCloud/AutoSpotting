@@ -27,7 +27,6 @@ LambdaMemorySize: '1024'
 # created in advance. Because of Lambda restrictions, the stack and the S3
 # bucket have to be located in the same region.
 LambdaS3Bucket: cloudprowess
-LambdaZipPath: nightly/lambda.zip
 
 # Default value: 0
 MinOnDemandNumber: '1'
