@@ -8,6 +8,7 @@ services:
         - FLAVOR=nightly
         - CGO_ENABLED=0
         - COVERALLS_TOKEN
+        - TRAVIS_BUILD_NUMBER
         entrypoint:
           - make
           - travisci
