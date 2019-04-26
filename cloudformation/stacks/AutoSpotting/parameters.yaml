@@ -29,7 +29,7 @@ LambdaMemorySize: '1024'
 LambdaS3Bucket: cloudprowess
 
 # Default value: 0
-MinOnDemandNumber: '1'
+MinOnDemandNumber: '0'
 
 # Valid choices:
 # - for EC2 Classic environments: Linux/UNIX | SUSE Linux | Windows
