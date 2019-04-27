@@ -69,6 +69,10 @@ func GetInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, erro
 //This makes sure that the autoscaling group spawns a new instance as soon as this instance is detached
 func (s *SpotTermination) detachInstance(instanceID *string, asgName string) error {
 
+	log.Println(asgName,
+		"Detaching instance:",
+		*instanceID)
+
 	detachParams := autoscaling.DetachInstancesInput{
 		AutoScalingGroupName: aws.String(asgName),
 		InstanceIds: []*string{
