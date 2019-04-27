@@ -378,7 +378,7 @@ func (i *instance) launchSpotReplacement() error {
 
 	//Go through all compatible instances until one type launches or we are out of options.
 	for _, instanceType := range instanceTypes {
-		bidPrice := i.getPricetoBid(instanceType.pricing.onDemand,
+		bidPrice := i.getPricetoBid(i.price,
 			instanceType.pricing.spot[*i.Placement.AvailabilityZone])
 
 		runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
