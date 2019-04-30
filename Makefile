@@ -58,6 +58,9 @@ archive: build                                               ## Create archive t
 	@sed -i "s#lambda\.zip#lambda_build_$(BUILD).zip#" $(LOCAL_PATH)/template_build_$(BUILD).yaml
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(BUILD).zip
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(SHA).zip
+	@cp -f $(LOCAL_PATH)/regional_stack_lambda.zip $(LOCAL_PATH)/regional_stack_lambda_build_$(BUILD).zip
+	@cp -f $(LOCAL_PATH)/regional_stack_lambda.zip $(LOCAL_PATH)/regional_stack_lambda_build_$(SHA).zip
+
 .PHONY: archive
 
 upload: archive                                              ## Upload binary
