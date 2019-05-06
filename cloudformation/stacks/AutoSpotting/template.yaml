@@ -10,6 +10,10 @@
         globs). If unset, instances will be chosen by AutoSpotting's algorithm.
         Example: 'm4.xlarge,r4.xlarge,m5.*'"
       Type: "String"
+    AutoSpottingLambdaARN:
+      Description: "The ARN of the main AutoSpotting Lambda function - StackSetsOnly"
+      Default: ""
+      Type: "String"
     BiddingPolicy:
       AllowedValues:
         - "normal"
@@ -74,6 +78,10 @@
       Default: "1024"
       Description: "Memory allocated to the Lambda function"
       Type: "Number"
+    LambdaRegionalExecutionRoleARN:
+      Description: "Execution Role ARN for Regional Lambda - StackSetsOnly"
+      Default: ""
+      Type: "String"
     LambdaS3Bucket:
       Default: "cloudprowess"
       Description: "S3 bucket that contains the function"
@@ -152,6 +160,19 @@
         | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon
         VPC)"
       Type: "String"
+    StackSets:
+      AllowedValues:
+        - "False"
+        - "True"
+      Default: "False"
+      Description: >
+        "Deploy using CF Stacksets -
+        https://github.com/AutoSpotting/AutoSpotting/STACKSETS.md"
+      Type: "String"
+    StackSetsMainRegion:
+      Default: "us-east-1"
+      Description: "Region of the Main Stack - StackSetsOnly"
+      Type: "String"
     TagFilteringMode:
       AllowedValues:
         - "opt-in"
@@ -162,8 +183,65 @@
         FilterByTags option. Defaults to 'opt-in', only processing the tagged
         groups. The opposite behavior can be configured using the opt-out mode"
       Type: "String"
+  Conditions:
+    StackSetsFalse: !Equals
+        - !Ref StackSets
+        - "False"
+    StackSetsTrue: !Equals
+        - !Ref StackSets
+        - "True"
+    StackIsMain: !Or
+        - !Condition StackSetsIsMain
+        - !Condition StackSetsFalse
+    StackSetsIsMain: !And
+        - !Condition StackSetsTrue
+        - !Equals
+            - !Ref StackSetsMainRegion
+            - !Ref AWS::Region
+    StackSetsIsRegional: !And
+        - !Condition StackSetsTrue
+        - !Not
+            - !Equals
+                - !Ref StackSetsMainRegion
+                - !Ref AWS::Region
+  Outputs:
+    AutoSpottingLambdaARN:
+      Condition: "StackSetsIsMain"
+      Value:
+        Fn::GetAtt:
+          - "LambdaFunction"
+          - "Arn"
+    LambdaRegionalExecutionRoleARN:
+      Condition: "StackSetsIsMain"
+      Value:
+        Fn::GetAtt:
+          - "LambdaRegionalExecutionRole"
+          - "Arn"
   Resources:
+    AutoSpotTeminationEventRule:
+      Condition: "StackSetsTrue"
+      Type: "AWS::Events::Rule"
+      Properties:
+        Description: "This rule is triggered 2 minutes before AWS terminates a spot instance"
+        EventPattern:
+          detail-type:
+            - "EC2 Spot Instance Interruption Warning"
+          source:
+            - "aws.ec2"
+        State: "ENABLED"
+        Targets:
+          -
+            Id: "AutoSpottingTerminationEventGenerator"
+            Arn: !If
+              - "StackSetsIsRegional"
+              - Fn::GetAtt:
+                  - "TerminationEventRuleFunction"
+                  - "Arn"
+              - Fn::GetAtt:
+                  - "LambdaFunction"
+                  - "Arn"
     LambdaExecutionRole:
+      Condition: "StackIsMain"
       Properties:
         AssumeRolePolicyDocument:
           Statement:
@@ -176,6 +254,7 @@
         Path: "/lambda/"
       Type: "AWS::IAM::Role"
     LambdaRegionalStackExecutionRole:
+      Condition: "StackSetsFalse"
       Properties:
         AssumeRolePolicyDocument:
           Statement:
@@ -188,6 +267,7 @@
         Path: "/lambda/"
       Type: "AWS::IAM::Role"
     LambdaFunction:
+      Condition: "StackIsMain"
       Properties:
         Code:
           S3Bucket:
@@ -240,7 +320,22 @@
               Ref: "LambdaFunctionTagValue"
         Timeout: "900"
       Type: "AWS::Lambda::Function"
+    LambdaPermissionAutoSpotTeminationEventRule:
+      Condition: "StackSetsTrue"
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName: !If
+          - "StackSetsIsRegional"
+          - Ref: "TerminationEventRuleFunction"
+          - Ref: "LambdaFunction"
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::GetAtt:
+            - "AutoSpotTeminationEventRule"
+            - "Arn"
     LambdaPolicy:
+      Condition: "StackIsMain"
       Properties:
         PolicyDocument:
           Statement:
@@ -279,6 +374,7 @@
     # This allows the creation and deletion of the regional CloudFormation templates
     # and it used by the secondary Lambda function, backing the custom resource
     LambdaRegionalStackPolicy:
+      Condition: "StackSetsFalse"
       Properties:
         PolicyDocument:
           Statement:
@@ -320,6 +416,7 @@
             Ref: "LambdaRegionalStackExecutionRole"
       Type: "AWS::IAM::Policy"
     LambdaRegionalExecutionRole:
+      Condition: "StackIsMain"
       Properties:
         AssumeRolePolicyDocument:
           Statement:
@@ -332,6 +429,7 @@
         Path: "/lambda/"
       Type: "AWS::IAM::Role"
     LambdaRegionalPolicy:
+      Condition: "StackIsMain"
       Properties:
         PolicyDocument:
           Statement:
@@ -349,6 +447,7 @@
             Ref: "LambdaRegionalExecutionRole"
       Type: "AWS::IAM::Policy"
     LogGroup:
+      Condition: "StackIsMain"
       Properties:
         LogGroupName:
           Fn::Join:
@@ -361,6 +460,7 @@
           Ref: "LogRetentionPeriod"
       Type: "AWS::Logs::LogGroup"
     PermissionForEventsToInvokeLambda:
+      Condition: "StackIsMain"
       Properties:
         Action: "lambda:InvokeFunction"
         FunctionName:
@@ -372,6 +472,7 @@
             - "Arn"
       Type: "AWS::Lambda::Permission"
     PermissionForInvokingTheLambdaFunctionFromOtherRegions:
+      Condition: "StackIsMain"
       Properties:
         Action: "lambda:InvokeFunction"
         FunctionName:
@@ -380,6 +481,7 @@
         SourceAccount: !Ref 'AWS::AccountId'
       Type: "AWS::Lambda::Permission"
     ScheduledRule:
+      Condition: "StackIsMain"
       Properties:
         Description: "ScheduledRule for launching the AutoSpotting Lambda function"
         ScheduleExpression:
@@ -394,6 +496,7 @@
             Id: "AutoSpottingEventGenerator"
       Type: "AWS::Events::Rule"
     RegionalStackCreationLambdaFunction:
+      Condition: "StackSetsFalse"
       Type: AWS::Lambda::Function
       DependsOn: LambdaRegionalStackPolicy
       Properties:
@@ -411,6 +514,7 @@
           S3Key:
             Fn::Sub: "${LambdaS3BucketPrefix}/regional_stack_lambda.zip"
     RegionalStackCustomResource:
+      Condition: "StackSetsFalse"
       Type: "Custom::LambdaCallout"
       Properties:
         ServiceToken:
@@ -430,3 +534,55 @@
         S3BucketPrefix:
           Ref: "LambdaS3BucketPrefix"
       DependsOn: LambdaRegionalStackPolicy
+    TerminationEventRuleFunction:
+      Type: AWS::Lambda::Function
+      Condition: "StackSetsIsRegional"
+      Properties:
+        Description: "Invokes the main AutoSpotting Lambda function on spot instance termination notification"
+        Handler: "index.handler"
+        Runtime: "python3.6"
+        Timeout: "300"
+        Environment:
+          Variables:
+            AUTOSPOTTING_LAMBDA_ARN:
+              Ref: "AutoSpottingLambdaARN"
+        Role:
+          Ref: "LambdaRegionalExecutionRoleARN"
+        Code:
+          ZipFile: |
+            from boto3 import client
+            from json import dumps
+            from os import environ
+            from sys import exc_info
+            from traceback import print_exc
+
+            lambda_arn = (environ['AUTOSPOTTING_LAMBDA_ARN'])
+
+            def parse_region_from_arn(arn):
+                return arn.split(':')[3]
+
+            def handler(event, context):
+                snsEvent = {
+                    'Records': [
+                        {
+                            'Event': 'aws:sns',
+                            'EventSource': '1.0',
+                            'EventSubscriptionArn': 'arn:aws:sns:' + event['region'] + ':FakeAccountId:FakeTopic',
+                            'Sns': {
+                                'Type': 'Notification',
+                                'Message': dumps(event),
+                            }
+                        }
+                    ]
+                }
+                try:
+                    svc = client('lambda', region_name=parse_region_from_arn(lambda_arn))
+                    response = svc.invoke(
+                        FunctionName=lambda_arn,
+                        LogType='Tail',
+                        Payload=dumps(snsEvent),
+                    )
+                    print(response)
+                except:
+                    print_exc()
+                    print("Unexpected error:", exc_info()[0])
