@@ -49,7 +49,9 @@ func run() {
 		"tag_filter_mode=%s "+
 		"spot_product_description=%v "+
 		"instance_termination_method=%s "+
-		"termination_notification_action=%s\n",
+		"termination_notification_action=%s "+
+		"cron_schedule=%s\n "+
+		"cron_schedule_state=%s\n",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
@@ -62,7 +64,10 @@ func run() {
 		conf.TagFilteringMode,
 		conf.SpotProductDescription,
 		conf.InstanceTerminationMethod,
-		conf.TerminationNotificationAction)
+		conf.TerminationNotificationAction,
+		conf.CronSchedule,
+		conf.CronScheduleState,
+	)
 
 	autospotting.Run(conf.Config)
 	log.Println("Execution completed, nothing left to do")
@@ -195,6 +200,14 @@ func (c *cfgData) parseCommandLineFlags() {
 		"\tDefault if no value is set will be the equivalent of -tag_filters 'spot-enabled=true'\n"+
 		"\tIn case the tag_filtering_mode is set to opt-out, it defaults to 'spot-enabled=false'\n"+
 		"\tExample: ./AutoSpotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
+
+	flag.StringVar(&c.CronSchedule, "cron_schedule", "* *", "\n\tCron-like schedule in which to"+
+		"\tperform(or not) spot replacement actions. Format: hour day-of-week\n"+
+		"\tExample: ./AutoSpotting --cron_schedule '9-18 1-5' # workdays during the office hours \n")
+
+	flag.StringVar(&c.CronScheduleState, "cron_schedule_state", "on", "\n\tControls whether to take actions "+
+		"inside or outside the schedule defined by cron_schedule. Allowed values: on|off\n"+
+		"\tExample: ./AutoSpotting --schedule_type='off' --cron_schedule '9-18 1-5'  # would only take action outside the defined schedule\n")
 
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 	flag.Parse()

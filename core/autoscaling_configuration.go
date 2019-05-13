@@ -59,25 +59,46 @@ const (
 	// DefaultInstanceTerminationMethod is the default value for the instance termination
 	// method configuration option
 	DefaultInstanceTerminationMethod = AutoScalingTerminationMethod
+
+	// ScheduleTag is the name of the tag set on the AutoScaling Group that
+	// can override the global value of the Schedule parameter
+	ScheduleTag = "autospotting_schedule"
+
+	// CronScheduleState controls whether to run or not to run during the time interval
+	// specified in the Schedule variable or its per-group tag overrides. It
+	// accepts "on|off" as valid values
+	CronScheduleState = "on"
+
+	// CronScheduleStateTag is the name of the tag set on the AutoScaling Group that
+	// can override the global value of the CronScheduleState parameter
+	CronScheduleStateTag = "autospotting_schedule_type"
 )
 
 // AutoScalingConfig stores some group-specific configurations that can override
 // their corresponding global values
 type AutoScalingConfig struct {
-	MinOnDemandNumber         int64
-	MinOnDemandPercentage     float64
-	AllowedInstanceTypes      string
-	DisallowedInstanceTypes   string
+	MinOnDemandNumber       int64
+	MinOnDemandPercentage   float64
+	AllowedInstanceTypes    string
+	DisallowedInstanceTypes string
+
 	OnDemandPriceMultiplier   float64
 	SpotPriceBufferPercentage float64
-	SpotProductDescription    string
-	BiddingPolicy             string
-	TerminationMethod         string
+
+	SpotProductDescription string
+
+	BiddingPolicy string
+
+	TerminationMethod string
+
 	// Instance termination method
 	InstanceTerminationMethod string
 
 	// Termination Notification action
 	TerminationNotificationAction string
+
+	CronSchedule      string
+	CronScheduleState string // "on" or "off", dictate whether to run inside the CronSchedule or not
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -167,6 +188,31 @@ func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
 	return biddingPolicy, true
 }
 
+func (a *autoScalingGroup) LoadCronSchedule() {
+	tagValue := a.getTagValue(ScheduleTag)
+
+	if tagValue != nil {
+		logger.Printf("Loaded CronSchedule value %v from tag %v\n", *tagValue, ScheduleTag)
+		a.config.CronSchedule = *tagValue
+		return
+	}
+
+	debug.Println("Couldn't find tag", ScheduleTag, "on the group", a.name, "using the default configuration")
+	a.config.CronSchedule = a.region.conf.CronSchedule
+}
+
+func (a *autoScalingGroup) LoadCronScheduleState() {
+	tagValue := a.getTagValue(CronScheduleStateTag)
+	if tagValue != nil {
+		logger.Printf("Loaded CronScheduleState value %v from tag %v\n", *tagValue, CronScheduleStateTag)
+		a.config.CronScheduleState = *tagValue
+		return
+	}
+
+	debug.Println("Couldn't find tag", CronScheduleStateTag, "on the group", a.name, "using the default configuration")
+	a.config.CronScheduleState = a.region.conf.CronScheduleState
+}
+
 func (a *autoScalingGroup) loadConfSpot() bool {
 	tagValue := a.getTagValue(BiddingPolicyTag)
 	if tagValue == nil {
@@ -206,6 +252,9 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 	resSpotConf := a.loadConfSpot()
 
 	resSpotPriceConf := a.loadConfSpotPrice()
+
+	a.LoadCronSchedule()
+	a.LoadCronScheduleState()
 
 	if resOnDemandConf {
 		logger.Println("Found and applied configuration for OnDemand value")

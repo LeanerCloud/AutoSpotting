@@ -921,3 +921,119 @@ func TestLoadDefaultConf(t *testing.T) {
 		})
 	}
 }
+
+func Test_autoScalingGroup_LoadCronSchedule(t *testing.T) {
+
+	tests := []struct {
+		name    string
+		Group   *autoscaling.Group
+		asgName string
+		region  *region
+		config  AutoScalingConfig
+		want    string
+	}{
+		{
+			name:  "No tag set on the group",
+			Group: &autoscaling.Group{},
+			region: &region{
+				conf: &Config{
+					AutoScalingConfig: AutoScalingConfig{
+						CronSchedule: "1 2",
+					},
+				},
+			},
+			want: "1 2",
+		},
+		{
+			name: "Tag set on the group",
+			Group: &autoscaling.Group{
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String(ScheduleTag),
+						Value: aws.String("3 4"),
+					},
+				},
+			},
+			region: &region{
+				conf: &Config{
+					AutoScalingConfig: AutoScalingConfig{
+						CronSchedule: "1 2",
+					},
+				},
+			},
+			want: "3 4",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				Group:  tt.Group,
+				name:   tt.asgName,
+				region: tt.region,
+				config: tt.config,
+			}
+			a.LoadCronSchedule()
+			got := a.config.CronSchedule
+			if got != tt.want {
+				t.Errorf("LoadCronSchedule got %v, expected %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_autoScalingGroup_LoadCronScheduleState(t *testing.T) {
+
+	tests := []struct {
+		name   string
+		Group  *autoscaling.Group
+		region *region
+		config AutoScalingConfig
+		want   string
+	}{
+		{
+			name:  "No tag set on the group",
+			Group: &autoscaling.Group{},
+			region: &region{
+				conf: &Config{
+					AutoScalingConfig: AutoScalingConfig{
+						CronScheduleState: "off",
+					},
+				},
+			},
+			want: "off",
+		},
+		{
+			name: "Tag set on the group",
+			Group: &autoscaling.Group{
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String(CronScheduleStateTag),
+						Value: aws.String("off"),
+					},
+				},
+			},
+			region: &region{
+				conf: &Config{
+					AutoScalingConfig: AutoScalingConfig{
+						CronSchedule: "on",
+					},
+				},
+			},
+			want: "off",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				Group:  tt.Group,
+				region: tt.region,
+				config: tt.config,
+			}
+			a.LoadCronScheduleState()
+			got := a.config.CronScheduleState
+			if got != tt.want {
+				t.Errorf("LoadCronScheduleState got %v, expected %v", got, tt.want)
+			}
+		})
+	}
+}

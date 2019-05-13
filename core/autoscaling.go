@@ -96,6 +96,10 @@ func (a *autoScalingGroup) process() {
 	logger.Println("Finding spot instances created for", a.name)
 
 	spotInstance := a.findUnattachedInstanceLaunchedForThisASG()
+	debug.Println("Candidate Spot instance", spotInstance)
+
+	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronScheduleState)
+	debug.Println(a.region.name, a.name, "Should take replacemnt actions:", shouldRun)
 
 	if spotInstance == nil {
 		logger.Println("No spot instances were found for ", a.name)
@@ -113,6 +117,12 @@ func (a *autoScalingGroup) process() {
 			return
 		}
 
+		if !shouldRun {
+			logger.Println(a.region.name, a.name,
+				"Skipping run, outside the enabled cron run schedule")
+			return
+		}
+
 		a.loadLaunchConfiguration()
 		err := onDemandInstance.launchSpotReplacement()
 		if err != nil {
@@ -123,7 +133,7 @@ func (a *autoScalingGroup) process() {
 
 	spotInstanceID = *spotInstance.InstanceId
 
-	if !a.needReplaceOnDemandInstances() {
+	if !a.needReplaceOnDemandInstances() || !shouldRun {
 		logger.Println("Spot instance", spotInstanceID, "is not need anymore by ASG",
 			a.name, "terminating the spot instance.")
 		spotInstance.terminate()
