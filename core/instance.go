@@ -378,10 +378,13 @@ func (i *instance) launchSpotReplacement() error {
 
 	//Go through all compatible instances until one type launches or we are out of options.
 	for _, instanceType := range instanceTypes {
+		az := *i.Placement.AvailabilityZone
 		bidPrice := i.getPricetoBid(i.price,
-			instanceType.pricing.spot[*i.Placement.AvailabilityZone])
+			instanceType.pricing.spot[az])
 
 		runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
+		logger.Println(az, i.asg.name, "Launching spot instance of type", instanceType.instanceType, "with bid price", bidPrice)
+		logger.Println(az, i.asg.name)
 		resp, err := i.region.services.ec2.RunInstances(runInstancesInput)
 
 		if err != nil {
@@ -393,10 +396,12 @@ func (i *instance) launchSpotReplacement() error {
 			}
 		} else {
 			spotInst := resp.Instances[0]
-			logger.Println(i.asg.name, "Created spot instance", *spotInst.InstanceId)
+			logger.Println(i.asg.name, "Successfully launched spot instance", *spotInst.InstanceId,
+				"of type", *spotInst.InstanceType,
+				"with bid price", bidPrice,
+				"current spot price", instanceType.pricing.spot[az])
 
 			debug.Println("RunInstances response:", spew.Sdump(resp))
-
 			return nil
 		}
 	}
@@ -411,12 +416,12 @@ func (i *instance) getPricetoBid(
 	logger.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
 
 	if i.region.conf.BiddingPolicy == DefaultBiddingPolicy {
-		logger.Println("Launching spot instance with a bid =", baseOnDemandPrice)
+		logger.Println("Bidding base on demand price", baseOnDemandPrice)
 		return baseOnDemandPrice
 	}
 
 	bufferPrice := math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))
-	logger.Println("Launching spot instance with a bid =", bufferPrice)
+	logger.Println("Bidding buffer-based price", bufferPrice)
 	return bufferPrice
 }
 
