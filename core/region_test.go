@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/cristim/ec2-instances-info"
+	ec2instancesinfo "github.com/cristim/ec2-instances-info"
 	"github.com/davecgh/go-spew/spew"
 )
 

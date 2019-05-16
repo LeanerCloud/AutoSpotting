@@ -7,11 +7,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/AutoSpotting/AutoSpotting/core"
+	autospotting "github.com/AutoSpotting/AutoSpotting/core"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/cristim/ec2-instances-info"
+	ec2instancesinfo "github.com/cristim/ec2-instances-info"
 	"github.com/namsral/flag"
 )
 
@@ -207,7 +207,7 @@ func (c *cfgData) parseCommandLineFlags() {
 
 	flag.StringVar(&c.CronScheduleState, "cron_schedule_state", "on", "\n\tControls whether to take actions "+
 		"inside or outside the schedule defined by cron_schedule. Allowed values: on|off\n"+
-		"\tExample: ./AutoSpotting --schedule_type='off' --cron_schedule '9-18 1-5'  # would only take action outside the defined schedule\n")
+		"\tExample: ./AutoSpotting --cron_schedule_state='off' --cron_schedule '9-18 1-5'  # would only take action outside the defined schedule\n")
 
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 	flag.Parse()

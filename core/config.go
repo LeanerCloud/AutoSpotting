@@ -4,7 +4,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/cristim/ec2-instances-info"
+	ec2instancesinfo "github.com/cristim/ec2-instances-info"
 )
 
 const (
