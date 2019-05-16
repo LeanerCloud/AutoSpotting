@@ -1120,9 +1120,10 @@ func TestGetPricetoBid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		cfg := &Config{
-			SpotPriceBufferPercentage: tt.spotPercentage,
-			BiddingPolicy:             tt.policy,
-		}
+			AutoScalingConfig: AutoScalingConfig{
+				SpotPriceBufferPercentage: tt.spotPercentage,
+				BiddingPolicy:             tt.policy,
+			}}
 		i := &instance{
 			region: &region{
 				name: "us-east-1",

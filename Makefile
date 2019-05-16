@@ -6,7 +6,7 @@ COVER_PROFILE := /tmp/coverage.out
 BUCKET_NAME ?= cloudprowess
 FLAVOR ?= custom
 LOCAL_PATH := build/s3/$(FLAVOR)
-LICENSE_FILES := LICENSE
+LICENSE_FILES := LICENSE THIRDPARTY
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))

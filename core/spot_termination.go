@@ -3,7 +3,6 @@ package autospotting
 import (
 	"encoding/json"
 	"errors"
-	"log"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
@@ -36,7 +35,7 @@ type instanceData struct {
 //NewSpotTermination is a constructor for creating an instance of spotTermination to call DetachInstance
 func NewSpotTermination(region string) SpotTermination {
 
-	log.Println("Connection to region ", region)
+	logger.Println("Connection to region ", region)
 
 	session := session.Must(
 		session.NewSession(&aws.Config{Region: aws.String(region)}))
@@ -54,7 +53,7 @@ func GetInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, erro
 
 	var detailData instanceData
 	if err := json.Unmarshal(event.Detail, &detailData); err != nil {
-		log.Println(err.Error())
+		logger.Println(err.Error())
 		return nil, err
 	}
 
@@ -69,7 +68,7 @@ func GetInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, erro
 //This makes sure that the autoscaling group spawns a new instance as soon as this instance is detached
 func (s *SpotTermination) detachInstance(instanceID *string, asgName string) error {
 
-	log.Println(asgName,
+	logger.Println(asgName,
 		"Detaching instance:",
 		*instanceID)
 
@@ -81,11 +80,11 @@ func (s *SpotTermination) detachInstance(instanceID *string, asgName string) err
 		ShouldDecrementDesiredCapacity: aws.Bool(false),
 	}
 	if _, detachErr := s.asSvc.DetachInstances(&detachParams); detachErr != nil {
-		log.Println(detachErr.Error())
+		logger.Println(detachErr.Error())
 		return detachErr
 	}
 
-	log.Printf("Detached instance %s successfully", *instanceID)
+	logger.Printf("Detached instance %s successfully", *instanceID)
 
 	s.deleteTagInstanceLaunchedForAsg(instanceID)
 
@@ -97,7 +96,7 @@ func (s *SpotTermination) detachInstance(instanceID *string, asgName string) err
 // as soon as this instance begin terminating.
 func (s *SpotTermination) terminateInstance(instanceID *string, asgName string) error {
 
-	log.Println(asgName,
+	logger.Println(asgName,
 		"Terminating instance:",
 		*instanceID)
 	// terminate the spot instance
@@ -138,7 +137,7 @@ func (s *SpotTermination) ExecuteAction(instanceID *string, terminationNotificat
 	asgName, err := s.getAsgName(instanceID)
 
 	if err != nil {
-		log.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
+		logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
 		return err
 	}
 
@@ -176,7 +175,7 @@ func (s *SpotTermination) deleteTagInstanceLaunchedForAsg(instanceID *string) er
 		return err
 	}
 
-	log.Printf("Tag 'launched-for-asg' deleted from spot instance %s", *instanceID)
+	logger.Printf("Tag 'launched-for-asg' deleted from spot instance %s", *instanceID)
 
 	return nil
 }
