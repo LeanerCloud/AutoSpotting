@@ -62,7 +62,7 @@ const (
 
 	// ScheduleTag is the name of the tag set on the AutoScaling Group that
 	// can override the global value of the Schedule parameter
-	ScheduleTag = "autospotting_schedule"
+	ScheduleTag = "autospotting_cron_schedule"
 
 	// CronScheduleState controls whether to run or not to run during the time interval
 	// specified in the Schedule variable or its per-group tag overrides. It
@@ -71,7 +71,7 @@ const (
 
 	// CronScheduleStateTag is the name of the tag set on the AutoScaling Group that
 	// can override the global value of the CronScheduleState parameter
-	CronScheduleStateTag = "autospotting_schedule_state"
+	CronScheduleStateTag = "autospotting_cron_schedule_state"
 )
 
 // AutoScalingConfig stores some group-specific configurations that can override
