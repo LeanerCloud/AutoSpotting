@@ -153,8 +153,11 @@ func (i *instance) isProtectedFromTermination() bool {
 
 	if err == nil &&
 		diaRes.DisableApiTermination != nil &&
-		diaRes.DisableApiTermination.Value != nil {
-		return *diaRes.DisableApiTermination.Value
+		diaRes.DisableApiTermination.Value != nil &&
+		*diaRes.DisableApiTermination.Value {
+		logger.Printf("\t: %v Instance, %v is protected from termination\n",
+			*i.Placement.AvailabilityZone, *i.InstanceId)
+		return true
 	}
 	return false
 }
@@ -165,8 +168,12 @@ func (i *instance) isProtectedFromScaleIn() bool {
 	}
 
 	for _, inst := range i.asg.Instances {
-		if *inst.InstanceId == *i.InstanceId {
-			return *inst.ProtectedFromScaleIn
+		if *inst.InstanceId == *i.InstanceId &&
+			*inst.ProtectedFromScaleIn {
+			logger.Printf("\t: %v Instance, %v is protected from scale-in\n",
+				*inst.AvailabilityZone,
+				*inst.InstanceId)
+			return true
 		}
 	}
 	return false
@@ -192,7 +199,17 @@ func (i *instance) terminate() error {
 }
 
 func (i *instance) isPriceCompatible(spotPrice float64) bool {
-	return spotPrice != 0 && spotPrice <= i.price
+	if spotPrice == 0 {
+		logger.Printf("\tUnavailable in this Availability Zone")
+		return false
+	}
+
+	if spotPrice <= i.price {
+		return true
+	}
+
+	logger.Printf("\tNot price compatible")
+	return false
 }
 
 func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool {
@@ -204,10 +221,14 @@ func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool
 	debug.Println("\tInstance CPU/memory/GPU: ", current.vCPU,
 		" / ", current.memory, " / ", current.GPU)
 
-	return i.isSameArch(spotCandidate) &&
+	if i.isSameArch(spotCandidate) &&
 		spotCandidate.vCPU >= current.vCPU &&
 		spotCandidate.memory >= current.memory &&
-		spotCandidate.GPU >= current.GPU
+		spotCandidate.GPU >= current.GPU {
+		return true
+	}
+	logger.Println("\tNot class compatible (CPU/memory/GPU)")
+	return false
 }
 
 func (i *instance) isSameArch(other instanceTypeInformation) bool {
@@ -218,7 +239,7 @@ func (i *instance) isSameArch(other instanceTypeInformation) bool {
 		(isARM(thisCPU) && isARM(otherCPU))
 
 	if !ret {
-		debug.Println("\tInstance CPU architecture mismatch, current CPU architecture",
+		logger.Println("\tInstance CPU architecture mismatch, current CPU architecture",
 			thisCPU, " is incompatible with candidate CPU architecture ", otherCPU)
 	}
 	return ret
@@ -244,6 +265,7 @@ func isARM(cpuName string) bool {
 
 func (i *instance) isEBSCompatible(spotCandidate instanceTypeInformation) bool {
 	if i.EbsOptimized != nil && *i.EbsOptimized && !spotCandidate.hasEBSOptimization {
+		logger.Println("\tNot EBS compatible")
 		return false
 	}
 	return true
@@ -270,11 +292,15 @@ func (i *instance) isStorageCompatible(spotCandidate instanceTypeInformation, at
 		existing.instanceStoreDeviceSize,
 		existing.instanceStoreIsSSD)
 
-	return attachedVolumes == 0 ||
+	if attachedVolumes == 0 ||
 		(spotCandidate.instanceStoreDeviceCount >= attachedVolumes &&
 			spotCandidate.instanceStoreDeviceSize >= existing.instanceStoreDeviceSize &&
 			(spotCandidate.instanceStoreIsSSD ||
-				spotCandidate.instanceStoreIsSSD == existing.instanceStoreIsSSD))
+				spotCandidate.instanceStoreIsSSD == existing.instanceStoreIsSSD)) {
+		return true
+	}
+	logger.Println("\tNot storage compatible")
+	return false
 }
 
 func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) bool {
@@ -292,6 +318,7 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 			return true
 		}
 	}
+	logger.Println("\tNot virtualization compatible")
 	return false
 }
 
@@ -304,13 +331,13 @@ func (i *instance) isAllowed(instanceType string, allowedList []string, disallow
 				return true
 			}
 		}
-		debug.Println("Instance has been excluded since it was not in the allowed instance types list")
+		logger.Println("\nNot in the list of allowed instance types")
 		return false
 	} else if len(disallowedList) > 0 {
 		for _, a := range disallowedList {
 			// glob matching
 			if match, _ := filepath.Match(a, instanceType); match {
-				debug.Println("Instance has been excluded since it was in the disallowed instance types list")
+				logger.Println("\tIn the list of disallowed instance types")
 				return false
 			}
 		}
@@ -330,12 +357,20 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 	usedMappings := i.asg.launchConfiguration.countLaunchConfigEphemeralVolumes()
 	attachedVolumesNumber := min(usedMappings, current.instanceStoreDeviceCount)
 
+	// Iterate alphabetically by instance type
+	keys := make([]string, 0)
+	for k := range i.region.instanceTypeInformation {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	// Find all compatible and not blocked instance types
-	for _, candidate := range i.region.instanceTypeInformation {
+	for _, k := range keys {
+		candidate := i.region.instanceTypeInformation[k]
 
 		candidatePrice := i.calculatePrice(candidate)
-		logger.Println("Comparing candidate ", candidate.instanceType, " with price ", candidatePrice, " to current type ",
-			current.instanceType, " with price ", i.price)
+		logger.Println("Comparing current type", current.instanceType, "with price", i.price,
+			"with candidate", candidate.instanceType, "with price", candidatePrice)
 
 		if i.isPriceCompatible(candidatePrice) &&
 			i.isEBSCompatible(candidate) &&
@@ -344,9 +379,9 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) &&
 			i.isAllowed(candidate.instanceType, allowedList, disallowedList) {
 			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice})
-			debug.Println("Found compatible and allowed instancetype: ", candidate.instanceType, " at ", candidatePrice, " added to launchcandiatelist")
+			logger.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candiates list")
 		} else if candidate.instanceType != "" {
-			debug.Println("Non compatible option found: ", candidate.instanceType, " at ", candidatePrice, " - discarding")
+			debug.Println("Non compatible option found:", candidate.instanceType, "at", candidatePrice, " - discarding")
 		}
 	}
 
