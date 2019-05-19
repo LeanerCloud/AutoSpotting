@@ -1317,6 +1317,7 @@ func TestGetOnDemandInstanceInAZ(t *testing.T) {
 									{
 										InstanceId:           aws.String("ondemand-running"),
 										ProtectedFromScaleIn: aws.Bool(true),
+										AvailabilityZone:     aws.String("1b"),
 									},
 								},
 							},
@@ -2920,6 +2921,7 @@ func Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance(t *testing.T) {
 									{
 										InstanceId:           aws.String("ondemand-protected-scale-in"),
 										ProtectedFromScaleIn: aws.Bool(true),
+										AvailabilityZone:     aws.String("1c"),
 									},
 								},
 							},

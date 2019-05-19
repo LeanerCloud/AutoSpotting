@@ -625,6 +625,7 @@ func TestIsVirtualizationCompatible(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			i := &instance{Instance: &ec2.Instance{
 				VirtualizationType: tt.instanceVirtualizationType,
+				InstanceType:       aws.String("dummy"),
 			}}
 			retValue := i.isVirtualizationCompatible(tt.spotVirtualizationTypes)
 			if retValue != tt.expected {
