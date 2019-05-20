@@ -222,6 +222,7 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 				pricing:             price,
 				virtualizationTypes: it.LinuxVirtualizationTypes,
 				hasEBSOptimization:  it.EBSOptimized,
+				EBSThroughput:       it.EBSThroughput,
 			}
 
 			if it.Storage != nil {
