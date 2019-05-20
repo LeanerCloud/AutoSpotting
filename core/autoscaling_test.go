@@ -957,6 +957,7 @@ func TestScanInstances(t *testing.T) {
 					{
 						InstanceId:           aws.String("2"),
 						ProtectedFromScaleIn: aws.Bool(true),
+						AvailabilityZone:     aws.String("1a"),
 					},
 					{InstanceId: aws.String("3")},
 				},
@@ -2756,6 +2757,7 @@ func Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance(t *testing.T) {
 									{
 										InstanceId:           aws.String("ondemand-protected-scalein"),
 										ProtectedFromScaleIn: aws.Bool(true),
+										AvailabilityZone:     aws.String("1b"),
 									},
 								},
 							},
