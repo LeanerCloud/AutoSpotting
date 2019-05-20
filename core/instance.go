@@ -121,6 +121,7 @@ type instanceTypeInformation struct {
 	instanceStoreDeviceCount int
 	instanceStoreIsSSD       bool
 	hasEBSOptimization       bool
+	EBSThroughput            float32
 }
 
 func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64 {
@@ -264,8 +265,8 @@ func isARM(cpuName string) bool {
 }
 
 func (i *instance) isEBSCompatible(spotCandidate instanceTypeInformation) bool {
-	if i.EbsOptimized != nil && *i.EbsOptimized && !spotCandidate.hasEBSOptimization {
-		logger.Println("\tNot EBS compatible")
+	if spotCandidate.EBSThroughput < i.typeInfo.EBSThroughput {
+		logger.Println("\tEBS throughput insufficient:", spotCandidate.EBSThroughput, "<", i.typeInfo.EBSThroughput)
 		return false
 	}
 	return true

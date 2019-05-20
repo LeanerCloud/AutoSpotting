@@ -246,44 +246,55 @@ func TestIsEBSCompatible(t *testing.T) {
 	}{
 		{name: "EBS not Optimized Spot not Optimized",
 			spotInfo: instanceTypeInformation{
-				hasEBSOptimization: false,
+				EBSThroughput: 0,
 			},
 			instanceInfo: instance{
-				Instance: &ec2.Instance{
-					EbsOptimized: nil,
+				typeInfo: instanceTypeInformation{
+					EBSThroughput: 0,
 				},
 			},
 			expected: true,
 		},
-		{name: "EBS Optimized Spot Optimized",
+		{name: "EBS Optimized Spot Optimized with same throughput",
 			spotInfo: instanceTypeInformation{
-				hasEBSOptimization: true,
+				EBSThroughput: 100,
 			},
 			instanceInfo: instance{
-				Instance: &ec2.Instance{
-					EbsOptimized: &[]bool{true}[0],
+				typeInfo: instanceTypeInformation{
+					EBSThroughput: 100,
+				},
+			},
+			expected: true,
+		},
+		{name: "EBS Optimized Spot Optimized with more throughput",
+			spotInfo: instanceTypeInformation{
+				EBSThroughput: 200,
+			},
+			instanceInfo: instance{
+				typeInfo: instanceTypeInformation{
+					EBSThroughput: 100,
 				},
 			},
 			expected: true,
 		},
 		{name: "EBS Optimized Spot not Optimized",
 			spotInfo: instanceTypeInformation{
-				hasEBSOptimization: false,
+				EBSThroughput: 0,
 			},
 			instanceInfo: instance{
-				Instance: &ec2.Instance{
-					EbsOptimized: &[]bool{true}[0],
+				typeInfo: instanceTypeInformation{
+					EBSThroughput: 100,
 				},
 			},
 			expected: false,
 		},
 		{name: "EBS not Optimized Spot Optimized",
 			spotInfo: instanceTypeInformation{
-				hasEBSOptimization: true,
+				EBSThroughput: 100,
 			},
 			instanceInfo: instance{
-				Instance: &ec2.Instance{
-					EbsOptimized: &[]bool{false}[0],
+				typeInfo: instanceTypeInformation{
+					EBSThroughput: 0,
 				},
 			},
 			expected: true,
