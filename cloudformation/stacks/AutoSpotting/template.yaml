@@ -3,17 +3,19 @@
   Description: "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling"
   Parameters:
     AllowedInstanceTypes:
-      Default: ""
+      Default: "*"
       Description: >
-        Comma separated list of allowed instance types for spot, in case you may
-        want to limit it to a smaller set of instance types  (also support
-        globs). If unset, instances will be chosen by AutoSpotting's instance
-        compatibility algorithm based on CPU, memory, disk, etc. Example:
-        'm4.xlarge,r4.xlarge,m5.*'. Using the 'current' keyword instead will use
-        the same instance type as configured in the group's launch
-        configuration. This is a global value that can be overridden on a
-        per-group basis using the 'autospotting_allowed_instance_types' tag set
-        on the AutoScaling group.
+        "Comma separated list of allowed instance types for spot, in case you
+        may want to limit it to a smaller set of instance types (supports
+        globs). Example: 'm4.xlarge,r4.xlarge,m5.*'. If using the default or
+        leaving it unset, instances will be chosen by AutoSpotting's instance
+        compatibility algorithm based on CPU, memory, disk, etc., basically
+        getting you che cheapest available instances that are at least as big as
+        your existing ones. Using the 'current' keyword for this paremeter will
+        use the instance type configured in the group's launch configuration.
+        This is a global value that can be overridden on a per-group basis using
+        the 'autospotting_allowed_instance_types' tag set on the AutoScaling
+        group, which accepts the same configuration values."
       Type: "String"
     BiddingPolicy:
       AllowedValues:
@@ -65,8 +67,13 @@
       Default: "rate(5 minutes)"
       Description: >
         "Frequency of executing the Lambda function, influences the speed of
-        replacing your instances. Can accept any value documented at
-        http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html"
+        replacing your instances since they are currently replaced one at a
+        time. Can accept any value documented at
+        http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html
+        Warning: Setting this to a higher execution frequency(lower value) may
+        suddenly replace all your AutoScaling group members, especially if you
+        don't have a grace period configured. Only change this if you really
+        know what you're doing!"
       Type: "String"
     InstanceTerminationMethod:
       Default: "autoscaling"
@@ -83,7 +90,7 @@
       Default: "auto"
       Description: >
         "Action to do when receiving a Spot Instance Termination Notification.
-        Must be one of 'auto' (terminate if lifecycle hook is defines, or else
+        Must be one of 'auto' (terminate if lifecycle hook is defined, or else
         detach) [default], 'terminate' (lifecycle hook triggered), 'detach'
         (lifecycle hook not triggered)"
       Type: "String"
@@ -92,7 +99,7 @@
       Description: >
         "Comma separated list of tags given in 'key=value' format, on which to
         filter the ASGs that AutoSpotting considers. By default (if no filters
-        are specific) then 'spot-enabled=true' is used. Example:
+        are specified) the 'spot-enabled=true' key/value pair is used. Example:
         'spot-enabled=true,environment=dev'"
       Type: "String"
     LambdaFunctionTagKey:
@@ -105,30 +112,39 @@
       Type: "String"
     LambdaHandlerFunction:
       Default: "AutoSpotting"
+      AllowedValues:
+        - "AutoSpotting"
       Description: >
-        "Handler function for Lambda, don't change this unless you know what
-        you're doing!"
+        "Handler function for the Lambda function, don't change this unless you
+        know what you're doing!"
       Type: "String"
     LambdaMemorySize:
       Default: "1024"
-      Description: "Memory allocated to the Lambda function"
+      Description: >
+        "Memory allocated to the Lambda function, setting this lower will slow
+        down the execution a bit"
       Type: "Number"
     LambdaS3Bucket:
       Default: "cloudprowess"
-      Description: "S3 bucket that contains the precompiled binaries"
+      Description: >
+        "S3 bucket that contains the
+        precompiled binaries, you can change this to your own if you build and
+        host your own binaries."
       Type: "String"
     LambdaS3BucketPrefix:
       Default: "nightly"
       Description: >
-        "S3 bucket prefix to use as source of lambdas and template"
+        "S3 bucket prefix to use as source of lambdas and template, you may need
+        to change this if you build and host your own binaries."
       Type: "String"
     LambdaZipName:
       Default: "lambda.zip"
       Description: >
         "Name of Lambda function zip file inside the S3 bucket. Can be used to
         update to a more recent version, such as 'lambda_build_57.zip'.
-        Precompiled binaries can be taken from  the cloudprowess S3 public
-        bucket: https://cloudprowess.s3.amazonaws.com/index.html"
+        Precompiled binaries easy to get started with can be taken from the
+        'cloudprowess' S3 public bucket, see
+        https://cloudprowess.s3.amazonaws.com/index.html"
       Type: "String"
     LogRetentionPeriod:
       Default: "7"
@@ -153,7 +169,7 @@
         instances. It is also a global default value that can be overridden on a
         per-group basis using the 'autospotting_min_on_demand_percentage' tag
         that can be set on the AutoScaling group. The 'MinOnDemandNumber'
-        parameter takes precedence if both these parameters are passed." "
+        parameter takes precedence if both these parameters are passed."
       Type: "Number"
     OnDemandPriceMultiplier:
       Default: "1.0"
@@ -164,11 +180,11 @@
         reserved instances."
       Type: "Number"
     Regions:
-      Default: ""
+      Default: "*"
       Description: >
         "Space separated list of regions where it should run (supports globs),
-        in case you may want to limit it to a smaller set of regions. If unset
-        it will run against all available regions. Example: 'us-east-1 eu-*'"
+        in case you may want to limit it to a smaller set of regions.
+        Example: 'us-east-1 eu-*'"
       Type: "String"
     SpotPricePercentageBuffer:
       Default: "10.0"
@@ -181,7 +197,8 @@
         somewhat less than the on-demand price. This is a global value that can
         be overridden on a per-group basis using the
         'autospotting_spot_price_buffer_percentage' tag set on the AutoScaling
-        group"
+        group. Warning: multiple spot instances may be terminated suddenly once
+        the price was reached, use with care!
       Type: "Number"
     SpotProductDescription:
       AllowedValues:
@@ -204,9 +221,12 @@
         - "opt-out"
       Default: "opt-in"
       Description: >
-        "Controls the behavior against the AutoScaling groups tagged as per the
-        FilterByTags option. Defaults to 'opt-in', only processing the tagged
-        groups. The opposite behavior can be configured using the opt-out mode"
+        "Controls the behavior against the tagged AutoScaling groups. Defaults
+        to 'opt-in', only processing the groups tagged with 'spot-enabled=true'
+        or whatever else you may have configured using the 'FilterByTags'
+        option. The 'opt-out' mode yields opposite behavior, running against all
+        groups except for those tagged with 'spot-enabled=false' or other values
+        configured in the same 'FilterByTags' option"
       Type: "String"
   Resources:
     LambdaExecutionRole:
