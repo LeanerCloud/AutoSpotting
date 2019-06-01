@@ -537,8 +537,11 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 	if i.asg.LaunchTemplate != nil {
 		retval.LaunchTemplate = &ec2.LaunchTemplateSpecification{
 			LaunchTemplateId: i.asg.LaunchTemplate.LaunchTemplateId,
+			Version:          i.asg.LaunchTemplate.Version,
 		}
-	} else if i.IamInstanceProfile != nil {
+	}
+
+	if i.IamInstanceProfile != nil {
 		retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
 			Arn: i.IamInstanceProfile.Arn,
 		}
@@ -596,8 +599,12 @@ func (i *instance) generateTagsList() []*ec2.TagSpecification {
 
 	if i.asg.LaunchTemplate != nil {
 		tags.Tags = append(tags.Tags, &ec2.Tag{
-			Key:   aws.String("LaunchTemplateName"),
-			Value: i.asg.LaunchTemplate.LaunchTemplateName,
+			Key:   aws.String("LaunchTemplateID"),
+			Value: i.asg.LaunchTemplate.LaunchTemplateId,
+		})
+		tags.Tags = append(tags.Tags, &ec2.Tag{
+			Key:   aws.String("LaunchTemplateVersion"),
+			Value: i.asg.LaunchTemplate.Version,
 		})
 	} else if i.asg.LaunchConfigurationName != nil {
 		tags.Tags = append(tags.Tags, &ec2.Tag{
