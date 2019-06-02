@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -1328,7 +1329,16 @@ func TestGenerateTagList(t *testing.T) {
 			}
 
 			tags := i.generateTagsList()
-			if !reflect.DeepEqual(tags, tt.expectedTagSpecification) {
+
+			// make sure the lists of tags are sorted, otherwise the comparison fails
+			sort.Slice(tags[0].Tags, func(i, j int) bool {
+				return *tags[0].Tags[i].Key < *tags[0].Tags[j].Key
+			})
+			sort.Slice(tt.expectedTagSpecification[0].Tags, func(i, j int) bool {
+				return *tt.expectedTagSpecification[0].Tags[i].Key < *tt.expectedTagSpecification[0].Tags[j].Key
+			})
+
+			if !reflect.DeepEqual(tags[0].Tags, tt.expectedTagSpecification[0].Tags) {
 				t.Errorf("propagatedInstanceTags received: %+v, expected: %+v",
 					tags, tt.expectedTagSpecification)
 			}
@@ -1534,8 +1544,8 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					Group: &autoscaling.Group{
 						LaunchConfigurationName: aws.String("myLC"),
 						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
-							LaunchTemplateId:   aws.String("lt-id"),
-							LaunchTemplateName: aws.String("lt-name"),
+							LaunchTemplateId: aws.String("lt-id"),
+							Version:          aws.String("v1"),
 						},
 					},
 					launchConfiguration: nil,
@@ -1593,8 +1603,8 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				KeyName:      aws.String("mykey"),
 
 				LaunchTemplate: &ec2.LaunchTemplateSpecification{
-					LaunchTemplateId:   aws.String("lt-id"),
-					LaunchTemplateName: aws.String("lt-name"),
+					LaunchTemplateId: aws.String("lt-id"),
+					Version:          aws.String("v1"),
 				},
 
 				MaxCount: aws.Int64(1),
@@ -1615,8 +1625,12 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String("LaunchConfigurationName"),
-							Value: aws.String("myLC"),
+							Key:   aws.String("LaunchTemplateID"),
+							Value: aws.String("lt-id"),
+						},
+						{
+							Key:   aws.String("LaunchTemplateVersion"),
+							Value: aws.String("v1"),
 						},
 						{
 							Key:   aws.String("launched-by-autospotting"),
@@ -1639,8 +1653,8 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					Group: &autoscaling.Group{
 						LaunchConfigurationName: aws.String("myLC"),
 						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
-							LaunchTemplateId:   aws.String("lt-id"),
-							LaunchTemplateName: aws.String("lt-name"),
+							LaunchTemplateId: aws.String("lt-id"),
+							Version:          aws.String("v1"),
 						},
 					},
 					launchConfiguration: &launchConfiguration{
@@ -1705,8 +1719,8 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				KeyName:      aws.String("mykey"),
 
 				LaunchTemplate: &ec2.LaunchTemplateSpecification{
-					LaunchTemplateId:   aws.String("lt-id"),
-					LaunchTemplateName: aws.String("lt-name"),
+					LaunchTemplateId: aws.String("lt-id"),
+					Version:          aws.String("v1"),
 				},
 
 				MaxCount: aws.Int64(1),
@@ -1727,8 +1741,12 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String("LaunchConfigurationName"),
-							Value: aws.String("myLC"),
+							Key:   aws.String("LaunchTemplateID"),
+							Value: aws.String("lt-id"),
+						},
+						{
+							Key:   aws.String("LaunchTemplateVersion"),
+							Value: aws.String("v1"),
 						},
 						{
 							Key:   aws.String("launched-by-autospotting"),
@@ -1753,8 +1771,8 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					Group: &autoscaling.Group{
 						LaunchConfigurationName: aws.String("myLC"),
 						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
-							LaunchTemplateId:   aws.String("lt-id"),
-							LaunchTemplateName: aws.String("lt-name"),
+							LaunchTemplateId: aws.String("lt-id"),
+							Version:          aws.String("v1"),
 						},
 					},
 					launchConfiguration: &launchConfiguration{
@@ -1831,8 +1849,8 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				KeyName:      aws.String("mykey"),
 
 				LaunchTemplate: &ec2.LaunchTemplateSpecification{
-					LaunchTemplateId:   aws.String("lt-id"),
-					LaunchTemplateName: aws.String("lt-name"),
+					LaunchTemplateId: aws.String("lt-id"),
+					Version:          aws.String("v1"),
 				},
 
 				MaxCount: aws.Int64(1),
@@ -1862,8 +1880,12 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String("LaunchConfigurationName"),
-							Value: aws.String("myLC"),
+							Key:   aws.String("LaunchTemplateID"),
+							Value: aws.String("lt-id"),
+						},
+						{
+							Key:   aws.String("LaunchTemplateVersion"),
+							Value: aws.String("v1"),
 						},
 						{
 							Key:   aws.String("launched-by-autospotting"),
@@ -1883,7 +1905,17 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			if got := tt.inst.createRunInstancesInput(tt.args.instanceType, tt.args.price); !reflect.DeepEqual(got, tt.want) {
+			got := tt.inst.createRunInstancesInput(tt.args.instanceType, tt.args.price)
+
+			// make sure the lists of tags are sorted, otherwise the comparison fails
+			sort.Slice(got.TagSpecifications[0].Tags, func(i, j int) bool {
+				return *got.TagSpecifications[0].Tags[i].Key < *got.TagSpecifications[0].Tags[j].Key
+			})
+			sort.Slice(tt.want.TagSpecifications[0].Tags, func(i, j int) bool {
+				return *tt.want.TagSpecifications[0].Tags[i].Key < *tt.want.TagSpecifications[0].Tags[j].Key
+			})
+
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("instance.createRunInstancesInput() = %v, want %v", got, tt.want)
 			}
 		})
