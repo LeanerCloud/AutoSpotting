@@ -160,7 +160,7 @@
         | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon
         VPC)"
       Type: "String"
-    StackSets:
+    DeployUsingStackSets:
       AllowedValues:
         - "False"
         - "True"
@@ -171,7 +171,9 @@
       Type: "String"
     StackSetsMainRegion:
       Default: "us-east-1"
-      Description: "Region of the Main Stack - StackSetsOnly"
+      Description: >
+        "Region of the Main Stack - StackSetsOnly.
+        (Need to add that region as first when you specify in which region deploy stacks)"
       Type: "String"
     TagFilteringMode:
       AllowedValues:
@@ -185,10 +187,10 @@
       Type: "String"
   Conditions:
     StackSetsFalse: !Equals
-        - !Ref StackSets
+        - !Ref DeployUsingStackSets
         - "False"
     StackSetsTrue: !Equals
-        - !Ref StackSets
+        - !Ref DeployUsingStackSets
         - "True"
     StackIsMain: !Or
         - !Condition StackSetsIsMain
@@ -232,6 +234,35 @@
         Targets:
           -
             Id: "AutoSpottingTerminationEventGenerator"
+            InputTransformer: !If
+              - "StackSetsIsRegional"
+              -
+                InputPathsMap: {
+                  "id": "$.id",
+                  "detail-type": "$.detail-type",
+                  "source": "$.source",
+                  "account": "$.account",
+                  "time": "$.time",
+                  "region": "$.region",
+                  "resources": "$.resources",
+                  "detail": "$.detail"
+                }
+                InputTemplate: !Join ["",
+                  [
+                    "{",
+                    "\"id\": <id>,",
+                    "\"detail-type\": <detail-type>,",
+                    "\"source\": <source>,",
+                    "\"account\": <account>,",
+                    "\"time\": <time>,",
+                    "\"region\": <region>,",
+                    "\"resources\": <resources>,",
+                    "\"detail\": <detail>,",
+                    "\"AutospottingLambdaArn\": \"", !GetAtt RegionalStackSetCustomResource.AutoSpottingLambdaARN, "\"",
+                    "}"
+                  ]
+                ]
+              - !Ref 'AWS::NoValue' 
             Arn: !If
               - "StackSetsIsRegional"
               - Fn::GetAtt:
@@ -416,7 +447,6 @@
             Ref: "LambdaRegionalStackExecutionRole"
       Type: "AWS::IAM::Policy"
     LambdaRegionalExecutionRole:
-      Condition: "StackIsMain"
       Properties:
         AssumeRolePolicyDocument:
           Statement:
@@ -429,7 +459,6 @@
         Path: "/lambda/"
       Type: "AWS::IAM::Role"
     LambdaRegionalPolicy:
-      Condition: "StackIsMain"
       Properties:
         PolicyDocument:
           Statement:
@@ -439,6 +468,8 @@
                 - "logs:CreateLogGroup"
                 - "logs:CreateLogStream"
                 - "logs:PutLogEvents"
+                - "cloudformation:List*"
+                - "cloudformation:Describe*"
               Effect: "Allow"
               Resource: "*"
         PolicyName: "LambdaPolicy"
@@ -534,6 +565,15 @@
         S3BucketPrefix:
           Ref: "LambdaS3BucketPrefix"
       DependsOn: LambdaRegionalStackPolicy
+    RegionalStackSetCustomResource:
+      Condition: "StackSetsIsRegional"
+      Type: "Custom::LambdaCallout"
+      Properties:
+        ServiceToken:
+          Fn::GetAtt:
+            - "TerminationEventRuleFunction"
+            - "Arn"
+      DependsOn: LambdaRegionalPolicy
     TerminationEventRuleFunction:
       Type: AWS::Lambda::Function
       Condition: "StackSetsIsRegional"
@@ -546,8 +586,14 @@
           Variables:
             AUTOSPOTTING_LAMBDA_ARN:
               Ref: "AutoSpottingLambdaARN"
+            AUTOSPOTTING_MAIN_REGION:
+              Ref: "StackSetsMainRegion"
+            AUTOSPOTTING_MAIN_STACK_ARN:
+              Ref: "AWS::StackId"
         Role:
-          Ref: "LambdaRegionalExecutionRoleARN"
+          Fn::GetAtt:
+            - "LambdaRegionalExecutionRole"
+            - "Arn"
         Code:
           ZipFile: |
             from boto3 import client
@@ -555,34 +601,57 @@
             from os import environ
             from sys import exc_info
             from traceback import print_exc
-
-            lambda_arn = (environ['AUTOSPOTTING_LAMBDA_ARN'])
+            import cfnresponse
 
             def parse_region_from_arn(arn):
                 return arn.split(':')[3]
 
+            def get_stack_instance(svc):
+                stacksets = svc.list_stack_sets(Status='ACTIVE')['Summaries']
+                for sset in stacksets:
+                    stack_instances = svc.list_stack_instances(
+                        StackSetName=sset['StackSetName'],
+                        #StackInstanceRegion=environ['AUTOSPOTTING_MAIN_REGION'],
+                    )['Summaries']
+                    for si in stack_instances:
+                        if si['StackId'] == environ['AUTOSPOTTING_MAIN_STACK_ARN']:
+                            for sti in stack_instances:
+                                if sti['Region'] == environ['AUTOSPOTTING_MAIN_REGION']:
+                                    return sti['StackId']
+
+            def get_stack_output(svc, stack_instance):
+                outputs = {}
+                stack_outputs = svc.describe_stacks(StackName=stack_instance)['Stacks'][0]['Outputs']
+                for output in stack_outputs:
+                    key = output['OutputKey']
+                    value = output['OutputValue'] if 'OutputValue' in output else None
+                    outputs[key] = value
+
+                return outputs
+
             def handler(event, context):
-                snsEvent = {
-                    'Records': [
-                        {
-                            'Event': 'aws:sns',
-                            'EventSource': '1.0',
-                            'EventSubscriptionArn': 'arn:aws:sns:' + event['region'] + ':FakeAccountId:FakeTopic',
-                            'Sns': {
-                                'Type': 'Notification',
-                                'Message': dumps(event),
-                            }
-                        }
-                    ]
-                }
-                try:
-                    svc = client('lambda', region_name=parse_region_from_arn(lambda_arn))
-                    response = svc.invoke(
-                        FunctionName=lambda_arn,
-                        LogType='Tail',
-                        Payload=dumps(snsEvent),
-                    )
-                    print(response)
-                except:
-                    print_exc()
-                    print("Unexpected error:", exc_info()[0])
+                if 'RequestType' in event:
+                    try:
+                        stack_output = {}
+                        svc = client('cloudformation', environ['AUTOSPOTTING_MAIN_REGION'])
+                        stack_instance = get_stack_instance(svc)
+                        if stack_instance:
+                            stack_output = get_stack_output(svc, stack_instance)
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, stack_output)
+                    except:
+                        print_exc()
+                        print("Unexpected error:", exc_info()[0])
+                        cfnresponse.send(event, context, cfnresponse.FAILED, {})
+                else:
+                    try:
+                        lambda_arn = event['AutospottingLambdaArn']
+                        svc = client('lambda', region_name=parse_region_from_arn(lambda_arn))
+                        response = svc.invoke(
+                            FunctionName=lambda_arn,
+                            LogType='Tail',
+                            Payload=dumps(event),
+                        )
+                        print(response)
+                    except:
+                        print_exc()
+                        print("Unexpected error:", exc_info()[0])
