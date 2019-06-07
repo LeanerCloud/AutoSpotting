@@ -4,7 +4,7 @@
 
 1. Grant proper permissions for using StackSets:
    [instructions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-prereqs.html).
-1. Create Stacksets with parameter **DeployUsingStackSets=True** in your "Base/Main" region,
+1. Create Stackset with parameter **DeployUsingStackSets=True** in "Base/Main" region,
    set parameter **StackSetsMainRegion** equals to that region (default to us-east-1)
    and add that region as first when you specify in which regions deploy stack.
 
