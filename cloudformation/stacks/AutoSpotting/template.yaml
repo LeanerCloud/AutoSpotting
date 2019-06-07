@@ -10,10 +10,6 @@
         globs). If unset, instances will be chosen by AutoSpotting's algorithm.
         Example: 'm4.xlarge,r4.xlarge,m5.*'"
       Type: "String"
-    AutoSpottingLambdaARN:
-      Description: "The ARN of the main AutoSpotting Lambda function - StackSetsOnly"
-      Default: ""
-      Type: "String"
     BiddingPolicy:
       AllowedValues:
         - "normal"
@@ -22,6 +18,15 @@
       Description: >
         "Policy choice for spot bid. If set to 'normal', we bid at the on-demand
         price. If set to 'aggressive', we bid at a multiple of the spot price."
+      Type: "String"
+    DeployUsingStackSets:
+      AllowedValues:
+        - "False"
+        - "True"
+      Default: "False"
+      Description: >
+        "Deploy using CF Stacksets -
+        https://github.com/AutoSpotting/AutoSpotting/STACKSETS.md"
       Type: "String"
     DisallowedInstanceTypes:
       Default: ""
@@ -78,10 +83,6 @@
       Default: "1024"
       Description: "Memory allocated to the Lambda function"
       Type: "Number"
-    LambdaRegionalExecutionRoleARN:
-      Description: "Execution Role ARN for Regional Lambda - StackSetsOnly"
-      Default: ""
-      Type: "String"
     LambdaS3Bucket:
       Default: "cloudprowess"
       Description: "S3 bucket that contains the function"
@@ -160,20 +161,11 @@
         | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon
         VPC)"
       Type: "String"
-    DeployUsingStackSets:
-      AllowedValues:
-        - "False"
-        - "True"
-      Default: "False"
-      Description: >
-        "Deploy using CF Stacksets -
-        https://github.com/AutoSpotting/AutoSpotting/STACKSETS.md"
-      Type: "String"
     StackSetsMainRegion:
       Default: "us-east-1"
       Description: >
         "Region of the Main Stack - StackSetsOnly.
-        (Need to add that region as first when you specify in which region deploy stacks)"
+        (Need to add this region as first when you specify in which regions deploy stack)"
       Type: "String"
     TagFilteringMode:
       AllowedValues:
@@ -584,8 +576,6 @@
         Timeout: "300"
         Environment:
           Variables:
-            AUTOSPOTTING_LAMBDA_ARN:
-              Ref: "AutoSpottingLambdaARN"
             AUTOSPOTTING_MAIN_REGION:
               Ref: "StackSetsMainRegion"
             AUTOSPOTTING_MAIN_STACK_ARN:
@@ -611,7 +601,6 @@
                 for sset in stacksets:
                     stack_instances = svc.list_stack_instances(
                         StackSetName=sset['StackSetName'],
-                        #StackInstanceRegion=environ['AUTOSPOTTING_MAIN_REGION'],
                     )['Summaries']
                     for si in stack_instances:
                         if si['StackId'] == environ['AUTOSPOTTING_MAIN_STACK_ARN']:
