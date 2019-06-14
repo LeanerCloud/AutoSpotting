@@ -10,7 +10,7 @@
         globs). Example: 'm4.xlarge,r4.xlarge,m5.*'. If using the default or
         leaving it unset, instances will be chosen by AutoSpotting's instance
         compatibility algorithm based on CPU, memory, disk, etc., basically
-        getting you che cheapest available instances that are at least as big as
+        getting you the cheapest available instances that are at least as big as
         your existing ones. Using the 'current' keyword for this paremeter will
         use the instance type configured in the group's launch configuration.
         This is a global value that can be overridden on a per-group basis using
