@@ -222,6 +222,7 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 				pricing:             price,
 				virtualizationTypes: it.LinuxVirtualizationTypes,
 				hasEBSOptimization:  it.EBSOptimized,
+				EBSThroughput:       it.EBSThroughput,
 			}
 
 			if it.Storage != nil {
@@ -423,7 +424,10 @@ func (r *region) hasEnabledAutoScalingGroups() bool {
 
 func (r *region) processEnabledAutoScalingGroups() {
 	for _, asg := range r.enabledASGs {
-		asg.terminationMethod = r.conf.InstanceTerminationMethod
+
+		// Pass default configs to the group
+		asg.config = r.conf.AutoScalingConfig
+
 		r.wg.Add(1)
 		go func(a autoScalingGroup) {
 			a.process()

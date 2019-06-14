@@ -206,7 +206,7 @@
         be overridden on a per-group basis using the
         'autospotting_spot_price_buffer_percentage' tag set on the AutoScaling
         group. Warning: multiple spot instances may be terminated suddenly once
-        the price was reached, use with care!
+        the price was reached, use with care!"
       Type: "Number"
     SpotProductDescription:
       AllowedValues:
