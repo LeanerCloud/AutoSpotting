@@ -362,6 +362,13 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
 
 	for _, group := range groups {
 		asgName := *group.AutoScalingGroupName
+
+		if group.MixedInstancesPolicy != nil {
+			logger.Printf("Skipping group %s because it's using a mixed instances policy",
+				asgName)
+			continue
+		}
+
 		groupMatchesExpectedTags := isASGWithMatchingTags(group, tagsToMatch)
 		// Go lacks a logical XOR operator, this is the equivalent to that logical
 		// expression. The goal is to add the matching ASGs when running in opt-in
