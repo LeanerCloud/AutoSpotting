@@ -554,7 +554,7 @@ func TestFilterAsgs(t *testing.T) {
 			want: []string{"asg2", "asg4"},
 		},
 		{
-			name: "Test  filters with invalid glob expression",
+			name: "Test filters with invalid glob expression",
 			tregion: &region{
 				tagsToFilterASGsBy: []Tag{
 					{Key: "spot-enabled", Value: "true"},
@@ -586,6 +586,37 @@ func TestFilterAsgs(t *testing.T) {
 				},
 			},
 			want: nullSlice,
+		},
+		{
+			name: "Test skipping execution against mixed groups",
+			want: []string{"asg1"},
+			tregion: &region{
+				tagsToFilterASGsBy: []Tag{{Key: "spot-enabled", Value: "true"}},
+				conf:               &Config{},
+				services: connections{
+					autoScaling: mockASG{
+						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+							AutoScalingGroups: []*autoscaling.Group{
+								{
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg1")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
+									},
+									AutoScalingGroupName: aws.String("asg1"),
+								},
+								{
+									MixedInstancesPolicy: &autoscaling.MixedInstancesPolicy{},
+									Tags: []*autoscaling.TagDescription{
+										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg2")},
+										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
+									},
+									AutoScalingGroupName: aws.String("asg2"),
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
