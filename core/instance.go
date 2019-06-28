@@ -508,6 +508,8 @@ func (i *instance) convertSecurityGroups() []*string {
 func (i *instance) createRunInstancesInput(instanceType string, price float64) *ec2.RunInstancesInput {
 	var retval ec2.RunInstancesInput
 
+	// information we must (or can safely) copy/convert from the currently running
+	// on-demand instance or we had to compute in order to place the spot bid
 	retval = ec2.RunInstancesInput{
 
 		EbsOptimized: i.EbsOptimized,
@@ -541,14 +543,14 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		}
 	}
 
-	if i.IamInstanceProfile != nil {
-		retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
-			Arn: i.IamInstanceProfile.Arn,
-		}
-	}
-
 	if i.asg.launchConfiguration != nil {
 		lc := i.asg.launchConfiguration
+
+		if i.IamInstanceProfile != nil {
+			retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
+				Arn: i.IamInstanceProfile.Arn,
+			}
+		}
 
 		retval.UserData = lc.UserData
 
@@ -563,10 +565,9 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 				Enabled: lc.InstanceMonitoring.Enabled}
 		}
 
-		sgIDs := i.convertSecurityGroups()
-
 		if lc.AssociatePublicIpAddress != nil || i.SubnetId != nil {
 			// Instances are running in a VPC.
+			sgIDs := i.convertSecurityGroups()
 			retval.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
 				{
 					AssociatePublicIpAddress: lc.AssociatePublicIpAddress,

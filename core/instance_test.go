@@ -1585,12 +1585,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 			want: &ec2.RunInstancesInput{
 
 				EbsOptimized: aws.Bool(true),
-
-				IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-					Arn: aws.String("profile-arn"),
-				},
-
-				ImageId: aws.String("ami-123"),
+				ImageId:      aws.String("ami-123"),
 
 				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
 					MarketType: aws.String("spot"),
