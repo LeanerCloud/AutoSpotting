@@ -241,7 +241,7 @@ func (i *instance) isSameArch(other instanceTypeInformation) bool {
 
 	if !ret {
 		logger.Println("\tInstance CPU architecture mismatch, current CPU architecture",
-			thisCPU, " is incompatible with candidate CPU architecture ", otherCPU)
+			thisCPU, "is incompatible with candidate CPU architecture", otherCPU)
 	}
 	return ret
 }
@@ -332,7 +332,7 @@ func (i *instance) isAllowed(instanceType string, allowedList []string, disallow
 				return true
 			}
 		}
-		logger.Println("\nNot in the list of allowed instance types")
+		logger.Println("\tNot in the list of allowed instance types")
 		return false
 	} else if len(disallowedList) > 0 {
 		for _, a := range disallowedList {
@@ -373,12 +373,12 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 		logger.Println("Comparing current type", current.instanceType, "with price", i.price,
 			"with candidate", candidate.instanceType, "with price", candidatePrice)
 
-		if i.isPriceCompatible(candidatePrice) &&
+		if i.isAllowed(candidate.instanceType, allowedList, disallowedList) &&
+			i.isPriceCompatible(candidatePrice) &&
 			i.isEBSCompatible(candidate) &&
 			i.isClassCompatible(candidate) &&
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
-			i.isVirtualizationCompatible(candidate.virtualizationTypes) &&
-			i.isAllowed(candidate.instanceType, allowedList, disallowedList) {
+			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
 			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice})
 			logger.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candiates list")
 		} else if candidate.instanceType != "" {
