@@ -319,7 +319,7 @@
                     "}"
                   ]
                 ]
-              - !Ref 'AWS::NoValue' 
+              - !Ref 'AWS::NoValue'
             Arn: !If
               - "StackSetsIsRegional"
               - Fn::GetAtt:
@@ -447,6 +447,7 @@
                 - "ec2:DeleteTags"
                 - "ec2:DescribeInstanceAttribute"
                 - "ec2:DescribeInstances"
+                - "ec2:DescribeLaunchTemplateVersions"
                 - "ec2:DescribeRegions"
                 - "ec2:DescribeSpotPriceHistory"
                 - "ec2:RunInstances"
