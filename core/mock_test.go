@@ -51,6 +51,10 @@ type mockEC2 struct {
 	// Delete Tags
 	dto   *ec2.DeleteTagsOutput
 	dterr error
+
+	// DescribeLaunchTemplateVersionsOutput
+	dltvo   *ec2.DescribeLaunchTemplateVersionsOutput
+	dltverr error
 }
 
 func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
@@ -76,6 +80,10 @@ func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegion
 
 func (m mockEC2) DeleteTags(*ec2.DeleteTagsInput) (*ec2.DeleteTagsOutput, error) {
 	return m.dto, m.dterr
+}
+
+func (m mockEC2) DescribeLaunchTemplateVersions(*ec2.DescribeLaunchTemplateVersionsInput) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
+	return m.dltvo, m.dltverr
 }
 
 // For testing we "convert" the SecurityGroupIDs/SecurityGroupNames by

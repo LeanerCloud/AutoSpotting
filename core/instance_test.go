@@ -1537,8 +1537,22 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 		want *ec2.RunInstancesInput
 	}{
 		{
-			name: "create run instances input without launch-configuration",
+			name: "create run instances input with basic launch template",
 			inst: instance{
+				region: &region{
+					services: connections{
+						ec2: mockEC2{
+							dltverr: nil,
+							dltvo: &ec2.DescribeLaunchTemplateVersionsOutput{
+								LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{
+									{
+										LaunchTemplateData: &ec2.ResponseLaunchTemplateData{},
+									},
+								},
+							},
+						},
+					},
+				},
 				asg: &autoScalingGroup{
 					name: "mygroup",
 					Group: &autoscaling.Group{
@@ -1641,8 +1655,28 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 			},
 		},
 		{
-			name: "create run instances input with simple LC",
+			name: "create run instances input with launch template containing advanced network configuration",
 			inst: instance{
+				region: &region{
+					services: connections{
+						ec2: mockEC2{
+							dltverr: nil,
+							dltvo: &ec2.DescribeLaunchTemplateVersionsOutput{
+								LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{
+									{
+										LaunchTemplateData: &ec2.ResponseLaunchTemplateData{
+											NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecification{
+												{
+													Description: aws.String("dummy network interface definition"),
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
 				asg: &autoScalingGroup{
 					name: "mygroup",
 					Group: &autoscaling.Group{
@@ -1651,6 +1685,98 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 							LaunchTemplateId: aws.String("lt-id"),
 							Version:          aws.String("v1"),
 						},
+					},
+				},
+				Instance: &ec2.Instance{
+					EbsOptimized: aws.Bool(true),
+
+					IamInstanceProfile: &ec2.IamInstanceProfile{
+						Arn: aws.String("profile-arn"),
+					},
+
+					ImageId:      aws.String("ami-123"),
+					InstanceType: aws.String("t2.medium"),
+					KeyName:      aws.String("mykey"),
+
+					Placement: &ec2.Placement{
+						Affinity: aws.String("foo"),
+					},
+
+					SecurityGroups: []*ec2.GroupIdentifier{
+						{
+							GroupName: aws.String("foo"),
+							GroupId:   aws.String("sg-123"),
+						},
+						{
+							GroupName: aws.String("bar"),
+							GroupId:   aws.String("sg-456"),
+						},
+					},
+
+					SubnetId: aws.String("subnet-123"),
+				},
+			}, args: args{
+				instanceType: "t2.small",
+				price:        1.5,
+			},
+			want: &ec2.RunInstancesInput{
+
+				EbsOptimized: aws.Bool(true),
+				ImageId:      aws.String("ami-123"),
+
+				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
+					MarketType: aws.String("spot"),
+					SpotOptions: &ec2.SpotMarketOptions{
+						MaxPrice: aws.String("1.5"),
+					},
+				},
+
+				InstanceType: aws.String("t2.small"),
+				KeyName:      aws.String("mykey"),
+
+				LaunchTemplate: &ec2.LaunchTemplateSpecification{
+					LaunchTemplateId: aws.String("lt-id"),
+					Version:          aws.String("v1"),
+				},
+
+				MaxCount: aws.Int64(1),
+				MinCount: aws.Int64(1),
+
+				Placement: &ec2.Placement{
+					Affinity: aws.String("foo"),
+				},
+
+				TagSpecifications: []*ec2.TagSpecification{{
+					ResourceType: aws.String("instance"),
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("LaunchTemplateID"),
+							Value: aws.String("lt-id"),
+						},
+						{
+							Key:   aws.String("LaunchTemplateVersion"),
+							Value: aws.String("v1"),
+						},
+						{
+							Key:   aws.String("launched-by-autospotting"),
+							Value: aws.String("true"),
+						},
+						{
+							Key:   aws.String("launched-for-asg"),
+							Value: aws.String("mygroup"),
+						},
+					},
+				},
+				},
+			},
+		},
+		{
+			name: "create run instances input with simple LC",
+			inst: instance{
+				asg: &autoScalingGroup{
+					name: "mygroup",
+					Group: &autoscaling.Group{
+						LaunchConfigurationName: aws.String("myLC"),
 					},
 					launchConfiguration: &launchConfiguration{
 						LaunchConfiguration: &autoscaling.LaunchConfiguration{
@@ -1713,11 +1839,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				InstanceType: aws.String("t2.small"),
 				KeyName:      aws.String("mykey"),
 
-				LaunchTemplate: &ec2.LaunchTemplateSpecification{
-					LaunchTemplateId: aws.String("lt-id"),
-					Version:          aws.String("v1"),
-				},
-
 				MaxCount: aws.Int64(1),
 				MinCount: aws.Int64(1),
 
@@ -1736,12 +1857,8 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String("LaunchTemplateID"),
-							Value: aws.String("lt-id"),
-						},
-						{
-							Key:   aws.String("LaunchTemplateVersion"),
-							Value: aws.String("v1"),
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("myLC"),
 						},
 						{
 							Key:   aws.String("launched-by-autospotting"),
@@ -1765,10 +1882,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					name: "mygroup",
 					Group: &autoscaling.Group{
 						LaunchConfigurationName: aws.String("myLC"),
-						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
-							LaunchTemplateId: aws.String("lt-id"),
-							Version:          aws.String("v1"),
-						},
 					},
 					launchConfiguration: &launchConfiguration{
 						LaunchConfiguration: &autoscaling.LaunchConfiguration{
@@ -1843,11 +1956,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				InstanceType: aws.String("t2.small"),
 				KeyName:      aws.String("mykey"),
 
-				LaunchTemplate: &ec2.LaunchTemplateSpecification{
-					LaunchTemplateId: aws.String("lt-id"),
-					Version:          aws.String("v1"),
-				},
-
 				MaxCount: aws.Int64(1),
 				MinCount: aws.Int64(1),
 
@@ -1875,12 +1983,8 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String("LaunchTemplateID"),
-							Value: aws.String("lt-id"),
-						},
-						{
-							Key:   aws.String("LaunchTemplateVersion"),
-							Value: aws.String("v1"),
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("myLC"),
 						},
 						{
 							Key:   aws.String("launched-by-autospotting"),

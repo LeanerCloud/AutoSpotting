@@ -505,6 +505,28 @@ func (i *instance) convertSecurityGroups() []*string {
 	return groupIDs
 }
 
+func (i *instance) launchTemplateHasNetworkInterfaces(ver, id *string) bool {
+	res, err := i.region.services.ec2.DescribeLaunchTemplateVersions(
+		&ec2.DescribeLaunchTemplateVersionsInput{
+			Versions:         []*string{ver},
+			LaunchTemplateId: id,
+		},
+	)
+
+	if err != nil {
+		logger.Println("Failed to describe launch template", *id, "version", *ver,
+			"encountered error:", err.Error())
+	}
+
+	if err == nil && len(res.LaunchTemplateVersions) == 1 {
+		lt := res.LaunchTemplateVersions[0]
+		if len(lt.LaunchTemplateData.NetworkInterfaces) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (i *instance) createRunInstancesInput(instanceType string, price float64) *ec2.RunInstancesInput {
 	var retval ec2.RunInstancesInput
 
@@ -537,9 +559,16 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 	}
 
 	if i.asg.LaunchTemplate != nil {
+		ver := i.asg.LaunchTemplate.Version
+		id := i.asg.LaunchTemplate.LaunchTemplateId
+
 		retval.LaunchTemplate = &ec2.LaunchTemplateSpecification{
-			LaunchTemplateId: i.asg.LaunchTemplate.LaunchTemplateId,
-			Version:          i.asg.LaunchTemplate.Version,
+			LaunchTemplateId: id,
+			Version:          ver,
+		}
+
+		if i.launchTemplateHasNetworkInterfaces(id, ver) {
+			retval.SubnetId, retval.SecurityGroupIds = nil, nil
 		}
 	}
 
