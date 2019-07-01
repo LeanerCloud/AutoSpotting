@@ -514,7 +514,8 @@ func (i *instance) launchTemplateHasNetworkInterfaces(ver, id *string) bool {
 	)
 
 	if err != nil {
-		logger.Println("Failed to describe launch template", *id, "version", *ver)
+    logger.Println("Failed to describe launch template", *id, "version", *ver,
+    "encountered error:", err.Error())
 	}
 
 	if err == nil && len(res.LaunchTemplateVersions) == 1 {
