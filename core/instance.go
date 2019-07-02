@@ -505,7 +505,7 @@ func (i *instance) convertSecurityGroups() []*string {
 	return groupIDs
 }
 
-func (i *instance) launchTemplateHasNetworkInterfaces(ver, id *string) bool {
+func (i *instance) launchTemplateHasNetworkInterfaces(id, ver *string) bool {
 	res, err := i.region.services.ec2.DescribeLaunchTemplateVersions(
 		&ec2.DescribeLaunchTemplateVersionsInput{
 			Versions:         []*string{ver},
