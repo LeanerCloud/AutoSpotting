@@ -505,7 +505,7 @@ func (i *instance) convertSecurityGroups() []*string {
 	return groupIDs
 }
 
-func (i *instance) launchTemplateHasNetworkInterfaces(id, ver *string) bool {
+func (i *instance) launchTemplateHasNetworkInterfaces(id, ver *string) (bool, []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecification) {
 	res, err := i.region.services.ec2.DescribeLaunchTemplateVersions(
 		&ec2.DescribeLaunchTemplateVersionsInput{
 			Versions:         []*string{ver},
@@ -520,11 +520,12 @@ func (i *instance) launchTemplateHasNetworkInterfaces(id, ver *string) bool {
 
 	if err == nil && len(res.LaunchTemplateVersions) == 1 {
 		lt := res.LaunchTemplateVersions[0]
-		if len(lt.LaunchTemplateData.NetworkInterfaces) > 0 {
-			return true
+		nis := lt.LaunchTemplateData.NetworkInterfaces
+		if len(nis) > 0 {
+			return true, nis
 		}
 	}
-	return false
+	return false, nil
 }
 
 func (i *instance) createRunInstancesInput(instanceType string, price float64) *ec2.RunInstancesInput {
@@ -567,7 +568,17 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 			Version:          ver,
 		}
 
-		if i.launchTemplateHasNetworkInterfaces(id, ver) {
+		if having, nis := i.launchTemplateHasNetworkInterfaces(id, ver); having {
+			for _, ni := range nis {
+				retval.NetworkInterfaces = append(retval.NetworkInterfaces,
+					&ec2.InstanceNetworkInterfaceSpecification{
+						AssociatePublicIpAddress: ni.AssociatePublicIpAddress,
+						SubnetId:                 i.SubnetId,
+						DeviceIndex:              ni.DeviceIndex,
+						Groups:                   i.convertSecurityGroups(),
+					},
+				)
+			}
 			retval.SubnetId, retval.SecurityGroupIds = nil, nil
 		}
 	}
@@ -596,13 +607,12 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 
 		if lc.AssociatePublicIpAddress != nil || i.SubnetId != nil {
 			// Instances are running in a VPC.
-			sgIDs := i.convertSecurityGroups()
 			retval.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
 				{
 					AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
 					DeviceIndex:              aws.Int64(0),
 					SubnetId:                 i.SubnetId,
-					Groups:                   sgIDs,
+					Groups:                   i.convertSecurityGroups(),
 				},
 			}
 			retval.SubnetId, retval.SecurityGroupIds = nil, nil

@@ -1742,6 +1742,13 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				MaxCount: aws.Int64(1),
 				MinCount: aws.Int64(1),
 
+				NetworkInterfaces: []*ec2.InstanceNetworkInterfaceSpecification{
+					{
+						Groups:   []*string{aws.String("sg-123"), aws.String("sg-456")},
+						SubnetId: aws.String("subnet-123"),
+					},
+				},
+
 				Placement: &ec2.Placement{
 					Affinity: aws.String("foo"),
 				},
