@@ -1571,7 +1571,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						Arn: aws.String("profile-arn"),
 					},
 
-					ImageId:      aws.String("ami-123"),
 					InstanceType: aws.String("t2.medium"),
 					KeyName:      aws.String("mykey"),
 
@@ -1599,7 +1598,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 			want: &ec2.RunInstancesInput{
 
 				EbsOptimized: aws.Bool(true),
-				ImageId:      aws.String("ami-123"),
 
 				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
 					MarketType: aws.String("spot"),
@@ -1694,7 +1692,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						Arn: aws.String("profile-arn"),
 					},
 
-					ImageId:      aws.String("ami-123"),
 					InstanceType: aws.String("t2.medium"),
 					KeyName:      aws.String("mykey"),
 
@@ -1722,7 +1719,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 			want: &ec2.RunInstancesInput{
 
 				EbsOptimized: aws.Bool(true),
-				ImageId:      aws.String("ami-123"),
 
 				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
 					MarketType: aws.String("spot"),
@@ -1787,10 +1783,11 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					},
 					launchConfiguration: &launchConfiguration{
 						LaunchConfiguration: &autoscaling.LaunchConfiguration{
+							AssociatePublicIpAddress: nil,
 							BlockDeviceMappings:      nil,
+							ImageId:                  aws.String("ami-123"),
 							InstanceMonitoring:       nil,
 							UserData:                 aws.String("userdata"),
-							AssociatePublicIpAddress: nil,
 						},
 					},
 				},
@@ -1801,7 +1798,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						Arn: aws.String("profile-arn"),
 					},
 
-					ImageId:      aws.String("ami-123"),
 					InstanceType: aws.String("t2.medium"),
 					KeyName:      aws.String("mykey"),
 
@@ -1892,6 +1888,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					},
 					launchConfiguration: &launchConfiguration{
 						LaunchConfiguration: &autoscaling.LaunchConfiguration{
+							ImageId: aws.String("ami-123"),
 							InstanceMonitoring: &autoscaling.InstanceMonitoring{
 								Enabled: aws.Bool(true),
 							},
@@ -1913,7 +1910,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						Arn: aws.String("profile-arn"),
 					},
 
-					ImageId:      aws.String("ami-123"),
 					InstanceType: aws.String("t2.medium"),
 					KeyName:      aws.String("mykey"),
 
