@@ -537,8 +537,6 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 
 		EbsOptimized: i.EbsOptimized,
 
-		ImageId: i.ImageId,
-
 		InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
 			MarketType: aws.String("spot"),
 			SpotOptions: &ec2.SpotMarketOptions{
@@ -591,6 +589,7 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 				Arn: i.IamInstanceProfile.Arn,
 			}
 		}
+		retval.ImageId = lc.ImageId
 
 		retval.UserData = lc.UserData
 
