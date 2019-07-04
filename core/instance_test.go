@@ -1546,13 +1546,11 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				asg: &autoScalingGroup{
 					name: "mygroup",
 					Group: &autoscaling.Group{
-						LaunchConfigurationName: aws.String("myLC"),
 						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
 							LaunchTemplateId: aws.String("lt-id"),
 							Version:          aws.String("v1"),
 						},
 					},
-					launchConfiguration: nil,
 				},
 				Instance: &ec2.Instance{
 					EbsOptimized: aws.Bool(true),
@@ -1562,7 +1560,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					},
 
 					InstanceType: aws.String("t2.medium"),
-					KeyName:      aws.String("mykey"),
 
 					Placement: &ec2.Placement{
 						Affinity: aws.String("foo"),
@@ -1597,7 +1594,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				},
 
 				InstanceType: aws.String("t2.small"),
-				KeyName:      aws.String("mykey"),
 
 				LaunchTemplate: &ec2.LaunchTemplateSpecification{
 					LaunchTemplateId: aws.String("lt-id"),
@@ -1668,7 +1664,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				asg: &autoScalingGroup{
 					name: "mygroup",
 					Group: &autoscaling.Group{
-						LaunchConfigurationName: aws.String("myLC"),
 						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
 							LaunchTemplateId: aws.String("lt-id"),
 							Version:          aws.String("v1"),
@@ -1718,7 +1713,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				},
 
 				InstanceType: aws.String("t2.small"),
-				KeyName:      aws.String("mykey"),
 
 				LaunchTemplate: &ec2.LaunchTemplateSpecification{
 					LaunchTemplateId: aws.String("lt-id"),
@@ -1776,8 +1770,10 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 							AssociatePublicIpAddress: nil,
 							BlockDeviceMappings:      nil,
 							ImageId:                  aws.String("ami-123"),
+							KeyName:                  aws.String("mykey"),
 							InstanceMonitoring:       nil,
 							UserData:                 aws.String("userdata"),
+							IamInstanceProfile:       aws.String("profile"),
 						},
 					},
 				},
@@ -1789,7 +1785,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					},
 
 					InstanceType: aws.String("t2.medium"),
-					KeyName:      aws.String("mykey"),
 
 					Placement: &ec2.Placement{
 						Affinity: aws.String("foo"),
@@ -1817,7 +1812,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				EbsOptimized: aws.Bool(true),
 
 				IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-					Arn: aws.String("profile-arn"),
+					Name: aws.String("profile"),
 				},
 
 				ImageId: aws.String("ami-123"),
@@ -1878,11 +1873,12 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					},
 					launchConfiguration: &launchConfiguration{
 						LaunchConfiguration: &autoscaling.LaunchConfiguration{
-							ImageId: aws.String("ami-123"),
+							IamInstanceProfile: aws.String("profile-name"),
+							ImageId:            aws.String("ami-123"),
 							InstanceMonitoring: &autoscaling.InstanceMonitoring{
 								Enabled: aws.Bool(true),
 							},
-
+							KeyName: aws.String("current-key"),
 							BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
 								{
 									DeviceName: aws.String("foo"),
@@ -1901,7 +1897,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					},
 
 					InstanceType: aws.String("t2.medium"),
-					KeyName:      aws.String("mykey"),
+					KeyName:      aws.String("older-key"),
 
 					Placement: &ec2.Placement{
 						Affinity: aws.String("foo"),
@@ -1934,7 +1930,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				EbsOptimized: aws.Bool(true),
 
 				IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-					Arn: aws.String("profile-arn"),
+					Name: aws.String("profile-name"),
 				},
 
 				ImageId: aws.String("ami-123"),
@@ -1947,7 +1943,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				},
 
 				InstanceType: aws.String("t2.small"),
-				KeyName:      aws.String("mykey"),
+				KeyName:      aws.String("current-key"),
 
 				MaxCount: aws.Int64(1),
 				MinCount: aws.Int64(1),
