@@ -544,7 +544,6 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		},
 
 		InstanceType: aws.String(instanceType),
-		KeyName:      i.KeyName,
 		MaxCount:     aws.Int64(1),
 		MinCount:     aws.Int64(1),
 
@@ -583,9 +582,11 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 	if i.asg.launchConfiguration != nil {
 		lc := i.asg.launchConfiguration
 
-		if i.IamInstanceProfile != nil {
+		retval.KeyName = lc.KeyName
+
+		if lc.IamInstanceProfile != nil {
 			retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
-				Arn: i.IamInstanceProfile.Arn,
+				Name: lc.IamInstanceProfile,
 			}
 		}
 		retval.ImageId = lc.ImageId
