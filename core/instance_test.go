@@ -1367,20 +1367,19 @@ func Test_instance_convertBlockDeviceMappings(t *testing.T) {
 			want: []*ec2.BlockDeviceMapping{},
 		},
 		{
-			name: "instance-store only",
+			name: "instance-store only, skipping one of the volumes from the BDMs",
 			lc: &launchConfiguration{
 				LaunchConfiguration: &autoscaling.LaunchConfiguration{
 					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
 						{
 							DeviceName:  aws.String("/dev/ephemeral0"),
 							Ebs:         nil,
-							NoDevice:    aws.Bool(false),
+							NoDevice:    aws.Bool(true),
 							VirtualName: aws.String("foo"),
 						},
 						{
 							DeviceName:  aws.String("/dev/ephemeral1"),
 							Ebs:         nil,
-							NoDevice:    aws.Bool(false),
 							VirtualName: aws.String("bar"),
 						},
 					},
@@ -1388,15 +1387,8 @@ func Test_instance_convertBlockDeviceMappings(t *testing.T) {
 			},
 			want: []*ec2.BlockDeviceMapping{
 				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					NoDevice:    aws.String("false"),
-					VirtualName: aws.String("foo"),
-				},
-				{
 					DeviceName:  aws.String("/dev/ephemeral1"),
 					Ebs:         nil,
-					NoDevice:    aws.String("false"),
 					VirtualName: aws.String("bar"),
 				},
 			},
@@ -1410,7 +1402,6 @@ func Test_instance_convertBlockDeviceMappings(t *testing.T) {
 						{
 							DeviceName:  aws.String("/dev/ephemeral0"),
 							Ebs:         nil,
-							NoDevice:    aws.Bool(false),
 							VirtualName: aws.String("foo"),
 						},
 						{
@@ -1436,7 +1427,6 @@ func Test_instance_convertBlockDeviceMappings(t *testing.T) {
 				{
 					DeviceName:  aws.String("/dev/ephemeral0"),
 					Ebs:         nil,
-					NoDevice:    aws.String("false"),
 					VirtualName: aws.String("foo"),
 				},
 				{

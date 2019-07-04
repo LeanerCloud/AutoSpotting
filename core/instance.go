@@ -486,13 +486,12 @@ func (i *instance) convertBlockDeviceMappings(lc *launchConfiguration) []*ec2.Bl
 			}
 		}
 
-		// it turns out that the noDevice field needs to be converted from bool to
-		// *string
-		if lcBDM.NoDevice != nil {
-			ec2BDM.NoDevice = aws.String(fmt.Sprintf("%t", *lcBDM.NoDevice))
+		// handle the noDevice field directly by skipping the device if set to true
+		if lcBDM.NoDevice != nil && *lcBDM.NoDevice {
+			continue
 		}
-
 		bds = append(bds, ec2BDM)
+
 	}
 	return bds
 }
