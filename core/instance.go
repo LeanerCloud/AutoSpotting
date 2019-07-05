@@ -653,7 +653,12 @@ func (i *instance) generateTagsList() []*ec2.TagSpecification {
 	}
 
 	for _, tag := range i.Tags {
-		if !strings.HasPrefix(*tag.Key, "aws:") {
+		if !strings.HasPrefix(*tag.Key, "aws:") &&
+			*tag.Key != "launched-by-autospotting" &&
+			*tag.Key != "launched-for-asg" &&
+			*tag.Key != "LaunchTemplateID" &&
+			*tag.Key != "LaunchTemplateVersion" &&
+			*tag.Key != "LaunchConfiguationName" {
 			tags.Tags = append(tags.Tags, tag)
 		}
 	}
