@@ -73,4 +73,10 @@ type Config struct {
 	// Controls how are the tags used to filter the groups.
 	// Available options: 'opt-in' and 'opt-out', default: 'opt-in'
 	TagFilteringMode string
+
+	// The AutoSpotting version
+	Version string
+
+	// The license of this AutoSpotting build
+	LicenseType string
 }

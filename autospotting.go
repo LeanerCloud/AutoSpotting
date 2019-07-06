@@ -51,7 +51,8 @@ func run() {
 		"instance_termination_method=%s "+
 		"termination_notification_action=%s "+
 		"cron_schedule=%s\n "+
-		"cron_schedule_state=%s\n",
+		"cron_schedule_state=%s\n"+
+		"license=%s\n",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
@@ -67,6 +68,7 @@ func run() {
 		conf.TerminationNotificationAction,
 		conf.CronSchedule,
 		conf.CronScheduleState,
+		conf.LicenseType,
 	)
 
 	autospotting.Run(conf.Config)
@@ -90,6 +92,8 @@ func init() {
 			LogFlag:         log.Ldate | log.Ltime | log.Lshortfile,
 			MainRegion:      region,
 			SleepMultiplier: 1,
+			Version:         Version,
+			LicenseType:     os.Getenv("LICENSE"),
 		},
 	}
 
@@ -208,6 +212,9 @@ func (c *cfgData) parseCommandLineFlags() {
 	flag.StringVar(&c.CronScheduleState, "cron_schedule_state", "on", "\n\tControls whether to take actions "+
 		"inside or outside the schedule defined by cron_schedule. Allowed values: on|off\n"+
 		"\tExample: ./AutoSpotting --cron_schedule_state='off' --cron_schedule '9-18 1-5'  # would only take action outside the defined schedule\n")
+	flag.StringVar(&c.LicenseType, "license", "evaluation", "\n\tControls the terms under which you use AutoSpotting"+
+		"Allowed values: evaluation|I_am_supporting_it_on_Patreon|I_contributed_to_development_within_the_last_year|I_built_it_from_source_code\n"+
+		"\tExample: ./AutoSpotting --license evaluation\n")
 
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 	flag.Parse()
