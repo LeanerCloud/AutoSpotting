@@ -15,6 +15,9 @@ import (
 
 var logger, debug *log.Logger
 
+var hourlySavings float64
+var savingsMutex = &sync.RWMutex{}
+
 // Run starts processing all AWS regions looking for AutoScaling groups
 // enabled and taking action by replacing more pricy on-demand instances with
 // compatible and cheaper spot instances.

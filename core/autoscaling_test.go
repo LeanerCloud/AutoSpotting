@@ -2986,3 +2986,270 @@ func Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance(t *testing.T) {
 		})
 	}
 }
+
+func Test_autoScalingGroup_licensedToRun(t *testing.T) {
+
+	tests := []struct {
+		name    string
+		asg     autoScalingGroup
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "On-demand-only",
+			asg: autoScalingGroup{
+				instances: makeInstancesWithCatalog(
+					instanceMap{
+						"ondemand-1": {
+							price: 1.0,
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 1.0,
+								},
+							},
+						},
+						"ondemand-2": {
+							price: 1.0,
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 1.0,
+								},
+							},
+						},
+					}),
+			},
+			want:    true,
+			wantErr: false,
+		},
+
+		{
+			name: "spot-less-than-1000-monthly",
+			asg: autoScalingGroup{
+				instances: makeInstancesWithCatalog(
+					instanceMap{
+						"spot-1": {
+							price: 0.9,
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 1.0,
+								},
+							},
+						},
+						"spot-2": {
+							price: 0.9,
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 1.0,
+								},
+							},
+						},
+					}),
+			},
+			want:    true,
+			wantErr: false,
+		},
+
+		{
+			name: "spot-more-than-1000-monthly-evaluation",
+			asg: autoScalingGroup{
+				region: &region{
+					conf: &Config{
+						LicenseType: "evaluation",
+						Version:     "nightly",
+					},
+				},
+				instances: makeInstancesWithCatalog(
+					instanceMap{
+						"spot-1": {
+							price: 0.1,
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 10.1,
+								},
+							},
+						},
+						"spot-2": {
+							price: 0.1,
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 10.1,
+								},
+							},
+						},
+					}),
+			},
+			want:    false,
+			wantErr: true,
+		},
+
+		{
+			name: "spot-more-than-1000-monthly-custom",
+			asg: autoScalingGroup{
+				region: &region{
+					conf: &Config{
+						LicenseType: "evaluation",
+						Version:     "custom",
+					},
+				},
+				instances: makeInstancesWithCatalog(
+					instanceMap{
+						"spot-1": {
+							price: 0.1,
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 10.1,
+								},
+							},
+						},
+						"spot-2": {
+							price: 0.1,
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 10.1,
+								},
+							},
+						},
+					}),
+			},
+			want:    true,
+			wantErr: false,
+		},
+
+		{
+			name: "spot-more-than-1000-monthly-patron",
+			asg: autoScalingGroup{
+				region: &region{
+					conf: &Config{
+						LicenseType: "I_am_supporting_it_on_Patreon",
+						Version:     "nightly",
+					},
+				},
+				instances: makeInstancesWithCatalog(
+					instanceMap{
+						"spot-1": {
+							price: 0.1,
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 10.1,
+								},
+							},
+						},
+						"spot-2": {
+							price: 0.1,
+							typeInfo: instanceTypeInformation{
+								pricing: prices{
+									onDemand: 10.1,
+								},
+							},
+						},
+					}),
+			},
+			want:    true,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := tt.asg
+
+			got, err := a.licensedToRun()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("autoScalingGroup.licensedToRun() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("autoScalingGroup.licensedToRun() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_autoScalingGroup_calculateHourlySavings(t *testing.T) {
+	tests := []struct {
+		name      string
+		instances instances
+		want      float64
+	}{
+		{
+			name: "On-demand-only",
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"ondemand-1": {
+						price: 1.0,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+							},
+						},
+					},
+					"ondemand-2": {
+						price: 1.0,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+							},
+						},
+					},
+				}),
+			want: 0,
+		},
+
+		{
+			name: "spot-only",
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"spot-1": {
+						price: 0.1,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+							},
+						},
+					},
+					"spot-2": {
+						price: 0.1,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+							},
+						},
+					},
+				}),
+			want: 1.8,
+		},
+
+		{
+			name: "spot-and-on-demand",
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"ondemand-1": {
+						price: 1.0,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+							},
+						},
+					},
+					"spot-1": {
+						price: 0.1,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+							},
+						},
+					},
+				}),
+			want: 0.9,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				instances: tt.instances,
+			}
+			if got := a.calculateHourlySavings(); got != tt.want {
+				t.Errorf("autoScalingGroup.calculateHourlySavings() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -242,6 +242,18 @@
         groups except for those tagged with 'spot-enabled=false' or other values
         configured in the same 'FilterByTags' option"
       Type: "String"
+    License:
+      Default: "evaluation"
+      AllowedValues:
+        - "evaluation"
+        - "I_am_supporting_it_on_Patreon"
+        - "I_contributed_to_development_within_the_last_year"
+        - "I_built_it_from_source_code"
+      Description: >
+        "Chose the option that best describes your current situation. Evaluation
+        binaries are restricted to up to $1000 in monthly savings, the others
+        are not restricted"
+      Type: "String"
   Conditions:
     StackSetsFalse: !Equals
         - !Ref DeployUsingStackSets
@@ -377,6 +389,8 @@
               Ref: "DisallowedInstanceTypes"
             INSTANCE_TERMINATION_METHOD:
               Ref: "InstanceTerminationMethod"
+            LICENSE:
+              Ref: "License"
             MIN_ON_DEMAND_NUMBER:
               Ref: "MinOnDemandNumber"
             MIN_ON_DEMAND_PERCENTAGE:

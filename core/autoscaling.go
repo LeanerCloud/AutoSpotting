@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -62,7 +63,7 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 		return false
 	}
 	logger.Println("Currently fewer OnDemand instances than required !")
-	if a.allInstanceRunning() && a.instances.count64() >= *a.DesiredCapacity {
+	if a.allInstancesRunning() && a.instances.count64() >= *a.DesiredCapacity {
 		logger.Println("All instances are running and desired capacity is satisfied")
 		if randomSpot := a.getAnySpotInstance(); randomSpot != nil {
 			if totalRunning == 1 {
@@ -82,9 +83,35 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 	return false
 }
 
-func (a *autoScalingGroup) allInstanceRunning() bool {
+func (a *autoScalingGroup) allInstancesRunning() bool {
 	_, totalRunning := a.alreadyRunningInstanceCount(false, "")
 	return totalRunning == a.instances.count64()
+}
+
+func (a *autoScalingGroup) calculateHourlySavings() float64 {
+	var savings float64
+	for i := range a.instances.instances() {
+		savings += i.typeInfo.pricing.onDemand - i.price
+	}
+	return savings
+}
+
+func (a *autoScalingGroup) licensedToRun() (bool, error) {
+	defer savingsMutex.Unlock()
+	savingsMutex.Lock()
+
+	savings := a.calculateHourlySavings()
+	hourlySavings += savings
+
+	monthlySavings := hourlySavings * 24 * 30
+	if (monthlySavings > 1000) &&
+		strings.Contains(a.region.conf.Version, "nightly") &&
+		a.region.conf.LicenseType == "evaluation" {
+		return false, fmt.Errorf(
+			"would reach estimated monthly savings of $%.2f when processing this group, above the $1000 evaluation limit",
+			monthlySavings)
+	}
+	return true, nil
 }
 
 func (a *autoScalingGroup) process() {
@@ -100,6 +127,11 @@ func (a *autoScalingGroup) process() {
 
 	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronScheduleState)
 	debug.Println(a.region.name, a.name, "Should take replacemnt actions:", shouldRun)
+
+	if ok, err := a.licensedToRun(); !ok {
+		logger.Println(a.region.name, a.name, "Skipping group, license limit reached:", err.Error())
+		return
+	}
 
 	if spotInstance == nil {
 		logger.Println("No spot instances were found for ", a.name)
