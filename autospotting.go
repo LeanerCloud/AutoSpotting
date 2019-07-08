@@ -50,9 +50,9 @@ func run() {
 		"spot_product_description=%v "+
 		"instance_termination_method=%s "+
 		"termination_notification_action=%s "+
-		"cron_schedule=%s\n "+
-		"cron_schedule_state=%s\n"+
-		"license=%s\n",
+		"cron_schedule=%s "+
+		"cron_schedule_state=%s "+
+		"license=%s \n",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
