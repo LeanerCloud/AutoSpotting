@@ -72,6 +72,12 @@ const (
 	// CronScheduleStateTag is the name of the tag set on the AutoScaling Group that
 	// can override the global value of the CronScheduleState parameter
 	CronScheduleStateTag = "autospotting_cron_schedule_state"
+
+	// EnableInstanceLaunchEventHandlingTag is the name of the tag set on the
+	// AutoScaling Group that enables the event-based instance replacement logic
+	// for this group. It is set automatically once the legacy cron-based
+	// replacement logic is done replacing in stances in any given group.
+	EnableInstanceLaunchEventHandlingTag = "autospotting_enable_instance_launch_event_handling"
 )
 
 // AutoScalingConfig stores some group-specific configurations that can override

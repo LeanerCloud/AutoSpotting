@@ -1,6 +1,9 @@
 ---
   AWSTemplateFormatVersion: "2010-09-09"
-  Description: "Notification stack for spot termination event"
+  Description: >
+    "Implements support for triggering the main AutoSpotting Lambda function on
+    regional events such as instance launches or imminent spot terminations that
+    can only be detected from wthin a given region"
   Parameters:
     AutoSpottingLambdaARN:
       Description: "The ARN of the main AutoSpotting Lambda function"
@@ -9,10 +12,13 @@
       Description: "Execution Role ARN for Regional Lambda"
       Type: "String"
   Resources:
-    TerminationEventRuleFunction:
+    EventHandler:
       Type: AWS::Lambda::Function
       Properties:
-        Description: "Invokes the main AutoSpotting Lambda function on spot instance termination notification"
+        Description: >
+          "Regional Lambda function that invokes the main AutoSpotting Lambda
+          function on events such as instance launches or imminent spot instance
+          terminations"
         Handler: "index.handler"
         Runtime: "python3.6"
         Timeout: "300"
@@ -60,21 +66,23 @@
                 except:
                     print_exc()
                     print("Unexpected error:", exc_info()[0])
-    LambdaPermissionAutoSpotTeminationEventRule:
+    SpotTerminationLambdaPermission:
       Type: "AWS::Lambda::Permission"
       Properties:
         Action: "lambda:InvokeFunction"
         FunctionName:
-          Ref: "TerminationEventRuleFunction"
+          Ref: "EventHandler"
         Principal: "events.amazonaws.com"
         SourceArn:
           Fn::GetAtt:
-            - "AutoSpotTeminationEventRule"
+            - "SpotTerminationEventRule"
             - "Arn"
-    AutoSpotTeminationEventRule:
+    SpotTerminationEventRule:
       Type: "AWS::Events::Rule"
       Properties:
-        Description: "This rule is triggered 2 minutes before AWS terminates a spot instance"
+        Description: >
+          "This rule is triggered 2 minutes before AWS terminates a spot
+          instance"
         EventPattern:
           detail-type:
             - "EC2 Spot Instance Interruption Warning"
@@ -83,8 +91,41 @@
         State: "ENABLED"
         Targets:
           -
-            Id: "AutoSpottingTerminationEventGenerator"
+            Id: "SpotTerminationEventGenerator"
             Arn:
               Fn::GetAtt:
-                - "TerminationEventRuleFunction"
+                - "EventHandler"
+                - "Arn"
+    InstancePendingLambdaPermission:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName:
+          Ref: "EventHandler"
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::GetAtt:
+            - "InstancePendingEventRule"
+            - "Arn"
+    InstancePendingEventRule:
+      Type: "AWS::Events::Rule"
+      Properties:
+        Description: >
+          "This rule is triggered after EC2 launched a new instance"
+        EventPattern:
+          detail-type:
+            - "EC2 Instance State-change Notification"
+          source:
+            - "aws.ec2"
+          detail:
+              state:
+                - "pending"
+                - "running"
+        State: "ENABLED"
+        Targets:
+          -
+            Id: "InstancePendingEventGenerator"
+            Arn:
+              Fn::GetAtt:
+                - "EventHandler"
                 - "Arn"

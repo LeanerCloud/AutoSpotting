@@ -55,6 +55,9 @@ type mockEC2 struct {
 	// DescribeLaunchTemplateVersionsOutput
 	dltvo   *ec2.DescribeLaunchTemplateVersionsOutput
 	dltverr error
+
+	// WaitUntilInstanceRunning error
+	//	wuirerr error
 }
 
 func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {

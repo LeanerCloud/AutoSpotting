@@ -56,7 +56,7 @@ type Config struct {
 	LogFile io.Writer
 	LogFlag int
 
-	// The regions where it should be running
+	// The regions where it should be running, given as a single CSV-string
 	Regions string
 
 	// The region where the Lambda function is deployed
