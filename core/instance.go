@@ -585,8 +585,14 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		retval.KeyName = lc.KeyName
 
 		if lc.IamInstanceProfile != nil {
-			retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
-				Name: lc.IamInstanceProfile,
+			if strings.HasPrefix(*lc.IamInstanceProfile, "arn:aws:iam:") {
+				retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
+					Arn: lc.IamInstanceProfile,
+				}
+			} else {
+				retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
+					Name: lc.IamInstanceProfile,
+				}
 			}
 		}
 		retval.ImageId = lc.ImageId
