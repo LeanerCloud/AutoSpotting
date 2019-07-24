@@ -373,7 +373,7 @@ connection draining on the load balancer.
   soon as the imminent spot termination event is received.
 - if you already have lifecycle hooks they will be executed, but in this case we
   can't detach the instances, so you may need to do this from within the
-  lifacycle hook logic.
+  lifecycle hook logic.
 - this action can also be overridden on a per group basis using tags, if you
   need to.
 
