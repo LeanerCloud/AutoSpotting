@@ -582,7 +582,9 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 	if i.asg.launchConfiguration != nil {
 		lc := i.asg.launchConfiguration
 
-		retval.KeyName = lc.KeyName
+		if lc.KeyName != nil && *lc.KeyName != "" {
+			retval.KeyName = lc.KeyName
+		}
 
 		if lc.IamInstanceProfile != nil {
 			if strings.HasPrefix(*lc.IamInstanceProfile, "arn:aws:iam:") {
