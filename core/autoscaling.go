@@ -228,8 +228,8 @@ func (a *autoScalingGroup) enableForInstanceLaunchEventHandling() {
 func (a *autoScalingGroup) isEnabledForEventBasedInstanceReplacement() bool {
 	if time.Now().Sub(*a.CreatedTime) < time.Hour {
 		logger.Println("ASG %s is newer than an hour, enabling it for event-based "+
-      "instance replacement", a.name)
-    a.enableForInstanceLaunchEventHandling()
+			"instance replacement", a.name)
+		a.enableForInstanceLaunchEventHandling()
 		return true
 	}
 

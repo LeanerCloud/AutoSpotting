@@ -3,7 +3,7 @@
   Description: >
     "Implements support for triggering the main AutoSpotting Lambda function on
     regional events such as instance launches or imminent spot terminations that
-    can only be detected from wthin a given region"
+    can only be detected from within a given region"
   Parameters:
     AutoSpottingLambdaARN:
       Description: "The ARN of the main AutoSpotting Lambda function"
@@ -96,7 +96,7 @@
               Fn::GetAtt:
                 - "EventHandler"
                 - "Arn"
-    InstancePendingLambdaPermission:
+    InstanceRunningLambdaPermission:
       Type: "AWS::Lambda::Permission"
       Properties:
         Action: "lambda:InvokeFunction"
@@ -105,9 +105,9 @@
         Principal: "events.amazonaws.com"
         SourceArn:
           Fn::GetAtt:
-            - "InstancePendingEventRule"
+            - "InstanceRunningEventRule"
             - "Arn"
-    InstancePendingEventRule:
+    InstanceRunningEventRule:
       Type: "AWS::Events::Rule"
       Properties:
         Description: >
@@ -119,12 +119,11 @@
             - "aws.ec2"
           detail:
               state:
-                - "pending"
                 - "running"
         State: "ENABLED"
         Targets:
           -
-            Id: "InstancePendingEventGenerator"
+            Id: "InstanceRunningEventGenerator"
             Arn:
               Fn::GetAtt:
                 - "EventHandler"

@@ -260,39 +260,45 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 	logger.Printf("%s Found instance %s in state %s",
 		i.region.name, *i.InstanceId, *i.State.Name)
 
-	if state == "pending" && i.belongsToEnabledASG() && i.shouldBeReplacedWithSpot() {
-		logger.Printf("%s instance %s is in pending state, belongs to an enabled ASG "+
-			"and should be replaced with spot, attempting to launch spot replacement", i.region.name, *i.InstanceId)
+	if state != "running" {
+		logger.Printf("%s Instance %s is not in the running state",
+			i.region.name, *i.InstanceId)
+		return errors.New("instance not in running state")
+	}
+
+	if i.belongsToEnabledASG() && i.shouldBeReplacedWithSpot() {
+		logger.Printf("%s instance %s belongs to an enabled ASG and should be "+
+			"replaced with spot, attempting to launch spot replacement",
+			i.region.name, *i.InstanceId)
 		if _, err := i.launchSpotReplacement(); err != nil {
 			logger.Printf("%s Couldn't launch spot replacement for %s",
 				i.region.name, *i.InstanceId)
 			return err
 		}
 	} else {
-		logger.Printf("%s skipping instance %s: either not in pending state (%s), doesn't "+
-			"belong to an enabled ASG or should not be replaced with spot, ",
-			i.region.name, *i.InstanceId, *i.State.Name)
+		logger.Printf("%s skipping instance %s: either doesn't belong to an "+
+			"enabled ASG or should not be replaced with spot, ",
+			i.region.name, *i.InstanceId)
+		debug.Printf("%#v", i)
 	}
 
-	if state == "running" {
-		logger.Printf("%s Found instance %s in running state, checking if it's a spot instance "+
-			"that should be attached to any ASG", i.region.name, *i.InstanceId)
-		unattached := i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
-		if !unattached {
-			logger.Printf("%s Found instance %s is already attached to an ASG, skipping it",
-				i.region.name, *i.InstanceId)
-			return nil
-		}
-
-		logger.Printf("%s Found instance %s is not yet attached to its ASG, "+
-			"attempting to swap it against a running on-demand instance",
+	logger.Printf("%s Checking if %s is a spot instance that should be "+
+		"attached to any ASG", i.region.name, *i.InstanceId)
+	unattached := i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
+	if !unattached {
+		logger.Printf("%s Instance %s is already attached to an ASG, skipping it",
 			i.region.name, *i.InstanceId)
+		return nil
+	}
 
-		if _, err := i.swapWithGroupMember(); err != nil {
-			logger.Printf("%s, couldn't perform spot replacement of %s ",
-				i.region.name, *i.InstanceId)
-			return err
-		}
+	logger.Printf("%s Found instance %s is not yet attached to its ASG, "+
+		"attempting to swap it against a running on-demand instance",
+		i.region.name, *i.InstanceId)
+
+	if _, err := i.swapWithGroupMember(); err != nil {
+		logger.Printf("%s, couldn't perform spot replacement of %s ",
+			i.region.name, *i.InstanceId)
+		return err
 	}
 
 	return nil
