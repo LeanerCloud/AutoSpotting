@@ -456,6 +456,8 @@
                 - "autoscaling:DescribeLifecycleHooks"
                 - "autoscaling:DescribeTags"
                 - "autoscaling:DetachInstances"
+                - "autoscaling:ResumeProcesses"
+                - "autoscaling:SuspendProcesses"
                 - "autoscaling:TerminateInstanceInAutoScalingGroup"
                 - "autoscaling:UpdateAutoScalingGroup"
                 - "cloudformation:Describe*"

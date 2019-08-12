@@ -201,10 +201,10 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 		log.Println(err.Error())
 		return
 	}
-
+	eventType := cloudwatchEvent.DetailType
 	// If the event is for an Instance Spot Interruption
-	if cloudwatchEvent.DetailType == "EC2 Spot Instance Interruption Warning" {
-		log.Println("Triggered by", cloudwatchEvent.DetailType)
+	if eventType == "EC2 Spot Instance Interruption Warning" {
+		log.Println("Triggered by", eventType)
 		if instanceID, err := getInstanceIDDueForTermination(cloudwatchEvent); err != nil {
 			log.Println("Could't get instance ID of terminating spot instance", err.Error())
 			return
@@ -214,8 +214,8 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 		}
 
 		// If event is Instance state change
-	} else if cloudwatchEvent.DetailType == "EC2 Instance State-change Notification" {
-		log.Println("Triggered by", cloudwatchEvent.DetailType)
+	} else if eventType == "EC2 Instance State-change Notification" {
+		log.Println("Triggered by", eventType)
 		instanceID, state, err := parseEventData(cloudwatchEvent)
 		if err != nil {
 			log.Println("Could't get instance ID of newly launched instance", err.Error())
@@ -224,11 +224,105 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 			a.handleNewInstanceLaunch(cloudwatchEvent.Region, *instanceID, *state)
 		}
 
+	} else if eventType == "AWS API Call via CloudTrail" {
+		log.Println("Triggered by", eventType)
+		a.handleLifecycleHookEvent(cloudwatchEvent)
 	} else {
 		// Cron Scheduling
 		a.ProcessCronEvent()
 	}
 
+}
+
+func isValidLifecycleHookEvent(ctEvent CloudTrailEvent) bool {
+	return ctEvent.EventName == "CompleteLifecycleAction" &&
+		ctEvent.ErrorCode == "ValidationException" &&
+		ctEvent.RequestParameters.LifecycleActionResult == "CONTINUE" &&
+		strings.HasPrefix(ctEvent.ErrorMessage, "No active Lifecycle Action found with instance ID")
+}
+
+func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) error {
+	var ctEvent CloudTrailEvent
+
+	// Try to parse the event.Detail as Cloudwatch Event Rule
+	if err := json.Unmarshal(event.Detail, &ctEvent); err != nil {
+		log.Println(err.Error())
+		return err
+	}
+	logger.Printf("CloudTrail Event data: %#v", ctEvent)
+
+	regionName := ctEvent.AwsRegion
+	instanceID := ctEvent.RequestParameters.InstanceID
+	eventASGName := ctEvent.RequestParameters.AutoScalingGroupName
+
+	if !isValidLifecycleHookEvent(ctEvent) {
+		return fmt.Errorf("unexpected event: %#v", ctEvent)
+	}
+
+	r := region{name: regionName, conf: a.config, services: connections{}}
+
+	if !r.enabled() {
+		return fmt.Errorf("region %s is not enabled", r.name)
+	}
+	r.services.connect(regionName)
+	r.setupAsgFilters()
+	r.scanForEnabledAutoScalingGroups()
+
+	if err := r.scanInstance(aws.String(instanceID)); err != nil {
+		logger.Printf("%s Couldn't scan instance %s: %s", regionName,
+			instanceID, err.Error())
+		return err
+	}
+
+	i := r.instances.get(instanceID)
+	if i == nil {
+		logger.Printf("%s Instance %s is missing, skipping...",
+			regionName, instanceID)
+		return errors.New("instance missing")
+	}
+	logger.Printf("%s Found instance %s in state %s",
+		i.region.name, *i.InstanceId, *i.State.Name)
+
+	if *i.State.Name != "running" {
+		logger.Printf("%s Instance %s is not in the running state",
+			i.region.name, *i.InstanceId)
+		return errors.New("instance not in running state")
+	}
+
+	unattached := i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
+	if !unattached {
+		logger.Printf("%s Instance %s is already attached to an ASG, skipping it",
+			i.region.name, *i.InstanceId)
+		return nil
+	}
+
+	asgName := i.getReplacementTargetASGName()
+
+	if asgName == nil || *asgName != eventASGName {
+		logger.Printf("event ASG name doesn't match the ASG name set on the tags " +
+			"of the unattached spot instance")
+		return fmt.Errorf("ASG name mismatch: event ASG name %s doesn't match the "+
+			"ASG name set on the unattached spot instance %s", eventASGName, *asgName)
+	}
+
+	asg := i.region.findEnabledASGByName(*asgName)
+
+	if asg == nil {
+		logger.Printf("Missing ASG data for region %s", i.region.name)
+		return fmt.Errorf("region %s is missing asg data", i.region.name)
+	}
+
+	logger.Printf("%s Found instance %s is not yet attached to its ASG, "+
+		"attempting to swap it against a running on-demand instance",
+		i.region.name, *i.InstanceId)
+
+	if _, err := i.swapWithGroupMember(asg); err != nil {
+		logger.Printf("%s, couldn't perform spot replacement of %s ",
+			i.region.name, *i.InstanceId)
+		return err
+	}
+
+	return nil
 }
 
 func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID string, state string) error {
@@ -291,11 +385,34 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 		return nil
 	}
 
+	asgName := i.getReplacementTargetASGName()
+	asg := i.region.findEnabledASGByName(*asgName)
+
+	if asg == nil {
+		logger.Printf("Missing ASG data for region %s", i.region.name)
+		return fmt.Errorf("region %s is missing asg data", i.region.name)
+	}
+
 	logger.Printf("%s Found instance %s is not yet attached to its ASG, "+
 		"attempting to swap it against a running on-demand instance",
 		i.region.name, *i.InstanceId)
 
-	if _, err := i.swapWithGroupMember(); err != nil {
+	hasHooks, err := asg.hasLaunchLifecycleHooks()
+
+	if err != nil {
+		logger.Printf("%s ASG %s - couldn't describe Lifecycle Hooks",
+			i.region.name, *asgName)
+		return err
+	}
+
+	if hasHooks {
+		logger.Printf("%s ASG %s has instance launch lifecycle hooks, skipping "+
+			"instance %s until it attempts to continue the lifecycle hook itself",
+			i.region.name, *asgName, *i.InstanceId)
+		return nil
+	}
+
+	if _, err := i.swapWithGroupMember(asg); err != nil {
 		logger.Printf("%s, couldn't perform spot replacement of %s ",
 			i.region.name, *i.InstanceId)
 		return err

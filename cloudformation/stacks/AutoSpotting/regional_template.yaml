@@ -30,6 +30,7 @@
           Ref: "LambdaRegionalExecutionRoleARN"
         Code:
           ZipFile: |
+            from base64 import b64decode
             from boto3 import client
             from json import dumps
             from os import environ
@@ -42,6 +43,7 @@
                 return arn.split(':')[3]
 
             def handler(event, context):
+                print("Running Lambda function", lambda_arn)
                 snsEvent = {
                     'Records': [
                         {
@@ -62,7 +64,7 @@
                         LogType='Tail',
                         Payload=dumps(snsEvent),
                     )
-                    print(response)
+                    print("Invoked funcion log tail:\n", b64decode(response["LogResult"]).decode('utf-8'))
                 except:
                     print_exc()
                     print("Unexpected error:", exc_info()[0])
@@ -118,12 +120,51 @@
           source:
             - "aws.ec2"
           detail:
-              state:
-                - "running"
+            state:
+              - "running"
         State: "ENABLED"
         Targets:
           -
             Id: "InstanceRunningEventGenerator"
+            Arn:
+              Fn::GetAtt:
+                - "EventHandler"
+                - "Arn"
+    LifecycleHookLambdaPermission:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName:
+          Ref: "EventHandler"
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::GetAtt:
+            - "LifecycleHookEventRule"
+            - "Arn"
+    LifecycleHookEventRule:
+      Type: "AWS::Events::Rule"
+      Properties:
+        Description: >
+          "This rule is triggered after we failed to complete a lifecycle hook"
+        EventPattern:
+          detail-type:
+            - "AWS API Call via CloudTrail"
+          source:
+            - "aws.cloudtrail"
+          detail:
+            eventSource:
+              - "autoscaling.amazonaws.com"
+            eventName:
+              - "CompleteLifecycleAction"
+            errorCode:
+              - "ValidationException"
+            requestParameters:
+              lifecycleActionResult:
+                - "CONTINUE"
+        State: "ENABLED"
+        Targets:
+          -
+            Id: "LifecycleHookEventGenerator"
             Arn:
               Fn::GetAtt:
                 - "EventHandler"

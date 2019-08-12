@@ -775,7 +775,7 @@ func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {
 	return false
 }
 
-func (i *instance) swapWithGroupMember() (*instance, error) {
+func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error) {
 	odInstanceID := i.getReplacementTargetInstanceID()
 	if odInstanceID == nil {
 		logger.Println("Couldn't find target on-demand instance of", *i.InstanceId)
@@ -793,13 +793,6 @@ func (i *instance) swapWithGroupMember() (*instance, error) {
 		return nil, fmt.Errorf("target instance %s is missing", *odInstanceID)
 	}
 
-	asgName := i.getReplacementTargetASGName()
-
-	if asgName == nil {
-		logger.Printf("Spot instance %s is missing ASG name", *i.InstanceId)
-		return nil, fmt.Errorf("spot instance %s is missing asg tag", *i.InstanceId)
-	}
-
 	if !odInstance.shouldBeReplacedWithSpot() {
 		logger.Printf("Target on-demand instance %s shouldn't be replaced", *odInstanceID)
 		i.terminate()
@@ -807,11 +800,7 @@ func (i *instance) swapWithGroupMember() (*instance, error) {
 			*odInstanceID)
 	}
 
-	asg := i.region.findEnabledASGByName(*asgName)
-	if asgName == nil {
-		logger.Printf("Missing ASG data for region %s", i.region.name)
-		return nil, fmt.Errorf("region %s is missing asg data", i.region.name)
-	}
+	asg.suspendTerminations()
 
 	max := *asg.MaxSize
 
@@ -824,25 +813,17 @@ func (i *instance) swapWithGroupMember() (*instance, error) {
 		defer asg.setAutoScalingMaxSize(max)
 	}
 
-	// We use this to capture the error message from the closure below that is
-	// executed asynchronously.
-	c := make(chan error)
+	logger.Printf("Attaching spot instance %s to the group %s",
+		*i.InstanceId, asg.name)
+	if err := asg.attachSpotInstance(*i.InstanceId, true); err != nil {
+		logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
+			*i.InstanceId, asg.name)
+		i.terminate()
+		return nil, fmt.Errorf("couldn't attach spot instance %s ", *i.InstanceId)
+	}
 
-	// Attach the new spot instance in parallel with the termination of the
-	// running on-demand instance in order to avoid increasing the capacity enough
-	// for the ASG to notice it and start terminating instances. The ASGs were
-	// sometimes seen to just terminates newly launched spot instances so the
-	// group was unintentionally kept with on-demand capacity.
-	go func() {
-		if err := asg.attachSpotInstance(*i.InstanceId, true); err != nil {
-			logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
-				*i.InstanceId, asg.name)
-			i.terminate()
-			c <- fmt.Errorf("couldn't attach spot instance %s ", *i.InstanceId)
-		}
-		c <- nil
-	}()
-
+	logger.Printf("Terminating on-demand instance %s from the group %s",
+		*odInstanceID, asg.name)
 	if err := asg.terminateInstanceInAutoScalingGroup(odInstanceID, true, true); err != nil {
 		logger.Printf("On-demand instance %s couldn't be terminated, re-trying...",
 			*odInstanceID)
@@ -850,7 +831,9 @@ func (i *instance) swapWithGroupMember() (*instance, error) {
 			*odInstanceID)
 	}
 
-	return odInstance, <-c
+	asg.resumeTerminations()
+
+	return odInstance, nil
 }
 
 // returns an instance ID as *string, set to nil if we need to wait for the next

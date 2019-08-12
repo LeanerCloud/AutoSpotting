@@ -615,6 +615,29 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	return nil
 }
 
+func (a *autoScalingGroup) hasLaunchLifecycleHooks() (bool, error) {
+
+	resDLH, err := a.region.services.autoScaling.DescribeLifecycleHooks(
+		&autoscaling.DescribeLifecycleHooksInput{
+			AutoScalingGroupName: a.AutoScalingGroupName,
+		})
+
+	if err != nil {
+		logger.Println(err.Error())
+		return false, err
+	}
+
+	for _, hook := range resDLH.LifecycleHooks {
+		if "autoscaling:EC2_INSTANCE_LAUNCHING" == *hook.LifecycleTransition {
+			debug.Printf("Group %s has launch lifecycle hook(s): %s",
+				*a.AutoScalingGroupName, *hook.LifecycleHookName)
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.
 func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	spot bool, availabilityZone string) (int64, int64) {
@@ -645,6 +668,38 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	return count, total
 }
 
+func (a *autoScalingGroup) suspendTerminations() {
+	logger.Printf("Suspending termination processes on ASG %s", a.name)
+
+	for _, process := range a.SuspendedProcesses {
+		if *process.ProcessName == "Terminate" {
+			logger.Printf("ASG %s already has the termination process suspended", a.name)
+			return
+		}
+	}
+
+	_, err := a.region.services.autoScaling.SuspendProcesses(
+		&autoscaling.ScalingProcessQuery{
+			AutoScalingGroupName: a.AutoScalingGroupName,
+			ScalingProcesses:     []*string{aws.String("Terminate")},
+		})
+	if err != nil {
+		logger.Printf("couldn't suspend termination processes on ASG %s ", a.name)
+	}
+}
+
+func (a *autoScalingGroup) resumeTerminations() {
+	logger.Printf("Resuming termination processes on ASG %s", a.name)
+
+	_, err := a.region.services.autoScaling.ResumeProcesses(
+		&autoscaling.ScalingProcessQuery{
+			AutoScalingGroupName: a.AutoScalingGroupName,
+			ScalingProcesses:     []*string{aws.String("Terminate")},
+		})
+	if err != nil {
+		logger.Printf("couldn't resume termination processes on ASG %s ", a.name)
+	}
+}
 func (a *autoScalingGroup) isEnabled() bool {
 	for _, asg := range a.region.enabledASGs {
 		if asg.name == a.name {
