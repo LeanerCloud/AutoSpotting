@@ -150,10 +150,8 @@
           detail-type:
             - "AWS API Call via CloudTrail"
           source:
-            - "aws.cloudtrail"
+            - "aws.autoscaling"
           detail:
-            eventSource:
-              - "autoscaling.amazonaws.com"
             eventName:
               - "CompleteLifecycleAction"
             errorCode:
