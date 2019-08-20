@@ -368,7 +368,7 @@ connection draining on the load balancer.
 
 #### Pros ####
 
-- doesn'require any configuration changes
+- doesn't require any configuration changes
 - instances behind ELBs are detached automatically (or start to be drained) as
   soon as the imminent spot termination event is received.
 - if you already have lifecycle hooks they will be executed, but in this case we
