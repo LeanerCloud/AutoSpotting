@@ -126,7 +126,7 @@ func (a *autoScalingGroup) process() {
 	debug.Println("Candidate Spot instance", spotInstance)
 
 	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronScheduleState)
-	debug.Println(a.region.name, a.name, "Should take replacemnt actions:", shouldRun)
+	debug.Println(a.region.name, a.name, "Should take replacement actions:", shouldRun)
 
 	if ok, err := a.licensedToRun(); !ok {
 		logger.Println(a.region.name, a.name, "Skipping group, license limit reached:", err.Error())
