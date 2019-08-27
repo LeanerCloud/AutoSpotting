@@ -135,55 +135,12 @@ func (s *SpotTermination) executeAction(instanceID *string, terminationNotificat
 		return errors.New("AutoScaling service not defined. Please use NewSpotTermination()")
 	}
 
-	// var optInFilterMode = (tagFilteringMode != "opt-out")
-
 	asgName, err := s.getAsgName(instanceID)
 
 	if err != nil {
 		logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
 		return err
 	}
-
-	// logger.Printf("starting logic for ASG")
-	// svc := autoscaling.New(session.New())
-	// asgGroupsOutput, err := svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
-	// 	AutoScalingGroupNames: []*string{
-	// 		&asgName,
-	// 	},
-	// })
-	//
-	// if err != nil {
-	// 	logger.Printf("Failed to get ASG using ASG name %s with err: %s\n", asgName, err.Error())
-	// 	return err
-	// }
-	//
-	// filters := replaceWhitespace(filterByTags)
-	//
-	// var tagsToMatch = []Tag{}
-	//
-	// if len(filters) == 0 {
-	// 	tagsToMatch = []Tag{{Key: "spot-enabled", Value: "true"}}
-	// }
-	//
-	// for _, tagWithValue := range strings.Split(filters, ",") {
-	// 	tag := splitTagAndValue(tagWithValue)
-	// 	if tag != nil {
-	// 		tagsToMatch = append(tagsToMatch, *tag)
-	// 	}
-	// }
-	//
-	// if len(tagsToMatch) == 0 {
-	// 	tagsToMatch = []Tag{{Key: "spot-enabled", Value: "true"}}
-	// }
-	//
-	// groupMatchesExpectedTags := isASGWithMatchingTags(asgGroupsOutput.AutoScalingGroups[0], tagsToMatch)
-	//
-	// if optInFilterMode != groupMatchesExpectedTags {
-	// 	logger.Printf("Skipping group %s because its tags, the currently "+
-	// 		"configured filtering mode (%s) and tag filters do not align\n",
-	// 		asgName, tagFilteringMode)
-	// 	return nil
-	// }
 
 	switch terminationNotificationAction {
 	case "detach":

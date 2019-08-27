@@ -346,3 +346,31 @@ func TestExecuteAction(t *testing.T) {
 		})
 	}
 }
+
+// func TestIsInAutoSpottingASG(t *testing.T) {
+// 	instanceID := "dummyInstanceID"
+// 	tagFilteringMode := "opt-in"
+// 	filterByTags := ""
+//
+// 	tests := []struct {
+// 		name            string
+// 		spotTermination *SpotTermination
+// 		expected        bool
+// 	}{
+// 		{
+// 			name:            "When AutoScaling service is nil",
+// 			spotTermination: &SpotTermination{},
+// 			expected:        false,
+// 		},
+// 	}
+// 	for _, tc := range tests {
+// 		t.Run(tc.name, func(t *testing.T) {
+//
+// 			actual := tc.spotTermination.isInAutoSpottingASG(&instanceID, tagFilteringMode, filterByTags)
+//
+// 			if tc.expected != actual {
+// 				t.Errorf("isInAutoSpottingASG received for %s: %v expected %v", tc.name, actual, tc.expected)
+// 			}
+// 		})
+// 	}
+// }
