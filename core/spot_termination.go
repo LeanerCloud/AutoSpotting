@@ -3,6 +3,7 @@ package autospotting
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
@@ -129,16 +130,57 @@ func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
 
 // ExecuteAction execute the proper termination action (terminate|detach) based on the value of
 // terminationNotificationAction and the presence of a LifecycleHook on ASG.
-func (s *SpotTermination) executeAction(instanceID *string, terminationNotificationAction string) error {
+func (s *SpotTermination) executeAction(instanceID *string, terminationNotificationAction string, tagFilteringMode string, filterByTags string) error {
 	if s.asSvc == nil {
 		return errors.New("AutoScaling service not defined. Please use NewSpotTermination()")
 	}
+
+	var optInFilterMode = (tagFilteringMode != "opt-out")
 
 	asgName, err := s.getAsgName(instanceID)
 
 	if err != nil {
 		logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
 		return err
+	}
+
+	debug.Printf("starting logic for ASG")
+	svc := s.asSvc
+	asgGroupsOutput, err := svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: []*string{
+			&asgName,
+		},
+	})
+
+	if err != nil {
+		logger.Printf("Error: %s\n", err.Error())
+	}
+
+	filters := replaceWhitespace(filterByTags)
+
+	var tagsToMatch = []Tag{}
+
+	if len(filters) == 0 {
+		tagsToMatch = []Tag{{Key: "spot-enabled", Value: "true"}}
+	}
+
+	for _, tagWithValue := range strings.Split(filters, ",") {
+		tag := splitTagAndValue(tagWithValue)
+		if tag != nil {
+			tagsToMatch = append(tagsToMatch, *tag)
+		}
+	}
+
+	if len(tagsToMatch) == 0 {
+		tagsToMatch = []Tag{{Key: "spot-enabled", Value: "true"}}
+	}
+
+	groupMatchesExpectedTags := isASGWithMatchingTags(asgGroupsOutput.AutoScalingGroups[0], tagsToMatch)
+
+	if optInFilterMode != groupMatchesExpectedTags {
+		debug.Printf("Skipping group %s because its tags, the currently "+
+			"configured filtering mode (%s) and tag filters do not align\n",
+			asgName, tagFilteringMode)
 	}
 
 	switch terminationNotificationAction {

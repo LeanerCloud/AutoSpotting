@@ -210,7 +210,8 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 			return
 		} else if instanceID != nil {
 			spotTermination := newSpotTermination(cloudwatchEvent.Region)
-			spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
+			// here
+			spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction, a.config.TagFilteringMode, a.config.FilterByTags)
 		}
 
 		// If event is Instance state change
