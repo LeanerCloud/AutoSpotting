@@ -349,24 +349,42 @@ func TestExecuteAction(t *testing.T) {
 
 // func TestIsInAutoSpottingASG(t *testing.T) {
 // 	instanceID := "dummyInstanceID"
-// 	tagFilteringMode := "opt-in"
-// 	filterByTags := ""
+// 	dummyAsg := []*autoscaling.Group{
+// 		{AutoScalingGroupName: aws.String("dummyASGName")},
+// 	}
+// 	// tagFilteringMode := "opt-in"
+// 	// filterByTags := ""
 //
 // 	tests := []struct {
-// 		name            string
-// 		spotTermination *SpotTermination
-// 		expected        bool
+// 		name             string
+// 		spotTermination  *SpotTermination
+// 		tagFilteringMode string
+// 		filterByTags     string
+// 		expected         bool
 // 	}{
 // 		{
-// 			name:            "When AutoScaling service is nil",
-// 			spotTermination: &SpotTermination{},
-// 			expected:        false,
+// 			name:             "When AutoScaling service is nil",
+// 			spotTermination:  &SpotTermination{},
+// 			tagFilteringMode: "opt-in",
+// 			filterByTags:     "",
+// 			expected:         false,
+// 		},
+// 		{
+// 			name: "When there is no tags to filter from",
+// 			spotTermination: &SpotTermination{
+// 				asSvc: mockASG{dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+// 					AutoScalingGroups: dummyAsg,
+// 				}},
+// 			},
+// 			tagFilteringMode: "opt-in",
+// 			filterByTags:     "",
+// 			expected:         false,
 // 		},
 // 	}
 // 	for _, tc := range tests {
 // 		t.Run(tc.name, func(t *testing.T) {
 //
-// 			actual := tc.spotTermination.isInAutoSpottingASG(&instanceID, tagFilteringMode, filterByTags)
+// 			actual := tc.spotTermination.isInAutoSpottingASG(&instanceID, tc.tagFilteringMode, tc.filterByTags)
 //
 // 			if tc.expected != actual {
 // 				t.Errorf("isInAutoSpottingASG received for %s: %v expected %v", tc.name, actual, tc.expected)

@@ -208,6 +208,11 @@ func (s *SpotTermination) asgHasTerminationLifecycleHook(autoScalingGroupName *s
 // Checks to see whether an instance is in an AutoSpotting ASG as defined by tags
 // If the ASG does not have the required tags, it is not an AutoSpotting ASG and should be left
 func (s *SpotTermination) isInAutoSpottingASG(instanceID *string, tagFilteringMode string, filterByTags string) bool {
+	if s.asSvc == nil {
+		logger.Println("AutoScaling service not defined. Please use NewSpotTermination()")
+		return false
+	}
+
 	var optInFilterMode = (tagFilteringMode != "opt-out")
 
 	asgName, err := s.getAsgName(instanceID)
