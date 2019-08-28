@@ -213,7 +213,7 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 			if spotTermination.isInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
 				spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
 			} else {
-				log.Println("Instance is not in AutoSpotting ASG")
+				log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
 				return
 			}
 		}
