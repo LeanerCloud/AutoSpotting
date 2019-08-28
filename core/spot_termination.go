@@ -217,7 +217,6 @@ func (s *SpotTermination) isInAutoSpottingASG(instanceID *string, tagFilteringMo
 		return false
 	}
 
-	logger.Printf("starting logic for ASG")
 	asgGroupsOutput, err := s.asSvc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{
 			&asgName,
@@ -233,19 +232,11 @@ func (s *SpotTermination) isInAutoSpottingASG(instanceID *string, tagFilteringMo
 
 	var tagsToMatch = []Tag{}
 
-	if len(filters) == 0 {
-		tagsToMatch = []Tag{{Key: "spot-enabled", Value: "true"}}
-	}
-
 	for _, tagWithValue := range strings.Split(filters, ",") {
 		tag := splitTagAndValue(tagWithValue)
 		if tag != nil {
 			tagsToMatch = append(tagsToMatch, *tag)
 		}
-	}
-
-	if len(tagsToMatch) == 0 {
-		tagsToMatch = []Tag{{Key: "spot-enabled", Value: "true"}}
 	}
 
 	groupMatchesExpectedTags := isASGWithMatchingTags(asgGroupsOutput.AutoScalingGroups[0], tagsToMatch)
