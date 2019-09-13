@@ -1,6 +1,7 @@
 package autospotting
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"path/filepath"
@@ -144,8 +145,9 @@ func (i *instance) isSpot() bool {
 		*i.InstanceLifecycle == "spot"
 }
 
-func (i *instance) isProtectedFromTermination() bool {
+func (i *instance) isProtectedFromTermination() (bool, error) {
 
+	debug.Println("\tCheching termination protection for instance: ", *i.InstanceId)
 	// determine and set the API termination protection field
 	diaRes, err := i.region.services.ec2.DescribeInstanceAttribute(
 		&ec2.DescribeInstanceAttributeInput{
@@ -153,15 +155,22 @@ func (i *instance) isProtectedFromTermination() bool {
 			InstanceId: i.InstanceId,
 		})
 
-	if err == nil &&
+	if err != nil {
+		// better safe than sorry!
+		logger.Printf("Couldn't describe instance attritbutes, assuming instance %v is protected: %v\n",
+			*i.InstanceId, err.Error())
+		return true, err
+	}
+
+	if diaRes != nil &&
 		diaRes.DisableApiTermination != nil &&
 		diaRes.DisableApiTermination.Value != nil &&
 		*diaRes.DisableApiTermination.Value {
 		logger.Printf("\t: %v Instance, %v is protected from termination\n",
 			*i.Placement.AvailabilityZone, *i.InstanceId)
-		return true
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
 func (i *instance) isProtectedFromScaleIn() bool {
@@ -188,9 +197,10 @@ func (i *instance) canTerminate() bool {
 
 func (i *instance) terminate() error {
 	var err error
+	logger.Printf("Instance: %v\n", i)
 
-	svc := i.region.services.ec2
 	logger.Printf("Terminating %v", *i.InstanceId)
+	svc := i.region.services.ec2
 
 	if !i.canTerminate() {
 		logger.Printf("Can't terminate %v, current state: %s",
@@ -210,11 +220,12 @@ func (i *instance) terminate() error {
 }
 
 func (i *instance) shouldBeReplacedWithSpot() bool {
+	protT, _ := i.isProtectedFromTermination()
 	return i.belongsToEnabledASG() &&
 		i.asgNeedsReplacement() &&
 		!i.isSpot() &&
 		!i.isProtectedFromScaleIn() &&
-		!i.isProtectedFromTermination()
+		!protT
 }
 
 func (i *instance) belongsToEnabledASG() bool {
@@ -252,7 +263,8 @@ func (i *instance) belongsToAnASG() (bool, *string) {
 }
 
 func (i *instance) asgNeedsReplacement() bool {
-	return i.asg.needReplaceOnDemandInstances(true)
+	ret, _ := i.asg.needReplaceOnDemandInstances()
+	return ret
 }
 
 func (i *instance) isPriceCompatible(spotPrice float64) bool {
@@ -504,7 +516,8 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 	}
 
 	logger.Println(i.asg.name, "Exhausted all compatible instance types without launch success. Aborting.")
-	return nil, err
+	return nil, errors.New("exhausted all compatible instance types")
+
 }
 
 func (i *instance) getPricetoBid(
@@ -800,7 +813,9 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 			*odInstanceID)
 	}
 
-	asg.suspendTerminations()
+	var waiter sync.WaitGroup
+	defer waiter.Wait()
+	go asg.temporarilySuspendTerminations(&waiter)
 
 	max := *asg.MaxSize
 
@@ -830,8 +845,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 		return nil, fmt.Errorf("couldn't terminate on-demand instance %s",
 			*odInstanceID)
 	}
-
-	asg.resumeTerminations()
 
 	return odInstance, nil
 }

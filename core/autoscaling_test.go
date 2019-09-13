@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -18,7 +19,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		asgName          string
 		asgInstances     instances
 		spot             bool
-		availabilityZone string
+		availabilityZone *string
 		expectedCount    int64
 		expectedTotal    int64
 	}{
@@ -26,7 +27,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgName:          "test-asg",
 			asgInstances:     makeInstances(),
 			spot:             true,
-			availabilityZone: "",
+			availabilityZone: nil,
 			expectedCount:    0,
 			expectedTotal:    0,
 		},
@@ -44,7 +45,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				},
 			),
 			spot:             true,
-			availabilityZone: "",
+			availabilityZone: nil,
 			expectedCount:    0,
 			expectedTotal:    0,
 		},
@@ -69,7 +70,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				},
 			),
 			spot:             true,
-			availabilityZone: "",
+			availabilityZone: nil,
 			expectedCount:    0,
 			expectedTotal:    2,
 		},
@@ -94,7 +95,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				},
 			),
 			spot:             false,
-			availabilityZone: "",
+			availabilityZone: nil,
 			expectedCount:    0,
 			expectedTotal:    2,
 		},
@@ -119,7 +120,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				},
 			),
 			spot:             false,
-			availabilityZone: "eu-west-1c",
+			availabilityZone: aws.String("eu-west-1c"),
 			expectedCount:    0,
 			expectedTotal:    2,
 		},
@@ -144,7 +145,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				},
 			),
 			spot:             false,
-			availabilityZone: "eu-west-1b",
+			availabilityZone: aws.String("eu-west-1b"),
 			expectedCount:    1,
 			expectedTotal:    2,
 		},
@@ -169,7 +170,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				},
 			),
 			spot:             true,
-			availabilityZone: "eu-west-1c",
+			availabilityZone: aws.String("eu-west-1c"),
 			expectedCount:    0,
 			expectedTotal:    2,
 		},
@@ -194,7 +195,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				},
 			),
 			spot:             true,
-			availabilityZone: "",
+			availabilityZone: nil,
 			expectedCount:    2,
 			expectedTotal:    2,
 		},
@@ -219,7 +220,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				},
 			),
 			spot:             true,
-			availabilityZone: "",
+			availabilityZone: nil,
 			expectedCount:    0,
 			expectedTotal:    1,
 		},
@@ -244,7 +245,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				},
 			),
 			spot:             false,
-			availabilityZone: "",
+			availabilityZone: nil,
 			expectedCount:    1,
 			expectedTotal:    2,
 		},
@@ -269,7 +270,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				},
 			),
 			spot:             false,
-			availabilityZone: "",
+			availabilityZone: nil,
 			expectedCount:    0,
 			expectedTotal:    1,
 		},
@@ -887,9 +888,37 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 		name        string
 		nameLC      *string
 		regionASG   *region
+		groupLC     *launchConfiguration
 		expectedLC  *launchConfiguration
 		expectedErr error
 	}{
+		{name: "launch configuration already exists",
+			groupLC: &launchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+					LaunchConfigurationName: aws.String("foo"),
+				},
+			},
+			// nameLC: aws.String("foo"),
+			// regionASG: &region{
+			// 	services: connections{
+			// 		autoScaling: mockASG{
+			// 			dlco: &autoscaling.DescribeLaunchConfigurationsOutput{
+			// 				LaunchConfigurations: []*autoscaling.LaunchConfiguration{
+			// 					{
+			// 						LaunchConfigurationName: aws.String("foo"),
+			// 					},
+			// 				},
+			// 			},
+			// 		},
+			// 	},
+			// },
+			expectedErr: nil,
+			expectedLC: &launchConfiguration{
+				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+					LaunchConfigurationName: aws.String("foo"),
+				},
+			},
+		},
 		{name: "nil launch configuration name",
 			nameLC: nil,
 			regionASG: &region{
@@ -941,14 +970,13 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := autoScalingGroup{
-
-				region: tt.regionASG,
+				launchConfiguration: tt.groupLC,
+				region:              tt.regionASG,
 				Group: &autoscaling.Group{
 					LaunchConfigurationName: tt.nameLC,
 				},
 			}
-			err := a.loadLaunchConfiguration()
-			lc := a.launchConfiguration
+			lc, err := a.loadLaunchConfiguration()
 
 			if !reflect.DeepEqual(tt.expectedErr, err) {
 				t.Errorf("loadLaunchConfiguration received error status: %+v expected %+v",
@@ -1273,7 +1301,7 @@ func TestGetOnDemandInstanceInAZ(t *testing.T) {
 		},
 
 		{
-			name: "ASG has 'running' instance in AZ ad we we get error when trying to determine termination protection",
+			name: "ASG has 'running' instance in AZ but we we get error when trying to determine termination protection",
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"spot-stopped": {
@@ -1317,24 +1345,9 @@ func TestGetOnDemandInstanceInAZ(t *testing.T) {
 					},
 				},
 			),
-			az: aws.String("1b"),
-			expected: &instance{
-				Instance: &ec2.Instance{
-					InstanceId:        aws.String("ondemand-running"),
-					State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
-					Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
-					InstanceLifecycle: aws.String(""),
-				},
-				region: &region{
-					services: connections{
-						ec2: mockEC2{
-							diaerr: errors.New("error when determining instance termination protection"),
-						},
-					},
-				},
-			},
+			az:       aws.String("1b"),
+			expected: nil,
 		},
-
 		{
 			name: "ASG has 'running' but protected from termination instance in AZ",
 			asgInstances: makeInstancesWithCatalog(
@@ -1599,6 +1612,17 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
 						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{
+									diao: &ec2.DescribeInstanceAttributeOutput{
+										DisableApiTermination: &ec2.AttributeBooleanValue{
+											Value: aws.Bool(false),
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			),
@@ -1608,7 +1632,19 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 					State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 					Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 					InstanceLifecycle: aws.String(""),
-				}},
+				},
+				region: &region{
+					services: connections{
+						ec2: mockEC2{
+							diao: &ec2.DescribeInstanceAttributeOutput{
+								DisableApiTermination: &ec2.AttributeBooleanValue{
+									Value: aws.Bool(false),
+								},
+							},
+						},
+					},
+				},
+			},
 			},
 		},
 		{name: "ASG has multiple 'running' OnDemand instances",
@@ -1637,6 +1673,17 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
 						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{
+									diao: &ec2.DescribeInstanceAttributeOutput{
+										DisableApiTermination: &ec2.AttributeBooleanValue{
+											Value: aws.Bool(false),
+										},
+									},
+								},
+							},
+						},
 					},
 					"ondemand-running2": {
 						Instance: &ec2.Instance{
@@ -1645,9 +1692,20 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
 						},
+
+						region: &region{
+							services: connections{
+								ec2: mockEC2{
+									diao: &ec2.DescribeInstanceAttributeOutput{
+										DisableApiTermination: &ec2.AttributeBooleanValue{
+											Value: aws.Bool(false),
+										},
+									},
+								},
+							},
+						},
 					},
-				},
-			),
+				}),
 			expected: []*instance{
 				{
 					Instance: &ec2.Instance{
@@ -1656,6 +1714,17 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 						InstanceLifecycle: aws.String(""),
 					},
+					region: &region{
+						services: connections{
+							ec2: mockEC2{
+								diao: &ec2.DescribeInstanceAttributeOutput{
+									DisableApiTermination: &ec2.AttributeBooleanValue{
+										Value: aws.Bool(false),
+									},
+								},
+							},
+						},
+					},
 				},
 				{
 					Instance: &ec2.Instance{
@@ -1663,6 +1732,17 @@ func TestGetAnyOnDemandInstance(t *testing.T) {
 						State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 						InstanceLifecycle: aws.String(""),
+					},
+					region: &region{
+						services: connections{
+							ec2: mockEC2{
+								diao: &ec2.DescribeInstanceAttributeOutput{
+									DisableApiTermination: &ec2.AttributeBooleanValue{
+										Value: aws.Bool(false),
+									},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -1733,6 +1813,17 @@ func TestGetAnySpotInstance(t *testing.T) {
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
 						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{
+									diao: &ec2.DescribeInstanceAttributeOutput{
+										DisableApiTermination: &ec2.AttributeBooleanValue{
+											Value: aws.Bool(false),
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			),
@@ -1756,6 +1847,17 @@ func TestGetAnySpotInstance(t *testing.T) {
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String("spot"),
 						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{
+									diao: &ec2.DescribeInstanceAttributeOutput{
+										DisableApiTermination: &ec2.AttributeBooleanValue{
+											Value: aws.Bool(false),
+										},
+									},
+								},
+							},
+						},
 					},
 					"ondemand-stopped": {
 						Instance: &ec2.Instance{
@@ -1772,6 +1874,17 @@ func TestGetAnySpotInstance(t *testing.T) {
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
 						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{
+									diao: &ec2.DescribeInstanceAttributeOutput{
+										DisableApiTermination: &ec2.AttributeBooleanValue{
+											Value: aws.Bool(false),
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			),
@@ -1781,7 +1894,19 @@ func TestGetAnySpotInstance(t *testing.T) {
 					State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 					Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 					InstanceLifecycle: aws.String("spot"),
-				}},
+				},
+				region: &region{
+					services: connections{
+						ec2: mockEC2{
+							diao: &ec2.DescribeInstanceAttributeOutput{
+								DisableApiTermination: &ec2.AttributeBooleanValue{
+									Value: aws.Bool(false),
+								},
+							},
+						},
+					},
+				},
+			},
 			},
 		},
 		{name: "ASG has multiple 'running' Spot instances",
@@ -1793,6 +1918,16 @@ func TestGetAnySpotInstance(t *testing.T) {
 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 							InstanceLifecycle: aws.String("spot"),
+						}, region: &region{
+							services: connections{
+								ec2: mockEC2{
+									diao: &ec2.DescribeInstanceAttributeOutput{
+										DisableApiTermination: &ec2.AttributeBooleanValue{
+											Value: aws.Bool(false),
+										},
+									},
+								},
+							},
 						},
 					},
 					"spot-running2": {
@@ -1801,6 +1936,17 @@ func TestGetAnySpotInstance(t *testing.T) {
 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String("spot"),
+						},
+						region: &region{
+							services: connections{
+								ec2: mockEC2{
+									diao: &ec2.DescribeInstanceAttributeOutput{
+										DisableApiTermination: &ec2.AttributeBooleanValue{
+											Value: aws.Bool(false),
+										},
+									},
+								},
+							},
 						},
 					},
 					"ondemand-stopped": {
@@ -1817,6 +1963,16 @@ func TestGetAnySpotInstance(t *testing.T) {
 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
+						}, region: &region{
+							services: connections{
+								ec2: mockEC2{
+									diao: &ec2.DescribeInstanceAttributeOutput{
+										DisableApiTermination: &ec2.AttributeBooleanValue{
+											Value: aws.Bool(false),
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -1828,6 +1984,16 @@ func TestGetAnySpotInstance(t *testing.T) {
 						State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1a")},
 						InstanceLifecycle: aws.String("spot"),
+					}, region: &region{
+						services: connections{
+							ec2: mockEC2{
+								diao: &ec2.DescribeInstanceAttributeOutput{
+									DisableApiTermination: &ec2.AttributeBooleanValue{
+										Value: aws.Bool(false),
+									},
+								},
+							},
+						},
 					},
 				},
 				{
@@ -1836,6 +2002,17 @@ func TestGetAnySpotInstance(t *testing.T) {
 						State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 						Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 						InstanceLifecycle: aws.String("spot"),
+					},
+					region: &region{
+						services: connections{
+							ec2: mockEC2{
+								diao: &ec2.DescribeInstanceAttributeOutput{
+									DisableApiTermination: &ec2.AttributeBooleanValue{
+										Value: aws.Bool(false),
+									},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -2176,7 +2353,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							"spot-running": {
 								Instance: &ec2.Instance{
 									InstanceId:        aws.String("spot-running"),
-									State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
+									State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1z")},
 									InstanceLifecycle: aws.String("spot"),
 								},
@@ -2194,14 +2371,106 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 				},
 			},
 		},
+
+		{name: "found OnDemand instance in asg, without lifecycle hooks",
+			spotID:   "spot-running",
+			expected: errors.New(""),
+			asg: &autoScalingGroup{
+				name: "test-asg",
+				Group: &autoscaling.Group{
+					MaxSize:         aws.Int64(4),
+					MinSize:         aws.Int64(1),
+					DesiredCapacity: aws.Int64(2),
+				},
+				instances: makeInstancesWithCatalog(instanceMap{
+					"on-demand-running": {
+						Instance: &ec2.Instance{
+							InstanceId: aws.String("on-demand-running"),
+							State:      &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							Placement:  &ec2.Placement{AvailabilityZone: aws.String("1z")},
+						},
+						region: &region{
+							services: connections{
+								ec2: &mockEC2{
+									tio:   nil,
+									tierr: nil,
+								},
+							},
+						},
+					},
+				}),
+				region: &region{
+					name: "test-region",
+					conf: &Config{},
+					services: connections{
+						autoScaling: &mockASG{
+							uasgo:     nil,
+							uasgerr:   nil,
+							dio:       nil,
+							dierr:     nil,
+							tiiasgo:   nil,
+							tiiasgerr: nil,
+							dlho: &autoscaling.DescribeLifecycleHooksOutput{
+								LifecycleHooks: []*autoscaling.LifecycleHook{},
+							},
+						},
+						ec2: &mockEC2{},
+					},
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"on-demand-running": {
+								Instance: &ec2.Instance{
+									InstanceId: aws.String("on-demand-running"),
+									State:      &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+									Placement:  &ec2.Placement{AvailabilityZone: aws.String("1z")},
+								},
+								region: &region{
+									services: connections{
+										ec2: &mockEC2{
+											tio:   nil,
+											tierr: nil,
+										},
+									},
+								},
+							},
+
+							"spot-running": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("spot-running"),
+									State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+									Placement:         &ec2.Placement{AvailabilityZone: aws.String("1z")},
+									InstanceLifecycle: aws.String("spot"),
+								},
+								region: &region{
+									services: connections{
+										ec2: &mockEC2{
+											tio:    nil,
+											tierr:  nil,
+											diaerr: nil,
+											diao: &ec2.DescribeInstanceAttributeOutput{
+												DisableApiTermination: &ec2.AttributeBooleanValue{
+													Value: aws.Bool(false),
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					),
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			fmt.Println(tt.name)
 			returned := tt.asg.replaceOnDemandInstanceWithSpot(nil, tt.spotID)
 			CheckErrors(t, returned, tt.expected)
 		})
 		t.Run(tt.name+"-detach-method", func(t *testing.T) {
+			fmt.Println(tt.name)
 			tt.asg.config.TerminationMethod = "detach"
 			returned := tt.asg.replaceOnDemandInstanceWithSpot(nil, tt.spotID)
 			CheckErrors(t, returned, tt.expected)
@@ -3134,6 +3403,7 @@ func Test_autoScalingGroup_licensedToRun(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := tt.asg
+			as.hourlySavings = 0
 
 			got, err := a.licensedToRun()
 			if (err != nil) != tt.wantErr {
@@ -3143,6 +3413,7 @@ func Test_autoScalingGroup_licensedToRun(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("autoScalingGroup.licensedToRun() = %v, want %v", got, tt.want)
 			}
+			as.hourlySavings = 0
 		})
 	}
 }
@@ -3232,6 +3503,785 @@ func Test_autoScalingGroup_calculateHourlySavings(t *testing.T) {
 			}
 			if got := a.calculateHourlySavings(); got != tt.want {
 				t.Errorf("autoScalingGroup.calculateHourlySavings() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_autoScalingGroup_needReplaceOnDemandInstances(t *testing.T) {
+
+	tests := []struct {
+		name        string
+		instances   instances
+		minOnDemand int64
+		wantNeed    bool
+		wantTotal   int64
+	}{
+		{
+			name:      "empty group",
+			instances: makeInstancesWithCatalog(instanceMap{}),
+			wantNeed:  true,
+			wantTotal: 0,
+		},
+		{
+			name:        "group with more on-demand instances than enough",
+			minOnDemand: 0,
+			instances: makeInstancesWithCatalog(instanceMap{
+				"i-1": &instance{
+					Instance: &ec2.Instance{
+						State: &ec2.InstanceState{
+							Name: aws.String("running"),
+						},
+					},
+				},
+			}),
+			wantNeed:  true,
+			wantTotal: 1,
+		},
+		{
+			name:        "group with as much on-demand instances as desired",
+			minOnDemand: 1,
+			instances: makeInstancesWithCatalog(instanceMap{
+				"i-1": &instance{
+					Instance: &ec2.Instance{
+						State: &ec2.InstanceState{
+							Name: aws.String("running"),
+						},
+					},
+				},
+			}),
+			wantNeed:  false,
+			wantTotal: 1,
+		},
+		{
+			name:        "group with fewer on-demand instances than desired",
+			minOnDemand: 2,
+			instances: makeInstancesWithCatalog(instanceMap{
+				"i-1": &instance{
+					Instance: &ec2.Instance{
+						State: &ec2.InstanceState{
+							Name: aws.String("running"),
+						},
+					},
+				},
+			}),
+			wantNeed:  false,
+			wantTotal: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				instances:   tt.instances,
+				minOnDemand: tt.minOnDemand,
+			}
+			gotNeed, gotTotal := a.needReplaceOnDemandInstances()
+			if gotNeed != tt.wantNeed {
+				t.Errorf("autoScalingGroup.needReplaceOnDemandInstances() got = %v, want %v", gotNeed, tt.wantNeed)
+
+			}
+			if gotTotal != tt.wantTotal {
+				t.Errorf("autoScalingGroup.needReplaceOnDemandInstances() got1 = %v, want %v", gotTotal, tt.wantTotal)
+			}
+		})
+	}
+}
+
+func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.T) {
+
+	tests := []struct {
+		name                string
+		group               *autoscaling.Group
+		asgName             string
+		region              *region
+		launchConfiguration *launchConfiguration
+		instances           instances
+		minOnDemand         int64
+		config              AutoScalingConfig
+		totalRunning        int64
+		wait                bool
+		wantErr             bool
+	}{
+		{
+			name:         "last running instance",
+			totalRunning: 1,
+			wantErr:      false,
+		},
+
+		{name: "not enough running capacity in the group",
+			group: &autoscaling.Group{
+				DesiredCapacity: aws.Int64(2),
+			},
+			instances: makeInstancesWithCatalog(instanceMap{
+				"i-foo": &instance{
+					Instance: &ec2.Instance{
+						InstanceId: aws.String("i-foo"),
+						State: &ec2.InstanceState{
+							Name: aws.String("running"),
+						},
+					},
+				},
+			}),
+			wantErr: false,
+		},
+
+		{name: "no spot capacity in the group",
+			group: &autoscaling.Group{
+				DesiredCapacity: aws.Int64(1),
+			},
+			instances: makeInstancesWithCatalog(instanceMap{
+				"i-f00": &instance{
+					Instance: &ec2.Instance{
+						InstanceId: aws.String("i-foo"),
+						State: &ec2.InstanceState{
+							Name: aws.String("running"),
+						},
+					},
+				},
+			}),
+			wantErr: false,
+		},
+
+		{name: "spot capacity exists in the group, terminating using the default termination method",
+			group: &autoscaling.Group{
+				DesiredCapacity: aws.Int64(1),
+			},
+			instances: makeInstancesWithCatalog(instanceMap{
+				"i-foo": &instance{
+					Instance: &ec2.Instance{
+						InstanceId:        aws.String("i-foo"),
+						InstanceLifecycle: aws.String("spot"),
+						State: &ec2.InstanceState{
+							Name: aws.String("running"),
+						},
+					},
+					region: &region{
+						services: connections{
+							ec2: mockEC2{
+								diao: &ec2.DescribeInstanceAttributeOutput{},
+							},
+						},
+					},
+				},
+			}),
+			region: &region{
+				services: connections{
+					ec2: mockEC2{
+						tierr: errors.New("dummy error"),
+					},
+					autoScaling: mockASG{
+						dlho: &autoscaling.DescribeLifecycleHooksOutput{},
+					},
+				},
+			},
+			wantErr: false,
+		},
+
+		{name: "spot capacity exists in the group, terminating using the non-default termination method",
+			group: &autoscaling.Group{
+				DesiredCapacity: aws.Int64(1),
+			},
+			instances: makeInstancesWithCatalog(instanceMap{
+				"i-f00": &instance{
+					Instance: &ec2.Instance{
+						InstanceId:        aws.String("i-foo"),
+						InstanceLifecycle: aws.String("spot"),
+						State: &ec2.InstanceState{
+							Name: aws.String("running"),
+						},
+					},
+					region: &region{
+						services: connections{
+							ec2: mockEC2{
+								tierr: nil,
+							},
+						},
+					},
+				},
+			}),
+			region: &region{
+				services: connections{
+					autoScaling: mockASG{
+						dlho: &autoscaling.DescribeLifecycleHooksOutput{},
+					},
+				},
+			},
+			config: AutoScalingConfig{
+				TerminationMethod: DetachTerminationMethod,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				Group:               tt.group,
+				name:                tt.asgName,
+				region:              tt.region,
+				launchConfiguration: tt.launchConfiguration,
+				instances:           tt.instances,
+				minOnDemand:         tt.minOnDemand,
+				config:              tt.config,
+			}
+			if err := a.terminateRandomSpotInstanceIfHavingEnough(tt.totalRunning, tt.wait); (err != nil) != tt.wantErr {
+				t.Errorf("autoScalingGroup.terminateRandomSpotInstanceIfHavingEnough() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_autoScalingGroup_cronEventAction(t *testing.T) {
+	asgNoInstances := autoScalingGroup{
+		Group: &autoscaling.Group{},
+		region: &region{
+			conf: &Config{
+				AutoScalingConfig: AutoScalingConfig{
+					CronSchedule:      "* *",
+					CronScheduleState: "on",
+				},
+				LicenseType: "evaluation",
+				Version:     "custom",
+			},
+			instances: makeInstancesWithCatalog(
+				instanceMap{}),
+		},
+	}
+
+	asgTerminateSpotInstance := autoScalingGroup{
+
+		Group: &autoscaling.Group{
+			Instances: []*autoscaling.Instance{
+				{
+					InstanceId:           aws.String("i-ondemand"),
+					ProtectedFromScaleIn: aws.Bool(false),
+				},
+			},
+		},
+		region: &region{
+			conf: &Config{
+				AutoScalingConfig: AutoScalingConfig{
+					CronSchedule:      "* *",
+					CronScheduleState: "on",
+					MinOnDemandNumber: 1,
+				},
+				LicenseType: "custom",
+				Version:     "nightly",
+			},
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"i-ondemand": {
+						Instance: &ec2.Instance{
+							InstanceId: aws.String("i-ondemand"),
+
+							Placement: &ec2.Placement{
+								AvailabilityZone: aws.String("us-east-1a"),
+							},
+							State: &ec2.InstanceState{
+								Name: aws.String(ec2.InstanceStateNameRunning),
+							},
+						},
+						price: 30.3,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 30.3,
+								spot: spotPriceMap{
+									"us-east-1a": 0.2,
+								},
+							},
+						},
+					},
+				}),
+			services: connections{
+				ec2: mockEC2{
+					diao: &ec2.DescribeInstanceAttributeOutput{},
+				},
+			},
+		},
+	}
+
+	onDemandInstance := instance{
+		Instance: &ec2.Instance{
+			InstanceId: aws.String("i-ondemand"),
+
+			Placement: &ec2.Placement{
+				AvailabilityZone: aws.String("us-east-1a"),
+			},
+			State: &ec2.InstanceState{
+				Name: aws.String(ec2.InstanceStateNameRunning),
+			},
+		},
+		price: 30.3,
+		typeInfo: instanceTypeInformation{
+			pricing: prices{
+				onDemand: 30.3,
+				spot: spotPriceMap{
+					"us-east-1a": 0.2,
+				},
+			},
+		},
+	}
+
+	asgLaunchSpotReplacement := autoScalingGroup{
+		instances: makeInstancesWithCatalog(instanceMap{}),
+		Group: &autoscaling.Group{
+			Instances: []*autoscaling.Instance{
+				{
+					InstanceId:           aws.String("i-ondemand"),
+					ProtectedFromScaleIn: aws.Bool(false),
+				},
+			},
+		},
+		region: &region{
+			conf: &Config{
+				AutoScalingConfig: AutoScalingConfig{
+					CronSchedule:      "* *",
+					CronScheduleState: "on",
+
+					MinOnDemandNumber: 0,
+				},
+				LicenseType: "custom",
+				Version:     "nightly",
+			},
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"i-ondemand": &onDemandInstance,
+				}),
+			services: connections{
+				ec2: mockEC2{
+					diao: &ec2.DescribeInstanceAttributeOutput{},
+				},
+			},
+		},
+	}
+
+	spotInstance := instance{
+		Instance: &ec2.Instance{
+			InstanceId:        aws.String("i-spot"),
+			InstanceLifecycle: aws.String("spot"),
+			LaunchTime:        aws.Time(time.Now().Add(-1 * time.Hour)),
+
+			Placement: &ec2.Placement{
+				AvailabilityZone: aws.String("us-east-1a"),
+			},
+			State: &ec2.InstanceState{
+				Name: aws.String(ec2.InstanceStateNameRunning),
+			},
+			Tags: []*ec2.Tag{
+				{Key: aws.String("launched-for-asg"),
+					Value: aws.String("asg-foo"),
+				},
+			},
+		},
+		price: 30.3,
+		typeInfo: instanceTypeInformation{
+			pricing: prices{
+				onDemand: 30.3,
+				spot: spotPriceMap{
+					"us-east-1a": 0.2,
+				},
+			},
+		},
+	}
+
+	asgExistingSpotReplacementButUnneeded := autoScalingGroup{
+		name:      "asg-foo",
+		instances: makeInstancesWithCatalog(instanceMap{}),
+		Group: &autoscaling.Group{
+			Instances: []*autoscaling.Instance{
+				{
+					InstanceId:           aws.String("i-ondemand"),
+					ProtectedFromScaleIn: aws.Bool(false),
+				},
+			},
+			HealthCheckGracePeriod: aws.Int64(60),
+		},
+		region: &region{
+			conf: &Config{
+				AutoScalingConfig: AutoScalingConfig{
+					CronSchedule:      "* *",
+					CronScheduleState: "on",
+
+					MinOnDemandNumber: 1,
+				},
+				LicenseType: "custom",
+				Version:     "nightly",
+			},
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"i-ondemand": &onDemandInstance,
+					"i-spot":     &spotInstance,
+				}),
+			services: connections{
+				ec2: mockEC2{
+					diao: &ec2.DescribeInstanceAttributeOutput{},
+				},
+			},
+		},
+	}
+
+	asgExistingSpotReplacementButNotReady := autoScalingGroup{
+		name:      "asg-foo",
+		instances: makeInstancesWithCatalog(instanceMap{}),
+		Group: &autoscaling.Group{
+			Instances: []*autoscaling.Instance{
+				{
+					InstanceId:           aws.String("i-ondemand"),
+					ProtectedFromScaleIn: aws.Bool(false),
+				},
+			},
+			HealthCheckGracePeriod: aws.Int64(7200),
+		},
+		region: &region{
+			conf: &Config{
+				AutoScalingConfig: AutoScalingConfig{
+					CronSchedule:      "* *",
+					CronScheduleState: "on",
+					MinOnDemandNumber: 0,
+				},
+				LicenseType: "custom",
+				Version:     "nightly",
+			},
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"i-ondemand": &onDemandInstance,
+					"i-spot":     &spotInstance,
+				}),
+			services: connections{
+				ec2: mockEC2{
+					diao: &ec2.DescribeInstanceAttributeOutput{},
+				},
+			},
+		},
+	}
+
+	asgExistingSpotReplacementAndReady := autoScalingGroup{
+		name:      "asg-foo",
+		instances: makeInstancesWithCatalog(instanceMap{}),
+		Group: &autoscaling.Group{
+			Instances: []*autoscaling.Instance{
+				{
+					InstanceId:           aws.String("i-ondemand"),
+					ProtectedFromScaleIn: aws.Bool(false),
+				},
+			},
+			HealthCheckGracePeriod: aws.Int64(60),
+		},
+		region: &region{
+			conf: &Config{
+				AutoScalingConfig: AutoScalingConfig{
+					CronSchedule:      "* *",
+					CronScheduleState: "on",
+					MinOnDemandNumber: 0,
+				},
+				LicenseType: "custom",
+				Version:     "nightly",
+			},
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"i-ondemand": &onDemandInstance,
+					"i-spot":     &spotInstance,
+				}),
+			services: connections{
+				ec2: mockEC2{
+					diao: &ec2.DescribeInstanceAttributeOutput{},
+				},
+			},
+		},
+	}
+	tests := []struct {
+		name string
+		asg  *autoScalingGroup
+		want runer
+	}{
+		{name: "should not run",
+
+			asg: &autoScalingGroup{
+				Group: &autoscaling.Group{},
+				region: &region{
+					conf: &Config{
+						AutoScalingConfig: AutoScalingConfig{
+							CronSchedule:      "* *",
+							CronScheduleState: "off",
+						},
+					},
+					instances: makeInstancesWithCatalog(instanceMap{}),
+				},
+			},
+			want: skipRun{reason: "outside-cron-schedule"},
+		},
+
+		{name: "not licensed to run",
+			asg: &autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:           aws.String("i-spot"),
+							ProtectedFromScaleIn: aws.Bool(false),
+						},
+					},
+				},
+				region: &region{
+					conf: &Config{
+						AutoScalingConfig: AutoScalingConfig{
+							CronSchedule:      "* *",
+							CronScheduleState: "on",
+						},
+						LicenseType: "evaluation",
+						Version:     "nightly",
+					},
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot"),
+									InstanceLifecycle: aws.String("spot"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								price: 0.2,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										onDemand: 30.3,
+										spot: spotPriceMap{
+											"us-east-1a": 0.2,
+										},
+									},
+								},
+							},
+						}),
+					services: connections{
+						ec2: mockEC2{
+							diao: &ec2.DescribeInstanceAttributeOutput{},
+						},
+					},
+				},
+			},
+			want: skipRun{reason: "over-license"},
+		},
+		{name: "no instances, just enable the event handling",
+			asg:  &asgNoInstances,
+			want: enableEventHandling{target{asg: &asgNoInstances}},
+		},
+
+		{name: "not allowed to replace instances, terminate-spot-instance",
+			asg:  &asgTerminateSpotInstance,
+			want: terminateSpotInstance{target{asg: &asgTerminateSpotInstance, totalInstances: 1}},
+		},
+
+		{name: "allowed to replace instance, launch spot instance replacement",
+			asg: &asgLaunchSpotReplacement,
+			want: launchSpotReplacement{target{
+				onDemandInstance: &onDemandInstance},
+			},
+		},
+
+		{name: "allowed to replace instance, spot instance replacement exists but not needed",
+			asg: &asgExistingSpotReplacementButUnneeded,
+			want: terminateUnneededSpotInstance{
+				target{
+					asg:            &asgExistingSpotReplacementButUnneeded,
+					spotInstance:   &spotInstance,
+					totalInstances: 1,
+				},
+			},
+		},
+
+		{name: "allowed to replace instance, spot instance replacement exists but not ready",
+			asg:  &asgExistingSpotReplacementButNotReady,
+			want: skipRun{reason: "spot instance replacement exists but not ready"},
+		},
+
+		{name: "allowed to replace instance, spot instance replacement exists and ready",
+			asg: &asgExistingSpotReplacementAndReady,
+			want: swapSpotInstance{target{
+				asg:          &asgExistingSpotReplacementAndReady,
+				spotInstance: &spotInstance,
+			},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			as.hourlySavings = 0
+			if got := tt.asg.cronEventAction(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("autoScalingGroup.cronEventAction() \ngot %#v, \nwant %#v", got, tt.want)
+			}
+			as.hourlySavings = 0
+		})
+	}
+}
+
+func Test_autoScalingGroup_enableForInstanceLaunchEventHandling(t *testing.T) {
+	type fields struct {
+	}
+	tests := []struct {
+		name                string
+		Group               *autoscaling.Group
+		asgName             string
+		region              *region
+		launchConfiguration *launchConfiguration
+		instances           instances
+		minOnDemand         int64
+		config              AutoScalingConfig
+		want                bool
+	}{
+		{
+			name: "tag already set",
+			want: true,
+			Group: &autoscaling.Group{
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String("foo"),
+						Value: aws.String("bar"),
+					},
+					{
+						Key:   aws.String(EnableInstanceLaunchEventHandlingTag),
+						Value: aws.String("true"),
+					},
+				},
+			},
+		},
+
+		{
+			name: "tag not already set, API error",
+			want: false,
+			Group: &autoscaling.Group{
+				AutoScalingGroupName: aws.String("foo"),
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String("foo"),
+						Value: aws.String("bar"),
+					},
+				},
+			},
+			region: &region{
+				services: connections{
+					autoScaling: mockASG{
+						couterr: errors.New("API error"),
+					},
+				},
+			},
+		},
+		{
+			name: "tag not already set, API success",
+			want: true,
+			Group: &autoscaling.Group{
+				AutoScalingGroupName: aws.String("foo"),
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String("foo"),
+						Value: aws.String("bar"),
+					},
+				},
+			},
+			region: &region{
+				services: connections{
+					autoScaling: mockASG{
+						couterr: nil,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				Group:               tt.Group,
+				name:                tt.asgName,
+				region:              tt.region,
+				launchConfiguration: tt.launchConfiguration,
+				instances:           tt.instances,
+				minOnDemand:         tt.minOnDemand,
+				config:              tt.config,
+			}
+			if got := a.enableForInstanceLaunchEventHandling(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("autoScalingGroup.enableForInstanceLaunchEventHandling() \ngot %#v, \nwant %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_autoScalingGroup_isEnabledForEventBasedInstanceReplacement(t *testing.T) {
+
+	tests := []struct {
+		name                string
+		Group               *autoscaling.Group
+		asgName             string
+		region              *region
+		launchConfiguration *launchConfiguration
+		instances           instances
+		minOnDemand         int64
+		config              AutoScalingConfig
+		want                bool
+	}{
+		{
+			name: "recently created ASG, tagging it works",
+			Group: &autoscaling.Group{
+				CreatedTime: aws.Time(time.Now().Add(-10 * time.Minute)),
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String("foo"),
+						Value: aws.String("bar"),
+					},
+				},
+			},
+			region: &region{
+				services: connections{
+					autoScaling: mockASG{
+						couterr: nil,
+					},
+				},
+			},
+			want: true,
+		},
+
+		{
+			name: "older ASG, not already tagged",
+			Group: &autoscaling.Group{
+				CreatedTime: aws.Time(time.Now().Add(-10 * time.Hour)),
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String("foo"),
+						Value: aws.String("bar"),
+					},
+				},
+			},
+			want: false,
+		}, {
+			name: "older ASG, already tagged",
+			Group: &autoscaling.Group{
+				CreatedTime: aws.Time(time.Now().Add(-10 * time.Hour)),
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String("foo"),
+						Value: aws.String("bar"),
+					},
+					{
+						Key:   aws.String(EnableInstanceLaunchEventHandlingTag),
+						Value: aws.String("true"),
+					},
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				Group:               tt.Group,
+				name:                tt.asgName,
+				region:              tt.region,
+				launchConfiguration: tt.launchConfiguration,
+				instances:           tt.instances,
+				minOnDemand:         tt.minOnDemand,
+				config:              tt.config,
+			}
+			if got := a.isEnabledForEventBasedInstanceReplacement(); got != tt.want {
+				t.Errorf("autoScalingGroup.isEnabledForEventBasedInstanceReplacement() = %v, want %v", got, tt.want)
 			}
 		})
 	}

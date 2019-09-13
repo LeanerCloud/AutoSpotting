@@ -57,7 +57,7 @@ type mockEC2 struct {
 	dltverr error
 
 	// WaitUntilInstanceRunning error
-	//	wuirerr error
+	wuirerr error
 }
 
 func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
@@ -87,6 +87,10 @@ func (m mockEC2) DeleteTags(*ec2.DeleteTagsInput) (*ec2.DeleteTagsOutput, error)
 
 func (m mockEC2) DescribeLaunchTemplateVersions(*ec2.DescribeLaunchTemplateVersionsInput) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
 	return m.dltvo, m.dltverr
+}
+
+func (m mockEC2) WaitUntilInstanceRunning(*ec2.DescribeInstancesInput) error {
+	return m.wuirerr
 }
 
 // For testing we "convert" the SecurityGroupIDs/SecurityGroupNames by
@@ -161,6 +165,10 @@ type mockASG struct {
 	// DescribeLifecycleHooks
 	dlho   *autoscaling.DescribeLifecycleHooksOutput
 	dlherr error
+
+	// CreateOrUpdateTags
+	couto   *autoscaling.CreateOrUpdateTagsOutput
+	couterr error
 }
 
 func (m mockASG) DetachInstances(*autoscaling.DetachInstancesInput) (*autoscaling.DetachInstancesOutput, error) {
@@ -199,6 +207,10 @@ func (m mockASG) DescribeAutoScalingInstances(inout *autoscaling.DescribeAutoSca
 
 func (m mockASG) DescribeLifecycleHooks(*autoscaling.DescribeLifecycleHooksInput) (*autoscaling.DescribeLifecycleHooksOutput, error) {
 	return m.dlho, m.dlherr
+}
+
+func (m mockASG) CreateOrUpdateTags(*autoscaling.CreateOrUpdateTagsInput) (*autoscaling.CreateOrUpdateTagsOutput, error) {
+	return m.couto, m.couterr
 }
 
 // All fields are composed of the abbreviation of their method

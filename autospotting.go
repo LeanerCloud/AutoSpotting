@@ -31,7 +31,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		Handler(nil, parseEvent)
+		Handler(context.TODO(), parseEvent)
 	} else {
 		eventHandler(nil)
 	}

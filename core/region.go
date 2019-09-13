@@ -453,7 +453,8 @@ func (r *region) processEnabledAutoScalingGroups() {
 
 		r.wg.Add(1)
 		go func(a autoScalingGroup) {
-			a.processCronEvent()
+			action := a.cronEventAction()
+			action.run()
 			r.wg.Done()
 		}(asg)
 	}

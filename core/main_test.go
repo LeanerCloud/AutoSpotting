@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -19,8 +20,16 @@ func TestMain(m *testing.M) {
 		MainRegion: "us-east-1",
 	})
 
-	logger = log.New(ioutil.Discard, "", 0)
-	debug = log.New(ioutil.Discard, "", 0)
+	var logOutput io.Writer
+
+	if os.Getenv("AUTOSPOTTING_DEBUG") == "true" {
+		logOutput = os.Stdout
+	} else {
+		logOutput = ioutil.Discard
+	}
+
+	logger = log.New(logOutput, "", 0)
+	debug = log.New(logOutput, "", 0)
 
 	os.Exit(m.Run())
 }
