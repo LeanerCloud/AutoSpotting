@@ -79,4 +79,8 @@ type Config struct {
 
 	// The license of this AutoSpotting build
 	LicenseType string
+
+	// Controls whether AutoSpotting tries to force Beanstalk UserData script to use the instance role
+	// when calling `cfn-init`
+	BeanstalkCFNInitRole string
 }

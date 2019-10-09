@@ -1037,3 +1037,67 @@ func Test_autoScalingGroup_LoadCronScheduleState(t *testing.T) {
 		})
 	}
 }
+
+func Test_autoScalingGroup_LoadBeanstalkCFNInitRole(t *testing.T) {
+	tests := []struct {
+		name    string
+		Group   *autoscaling.Group
+		asgName string
+		config  AutoScalingConfig
+		region  *region
+		want    string
+	}{
+		{
+			name:  "No tag set on the group, use region config",
+			Group: &autoscaling.Group{},
+			region: &region{
+				conf: &Config{
+					BeanstalkCFNInitRole: "",
+				},
+			},
+			want: "",
+		},
+		{
+			name:  "No tag set on the group, use region config (true)",
+			Group: &autoscaling.Group{},
+			region: &region{
+				conf: &Config{
+					BeanstalkCFNInitRole: "true",
+				},
+			},
+			want: "true",
+		},
+		{
+			name: "Tag set on the group",
+			Group: &autoscaling.Group{
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String(BeanstalkCFNInitRoleTag),
+						Value: aws.String("true"),
+					},
+				},
+			},
+			region: &region{
+				conf: &Config{
+					BeanstalkCFNInitRole: "",
+				},
+			},
+			want: "true",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				Group:  tt.Group,
+				name:   tt.asgName,
+				config: tt.config,
+				region: tt.region,
+			}
+			a.loadBeanstalkCFNInitRole()
+			got := a.config.BeanstalkCFNInitRole
+			if got != tt.want {
+				t.Errorf("LoadBeanstalkCFNInitRole got %v, expected %v", got, tt.want)
+			}
+		})
+	}
+}

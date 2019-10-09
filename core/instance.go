@@ -599,11 +599,9 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		}
 		retval.ImageId = lc.ImageId
 
-		if len(i.asg.config.BeanstalkCFNInitRole) > 0 && strings.Contains(*lc.UserData, "ebbootstrap") {
-			// This is UserData for an instance managed by Elastic Beanstalk and we have a config option for setting a specific role in that case
-			// Force set the role for calling cfn-init
-			patchedUserData := "echo -e '#!/bin/bash -x\n/opt/aws/bin/cfn-init-2 --role " + i.asg.config.BeanstalkCFNInitRole + " \"$@\" \nexit $?' > /opt/aws/bin/cfn-init.tmp\n" + "mv /opt/aws/bin/cfn-init /opt/aws/bin/cfn-init-2\n" + "mv /opt/aws/bin/cfn-init.tmp /opt/aws/bin/cfn-init\n" + "chmod +x /opt/aws/bin/cfn-init\n\n" + *lc.UserData
-			retval.UserData = &patchedUserData
+		if len(i.asg.config.BeanstalkCFNInitRole) > 0 {
+			logger.Println("Patch instance UserData for Beanstalk")
+			retval.UserData = getPatchedUserDataForBeanstalk(lc.UserData)
 		} else {
 			retval.UserData = lc.UserData
 		}

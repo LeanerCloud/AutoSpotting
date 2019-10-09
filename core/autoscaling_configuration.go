@@ -73,7 +73,8 @@ const (
 	// can override the global value of the CronScheduleState parameter
 	CronScheduleStateTag = "autospotting_cron_schedule_state"
 
-	// Role to use for cfn-init when launching an instance managed by Beanstalk
+	// BeanstalkCFNInitRoleTag is the name of the tag set on the AutoScaling Group that
+	// can override the global value of the BeanstalkCFNInitRole parameter
 	BeanstalkCFNInitRoleTag = "beanstalk_cfn_init_role"
 )
 
@@ -191,6 +192,9 @@ func (a *autoScalingGroup) loadBeanstalkCFNInitRole() {
 		a.config.BeanstalkCFNInitRole = *tagValue
 		return
 	}
+
+	debug.Println("Couldn't find tag", BeanstalkCFNInitRoleTag, "on the group", a.name, "using the default configuration")
+	a.config.BeanstalkCFNInitRole = a.region.conf.BeanstalkCFNInitRole
 }
 
 func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
