@@ -72,6 +72,9 @@ const (
 	// CronScheduleStateTag is the name of the tag set on the AutoScaling Group that
 	// can override the global value of the CronScheduleState parameter
 	CronScheduleStateTag = "autospotting_cron_schedule_state"
+
+	// Role to use for cfn-init when launching an instance managed by Beanstalk
+	BeanstalkCFNInitRoleTag = "beanstalk_cfn_init_role"
 )
 
 // AutoScalingConfig stores some group-specific configurations that can override
@@ -99,6 +102,8 @@ type AutoScalingConfig struct {
 
 	CronSchedule      string
 	CronScheduleState string // "on" or "off", dictate whether to run inside the CronSchedule or not
+
+	BeanstalkCFNInitRole string
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -178,6 +183,16 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 	return false
 }
 
+func (a *autoScalingGroup) loadBeanstalkCFNInitRole() {
+	tagValue := a.getTagValue(BeanstalkCFNInitRoleTag)
+
+	if tagValue != nil {
+		logger.Printf("Loaded BeanstalkCFNInitRole value %v from tag %v\n", *tagValue, BeanstalkCFNInitRoleTag)
+		a.config.BeanstalkCFNInitRole = *tagValue
+		return
+	}
+}
+
 func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
 	biddingPolicy := *tagValue
 	if biddingPolicy != "aggressive" {
@@ -255,6 +270,7 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 
 	a.LoadCronSchedule()
 	a.LoadCronScheduleState()
+	a.loadBeanstalkCFNInitRole()
 
 	if resOnDemandConf {
 		logger.Println("Found and applied configuration for OnDemand value")
