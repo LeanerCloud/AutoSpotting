@@ -321,8 +321,11 @@ Usage of ./AutoSpotting:
   -tag_filters=[{spot-enabled true}]: Set of tags to filter the ASGs on.  Default is -tag_filters 'spot-enabled=true'
         Example: ./AutoSpotting -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'
 
-  -beanstalk_cfn_init_role="true": Controls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the instance role when calling CloudFormation helpers instead of the standard CloudFormation authentication method
-		Example: ./AutoSpotting --beanstalk_cfn_init_role true
+  -beanstalk_cfn_init_role="true":
+        Controls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the instance
+		role when calling CloudFormation helpers instead of the standard CloudFormation
+		authentication method
+        Example: ./AutoSpotting --beanstalk_cfn_init_role true
 ```
 
 <!-- markdownlint-enable MD013 -->
