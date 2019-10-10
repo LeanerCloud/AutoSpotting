@@ -322,9 +322,10 @@ Usage of ./AutoSpotting:
         Example: ./AutoSpotting -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'
 
   -beanstalk_cfn_init_role="true":
-        Controls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use
-        the instance role when calling CloudFormation helpers instead of the standard
-        CloudFormation authentication method
+        Controls whether AutoSpotting patches Elastic Beanstalk UserData
+        scripts to use the instance role when calling CloudFormation
+        helpers instead of the standard CloudFormation authentication
+        method
         Example: ./AutoSpotting --beanstalk_cfn_init_role true
 ```
 
