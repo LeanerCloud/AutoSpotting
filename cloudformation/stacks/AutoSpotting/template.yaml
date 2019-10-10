@@ -253,7 +253,17 @@
         "Chose the option that best describes your current situation. Evaluation
         binaries are restricted to up to $1000 in monthly savings, the others
         are not restricted"
-      Type: "String"
+	  Type: "String"
+	BeanstalkCFNInitRole:
+      Default: ""
+      AllowedValues:
+        - ""
+        - "true"
+      Description: >
+        "Controls whether AutoSpotting patches Elastic Beanstalk UserData
+        scripts to use the instance role when calling CloudFormation helpers
+        instead of the standard CloudFormation authentication method"
+	  Type: "String"
   Conditions:
     StackSetsFalse: !Equals
         - !Ref DeployUsingStackSets
@@ -409,6 +419,8 @@
               Ref: "FilterByTags"
             TERMINATION_NOTIFICATION_ACTION:
               Ref: "TerminationNotificationAction"
+            BEANSTALK_CFN_INIT_ROLE:
+              Ref: "BeanstalkCFNInitRole"
         Handler:
           Ref: "LambdaHandlerFunction"
         MemorySize:
