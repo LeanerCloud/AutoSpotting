@@ -67,7 +67,7 @@ func getPatchedUserDataForBeanstalk(userData *string) *string {
 
 	// Patch the UserData if possible
 	if strings.Contains(*decodedUserData, "ebbootstrap") {
-		// Force set the role for calling `cfn-init` to be the instance role
+		// Force set the role for calling CloudFormation helpers to be the instance role
 		// The UserData created by Beanstalk is encoded as a Mime Multi Part Archive
 		// with Cloud Init User-Data format (https://cloudinit.readthedocs.io/en/latest/topics/format.html)
 		// We can't simply append our extra code to it, we need to add it to the correct mime part
