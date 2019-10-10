@@ -189,25 +189,45 @@ be risky, please handle with care.
 
 ### For Elastic Beanstalk ###
 
-Elastic Beanstalk uses CloudFormation to create an Auto-Scaling Group. The ASG is then in charge of automatically scaling your application up and down. As a result, AutoSpotting works natively with Elastic Beanstalk.
+Elastic Beanstalk uses CloudFormation to create an Auto-Scaling Group. The ASG
+is then in charge of automatically scaling your application up and down. As a
+result, AutoSpotting works natively with Elastic Beanstalk.
 
 Follow these steps to configure AutoSpotting with Elastic Beanstalk.
 
-#### 1 - Add the `spot-enabled` tag
+#### 1 - Add the `spot-enabled` tag ####
 
-Similar to standalone auto-scaling groups, you need to tag your Elastic Beanstalk environment with the `spot-enabled` tag to let AutoSpotting manage the instances in the group.
+Similar to standalone auto-scaling groups, you need to tag your Elastic Beanstalk
+environment with the `spot-enabled` tag to let AutoSpotting manage the instances
+in the group.
 
-To add tags to an existing Elastic Beanstalk environment, you will need to rebuild or update the environment with the `spot-enabled` tag. For more details you can follow this [guide](http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments)
+To add tags to an existing Elastic Beanstalk environment, you will need to rebuild
+or update the environment with the `spot-enabled` tag. For more details you can
+follow this [guide](http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments).
 
-#### 2 - Enable `beanstalk_cfn_init_role` in AutoSpotting (optional)
+#### 2 - Enable `beanstalk_cfn_init_role` in AutoSpotting (optional) ####
 
-Elastic Beanstalk leverages CloudFormation for creating resources and initializing instances. When a new instance is launched, Elastic Beanstalk configures it through the auto-scaling configuration (`UserData` and tags).  
-AutoSpotting launches spot instances outside of the auto-scaling group and attaches them to the group after a grace period. As a result, the Elastic Beanstalk initialization process can randomly fail or be delayed by 10+ minutes. When it is delayed, the spot instances take a long time (10+ minutes) before being initialized, appearing as healthy in Elastic Beanstalk and being added to the load balancer.
+Elastic Beanstalk leverages CloudFormation for creating resources and initializing
+instances. When a new instance is launched, Elastic Beanstalk configures it through
+the auto-scaling configuration (`UserData` and tags).
 
-As a solution, you can configure AutoSpotting to alter the Elastic Beanstalk user-data so that the Elastic Beanstalk initialization process can run even if the spot instance is not a part of the auto-scaling group.  
-To enable that option, set the `beanstalk_cfn_init_role` variable to `true` in your configuration.
+AutoSpotting launches spot instances outside of the auto-scaling group and attaches
+them to the group after a grace period. As a result, the Elastic Beanstalk
+initialization process can randomly fail or be delayed by 10+ minutes.
+When it is delayed, the spot instances take a long time (10+ minutes) before being
+initialized, appearing as healthy in Elastic Beanstalk and being added
+to the load balancer.
 
-You will also need to update the permissions of the role used by your instances to authorize requests to the CloudFormation API.  
+As a solution, you can configure AutoSpotting to alter the Elastic Beanstalk
+user-data so that the Elastic Beanstalk initialization process can run even
+if the spot instance is not a part of the auto-scaling group.
+
+To enable that option, set the `beanstalk_cfn_init_role` variable to `true`
+in your configuration.
+
+You will also need to update the permissions of the role used by your instances
+to authorize requests to the CloudFormation API.
+
 Add the following policy to your role:
 
 ```json
@@ -229,9 +249,12 @@ Add the following policy to your role:
 }
 ```
 
-These permissions are required if you set `beanstalk_cfn_init_role` variable to `true`. If they are not added, your spot instances will not be able to run correctly.
+These permissions are required if you set `beanstalk_cfn_init_role` variable
+to `true`. If they are not added, your spot instances will not be able to run
+correctly.
 
-You can get more information on the need for this configuration variable and the permissions at https://github.com/AutoSpotting/AutoSpotting/issues/344.
+You can get more information on the need for this configuration variable and
+the permissions in the [bug report](https://github.com/AutoSpotting/AutoSpotting/issues/344).
 
 ## Configuration of AutoSpotting ##
 
