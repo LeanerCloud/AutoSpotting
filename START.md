@@ -205,7 +205,7 @@ To add tags to an existing Elastic Beanstalk environment, you will need to rebui
 or update the environment with the `spot-enabled` tag. For more details you can
 follow this [guide](http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments).
 
-#### 2 - Enable `beanstalk_cfn_wrappers` in AutoSpotting (optional) ####
+#### 2 - Enable `patch_beanstalk_userdata` in AutoSpotting (optional) ####
 
 Elastic Beanstalk leverages CloudFormation for creating resources and initializing
 instances. When a new instance is launched, Elastic Beanstalk configures it through
@@ -222,7 +222,7 @@ As a solution, you can configure AutoSpotting to alter the Elastic Beanstalk
 user-data so that the Elastic Beanstalk initialization process can run even
 if the spot instance is not a part of the auto-scaling group.
 
-To enable that option, set the `beanstalk_cfn_wrappers` variable to `On`
+To enable that option, set the `patch_beanstalk_userdata` variable to `true`
 in your configuration.
 
 You will also need to update the permissions of the role used by your instances
@@ -231,7 +231,7 @@ policy to the role `aws-elasticbeanstalk-ec2-role` or the custom instance profil
 used by your Beanstalk instances.
 
 The permissions contained in `AutoSpottingElasticBeanstalk` are required if you set
-`beanstalk_cfn_wrappers` variable to `true`. If they are not added, your spot
+`patch_beanstalk_userdata` variable to `true`. If they are not added, your spot
 instances will not be able to run correctly.
 
 You can get more information on the need for this configuration variable and
@@ -302,12 +302,12 @@ Usage of ./AutoSpotting:
   -tag_filters=[{spot-enabled true}]: Set of tags to filter the ASGs on.  Default is -tag_filters 'spot-enabled=true'
         Example: ./AutoSpotting -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'
 
-  -beanstalk_cfn_wrappers="on":
+  -patch_beanstalk_userdata="true":
         Controls whether AutoSpotting patches Elastic Beanstalk UserData
         scripts to use the instance role when calling CloudFormation
         helpers instead of the standard CloudFormation authentication
         method
-        Example: ./AutoSpotting --beanstalk_cfn_wrappers on
+        Example: ./AutoSpotting --patch_beanstalk_userdata true
 ```
 
 <!-- markdownlint-enable MD013 -->

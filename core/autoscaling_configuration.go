@@ -73,9 +73,9 @@ const (
 	// can override the global value of the CronScheduleState parameter
 	CronScheduleStateTag = "autospotting_cron_schedule_state"
 
-	// BeanstalkCFNWrappersTag is the name of the tag set on the AutoScaling Group that
-	// can override the global value of the BeanstalkCFNWrappers parameter
-	BeanstalkCFNWrappersTag = "beanstalk_cfn_wrappers"
+	// PatchBeanstalkUserdataTag is the name of the tag set on the AutoScaling Group that
+	// can override the global value of the PatchBeanstalkUserdata parameter
+	PatchBeanstalkUserdataTag = "patch_beanstalk_userdata"
 )
 
 // AutoScalingConfig stores some group-specific configurations that can override
@@ -104,7 +104,7 @@ type AutoScalingConfig struct {
 	CronSchedule      string
 	CronScheduleState string // "on" or "off", dictate whether to run inside the CronSchedule or not
 
-	BeanstalkCFNWrappers string
+	PatchBeanstalkUserdata string
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -184,17 +184,17 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 	return false
 }
 
-func (a *autoScalingGroup) loadBeanstalkCFNWrappers() {
-	tagValue := a.getTagValue(BeanstalkCFNWrappersTag)
+func (a *autoScalingGroup) loadPatchBeanstalkUserdata() {
+	tagValue := a.getTagValue(PatchBeanstalkUserdataTag)
 
 	if tagValue != nil {
-		logger.Printf("Loaded BeanstalkCFNWrappers value %v from tag %v\n", *tagValue, BeanstalkCFNWrappersTag)
-		a.config.BeanstalkCFNWrappers = *tagValue
+		logger.Printf("Loaded PatchBeanstalkUserdata value %v from tag %v\n", *tagValue, PatchBeanstalkUserdataTag)
+		a.config.PatchBeanstalkUserdata = *tagValue
 		return
 	}
 
-	debug.Println("Couldn't find tag", BeanstalkCFNWrappersTag, "on the group", a.name, "using the default configuration")
-	a.config.BeanstalkCFNWrappers = a.region.conf.BeanstalkCFNWrappers
+	debug.Println("Couldn't find tag", PatchBeanstalkUserdataTag, "on the group", a.name, "using the default configuration")
+	a.config.PatchBeanstalkUserdata = a.region.conf.PatchBeanstalkUserdata
 }
 
 func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
@@ -274,7 +274,7 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 
 	a.LoadCronSchedule()
 	a.LoadCronScheduleState()
-	a.loadBeanstalkCFNWrappers()
+	a.loadPatchBeanstalkUserdata()
 
 	if resOnDemandConf {
 		logger.Println("Found and applied configuration for OnDemand value")

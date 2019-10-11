@@ -254,11 +254,11 @@
         binaries are restricted to up to $1000 in monthly savings, the others
         are not restricted"
       Type: "String"
-    BeanstalkCFNWrappers:
-      Default: "Off"
+    PatchBeanstalkUserdata:
+      Default: "false"
       AllowedValues:
-        - "Off"
-        - "On"
+        - "false"
+        - "true"
       Description: >
         "Controls whether AutoSpotting patches Elastic Beanstalk UserData
         scripts to use the instance role when calling CloudFormation helpers
@@ -422,8 +422,8 @@
               Ref: "FilterByTags"
             TERMINATION_NOTIFICATION_ACTION:
               Ref: "TerminationNotificationAction"
-            BEANSTALK_CFN_WRAPPERS:
-              Ref: "BeanstalkCFNWrappers"
+            PATCH_BEANSTALK_USERDATA:
+              Ref: "PatchBeanstalkUserdata"
         Handler:
           Ref: "LambdaHandlerFunction"
         MemorySize:
@@ -748,7 +748,7 @@
       Type: AWS::IAM::ManagedPolicy
       Condition: "StackIsMain"
       Properties:
-        Description: "Allow instances to get initialization information from CloudFormation when they are a part of a Beanstalk cluster. Add this policy to your Elastic Beanstalk instance profile (role) when enabling beanstalk_cfn_wrappers in AutoSpotting. (Managed policy created by AutoSpotting)"
+        Description: "Allow instances to get initialization information from CloudFormation when they are a part of a Beanstalk cluster. Add this policy to your Elastic Beanstalk instance profile (role) when enabling patch_beanstalk_userdata in AutoSpotting. (Managed policy created by AutoSpotting)"
         ManagedPolicyName: AutoSpottingElasticBeanstalk
         PolicyDocument:
           Version: "2012-10-17"

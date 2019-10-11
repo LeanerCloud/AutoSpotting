@@ -46,5 +46,5 @@ spec:
                   value: "us-east-1,eu-west-1"
                 - name: SPOT_PRICE_BUFFER_PERCENTAGE
                   value: "10.0"
-                - name: BEANSTALK_CFN_WRAPPERS
-                  value: "Off"
+                - name: PATCH_BEANSTALK_USERDATA
+                  value: "false"

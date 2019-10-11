@@ -1038,7 +1038,7 @@ func Test_autoScalingGroup_LoadCronScheduleState(t *testing.T) {
 	}
 }
 
-func Test_autoScalingGroup_LoadBeanstalkCFNWrappers(t *testing.T) {
+func Test_autoScalingGroup_LoadPatchBeanstalkUserdata(t *testing.T) {
 	tests := []struct {
 		name    string
 		Group   *autoscaling.Group
@@ -1052,37 +1052,37 @@ func Test_autoScalingGroup_LoadBeanstalkCFNWrappers(t *testing.T) {
 			Group: &autoscaling.Group{},
 			region: &region{
 				conf: &Config{
-					BeanstalkCFNWrappers: "",
+					PatchBeanstalkUserdata: "",
 				},
 			},
 			want: "",
 		},
 		{
-			name:  "No tag set on the group, use region config (on)",
+			name:  "No tag set on the group, use region config (true)",
 			Group: &autoscaling.Group{},
 			region: &region{
 				conf: &Config{
-					BeanstalkCFNWrappers: "on",
+					PatchBeanstalkUserdata: "true",
 				},
 			},
-			want: "on",
+			want: "true",
 		},
 		{
 			name: "Tag set on the group",
 			Group: &autoscaling.Group{
 				Tags: []*autoscaling.TagDescription{
 					{
-						Key:   aws.String(BeanstalkCFNWrappersTag),
-						Value: aws.String("off"),
+						Key:   aws.String(PatchBeanstalkUserdataTag),
+						Value: aws.String("false"),
 					},
 				},
 			},
 			region: &region{
 				conf: &Config{
-					BeanstalkCFNWrappers: "on",
+					PatchBeanstalkUserdata: "true",
 				},
 			},
-			want: "off",
+			want: "false",
 		},
 	}
 	for _, tt := range tests {
@@ -1093,10 +1093,10 @@ func Test_autoScalingGroup_LoadBeanstalkCFNWrappers(t *testing.T) {
 				config: tt.config,
 				region: tt.region,
 			}
-			a.loadBeanstalkCFNWrappers()
-			got := a.config.BeanstalkCFNWrappers
+			a.loadPatchBeanstalkUserdata()
+			got := a.config.PatchBeanstalkUserdata
 			if got != tt.want {
-				t.Errorf("LoadBeanstalkCFNWrappers got %v, expected %v", got, tt.want)
+				t.Errorf("LoadPatchBeanstalkUserdata got %v, expected %v", got, tt.want)
 			}
 		})
 	}

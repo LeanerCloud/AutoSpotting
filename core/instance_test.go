@@ -1517,12 +1517,12 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 }
 
 func Test_instance_createRunInstancesInput(t *testing.T) {
-	beanstalkUserDataExample, err := ioutil.ReadFile("beanstalk_userdata_example.txt")
+	beanstalkUserDataExample, err := ioutil.ReadFile("../test_data/beanstalk_userdata_example.txt")
 	if err != nil {
 		t.Errorf("Unable to read Beanstalk UserData example")
 	}
 
-	beanstalkUserDataWrappedExample, err := ioutil.ReadFile("beanstalk_userdata_wrapped_example.txt")
+	beanstalkUserDataWrappedExample, err := ioutil.ReadFile("../test_data/beanstalk_userdata_wrapped_example.txt")
 	if err != nil {
 		t.Errorf("Unable to read Beanstalk UserData wrapped example")
 	}
@@ -2026,7 +2026,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						},
 					},
 					config: AutoScalingConfig{
-						BeanstalkCFNWrappers: "on",
+						PatchBeanstalkUserdata: "true",
 					},
 				},
 				Instance: &ec2.Instance{
