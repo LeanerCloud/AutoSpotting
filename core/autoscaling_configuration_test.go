@@ -1038,7 +1038,7 @@ func Test_autoScalingGroup_LoadCronScheduleState(t *testing.T) {
 	}
 }
 
-func Test_autoScalingGroup_LoadBeanstalkCFNInitRole(t *testing.T) {
+func Test_autoScalingGroup_LoadBeanstalkCFNWrappers(t *testing.T) {
 	tests := []struct {
 		name    string
 		Group   *autoscaling.Group
@@ -1048,41 +1048,41 @@ func Test_autoScalingGroup_LoadBeanstalkCFNInitRole(t *testing.T) {
 		want    string
 	}{
 		{
-			name:  "No tag set on the group, use region config",
+			name:  "No tag set on the group, use region config (no value)",
 			Group: &autoscaling.Group{},
 			region: &region{
 				conf: &Config{
-					BeanstalkCFNInitRole: "",
+					BeanstalkCFNWrappers: "",
 				},
 			},
 			want: "",
 		},
 		{
-			name:  "No tag set on the group, use region config (true)",
+			name:  "No tag set on the group, use region config (on)",
 			Group: &autoscaling.Group{},
 			region: &region{
 				conf: &Config{
-					BeanstalkCFNInitRole: "true",
+					BeanstalkCFNWrappers: "on",
 				},
 			},
-			want: "true",
+			want: "on",
 		},
 		{
 			name: "Tag set on the group",
 			Group: &autoscaling.Group{
 				Tags: []*autoscaling.TagDescription{
 					{
-						Key:   aws.String(BeanstalkCFNInitRoleTag),
-						Value: aws.String("true"),
+						Key:   aws.String(BeanstalkCFNWrappersTag),
+						Value: aws.String("off"),
 					},
 				},
 			},
 			region: &region{
 				conf: &Config{
-					BeanstalkCFNInitRole: "",
+					BeanstalkCFNWrappers: "on",
 				},
 			},
-			want: "true",
+			want: "off",
 		},
 	}
 	for _, tt := range tests {
@@ -1093,10 +1093,10 @@ func Test_autoScalingGroup_LoadBeanstalkCFNInitRole(t *testing.T) {
 				config: tt.config,
 				region: tt.region,
 			}
-			a.loadBeanstalkCFNInitRole()
-			got := a.config.BeanstalkCFNInitRole
+			a.loadBeanstalkCFNWrappers()
+			got := a.config.BeanstalkCFNWrappers
 			if got != tt.want {
-				t.Errorf("LoadBeanstalkCFNInitRole got %v, expected %v", got, tt.want)
+				t.Errorf("LoadBeanstalkCFNWrappers got %v, expected %v", got, tt.want)
 			}
 		})
 	}

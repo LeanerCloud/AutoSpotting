@@ -53,7 +53,7 @@ func run() {
 		"cron_schedule=%s "+
 		"cron_schedule_state=%s "+
 		"license=%s "+
-		"beanstalk_cfn_init_role=%s \n",
+		"beanstalk_cfn_wrappers=%s \n",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
@@ -70,7 +70,7 @@ func run() {
 		conf.CronSchedule,
 		conf.CronScheduleState,
 		conf.LicenseType,
-		conf.BeanstalkCFNInitRole,
+		conf.BeanstalkCFNWrappers,
 	)
 
 	autospotting.Run(conf.Config)
@@ -217,8 +217,8 @@ func (c *cfgData) parseCommandLineFlags() {
 	flag.StringVar(&c.LicenseType, "license", "evaluation", "\n\tControls the terms under which you use AutoSpotting"+
 		"Allowed values: evaluation|I_am_supporting_it_on_Patreon|I_contributed_to_development_within_the_last_year|I_built_it_from_source_code\n"+
 		"\tExample: ./AutoSpotting --license evaluation\n")
-	flag.StringVar(&c.BeanstalkCFNInitRole, "beanstalk_cfn_init_role", "", "\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the instance role when calling CloudFormation helpers instead of the standard CloudFormation authentication method\n"+
-		"\tExample: ./AutoSpotting --beanstalk_cfn_init_role true\n")
+	flag.StringVar(&c.BeanstalkCFNWrappers, "beanstalk_cfn_wrappers", "", "\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the instance role when calling CloudFormation helpers instead of the standard CloudFormation authentication method\n"+
+		"\tExample: ./AutoSpotting --beanstalk_cfn_wrappers true\n")
 
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 	flag.Parse()

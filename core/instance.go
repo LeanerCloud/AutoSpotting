@@ -599,8 +599,7 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		}
 		retval.ImageId = lc.ImageId
 
-		if len(i.asg.config.BeanstalkCFNInitRole) > 0 {
-			logger.Println("Patch instance UserData for Beanstalk")
+		if strings.ToLower(i.asg.config.BeanstalkCFNWrappers) == "on" {
 			retval.UserData = getPatchedUserDataForBeanstalk(lc.UserData)
 		} else {
 			retval.UserData = lc.UserData

@@ -2026,7 +2026,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						},
 					},
 					config: AutoScalingConfig{
-						BeanstalkCFNInitRole: "beanstalk-role",
+						BeanstalkCFNWrappers: "on",
 					},
 				},
 				Instance: &ec2.Instance{
