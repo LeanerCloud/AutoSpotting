@@ -599,7 +599,11 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		}
 		retval.ImageId = lc.ImageId
 
-		retval.UserData = lc.UserData
+		if strings.ToLower(i.asg.config.PatchBeanstalkUserdata) == "true" {
+			retval.UserData = getPatchedUserDataForBeanstalk(lc.UserData)
+		} else {
+			retval.UserData = lc.UserData
+		}
 
 		BDMs := i.convertBlockDeviceMappings(lc)
 
