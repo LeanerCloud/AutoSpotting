@@ -759,5 +759,6 @@
                 - "cloudformation:DescribeStackResources"
                 - "cloudformation:SignalResource"
                 - "cloudformation:RegisterListener"
+                - "cloudformation:GetListenerCredentials"
               Effect: "Allow"
               Resource: "*"
