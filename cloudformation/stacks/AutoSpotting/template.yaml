@@ -262,7 +262,10 @@
       Description: >
         "Controls whether AutoSpotting patches Elastic Beanstalk UserData
         scripts to use the instance role when calling CloudFormation helpers
-        instead of the standard CloudFormation authentication method"
+        instead of the standard CloudFormation authentication method.
+        After creating this CloudFormation stack, you must add the
+        AutoSpottingElasticBeanstalk managed policy to your Beanstalk
+        instance profile/role if you turn this option to On"
       Type: "String"
   Conditions:
     StackSetsFalse: !Equals
