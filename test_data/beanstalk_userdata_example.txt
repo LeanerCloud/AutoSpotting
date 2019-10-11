@@ -1,0 +1,54 @@
+Content-Type: multipart/mixed; boundary="===============5189065377222898407=="
+MIME-Version: 1.0
+
+--===============5189065377222898407==
+Content-Type: text/cloud-config; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="cloud-config.txt"
+
+#cloud-config
+repo_upgrade: none
+repo_releasever: 2018.03
+cloud_final_modules:
+ - [scripts-user, always]
+
+--===============5189065377222898407==
+Content-Type: text/x-shellscript; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="user-data.txt"
+
+#!/bin/bash
+exec > >(tee -a /var/log/eb-cfn-init.log|logger -t [eb-cfn-init] -s 2>/dev/console) 2>&1
+echo [`date -u +"%Y-%m-%dT%H:%M:%SZ"`] Started EB User Data
+set -x
+
+
+function sleep_delay 
+{
+  if (( $SLEEP_TIME < $SLEEP_TIME_MAX )); then 
+    echo Sleeping $SLEEP_TIME
+    sleep $SLEEP_TIME  
+    SLEEP_TIME=$(($SLEEP_TIME * 2)) 
+  else 
+    echo Sleeping $SLEEP_TIME_MAX  
+    sleep $SLEEP_TIME_MAX  
+  fi
+}
+
+# Executing bootstrap script
+SLEEP_TIME=10
+SLEEP_TIME_MAX=3600
+while true; do 
+  curl https://s3.dualstack.eu-central-1.amazonaws.com/elasticbeanstalk-env-resources-eu-central-1/stalks/eb_docker_ecs_4.2.1.201222.0_1567548290/lib/UserDataScript.sh > /tmp/ebbootstrap.sh 
+  RESULT=$?
+  if [[ "$RESULT" -ne 0 ]]; then 
+    sleep_delay 
+  else
+    /bin/bash /tmp/ebbootstrap.sh     'https://s3.dualstack.eu-central-1.amazonaws.com/elasticbeanstalk-env-resources-eu-central-1/stalks/eb_docker_ecs_4.2.1.201222.0_1567548290/lib/aws-elasticbeanstalk-tools-1.20-1.noarch.rpm'    'https://s3.dualstack.eu-central-1.amazonaws.com/elasticbeanstalk-env-resources-eu-central-1/stalks/eb_docker_ecs_4.2.1.201222.0_1567548290/lib/awseb-ruby-2.2.4-x86_64-20160503_1008.tar.gz https://s3.dualstack.eu-central-1.amazonaws.com/elasticbeanstalk-env-resources-eu-central-1/stalks/eb_docker_ecs_4.2.1.201222.0_1567548290/lib/basehooks.tar.gz'    'https://s3.dualstack.eu-central-1.amazonaws.com/elasticbeanstalk-env-resources-eu-central-1/stalks/eb_docker_ecs_4.2.1.201222.0_1567548290/lib/beanstalk-core-2.12.gem https://s3.dualstack.eu-central-1.amazonaws.com/elasticbeanstalk-env-resources-eu-central-1/stalks/eb_docker_ecs_4.2.1.201222.0_1567548290/lib/beanstalk-core-healthd-1.1.gem https://s3.dualstack.eu-central-1.amazonaws.com/elasticbeanstalk-env-resources-eu-central-1/stalks/eb_docker_ecs_4.2.1.201222.0_1567548290/lib/executor-1.2.gem'    'https://cloudformation-waitcondition-eu-central-1.s3.eu-central-1.amazonaws.com/arn%3Aaws%3Acloudformation%3Aeu-central-1%3A341666126358%3Astack/awseb-e-5vjzp38mtm-stack/dcd4caf0-6f1c-11e7-b89a-50a68a770c82/AWSEBInstanceLaunchWaitHandle?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20170722T203225Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86399&X-Amz-Credential=AKIAJAZKDI3C4AV3A2CQ%2F20170722%2Feu-central-1%2Fs3%2Faws4_request&X-Amz-Signature=166cfdbc363f64b19cb54f7c0d1f77e1d45c829912657541b4be5311d1d9c6de'    'arn:aws:cloudformation:eu-central-1:341666126358:stack/awseb-e-5vjzp38mtm-stack/dcd4caf0-6f1c-11e7-b89a-50a68a770c82'    'eu-central-1'    '672223b9fc09'    '3540eff5-b46c-4e45-9bb0-dd6e92b29d69'    ''    ''    ''    && 
+    exit 0  
+  fi 
+done
+
+--===============5189065377222898407==-- ##Ec2InstanceReplacementRequest=806ce155-4b00-4007-9734-edc1a8cebe64

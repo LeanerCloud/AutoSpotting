@@ -79,4 +79,9 @@ type Config struct {
 
 	// The license of this AutoSpotting build
 	LicenseType string
+
+	// Controls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use
+	// the instance role when calling CloudFormation helpers instead of the standard CloudFormation
+	// authentication method
+	PatchBeanstalkUserdata string
 }

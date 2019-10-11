@@ -1037,3 +1037,67 @@ func Test_autoScalingGroup_LoadCronScheduleState(t *testing.T) {
 		})
 	}
 }
+
+func Test_autoScalingGroup_LoadPatchBeanstalkUserdata(t *testing.T) {
+	tests := []struct {
+		name    string
+		Group   *autoscaling.Group
+		asgName string
+		config  AutoScalingConfig
+		region  *region
+		want    string
+	}{
+		{
+			name:  "No tag set on the group, use region config (no value)",
+			Group: &autoscaling.Group{},
+			region: &region{
+				conf: &Config{
+					PatchBeanstalkUserdata: "",
+				},
+			},
+			want: "",
+		},
+		{
+			name:  "No tag set on the group, use region config (true)",
+			Group: &autoscaling.Group{},
+			region: &region{
+				conf: &Config{
+					PatchBeanstalkUserdata: "true",
+				},
+			},
+			want: "true",
+		},
+		{
+			name: "Tag set on the group",
+			Group: &autoscaling.Group{
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String(PatchBeanstalkUserdataTag),
+						Value: aws.String("false"),
+					},
+				},
+			},
+			region: &region{
+				conf: &Config{
+					PatchBeanstalkUserdata: "true",
+				},
+			},
+			want: "false",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				Group:  tt.Group,
+				name:   tt.asgName,
+				config: tt.config,
+				region: tt.region,
+			}
+			a.loadPatchBeanstalkUserdata()
+			got := a.config.PatchBeanstalkUserdata
+			if got != tt.want {
+				t.Errorf("LoadPatchBeanstalkUserdata got %v, expected %v", got, tt.want)
+			}
+		})
+	}
+}

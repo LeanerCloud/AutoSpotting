@@ -52,7 +52,8 @@ func run() {
 		"termination_notification_action=%s "+
 		"cron_schedule=%s "+
 		"cron_schedule_state=%s "+
-		"license=%s \n",
+		"license=%s "+
+		"patch_beanstalk_userdata=%s \n",
 		conf.Regions,
 		conf.MinOnDemandNumber,
 		conf.MinOnDemandPercentage,
@@ -69,6 +70,7 @@ func run() {
 		conf.CronSchedule,
 		conf.CronScheduleState,
 		conf.LicenseType,
+		conf.PatchBeanstalkUserdata,
 	)
 
 	autospotting.Run(conf.Config)
@@ -215,6 +217,8 @@ func (c *cfgData) parseCommandLineFlags() {
 	flag.StringVar(&c.LicenseType, "license", "evaluation", "\n\tControls the terms under which you use AutoSpotting"+
 		"Allowed values: evaluation|I_am_supporting_it_on_Patreon|I_contributed_to_development_within_the_last_year|I_built_it_from_source_code\n"+
 		"\tExample: ./AutoSpotting --license evaluation\n")
+	flag.StringVar(&c.PatchBeanstalkUserdata, "patch_beanstalk_userdata", "", "\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the instance role when calling CloudFormation helpers instead of the standard CloudFormation authentication method\n"+
+		"\tExample: ./AutoSpotting --patch_beanstalk_userdata true\n")
 
 	v := flag.Bool("version", false, "Print version number and exit.\n")
 	flag.Parse()
