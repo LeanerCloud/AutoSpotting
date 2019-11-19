@@ -45,5 +45,5 @@ func (c *connections) connect(region string) {
 
 	c.autoScaling, c.ec2, c.cloudFormation, c.region = <-asConn, <-ec2Conn, <-cloudformationConn, region
 
-	logger.Println("Created service connections in", region)
+	debug.Println("Created service connections in", region)
 }

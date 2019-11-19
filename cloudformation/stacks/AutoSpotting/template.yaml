@@ -463,14 +463,18 @@
             -
               Action:
                 - "autoscaling:AttachInstances"
+                - "autoscaling:CompleteLifecycleAction"
+                - "autoscaling:CreateOrUpdateTags"
                 - "autoscaling:DescribeAutoScalingGroups"
                 - "autoscaling:DescribeAutoScalingInstances"
                 - "autoscaling:DescribeLaunchConfigurations"
+                - "autoscaling:DescribeLifecycleHooks"
                 - "autoscaling:DescribeTags"
                 - "autoscaling:DetachInstances"
+                - "autoscaling:ResumeProcesses"
+                - "autoscaling:SuspendProcesses"
                 - "autoscaling:TerminateInstanceInAutoScalingGroup"
                 - "autoscaling:UpdateAutoScalingGroup"
-                - "autoscaling:DescribeLifecycleHooks"
                 - "cloudformation:Describe*"
                 - "ec2:CreateTags"
                 - "ec2:DeleteTags"
@@ -639,6 +643,7 @@
     RegionalStackCustomResource:
       Condition: "StackSetsFalse"
       Type: "Custom::LambdaCallout"
+      UpdateReplacePolicy: Retain
       Properties:
         ServiceToken:
           Fn::GetAtt:

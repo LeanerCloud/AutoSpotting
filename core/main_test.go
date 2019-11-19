@@ -2,6 +2,10 @@ package autospotting
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
 	"reflect"
 	"testing"
 
@@ -9,6 +13,26 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
+func TestMain(m *testing.M) {
+	a := &AutoSpotting{}
+
+	a.Init(&Config{
+		MainRegion: "us-east-1",
+	})
+
+	var logOutput io.Writer
+
+	if os.Getenv("AUTOSPOTTING_DEBUG") == "true" {
+		logOutput = os.Stdout
+	} else {
+		logOutput = ioutil.Discard
+	}
+
+	logger = log.New(logOutput, "", 0)
+	debug = log.New(logOutput, "", 0)
+
+	os.Exit(m.Run())
+}
 func Test_getRegions(t *testing.T) {
 
 	tests := []struct {
@@ -33,6 +57,7 @@ func Test_getRegions(t *testing.T) {
 		{
 			name: "return an error",
 			ec2conn: mockEC2{
+
 				dro: &ec2.DescribeRegionsOutput{
 					Regions: []*ec2.Region{
 						{RegionName: aws.String("foo")},
@@ -47,8 +72,9 @@ func Test_getRegions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			as.mainEC2Conn = tt.ec2conn
 
-			got, err := getRegions(tt.ec2conn)
+			got, err := as.getRegions()
 			CheckErrors(t, err, tt.wantErr)
 
 			if !reflect.DeepEqual(got, tt.want) {
@@ -94,7 +120,7 @@ func Test_spotEnabledIsAddedByDefault(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			addDefaultFilter(&tt.config)
+			tt.config.addDefaultFilter()
 
 			if !reflect.DeepEqual(tt.config.FilterByTags, tt.want) {
 				t.Errorf("addDefaultFilter() = %v, want %v", tt.config.FilterByTags, tt.want)
@@ -139,7 +165,7 @@ func Test_addDefaultFilterMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addDefaultFilteringMode(&tt.cfg)
+			tt.cfg.addDefaultFilteringMode()
 			if !reflect.DeepEqual(tt.cfg.TagFilteringMode, tt.want) {
 				t.Errorf("addDefaultFilteringMode() = %v, want %v",
 					tt.cfg.TagFilteringMode, tt.want)

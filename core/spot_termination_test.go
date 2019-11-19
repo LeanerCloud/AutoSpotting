@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
@@ -13,7 +14,7 @@ import (
 func TestNewSpotTermination(t *testing.T) {
 
 	region := "foo"
-	spotTermination := NewSpotTermination(region)
+	spotTermination := newSpotTermination(region)
 
 	if spotTermination.asSvc == nil || spotTermination.ec2Svc == nil {
 		t.Errorf("Unable to connect to region %s", region)
@@ -24,8 +25,8 @@ func TestGetInstanceIDDueForTermination(t *testing.T) {
 
 	expectedInstanceID := "i-123456"
 	dummyInstanceData := instanceData{
-		InstanceID:     expectedInstanceID,
-		InstanceAction: "terminate",
+		InstanceID:     aws.String(expectedInstanceID),
+		InstanceAction: aws.String("terminate"),
 	}
 
 	tests := []struct {
@@ -63,7 +64,7 @@ func TestGetInstanceIDDueForTermination(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			instanceID, _ := GetInstanceIDDueForTermination(tc.cloudWatchEvent)
+			instanceID, _ := getInstanceIDDueForTermination(tc.cloudWatchEvent)
 
 			if tc.expected == nil && instanceID != nil {
 				t.Errorf("Expected nil instanceID, actual: %s", *instanceID)
@@ -336,7 +337,7 @@ func TestExecuteAction(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			err := tc.spotTermination.ExecuteAction(&instanceID, tc.terminationNotificationAction)
+			err := tc.spotTermination.executeAction(&instanceID, tc.terminationNotificationAction)
 
 			if err != nil && err.Error() != tc.expectedError.Error() {
 				t.Errorf("Error in ExecuteAction: expected %s actual %s", tc.expectedError.Error(), err.Error())

@@ -1,6 +1,7 @@
 package autospotting
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"path/filepath"
@@ -57,7 +58,7 @@ func (is *instanceManager) add(inst *instance) {
 	if inst == nil {
 		return
 	}
-	debug.Println(inst)
+
 	is.Lock()
 	defer is.Unlock()
 	is.catalog[*inst.InstanceId] = inst
@@ -94,6 +95,7 @@ func (is *instanceManager) instances() <-chan *instance {
 	return retC
 }
 
+// instance wraps an ec2.instance and has some additional fields and functions
 type instance struct {
 	*ec2.Instance
 	typeInfo  instanceTypeInformation
@@ -143,8 +145,9 @@ func (i *instance) isSpot() bool {
 		*i.InstanceLifecycle == "spot"
 }
 
-func (i *instance) isProtectedFromTermination() bool {
+func (i *instance) isProtectedFromTermination() (bool, error) {
 
+	debug.Println("\tCheching termination protection for instance: ", *i.InstanceId)
 	// determine and set the API termination protection field
 	diaRes, err := i.region.services.ec2.DescribeInstanceAttribute(
 		&ec2.DescribeInstanceAttributeInput{
@@ -152,15 +155,22 @@ func (i *instance) isProtectedFromTermination() bool {
 			InstanceId: i.InstanceId,
 		})
 
-	if err == nil &&
+	if err != nil {
+		// better safe than sorry!
+		logger.Printf("Couldn't describe instance attritbutes, assuming instance %v is protected: %v\n",
+			*i.InstanceId, err.Error())
+		return true, err
+	}
+
+	if diaRes != nil &&
 		diaRes.DisableApiTermination != nil &&
 		diaRes.DisableApiTermination.Value != nil &&
 		*diaRes.DisableApiTermination.Value {
 		logger.Printf("\t: %v Instance, %v is protected from termination\n",
 			*i.Placement.AvailabilityZone, *i.InstanceId)
-		return true
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
 func (i *instance) isProtectedFromScaleIn() bool {
@@ -186,22 +196,80 @@ func (i *instance) canTerminate() bool {
 }
 
 func (i *instance) terminate() error {
+	var err error
+	logger.Printf("Instance: %v\n", i)
+
+	logger.Printf("Terminating %v", *i.InstanceId)
 	svc := i.region.services.ec2
-	if i.canTerminate() {
-		_, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
-			InstanceIds: []*string{i.InstanceId},
-		})
-		if err != nil {
-			logger.Printf("Issue while terminating %v: %v", *i.InstanceId, err.Error())
-			return err
+
+	if !i.canTerminate() {
+		logger.Printf("Can't terminate %v, current state: %s",
+			*i.InstanceId, *i.State.Name)
+		return fmt.Errorf("can't terminate %s", *i.InstanceId)
+	}
+
+	_, err = svc.TerminateInstances(&ec2.TerminateInstancesInput{
+		InstanceIds: []*string{i.InstanceId},
+	})
+
+	if err != nil {
+		logger.Printf("Issue while terminating %v: %v", *i.InstanceId, err.Error())
+	}
+
+	return err
+}
+
+func (i *instance) shouldBeReplacedWithSpot() bool {
+	protT, _ := i.isProtectedFromTermination()
+	return i.belongsToEnabledASG() &&
+		i.asgNeedsReplacement() &&
+		!i.isSpot() &&
+		!i.isProtectedFromScaleIn() &&
+		!protT
+}
+
+func (i *instance) belongsToEnabledASG() bool {
+	belongs, asgName := i.belongsToAnASG()
+	if !belongs {
+		logger.Printf("%s instane %s doesn't belong to any ASG",
+			i.region.name, *i.InstanceId)
+		return false
+	}
+
+	for _, asg := range i.region.enabledASGs {
+		if asg.name == *asgName && asg.isEnabledForEventBasedInstanceReplacement() {
+			asg.config = i.region.conf.AutoScalingConfig
+			asg.scanInstances()
+			asg.loadDefaultConfig()
+			asg.loadConfigFromTags()
+			asg.loadLaunchConfiguration()
+			i.asg = &asg
+			i.price = i.typeInfo.pricing.onDemand
+			logger.Printf("%s instace %s belongs to enabled ASG %s", i.region.name,
+				*i.InstanceId, i.asg.name)
+			return true
 		}
 	}
-	return nil
+	return false
+}
+
+func (i *instance) belongsToAnASG() (bool, *string) {
+	for _, tag := range i.Tags {
+		if *tag.Key == "aws:autoscaling:groupName" {
+			return true, tag.Value
+		}
+	}
+	return false, nil
+}
+
+func (i *instance) asgNeedsReplacement() bool {
+	ret, _ := i.asg.needReplaceOnDemandInstances()
+	return ret
 }
 
 func (i *instance) isPriceCompatible(spotPrice float64) bool {
 	if spotPrice == 0 {
-		logger.Printf("\tUnavailable in this Availability Zone")
+		debug.Printf("\tUnavailable in this Availability Zone")
 		return false
 	}
 
@@ -209,7 +277,7 @@ func (i *instance) isPriceCompatible(spotPrice float64) bool {
 		return true
 	}
 
-	logger.Printf("\tNot price compatible")
+	debug.Printf("\tNot price compatible")
 	return false
 }
 
@@ -228,7 +296,7 @@ func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool
 		spotCandidate.GPU >= current.GPU {
 		return true
 	}
-	logger.Println("\tNot class compatible (CPU/memory/GPU)")
+	debug.Println("\tNot class compatible (CPU/memory/GPU)")
 	return false
 }
 
@@ -240,7 +308,7 @@ func (i *instance) isSameArch(other instanceTypeInformation) bool {
 		(isARM(thisCPU) && isARM(otherCPU))
 
 	if !ret {
-		logger.Println("\tInstance CPU architecture mismatch, current CPU architecture",
+		debug.Println("\tInstance CPU architecture mismatch, current CPU architecture",
 			thisCPU, "is incompatible with candidate CPU architecture", otherCPU)
 	}
 	return ret
@@ -266,7 +334,7 @@ func isARM(cpuName string) bool {
 
 func (i *instance) isEBSCompatible(spotCandidate instanceTypeInformation) bool {
 	if spotCandidate.EBSThroughput < i.typeInfo.EBSThroughput {
-		logger.Println("\tEBS throughput insufficient:", spotCandidate.EBSThroughput, "<", i.typeInfo.EBSThroughput)
+		debug.Println("\tEBS throughput insufficient:", spotCandidate.EBSThroughput, "<", i.typeInfo.EBSThroughput)
 		return false
 	}
 	return true
@@ -300,7 +368,7 @@ func (i *instance) isStorageCompatible(spotCandidate instanceTypeInformation, at
 				spotCandidate.instanceStoreIsSSD == existing.instanceStoreIsSSD)) {
 		return true
 	}
-	logger.Println("\tNot storage compatible")
+	debug.Println("\tNot storage compatible")
 	return false
 }
 
@@ -319,7 +387,7 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 			return true
 		}
 	}
-	logger.Println("\tNot virtualization compatible")
+	debug.Println("\tNot virtualization compatible")
 	return false
 }
 
@@ -332,13 +400,13 @@ func (i *instance) isAllowed(instanceType string, allowedList []string, disallow
 				return true
 			}
 		}
-		logger.Println("\tNot in the list of allowed instance types")
+		debug.Println("\tNot in the list of allowed instance types")
 		return false
 	} else if len(disallowedList) > 0 {
 		for _, a := range disallowedList {
 			// glob matching
 			if match, _ := filepath.Match(a, instanceType); match {
-				logger.Println("\tIn the list of disallowed instance types")
+				debug.Println("\tIn the list of disallowed instance types")
 				return false
 			}
 		}
@@ -363,6 +431,11 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 	for k := range i.region.instanceTypeInformation {
 		keys = append(keys, k)
 	}
+
+	if len(keys) == 0 {
+		logger.Println("Missing instance type information for ", i.region.name)
+	}
+
 	sort.Strings(keys)
 
 	// Find all compatible and not blocked instance types
@@ -370,7 +443,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 		candidate := i.region.instanceTypeInformation[k]
 
 		candidatePrice := i.calculatePrice(candidate)
-		logger.Println("Comparing current type", current.instanceType, "with price", i.price,
+		debug.Println("Comparing current type", current.instanceType, "with price", i.price,
 			"with candidate", candidate.instanceType, "with price", candidatePrice)
 
 		if i.isAllowed(candidate.instanceType, allowedList, disallowedList) &&
@@ -380,7 +453,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
 			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice})
-			logger.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candiates list")
+			logger.Println("\tFound compatible instance type", candidate.instanceType, "added to launch candiates list")
 		} else if candidate.instanceType != "" {
 			debug.Println("Non compatible option found:", candidate.instanceType, "at", candidatePrice, " - discarding")
 		}
@@ -402,14 +475,14 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 	return nil, fmt.Errorf("No cheaper spot instance types could be found")
 }
 
-func (i *instance) launchSpotReplacement() error {
+func (i *instance) launchSpotReplacement() (*string, error) {
 	instanceTypes, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(
 		i.asg.getAllowedInstanceTypes(i),
 		i.asg.getDisallowedInstanceTypes(i))
 
 	if err != nil {
 		logger.Println("Couldn't determine the cheapest compatible spot instance type")
-		return err
+		return nil, err
 	}
 
 	//Go through all compatible instances until one type launches or we are out of options.
@@ -438,12 +511,13 @@ func (i *instance) launchSpotReplacement() error {
 				"current spot price", instanceType.pricing.spot[az])
 
 			debug.Println("RunInstances response:", spew.Sdump(resp))
-			return nil
+			return spotInst.InstanceId, nil
 		}
 	}
 
 	logger.Println(i.asg.name, "Exhausted all compatible instance types without launch success. Aborting.")
-	return err
+	return nil, errors.New("exhausted all compatible instance types")
+
 }
 
 func (i *instance) getPricetoBid(
@@ -645,6 +719,10 @@ func (i *instance) generateTagsList() []*ec2.TagSpecification {
 				Key:   aws.String("launched-for-asg"),
 				Value: aws.String(i.asg.name),
 			},
+			{
+				Key:   aws.String("launched-for-replacing-instance"),
+				Value: i.InstanceId,
+			},
 		},
 	}
 
@@ -668,6 +746,7 @@ func (i *instance) generateTagsList() []*ec2.TagSpecification {
 		if !strings.HasPrefix(*tag.Key, "aws:") &&
 			*tag.Key != "launched-by-autospotting" &&
 			*tag.Key != "launched-for-asg" &&
+			*tag.Key != "launched-for-replacing-instance" &&
 			*tag.Key != "LaunchTemplateID" &&
 			*tag.Key != "LaunchTemplateVersion" &&
 			*tag.Key != "LaunchConfiguationName" {
@@ -675,6 +754,103 @@ func (i *instance) generateTagsList() []*ec2.TagSpecification {
 		}
 	}
 	return []*ec2.TagSpecification{&tags}
+}
+
+func (i *instance) getReplacementTargetASGName() *string {
+	for _, tag := range i.Tags {
+		if *tag.Key == "launched-for-asg" {
+			return tag.Value
+		}
+	}
+	return nil
+}
+
+func (i *instance) getReplacementTargetInstanceID() *string {
+	for _, tag := range i.Tags {
+		if *tag.Key == "launched-for-replacing-instance" {
+			return tag.Value
+		}
+	}
+	return nil
+}
+
+func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {
+	asgName := i.getReplacementTargetASGName()
+	if asgName == nil {
+		logger.Printf("%s is missing the tag value for 'launched-for-asg'", *i.InstanceId)
+		return false
+	}
+	asg := i.region.findEnabledASGByName(*asgName)
+
+	if asg != nil &&
+		asg.isEnabledForEventBasedInstanceReplacement() &&
+		!asg.hasMemberInstance(i) &&
+		i.isSpot() {
+		logger.Println("Found unattached spot instance", *i.InstanceId)
+		return true
+	}
+	return false
+}
+
+func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error) {
+	odInstanceID := i.getReplacementTargetInstanceID()
+	if odInstanceID == nil {
+		logger.Println("Couldn't find target on-demand instance of", *i.InstanceId)
+		return nil, fmt.Errorf("couldn't find target instance for %s", *i.InstanceId)
+	}
+
+	if err := i.region.scanInstance(odInstanceID); err != nil {
+		logger.Printf("Couldn't describe the target on-demand instance %s", *odInstanceID)
+		return nil, fmt.Errorf("target instance %s couldn't be described", *odInstanceID)
+	}
+
+	odInstance := i.region.instances.get(*odInstanceID)
+	if odInstance == nil {
+		logger.Printf("Target on-demand instance %s couldn't be found", *odInstanceID)
+		return nil, fmt.Errorf("target instance %s is missing", *odInstanceID)
+	}
+
+	if !odInstance.shouldBeReplacedWithSpot() {
+		logger.Printf("Target on-demand instance %s shouldn't be replaced", *odInstanceID)
+		i.terminate()
+		return nil, fmt.Errorf("target instance %s should not be replaced with spot",
+			*odInstanceID)
+	}
+
+	var waiter sync.WaitGroup
+	defer waiter.Wait()
+	go asg.temporarilySuspendTerminations(&waiter)
+
+	max := *asg.MaxSize
+
+	if *asg.DesiredCapacity == max {
+		if err := asg.setAutoScalingMaxSize(max + 1); err != nil {
+			logger.Printf("%s Couldn't temporarily expand ASG %s",
+				i.region.name, *asg.AutoScalingGroupName)
+			return nil, fmt.Errorf("couldn't increase ASG %s", *asg.AutoScalingGroupName)
+		}
+		defer asg.setAutoScalingMaxSize(max)
+	}
+
+	logger.Printf("Attaching spot instance %s to the group %s",
+		*i.InstanceId, asg.name)
+	if err := asg.attachSpotInstance(*i.InstanceId, true); err != nil {
+		logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
+			*i.InstanceId, asg.name)
+		i.terminate()
+		return nil, fmt.Errorf("couldn't attach spot instance %s ", *i.InstanceId)
+	}
+
+	logger.Printf("Terminating on-demand instance %s from the group %s",
+		*odInstanceID, asg.name)
+	if err := asg.terminateInstanceInAutoScalingGroup(odInstanceID, true, true); err != nil {
+		logger.Printf("On-demand instance %s couldn't be terminated, re-trying...",
+			*odInstanceID)
+		return nil, fmt.Errorf("couldn't terminate on-demand instance %s",
+			*odInstanceID)
+	}
+
+	return odInstance, nil
 }
 
 // returns an instance ID as *string, set to nil if we need to wait for the next
@@ -710,8 +886,6 @@ func (i *instance) isReadyToAttach(asg *autoScalingGroup) bool {
 	}
 	return false
 }
-
-// Why the heck isn't this in the Go standard library?
 func min(x, y int) int {
 	if x < y {
 		return x

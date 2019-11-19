@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"sort"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -1246,11 +1245,12 @@ func TestGenerateTagList(t *testing.T) {
 		ASGName                  string
 		ASGLCName                string
 		instanceTags             []*ec2.Tag
+		instanceID               string
 		expectedTagSpecification []*ec2.TagSpecification
 	}{
 		{name: "no tags on original instance",
-			ASGLCName:    "testLC0",
-			ASGName:      "myASG",
+			ASGLCName: "testLC0",
+			ASGName:   "myASG", instanceID: "foo",
 			instanceTags: []*ec2.Tag{},
 			expectedTagSpecification: []*ec2.TagSpecification{
 				{
@@ -1267,14 +1267,18 @@ func TestGenerateTagList(t *testing.T) {
 						{
 							Key:   aws.String("launched-for-asg"),
 							Value: aws.String("myASG"),
+						}, {
+							Key:   aws.String("launched-for-replacing-instance"),
+							Value: aws.String("foo"),
 						},
 					},
 				},
 			},
 		},
 		{name: "Multiple tags on original instance",
-			ASGLCName: "testLC0",
-			ASGName:   "myASG",
+			ASGLCName:  "testLC0",
+			ASGName:    "myASG",
+			instanceID: "bar",
 			instanceTags: []*ec2.Tag{
 				{
 					Key:   aws.String("foo"),
@@ -1296,6 +1300,10 @@ func TestGenerateTagList(t *testing.T) {
 						{
 							Key:   aws.String("launched-by-autospotting"),
 							Value: aws.String("true"),
+						},
+						{
+							Key:   aws.String("launched-for-replacing-instance"),
+							Value: aws.String("bar"),
 						},
 						{
 							Key:   aws.String("launched-for-asg"),
@@ -1320,7 +1328,8 @@ func TestGenerateTagList(t *testing.T) {
 
 			i := instance{
 				Instance: &ec2.Instance{
-					Tags: tt.instanceTags,
+					Tags:       tt.instanceTags,
+					InstanceId: aws.String(tt.instanceID),
 				},
 				asg: &autoScalingGroup{
 					name: tt.ASGName,
@@ -1568,7 +1577,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 
 					IamInstanceProfile: &ec2.IamInstanceProfile{
 						Arn: aws.String("profile-arn"),
-					},
+					}, InstanceId: aws.String("i-foo"),
 
 					InstanceType: aws.String("t2.medium"),
 
@@ -1644,6 +1653,10 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 							Key:   aws.String("launched-for-asg"),
 							Value: aws.String("mygroup"),
 						},
+						{
+							Key:   aws.String("launched-for-replacing-instance"),
+							Value: aws.String("i-foo"),
+						},
 					},
 				},
 				},
@@ -1687,7 +1700,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					IamInstanceProfile: &ec2.IamInstanceProfile{
 						Arn: aws.String("profile-arn"),
 					},
-
+					InstanceId:   aws.String("i-foo"),
 					InstanceType: aws.String("t2.medium"),
 					KeyName:      aws.String("mykey"),
 
@@ -1763,6 +1776,10 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 							Key:   aws.String("launched-for-asg"),
 							Value: aws.String("mygroup"),
 						},
+						{
+							Key:   aws.String("launched-for-replacing-instance"),
+							Value: aws.String("i-foo"),
+						},
 					},
 				},
 				},
@@ -1794,7 +1811,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					IamInstanceProfile: &ec2.IamInstanceProfile{
 						Arn: aws.String("profile-arn"),
 					},
-
+					InstanceId:   aws.String("i-foo"),
 					InstanceType: aws.String("t2.medium"),
 
 					Placement: &ec2.Placement{
@@ -1866,6 +1883,9 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						{
 							Key:   aws.String("launched-for-asg"),
 							Value: aws.String("mygroup"),
+						}, {
+							Key:   aws.String("launched-for-replacing-instance"),
+							Value: aws.String("i-foo"),
 						},
 					},
 				},
@@ -1907,6 +1927,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						Arn: aws.String("profile-arn"),
 					},
 
+					InstanceId:   aws.String("i-foo"),
 					InstanceType: aws.String("t2.medium"),
 					KeyName:      aws.String("older-key"),
 
@@ -1993,6 +2014,10 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						{
 							Key:   aws.String("launched-for-asg"),
 							Value: aws.String("mygroup"),
+						},
+						{
+							Key:   aws.String("launched-for-replacing-instance"),
+							Value: aws.String("i-foo"),
 						},
 					},
 				},
@@ -2144,86 +2169,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 			})
 
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("instance.createRunInstancesInput() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_instance_isReadyToAttach(t *testing.T) {
-	//now := time.Now()
-	tenMinutesAgo := time.Now().Add(-10 * time.Minute)
-
-	tests := []struct {
-		name     string
-		instance instance
-		asg      *autoScalingGroup
-		want     bool
-	}{
-
-		{
-			name: "pending instance",
-			instance: instance{
-				Instance: &ec2.Instance{
-					InstanceId: aws.String("i-123"),
-					LaunchTime: &tenMinutesAgo,
-					State: &ec2.InstanceState{
-						Name: aws.String(ec2.InstanceStateNamePending),
-					},
-				},
-			},
-			asg: &autoScalingGroup{
-				name: "my-asg",
-				Group: &autoscaling.Group{
-					HealthCheckGracePeriod: aws.Int64(3600),
-				},
-			},
-			want: false,
-		},
-		{
-			name: "not-ready running instance",
-			instance: instance{
-				Instance: &ec2.Instance{
-					InstanceId: aws.String("i-123"),
-					LaunchTime: &tenMinutesAgo,
-					State: &ec2.InstanceState{
-						Name: aws.String(ec2.InstanceStateNameRunning),
-					},
-				},
-			},
-			asg: &autoScalingGroup{
-				name: "my-asg",
-				Group: &autoscaling.Group{
-					HealthCheckGracePeriod: aws.Int64(3600),
-				},
-			},
-			want: false,
-		},
-		{
-			name: "ready running instance",
-			instance: instance{
-				Instance: &ec2.Instance{
-					InstanceId: aws.String("i-123"),
-					LaunchTime: &tenMinutesAgo,
-					State: &ec2.InstanceState{
-						Name: aws.String(ec2.InstanceStateNameRunning),
-					},
-				},
-			},
-			asg: &autoScalingGroup{
-				name: "my-asg",
-				Group: &autoscaling.Group{
-					HealthCheckGracePeriod: aws.Int64(300),
-				},
-			},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			if got := tt.instance.isReadyToAttach(tt.asg); got != tt.want {
-				t.Errorf("instance.isReadyToAttach() = %v, want %v", got, tt.want)
+				t.Errorf("Instance.createRunInstancesInput() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -2233,13 +2179,13 @@ func Test_instance_isSameArch(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		instance      instance
+		Instance      instance
 		spotCandidate instanceTypeInformation
 		want          bool
 	}{
 		{
 			name: "Same architecture: both Intel",
-			instance: instance{
+			Instance: instance{
 				typeInfo: instanceTypeInformation{
 					PhysicalProcessor: "Intel",
 				},
@@ -2252,7 +2198,7 @@ func Test_instance_isSameArch(t *testing.T) {
 
 		{
 			name: "Same architecture: both AMD",
-			instance: instance{
+			Instance: instance{
 				typeInfo: instanceTypeInformation{
 					PhysicalProcessor: "AMD",
 				},
@@ -2265,7 +2211,7 @@ func Test_instance_isSameArch(t *testing.T) {
 
 		{
 			name: "Same architecture: Intel and AMD",
-			instance: instance{
+			Instance: instance{
 				typeInfo: instanceTypeInformation{
 					PhysicalProcessor: "Intel",
 				},
@@ -2278,7 +2224,7 @@ func Test_instance_isSameArch(t *testing.T) {
 
 		{
 			name: "Same architecture: AMD and Intel",
-			instance: instance{
+			Instance: instance{
 				typeInfo: instanceTypeInformation{
 					PhysicalProcessor: "AMD",
 				},
@@ -2291,7 +2237,7 @@ func Test_instance_isSameArch(t *testing.T) {
 
 		{
 			name: "Same architecture: Intel and Variable",
-			instance: instance{
+			Instance: instance{
 				typeInfo: instanceTypeInformation{
 					PhysicalProcessor: "Intel",
 				},
@@ -2304,7 +2250,7 @@ func Test_instance_isSameArch(t *testing.T) {
 
 		{
 			name: "Same architecture: Variable and Intel",
-			instance: instance{
+			Instance: instance{
 				typeInfo: instanceTypeInformation{
 					PhysicalProcessor: "Variable",
 				},
@@ -2317,7 +2263,7 @@ func Test_instance_isSameArch(t *testing.T) {
 
 		{
 			name: "Same architecture, both ARM-based",
-			instance: instance{
+			Instance: instance{
 				typeInfo: instanceTypeInformation{
 					PhysicalProcessor: "AWS",
 				},
@@ -2330,7 +2276,7 @@ func Test_instance_isSameArch(t *testing.T) {
 
 		{
 			name: "Different architecture, Intel and ARM",
-			instance: instance{
+			Instance: instance{
 				typeInfo: instanceTypeInformation{
 					PhysicalProcessor: "Intel",
 				},
@@ -2343,7 +2289,7 @@ func Test_instance_isSameArch(t *testing.T) {
 
 		{
 			name: "Different architecture, AMD and ARM",
-			instance: instance{
+			Instance: instance{
 				typeInfo: instanceTypeInformation{
 					PhysicalProcessor: "Intel",
 				},
@@ -2356,7 +2302,7 @@ func Test_instance_isSameArch(t *testing.T) {
 
 		{
 			name: "Different architecture, ARM and Intel",
-			instance: instance{
+			Instance: instance{
 				typeInfo: instanceTypeInformation{
 					PhysicalProcessor: "AWS",
 				},
@@ -2369,7 +2315,7 @@ func Test_instance_isSameArch(t *testing.T) {
 
 		{
 			name: "Different architecture, ARM and AMD",
-			instance: instance{
+			Instance: instance{
 				typeInfo: instanceTypeInformation{
 					PhysicalProcessor: "AWS",
 				},
@@ -2383,9 +2329,147 @@ func Test_instance_isSameArch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.instance.isSameArch(tt.spotCandidate); got != tt.want {
-				t.Errorf("instance.isSameArch() = %v, want %v", got, tt.want)
+			if got := tt.Instance.isSameArch(tt.spotCandidate); got != tt.want {
+				t.Errorf("Instance.isSameArch() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Test_instance_isUnattachedSpotInstanceLaunchedForAnEnabledASG(t *testing.T) {
+
+	tests := []struct {
+		name           string
+		i              *instance
+		wantASG        *autoScalingGroup
+		wantUnattached bool
+	}{
+		// {
+		// 	name: "on-demand instance",
+		// 	i: &instance{
+		// 		Instance: &ec2.Instance{
+		// 			InstanceLifecycle: nil,
+		// 		},
+		// 	},
+		// },
+
+		// {
+		// 	name: "no instances launched for this ASG",
+		// 	asg: autoScalingGroup{
+		// 		name: "mygroup",
+		// 		region: &region{
+		// 			instances: makeInstancesWithCatalog(
+		// 				instanceMap{
+		// 					"id-1": {
+		// 						Instance: &ec2.Instance{
+		// 							InstanceId: aws.String("id-1"),
+		// 							Tags:       []*ec2.Tag{},
+		// 						},
+		// 					},
+		// 				},
+		// 			),
+		// 		},
+		// 	},
+		// 	want: nil,
+		// },
+		// {
+		// 	name: "instance launched for another ASG",
+		// 	asg: autoScalingGroup{
+		// 		name: "mygroup",
+		// 		region: &region{
+		// 			instances: makeInstancesWithCatalog(
+		// 				instanceMap{
+		// 					"id-1": {
+		// 						Instance: &ec2.Instance{
+		// 							InstanceId: aws.String("id-1"),
+		// 							Tags:       []*ec2.Tag{},
+		// 						},
+		// 					},
+		// 					"id-2": {
+		// 						Instance: &ec2.Instance{
+		// 							InstanceId: aws.String("id-2"),
+		// 							Tags: []*ec2.Tag{
+		// 								{
+		// 									Key:   aws.String("launched-for-asg"),
+		// 									Value: aws.String("another-asg"),
+		// 								},
+		// 								{
+		// 									Key:   aws.String("another-key"),
+		// 									Value: aws.String("another-value"),
+		// 								},
+		// 							},
+		// 						},
+		// 					},
+		// 				},
+		// 			),
+		// 		},
+		// 	},
+		// 	want: nil,
+		// }, {
+		// 	name: "instance launched for current ASG",
+		// 	asg: autoScalingGroup{
+		// 		name: "mygroup",
+		// 		Group: &autoscaling.Group{
+		// 			Instances: []*autoscaling.Instance{
+		// 				{InstanceId: aws.String("foo")},
+		// 				{InstanceId: aws.String("bar")},
+		// 				{InstanceId: aws.String("baz")},
+		// 			},
+		// 		},
+
+		// 		region: &region{
+		// 			instances: makeInstancesWithCatalog(
+		// 				instanceMap{
+		// 					"id-1": {
+		// 						Instance: &ec2.Instance{
+		// 							InstanceId: aws.String("id-1"),
+		// 							Tags:       []*ec2.Tag{},
+		// 						},
+		// 					},
+		// 					"id-2": {
+		// 						Instance: &ec2.Instance{
+		// 							InstanceId: aws.String("id-2"),
+		// 							Tags: []*ec2.Tag{
+		// 								{
+		// 									Key:   aws.String("launched-for-asg"),
+		// 									Value: aws.String("mygroup"),
+		// 								},
+		// 								{
+		// 									Key:   aws.String("another-key"),
+		// 									Value: aws.String("another-value"),
+		// 								},
+		// 							},
+		// 						},
+		// 					},
+		// 				},
+		// 			),
+		// 		},
+		// 	},
+		// 	want: &instance{
+		// 		Instance: &ec2.Instance{
+		// 			InstanceId: aws.String("id-2"),
+		// 			Tags: []*ec2.Tag{
+		// 				{
+		// 					Key:   aws.String("launched-for-asg"),
+		// 					Value: aws.String("mygroup"),
+		// 				},
+		// 				{
+		// 					Key:   aws.String("another-key"),
+		// 					Value: aws.String("another-value"),
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// },
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			gotUnattached := tt.i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
+			if !reflect.DeepEqual(gotUnattached, tt.wantUnattached) {
+				t.Errorf("instance.isUnattachedSpotInstanceLaunchedForAnEnabledASG() = %v, want %v", gotUnattached, tt.wantUnattached)
+			}
+		})
+
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -22,16 +23,16 @@ type autoScalingGroup struct {
 	config              AutoScalingConfig
 }
 
-func (a *autoScalingGroup) loadLaunchConfiguration() error {
+func (a *autoScalingGroup) loadLaunchConfiguration() (*launchConfiguration, error) {
 	//already done
 	if a.launchConfiguration != nil {
-		return nil
+		return a.launchConfiguration, nil
 	}
 
 	lcName := a.LaunchConfigurationName
 
 	if lcName == nil {
-		return errors.New("missing launch configuration")
+		return nil, errors.New("missing launch configuration")
 	}
 
 	svc := a.region.services.autoScaling
@@ -43,48 +44,70 @@ func (a *autoScalingGroup) loadLaunchConfiguration() error {
 
 	if err != nil {
 		logger.Println(err.Error())
-		return err
+		return nil, err
 	}
 
 	a.launchConfiguration = &launchConfiguration{
 		LaunchConfiguration: resp.LaunchConfigurations[0],
 	}
-	return nil
+	return a.launchConfiguration, nil
 }
 
-func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
-	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, "")
+func (a *autoScalingGroup) needReplaceOnDemandInstances() (bool, int64) {
+	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, nil)
+	debug.Printf("onDemandRunning=%v totalRunning=%v a.minOnDemand=%v",
+		onDemandRunning, totalRunning, a.minOnDemand)
+
+	if totalRunning == 0 {
+		logger.Printf("The group %s is currently empty or in the process of launching new instances",
+			a.name)
+		return true, totalRunning
+	}
+
 	if onDemandRunning > a.minOnDemand {
 		logger.Println("Currently more than enough OnDemand instances running")
-		return true
+		return true, totalRunning
 	}
+
 	if onDemandRunning == a.minOnDemand {
 		logger.Println("Currently OnDemand running equals to the required number, skipping run")
-		return false
+		return false, totalRunning
 	}
 	logger.Println("Currently fewer OnDemand instances than required !")
-	if a.allInstancesRunning() && a.instances.count64() >= *a.DesiredCapacity {
-		logger.Println("All instances are running and desired capacity is satisfied")
-		if randomSpot := a.getAnySpotInstance(); randomSpot != nil {
-			if totalRunning == 1 {
-				logger.Println("Warning: blocking replacement of very last instance - consider raising ASG to >= 2")
-			} else {
-				logger.Println("Terminating a random spot instance",
-					*randomSpot.Instance.InstanceId)
-				switch a.config.TerminationMethod {
-				case DetachTerminationMethod:
-					randomSpot.terminate()
-				default:
-					a.terminateInstanceInAutoScalingGroup(randomSpot.Instance.InstanceId)
-				}
-			}
-		}
+	return false, totalRunning
+}
+
+func (a *autoScalingGroup) terminateRandomSpotInstanceIfHavingEnough(totalRunning int64, wait bool) error {
+
+	if totalRunning == 1 {
+		logger.Println("Warning: blocking replacement of very last instance - consider raising ASG to >= 2")
+		return nil
 	}
-	return false
+
+	if a.allInstancesRunning() && a.instances.count64() < *a.DesiredCapacity {
+		logger.Println("Not enough capacity in the group")
+		return nil
+	}
+
+	randomSpot := a.getAnySpotInstance()
+	if randomSpot == nil {
+		logger.Println("Couldn't pick a random spot instance")
+		return nil
+	}
+
+	logger.Println("Terminating randomly-selected spot instance",
+		*randomSpot.Instance.InstanceId)
+
+	switch a.config.TerminationMethod {
+	case DetachTerminationMethod:
+		return randomSpot.terminate()
+	default:
+		return a.terminateInstanceInAutoScalingGroup(randomSpot.Instance.InstanceId, wait, false)
+	}
 }
 
 func (a *autoScalingGroup) allInstancesRunning() bool {
-	_, totalRunning := a.alreadyRunningInstanceCount(false, "")
+	_, totalRunning := a.alreadyRunningInstanceCount(false, nil)
 	return totalRunning == a.instances.count64()
 }
 
@@ -97,13 +120,14 @@ func (a *autoScalingGroup) calculateHourlySavings() float64 {
 }
 
 func (a *autoScalingGroup) licensedToRun() (bool, error) {
-	defer savingsMutex.Unlock()
-	savingsMutex.Lock()
+	defer as.savingsMutex.Unlock()
+	as.savingsMutex.Lock()
 
 	savings := a.calculateHourlySavings()
-	hourlySavings += savings
+	as.hourlySavings += savings
 
-	monthlySavings := hourlySavings * 24 * 30
+	monthlySavings := as.hourlySavings * 24 * 30
+
 	if (monthlySavings > 1000) &&
 		strings.Contains(a.region.conf.Version, "nightly") &&
 		a.region.conf.LicenseType == "evaluation" {
@@ -114,8 +138,8 @@ func (a *autoScalingGroup) licensedToRun() (bool, error) {
 	return true, nil
 }
 
-func (a *autoScalingGroup) process() {
-	var spotInstanceID string
+func (a *autoScalingGroup) cronEventAction() runer {
+
 	a.scanInstances()
 	a.loadDefaultConfig()
 	a.loadConfigFromTags()
@@ -123,14 +147,19 @@ func (a *autoScalingGroup) process() {
 	logger.Println("Finding spot instances created for", a.name)
 
 	spotInstance := a.findUnattachedInstanceLaunchedForThisASG()
-	debug.Println("Candidate Spot instance", spotInstance)
 
 	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronScheduleState)
 	debug.Println(a.region.name, a.name, "Should take replacement actions:", shouldRun)
 
-	if ok, err := a.licensedToRun(); !ok {
+	if !shouldRun {
+		logger.Println(a.region.name, a.name,
+			"Skipping run, outside the enabled cron run schedule")
+		return skipRun{reason: "outside-cron-schedule"}
+	}
+
+	if licensed, err := a.licensedToRun(); !licensed {
 		logger.Println(a.region.name, a.name, "Skipping group, license limit reached:", err.Error())
-		return
+		return skipRun{reason: "over-license"}
 	}
 
 	if spotInstance == nil {
@@ -141,46 +170,97 @@ func (a *autoScalingGroup) process() {
 		if onDemandInstance == nil {
 			logger.Println(a.region.name, a.name,
 				"No running unprotected on-demand instances were found, nothing to do here...")
-			return
+
+			return enableEventHandling{target{asg: a}}
 		}
 
-		if !a.needReplaceOnDemandInstances() {
-			logger.Println("Not allowed to replace any of the running OD instances in ", a.name)
-			return
-		}
-
-		if !shouldRun {
-			logger.Println(a.region.name, a.name,
-				"Skipping run, outside the enabled cron run schedule")
-			return
+		if need, total := a.needReplaceOnDemandInstances(); !need {
+			logger.Printf("Not allowed to replace any more of the running OD instances in %s", a.name)
+			return terminateSpotInstance{target{asg: a, totalInstances: total}}
 		}
 
 		a.loadLaunchConfiguration()
-		err := onDemandInstance.launchSpotReplacement()
-		if err != nil {
-			logger.Printf("Could not launch cheapest spot instance: %s", err)
-		}
-		return
+		return launchSpotReplacement{target{
+			onDemandInstance: onDemandInstance}}
 	}
 
-	spotInstanceID = *spotInstance.InstanceId
+	spotInstanceID := *spotInstance.InstanceId
+	logger.Println("Found unattached spot instance", spotInstanceID)
 
-	if !a.needReplaceOnDemandInstances() || !shouldRun {
-		logger.Println("Spot instance", spotInstanceID, "is not need anymore by ASG",
-			a.name, "terminating the spot instance.")
-		spotInstance.terminate()
-		return
+	if need, total := a.needReplaceOnDemandInstances(); !need || !shouldRun {
+
+		return terminateUnneededSpotInstance{
+			target{
+				asg:            a,
+				spotInstance:   spotInstance,
+				totalInstances: total,
+			}}
 	}
+
 	if !spotInstance.isReadyToAttach(a) {
-		logger.Println("Waiting for next run while processing", a.name)
-		return
+		logger.Printf("Spot instance %s not yet ready, waiting for next run while processing %s",
+			spotInstanceID,
+			a.name)
+		return skipRun{"spot instance replacement exists but not ready"}
 	}
 
 	logger.Println(a.region.name, "Found spot instance:", spotInstanceID,
 		"Attaching it to", a.name)
 
-	a.replaceOnDemandInstanceWithSpot(spotInstanceID)
+	return swapSpotInstance{target{
+		asg:          a,
+		spotInstance: spotInstance}}
+}
 
+func (a *autoScalingGroup) enableForInstanceLaunchEventHandling() bool {
+	logger.Printf("Enabling group %s for the event-based instance replacement logic",
+		a.name)
+
+	for _, tag := range a.Tags {
+		if *tag.Key == EnableInstanceLaunchEventHandlingTag {
+			logger.Printf("Tag %s is already set on the group %s, current value is %s",
+				EnableInstanceLaunchEventHandlingTag, a.name, *tag.Value)
+			return true
+		}
+	}
+
+	svc := a.region.services.autoScaling
+	fmt.Printf("%#v", svc)
+
+	_, err := svc.CreateOrUpdateTags(&autoscaling.CreateOrUpdateTagsInput{
+		Tags: []*autoscaling.Tag{
+			{
+				ResourceType:      aws.String("auto-scaling-group"),
+				ResourceId:        a.AutoScalingGroupName,
+				Key:               aws.String(EnableInstanceLaunchEventHandlingTag),
+				Value:             aws.String("true"),
+				PropagateAtLaunch: aws.Bool(false),
+			},
+		},
+	})
+	if err != nil {
+		logger.Println("Failed to enable ASG for event-based instance replacement:", err.Error())
+		return false
+	}
+	return true
+}
+
+func (a *autoScalingGroup) isEnabledForEventBasedInstanceReplacement() bool {
+	if time.Now().Sub(*a.CreatedTime) < time.Hour {
+		logger.Println("ASG %s is newer than an hour, enabling it for event-based "+
+			"instance replacement", a.name)
+		return a.enableForInstanceLaunchEventHandling()
+	}
+
+	for _, tag := range a.Tags {
+		if *tag.Key == EnableInstanceLaunchEventHandlingTag &&
+			*tag.Value == "true" {
+			logger.Printf("ASG %s tags enable it for event-based instance replacement", a.name)
+			return true
+		}
+	}
+	logger.Printf("ASG %s is not enabled for event-based instance replacement", a.name)
+	return false
 }
 
 func (a *autoScalingGroup) scanInstances() instances {
@@ -191,10 +271,15 @@ func (a *autoScalingGroup) scanInstances() instances {
 	for _, inst := range a.Instances {
 		i := a.region.instances.get(*inst.InstanceId)
 
-		debug.Println(i)
-
 		if i == nil {
-			continue
+			debug.Println("Missing instance data for ", *inst.InstanceId, "scanning it again")
+			a.region.scanInstance(inst.InstanceId)
+
+			i = a.region.instances.get(*inst.InstanceId)
+			if i == nil {
+				debug.Println("Failed to scan instance", *inst.InstanceId)
+				continue
+			}
 		}
 
 		i.asg, i.region = a, a.region
@@ -213,18 +298,8 @@ func (a *autoScalingGroup) scanInstances() instances {
 	return a.instances
 }
 
-func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
+func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 	spotInstanceID string) error {
-
-	minSize, maxSize := *a.MinSize, *a.MaxSize
-	desiredCapacity := *a.DesiredCapacity
-
-	// temporarily increase AutoScaling group in case it's of static size
-	if minSize == maxSize {
-		logger.Println(a.name, "Temporarily increasing MaxSize")
-		a.setAutoScalingMaxSize(maxSize + 1)
-		defer a.setAutoScalingMaxSize(maxSize)
-	}
 
 	// get the details of our spot instance so we can see its AZ
 	logger.Println(a.name, "Retrieving instance details for ", spotInstanceID)
@@ -232,39 +307,43 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 	if spotInst == nil {
 		return errors.New("couldn't find spot instance to use")
 	}
+
 	az := spotInst.Placement.AvailabilityZone
 
 	logger.Println(a.name, spotInstanceID, "is in the availability zone",
 		*az, "looking for an on-demand instance there")
+	if odInstanceID == nil {
+		if odInst := a.getUnprotectedOnDemandInstanceInAZ(az); odInst != nil {
+			odInstanceID = odInst.InstanceId
+		}
+	}
 
-	odInst := a.getUnprotectedOnDemandInstanceInAZ(az)
-
-	if odInst == nil {
+	if odInstanceID == nil {
 		logger.Println(a.name, "found no on-demand instances that could be",
 			"replaced with the new spot instance", *spotInst.InstanceId,
 			"terminating the spot instance.")
 		spotInst.terminate()
 		return errors.New("couldn't find ondemand instance to replace")
 	}
-	logger.Println(a.name, "found on-demand instance", *odInst.InstanceId,
+	logger.Println(a.name, "found on-demand instance", *odInstanceID,
 		"replacing with new spot instance", *spotInst.InstanceId)
 	// revert attach/detach order when running on minimum capacity
-	if desiredCapacity == minSize {
-		attachErr := a.attachSpotInstance(spotInstanceID)
+	if *a.DesiredCapacity == *a.MinSize {
+		attachErr := a.attachSpotInstance(spotInstanceID, true)
 		if attachErr != nil {
 			logger.Println(a.name, "skipping detaching on-demand due to failure to",
 				"attach the new spot instance", *spotInst.InstanceId)
 			return nil
 		}
 	} else {
-		defer a.attachSpotInstance(spotInstanceID)
+		defer a.attachSpotInstance(spotInstanceID, true)
 	}
 
 	switch a.config.TerminationMethod {
 	case DetachTerminationMethod:
-		return a.detachAndTerminateOnDemandInstance(odInst.InstanceId)
+		return a.detachAndTerminateOnDemandInstance(odInstanceID, true)
 	default:
-		return a.terminateInstanceInAutoScalingGroup(odInst.InstanceId)
+		return a.terminateInstanceInAutoScalingGroup(odInstanceID, true, true)
 	}
 }
 
@@ -291,7 +370,12 @@ func (a *autoScalingGroup) getInstance(
 				continue
 			}
 
-			if considerInstanceProtection && (i.isProtectedFromScaleIn() || i.isProtectedFromTermination()) {
+			protT, err := i.isProtectedFromTermination()
+			if err != nil {
+				debug.Println(a.name, "failed to determine termination protection for", *i.InstanceId)
+			}
+
+			if considerInstanceProtection && (i.isProtectedFromScaleIn() || protT) {
 				debug.Println(a.name, "skipping protected instance", *i.InstanceId)
 				continue
 			}
@@ -412,18 +496,34 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 	return nil
 }
 
-func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string) error {
+func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) error {
+	if wait {
+		err := a.region.services.ec2.WaitUntilInstanceRunning(
+			&ec2.DescribeInstancesInput{
+				InstanceIds: []*string{aws.String(spotInstanceID)},
+			})
 
-	svc := a.region.services.autoScaling
+		if err != nil {
+			logger.Printf("Issue while waiting for instance %v to start: %v",
+				spotInstanceID, err.Error())
+		}
 
-	params := autoscaling.AttachInstancesInput{
-		AutoScalingGroupName: aws.String(a.name),
-		InstanceIds: []*string{
-			&spotInstanceID,
-		},
 	}
 
-	resp, err := svc.AttachInstances(&params)
+	// temporarily increase AutoScaling group in case it's of static size
+	if *a.MinSize == *a.MaxSize || *a.DesiredCapacity == *a.MaxSize {
+		logger.Println(a.name, "Temporarily increasing MaxSize")
+		a.setAutoScalingMaxSize(*a.MaxSize + 1)
+		defer a.setAutoScalingMaxSize(*a.MaxSize)
+	}
+
+	resp, err := a.region.services.autoScaling.AttachInstances(
+		&autoscaling.AttachInstancesInput{
+			AutoScalingGroupName: aws.String(a.name),
+			InstanceIds: []*string{
+				&spotInstanceID,
+			},
+		})
 
 	if err != nil {
 		logger.Println(err.Error())
@@ -437,7 +537,20 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string) error {
 // Terminates an on-demand instance from the group,
 // but only after it was detached from the autoscaling group
 func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
-	instanceID *string) error {
+	instanceID *string, wait bool) error {
+
+	if wait {
+		err := a.region.services.ec2.WaitUntilInstanceRunning(
+			&ec2.DescribeInstancesInput{
+				InstanceIds: []*string{instanceID},
+			})
+
+		if err != nil {
+			logger.Printf("Issue while waiting for instance %v to start: %v",
+				instanceID, err.Error())
+		}
+	}
+
 	logger.Println(a.region.name,
 		a.name,
 		"Detaching and terminating instance:",
@@ -461,35 +574,97 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 	// Wait till detachment initialize is complete before terminate instance
 	time.Sleep(20 * time.Second * a.region.conf.SleepMultiplier)
 
-	return a.instances.get(*instanceID).terminate()
+	return a.region.instances.get(*instanceID).terminate()
 }
 
 // Terminates an on-demand instance from the group using the
 // TerminateInstanceInAutoScalingGroup api call.
 func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
-	instanceID *string) error {
+	instanceID *string, wait bool, decreaseCapacity bool) error {
+
+	if wait {
+		err := a.region.services.ec2.WaitUntilInstanceRunning(
+			&ec2.DescribeInstancesInput{
+				InstanceIds: []*string{instanceID},
+			})
+
+		if err != nil {
+			logger.Printf("Issue while waiting for instance %v to start: %v",
+				instanceID, err.Error())
+		}
+	}
+
 	logger.Println(a.region.name,
 		a.name,
 		"Terminating instance:",
 		*instanceID)
-	// terminate the on-demand instance
-	terminateParams := autoscaling.TerminateInstanceInAutoScalingGroupInput{
-		InstanceId:                     instanceID,
-		ShouldDecrementDesiredCapacity: aws.Bool(true),
-	}
 
 	asSvc := a.region.services.autoScaling
-	if _, err := asSvc.TerminateInstanceInAutoScalingGroup(&terminateParams); err != nil {
+
+	resDLH, err := asSvc.DescribeLifecycleHooks(
+		&autoscaling.DescribeLifecycleHooksInput{
+			AutoScalingGroupName: a.AutoScalingGroupName,
+		})
+
+	if err != nil {
 		logger.Println(err.Error())
 		return err
+	}
+
+	for _, hook := range resDLH.LifecycleHooks {
+		asSvc.CompleteLifecycleAction(
+			&autoscaling.CompleteLifecycleActionInput{
+				AutoScalingGroupName:  a.AutoScalingGroupName,
+				InstanceId:            instanceID,
+				LifecycleHookName:     hook.LifecycleHookName,
+				LifecycleActionResult: aws.String("ABANDON"),
+			})
+	}
+
+	resTIIASG, err := asSvc.TerminateInstanceInAutoScalingGroup(
+		&autoscaling.TerminateInstanceInAutoScalingGroupInput{
+			InstanceId:                     instanceID,
+			ShouldDecrementDesiredCapacity: aws.Bool(decreaseCapacity),
+		})
+
+	if err != nil {
+		logger.Println(err.Error())
+		return err
+	}
+
+	if resTIIASG != nil && resTIIASG.Activity != nil && resTIIASG.Activity.Description != nil {
+		logger.Println(*resTIIASG.Activity.Description)
 	}
 
 	return nil
 }
 
+func (a *autoScalingGroup) hasLaunchLifecycleHooks() (bool, error) {
+
+	resDLH, err := a.region.services.autoScaling.DescribeLifecycleHooks(
+		&autoscaling.DescribeLifecycleHooksInput{
+			AutoScalingGroupName: a.AutoScalingGroupName,
+		})
+
+	if err != nil {
+		logger.Println(err.Error())
+		return false, err
+	}
+
+	for _, hook := range resDLH.LifecycleHooks {
+		if "autoscaling:EC2_INSTANCE_LAUNCHING" == *hook.LifecycleTransition {
+			debug.Printf("Group %s has launch lifecycle hook(s): %s",
+				*a.AutoScalingGroupName, *hook.LifecycleHookName)
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.
 func (a *autoScalingGroup) alreadyRunningInstanceCount(
-	spot bool, availabilityZone string) (int64, int64) {
+	spot bool, availabilityZone *string) (int64, int64) {
 
 	var total, count int64
 	instanceCategory := "spot"
@@ -499,20 +674,80 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	}
 	logger.Println(a.name, "Counting already running on demand instances ")
 	for inst := range a.instances.instances() {
+
 		if *inst.Instance.State.Name == "running" {
-			// Count running Spot instances
-			if spot && inst.isSpot() &&
-				(*inst.Placement.AvailabilityZone == availabilityZone || availabilityZone == "") {
-				count++
-				// Count running OnDemand instances
-			} else if !spot && !inst.isSpot() &&
-				(*inst.Placement.AvailabilityZone == availabilityZone || availabilityZone == "") {
-				count++
-			}
 			// Count total running instances
 			total++
+			if availabilityZone == nil || *inst.Placement.AvailabilityZone == *availabilityZone {
+				if (spot && inst.isSpot()) || (!spot && !inst.isSpot()) {
+					count++
+				}
+			}
 		}
 	}
 	logger.Println(a.name, "Found", count, instanceCategory, "instances running on a total of", total)
 	return count, total
+}
+
+func (a *autoScalingGroup) suspendTerminationProcess() {
+	logger.Printf("Suspending termination processes on ASG %s", a.name)
+
+	for _, process := range a.SuspendedProcesses {
+		if *process.ProcessName == "Terminate" {
+			logger.Printf("ASG %s already has the termination process suspended", a.name)
+			return
+		}
+	}
+
+	_, err := a.region.services.autoScaling.SuspendProcesses(
+		&autoscaling.ScalingProcessQuery{
+			AutoScalingGroupName: a.AutoScalingGroupName,
+			ScalingProcesses:     []*string{aws.String("Terminate")},
+		})
+	if err != nil {
+		logger.Printf("couldn't suspend termination processes on ASG %s ", a.name)
+	}
+}
+
+func (a *autoScalingGroup) resumeTerminationProcess() {
+	logger.Printf("Resuming termination processes on ASG %s", a.name)
+
+	_, err := a.region.services.autoScaling.ResumeProcesses(
+		&autoscaling.ScalingProcessQuery{
+			AutoScalingGroupName: a.AutoScalingGroupName,
+			ScalingProcesses:     []*string{aws.String("Terminate")},
+		})
+	if err != nil {
+		logger.Printf("couldn't resume termination processes on ASG %s ", a.name)
+	}
+}
+func (a *autoScalingGroup) isEnabled() bool {
+	for _, asg := range a.region.enabledASGs {
+		if asg.name == a.name {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *autoScalingGroup) temporarilySuspendTerminations(wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
+
+	if a.isTerminationSuspended() {
+		return
+	}
+
+	a.suspendTerminationProcess()
+	time.Sleep(300 * time.Second * a.region.conf.SleepMultiplier)
+	a.resumeTerminationProcess()
+}
+
+func (a *autoScalingGroup) isTerminationSuspended() bool {
+	for _, process := range a.SuspendedProcesses {
+		if *process.ProcessName == "Terminate" {
+			return true
+		}
+	}
+	return false
 }
