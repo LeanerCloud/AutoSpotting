@@ -73,9 +73,6 @@ const (
 	// can override the global value of the CronScheduleState parameter
 	CronScheduleStateTag = "autospotting_cron_schedule_state"
 
-	// PatchBeanstalkUserdataTag is the name of the tag set on the AutoScaling Group that
-	// can override the global value of the PatchBeanstalkUserdata parameter
-	PatchBeanstalkUserdataTag = "patch_beanstalk_userdata"
 	// EnableInstanceLaunchEventHandlingTag is the name of the tag set on the
 	// AutoScaling Group that enables the event-based instance replacement logic
 	// for this group. It is set automatically once the legacy cron-based
@@ -108,8 +105,6 @@ type AutoScalingConfig struct {
 
 	CronSchedule      string
 	CronScheduleState string // "on" or "off", dictate whether to run inside the CronSchedule or not
-
-	PatchBeanstalkUserdata string
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -189,19 +184,6 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 	return false
 }
 
-func (a *autoScalingGroup) loadPatchBeanstalkUserdata() {
-	tagValue := a.getTagValue(PatchBeanstalkUserdataTag)
-
-	if tagValue != nil {
-		logger.Printf("Loaded PatchBeanstalkUserdata value %v from tag %v\n", *tagValue, PatchBeanstalkUserdataTag)
-		a.config.PatchBeanstalkUserdata = *tagValue
-		return
-	}
-
-	debug.Println("Couldn't find tag", PatchBeanstalkUserdataTag, "on the group", a.name, "using the default configuration")
-	a.config.PatchBeanstalkUserdata = a.region.conf.PatchBeanstalkUserdata
-}
-
 func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
 	biddingPolicy := *tagValue
 	if biddingPolicy != "aggressive" {
@@ -279,7 +261,6 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 
 	a.LoadCronSchedule()
 	a.LoadCronScheduleState()
-	a.loadPatchBeanstalkUserdata()
 
 	if resOnDemandConf {
 		logger.Println("Found and applied configuration for OnDemand value")

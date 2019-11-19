@@ -42,44 +42,6 @@ func eventHandler(event *json.RawMessage) {
 	log.Println("Starting autospotting agent, build", Version)
 	log.Printf("Configuration flags: %#v", conf)
 
-	log.Printf("Parsed command line flags: "+
-		"regions='%s' "+
-		"min_on_demand_number=%d "+
-		"min_on_demand_percentage=%.1f "+
-		"allowed_instance_types=%v "+
-		"disallowed_instance_types=%v "+
-		"on_demand_price_multiplier=%.2f "+
-		"spot_price_buffer_percentage=%.3f "+
-		"bidding_policy=%s "+
-		"tag_filters=%s "+
-		"tag_filter_mode=%s "+
-		"spot_product_description=%v "+
-		"instance_termination_method=%s "+
-		"termination_notification_action=%s "+
-		"cron_schedule=%s "+
-		"cron_schedule_state=%s "+
-		"license=%s "+
-		"patch_beanstalk_userdata=%s \n",
-		conf.Regions,
-		conf.MinOnDemandNumber,
-		conf.MinOnDemandPercentage,
-		conf.AllowedInstanceTypes,
-		conf.DisallowedInstanceTypes,
-		conf.OnDemandPriceMultiplier,
-		conf.SpotPriceBufferPercentage,
-		conf.BiddingPolicy,
-		conf.FilterByTags,
-		conf.TagFilteringMode,
-		conf.SpotProductDescription,
-		conf.InstanceTerminationMethod,
-		conf.TerminationNotificationAction,
-		conf.CronSchedule,
-		conf.CronScheduleState,
-		conf.LicenseType,
-		conf.PatchBeanstalkUserdata,
-	)
-
-	autospotting.Run(conf.Config)
 	as.EventHandler(event)
 	log.Println("Execution completed, nothing left to do")
 }
@@ -192,8 +154,6 @@ func parseCommandLineFlags() {
 	flag.StringVar(&conf.LicenseType, "license", "evaluation", "\n\tControls the terms under which you use AutoSpotting"+
 		"Allowed values: evaluation|I_am_supporting_it_on_Patreon|I_contributed_to_development_within_the_last_year|I_built_it_from_source_code\n"+
 		"\tExample: ./AutoSpotting --license evaluation\n")
-	flag.StringVar(&c.PatchBeanstalkUserdata, "patch_beanstalk_userdata", "", "\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the instance role when calling CloudFormation helpers instead of the standard CloudFormation authentication method\n"+
-		"\tExample: ./AutoSpotting --patch_beanstalk_userdata true\n")
 
 	flag.StringVar(&eventFile, "event_file", "", "\n\tJSON file containing event data, "+
 		"used for locally simulating execution from Lambda. AutoSpotting now expects to be "+
