@@ -372,8 +372,10 @@
       Type: "AWS::Lambda::Permission"
       Properties:
         Action: "lambda:InvokeFunction"
-        FunctionName:
-          Ref: "EventHandler"
+        FunctionName: !If
+          - "StackSetsIsRegional"
+          - Ref: "EventHandler"
+          - Ref: "LambdaFunction"
         Principal: "events.amazonaws.com"
         SourceArn:
           Fn::GetAtt:
@@ -438,8 +440,10 @@
       Type: "AWS::Lambda::Permission"
       Properties:
         Action: "lambda:InvokeFunction"
-        FunctionName:
-          Ref: "EventHandler"
+        FunctionName: !If
+          - "StackSetsIsRegional"
+          - Ref: "EventHandler"
+          - Ref: "LambdaFunction"
         Principal: "events.amazonaws.com"
         SourceArn:
           Fn::GetAtt:
