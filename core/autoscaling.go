@@ -600,42 +600,6 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		return err
 	}
 
-	/*
-		attaching := false
-
-		for retry, maxRetry := 1, 10; attaching == false; retry++ {
-			if retry > maxRetry {
-				logger.Printf("Failed attaching instance %v",
-					spotInstanceID)
-				a.changeAutoScalingMaxSize(int64(-1 * retry))
-				return errors.New("")
-			} else {
-
-				resp, err := a.region.services.autoScaling.AttachInstances(
-					&autoscaling.AttachInstancesInput{
-						AutoScalingGroupName: aws.String(a.name),
-						InstanceIds: []*string{
-							&spotInstanceID,
-						},
-					})
-
-				if err != nil {
-					logger.Printf("Failed attaching instance %v (retrying): %v",
-						spotInstanceID, err.Error())
-					logger.Println(resp)
-					a.changeAutoScalingMaxSize(1)
-				} else {
-					defer a.changeAutoScalingMaxSize(int64(-1 * retry))
-					attaching = true
-				}
-			}
-		}
-
-		if err := a.waitForInstanceStatus(&spotInstanceID, "InService", 5); err != nil {
-			logger.Printf("Failed Attaching instance %v",
-				spotInstanceID)
-		}
-	*/
 	return nil
 }
 

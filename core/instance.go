@@ -821,19 +821,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 	defer waiter.Wait()
 	go asg.temporarilySuspendTerminations(&waiter)
 
-	/*
-		max := *asg.MaxSize
-
-		if *asg.DesiredCapacity == max {
-			if err := asg.setAutoScalingMaxSize(max + 1); err != nil {
-				logger.Printf("%s Couldn't temporarily expand ASG %s",
-					i.region.name, *asg.AutoScalingGroupName)
-				return nil, fmt.Errorf("couldn't increase ASG %s", *asg.AutoScalingGroupName)
-			}
-			defer asg.setAutoScalingMaxSize(max)
-		}
-	*/
-
 	if err := asg.waitForInstanceStatus(odInstanceID, "InService", 5); err != nil {
 		logger.Printf("OnDemand instance %v not InService",
 			*odInstanceID)
@@ -891,24 +878,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 	asg.resumeTerminationProcess()
 	waiter.Done()
 	return odInstance, nil
-
-	/*
-		for retry, maxRetry := 1, 5; retry < maxRetry; retry++ {
-			if err := asg.terminateInstanceInAutoScalingGroup(odInstanceID, true, true); err != nil {
-				logger.Printf("On-demand instance %s couldn't be terminated, re-trying...",
-					*odInstanceID)
-				time.Sleep(time.Duration(5*retry) * time.Second)
-				continue
-			} else {
-				asg.resumeTerminationProcess()
-				waiter.Done()
-				return odInstance, nil
-			}
-		}
-	return nil, fmt.Errorf("couldn't terminate on-demand instance %s",
-		*odInstanceID)
-	*/
-
 }
 
 // returns an instance ID as *string, set to nil if we need to wait for the next
