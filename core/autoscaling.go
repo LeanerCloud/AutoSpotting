@@ -415,6 +415,40 @@ func (a *autoScalingGroup) hasMemberInstance(inst *instance) bool {
 	return false
 }
 
+func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status string, maxRetry int) error {
+	isInstanceInStatus := false
+	for retry := 1; isInstanceInStatus == false; retry++ {
+		if retry > maxRetry {
+			logger.Printf("Failed waiting instance %v in status %v",
+				*instanceID, status)
+			break
+		} else {
+			result, err := a.region.services.autoScaling.DescribeAutoScalingInstances(
+				&autoscaling.DescribeAutoScalingInstancesInput{
+					InstanceIds: []*string{instanceID},
+				})
+
+			if err != nil {
+				logger.Println(err.Error())
+				continue
+			}
+
+			autoScalingInstances := result.AutoScalingInstances
+
+			if len(autoScalingInstances) > 0 && *autoScalingInstances[0].LifecycleState == status {
+				isInstanceInStatus = true
+				return nil
+			} else {
+				logger.Printf("Waiting for instance %v to be in status %v",
+					*instanceID, status)
+				time.Sleep(time.Duration(5*retry) * time.Second)
+			}
+		}
+	}
+
+	return errors.New("")
+}
+
 func (a *autoScalingGroup) findUnattachedInstanceLaunchedForThisASG() *instance {
 	for inst := range a.region.instances.instances() {
 		for _, tag := range inst.Tags {
@@ -496,6 +530,38 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 	return nil
 }
 
+func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64) error {
+	svc := a.region.services.autoScaling
+
+	resp, err := svc.DescribeAutoScalingGroups(
+		&autoscaling.DescribeAutoScalingGroupsInput{
+			AutoScalingGroupNames: []*string{aws.String(a.name)},
+		})
+
+	if err != nil || len(resp.AutoScalingGroups) == 0 {
+		logger.Println("Unable to describe ASG %v: %v",
+			a.name, err.Error())
+		return err
+	}
+
+	newMax := *resp.AutoScalingGroups[0].MaxSize + value
+
+	_, err = svc.UpdateAutoScalingGroup(
+		&autoscaling.UpdateAutoScalingGroupInput{
+			AutoScalingGroupName: aws.String(a.name),
+			MaxSize:              aws.Int64(newMax),
+		})
+
+	if err != nil {
+		// Print the error, cast err to awserr.Error to get the Code and
+		// Message from an error.
+		logger.Println("Unable to update ASG %v MaxSize: %v",
+			a.name, err.Error())
+		return err
+	}
+	return nil
+}
+
 func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) error {
 	if wait {
 		err := a.region.services.ec2.WaitUntilInstanceRunning(
@@ -511,10 +577,12 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 	}
 
 	// temporarily increase AutoScaling group in case it's of static size
-	if *a.MinSize == *a.MaxSize || *a.DesiredCapacity == *a.MaxSize {
+	if *a.DesiredCapacity == *a.MaxSize {
 		logger.Println(a.name, "Temporarily increasing MaxSize")
-		a.setAutoScalingMaxSize(*a.MaxSize + 1)
-		defer a.setAutoScalingMaxSize(*a.MaxSize)
+		//a.setAutoScalingMaxSize(*a.MaxSize + 1)
+		//defer a.setAutoScalingMaxSize(*a.MaxSize)
+		a.changeAutoScalingMaxSize(1)
+		defer a.changeAutoScalingMaxSize(-1)
 	}
 
 	resp, err := a.region.services.autoScaling.AttachInstances(
@@ -531,6 +599,43 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		logger.Println(resp)
 		return err
 	}
+
+	/*
+		attaching := false
+
+		for retry, maxRetry := 1, 10; attaching == false; retry++ {
+			if retry > maxRetry {
+				logger.Printf("Failed attaching instance %v",
+					spotInstanceID)
+				a.changeAutoScalingMaxSize(int64(-1 * retry))
+				return errors.New("")
+			} else {
+
+				resp, err := a.region.services.autoScaling.AttachInstances(
+					&autoscaling.AttachInstancesInput{
+						AutoScalingGroupName: aws.String(a.name),
+						InstanceIds: []*string{
+							&spotInstanceID,
+						},
+					})
+
+				if err != nil {
+					logger.Printf("Failed attaching instance %v (retrying): %v",
+						spotInstanceID, err.Error())
+					logger.Println(resp)
+					a.changeAutoScalingMaxSize(1)
+				} else {
+					defer a.changeAutoScalingMaxSize(int64(-1 * retry))
+					attaching = true
+				}
+			}
+		}
+
+		if err := a.waitForInstanceStatus(&spotInstanceID, "InService", 5); err != nil {
+			logger.Printf("Failed Attaching instance %v",
+				spotInstanceID)
+		}
+	*/
 	return nil
 }
 
