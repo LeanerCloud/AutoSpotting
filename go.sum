@@ -6,6 +6,8 @@ github.com/aws/aws-sdk-go v1.19.19 h1:2TpFyCjW5A87wxpWZxomEtS3KESIx90uZlWvWVJn3s
 github.com/aws/aws-sdk-go v1.19.19/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/aws/aws-sdk-go v1.20.15 h1:y9ts8MJhB7ReUidS6Rq+0KxdFeL01J+pmOlGq6YqpiQ=
 github.com/aws/aws-sdk-go v1.20.15/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
+github.com/aws/aws-sdk-go v1.25.43 h1:R5YqHQFIulYVfgRySz9hvBRTWBjudISa+r0C8XQ1ufg=
+github.com/aws/aws-sdk-go v1.25.43/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/cristim/ec2-instances-info v0.0.0-20190426213706-502122c2c226 h1:/Oq/UFHJVRX0cG9HUDOUWKR3JCcv9R72GXU+8q3+/kA=
 github.com/cristim/ec2-instances-info v0.0.0-20190426213706-502122c2c226/go.mod h1:SCEMkkczeDuTdxcoqyNMEtwPiofRFxliCtf2wNUZEzk=
 github.com/cristim/ec2-instances-info v0.0.0-20190708120723-b53a9860c46d h1:PhYh47NpQu3168rU60fDKuPwp+tSznxBX4+TKU2R32M=
