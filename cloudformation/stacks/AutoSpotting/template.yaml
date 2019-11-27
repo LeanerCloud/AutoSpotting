@@ -635,6 +635,14 @@
                 - "logs:PutLogEvents"
               Effect: "Allow"
               Resource: "*"
+            -
+              Action:
+                - "sqs:SendMessage*"
+                - "sqs:DeleteMessage*"
+                - "sqs:ReceiveMessage"
+                - "sqs:ChangeMessageVisibility*"
+              Effect: "Allow"
+              Resource: !GetAtt SQSQueueSpotInstances.Arn 
         PolicyName: "LambdaPolicy"
         Roles:
           -

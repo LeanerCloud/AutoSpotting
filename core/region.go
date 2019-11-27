@@ -353,8 +353,9 @@ func (r *region) sendMessageToSQSQueue(InstaceId *string) error {
 		})
 
 	if err != nil {
-		logger.Println("Failed to send message for spot instance %v: %v",
+		logger.Println("Failed to send message to SQSQueue for spot instance %v: %v",
 			*InstaceId, err.Error())
+		return err
 	}
 	return nil
 }

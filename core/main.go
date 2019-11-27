@@ -404,6 +404,10 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r region, i *instance) error 
 	if err := i.region.sendMessageToSQSQueue(i.InstanceId); err != nil {
 		return err
 	}
+
+        logger.Println("%s Sent message to SQSQueue for spot instance %v:",
+		i.region.name, *i.InstanceId)
+
 	/*
 		asgName := i.getReplacementTargetASGName()
 		asg := i.region.findEnabledASGByName(*asgName)
