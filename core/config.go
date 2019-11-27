@@ -84,4 +84,7 @@ type Config struct {
 	// the instance role when calling CloudFormation helpers instead of the standard CloudFormation
 	// authentication method
 	PatchBeanstalkUserdata string
+
+	// SQSQueue Url to post message of launched spot instances
+	SQSQueueSpot string
 }

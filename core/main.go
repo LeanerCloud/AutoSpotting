@@ -360,6 +360,19 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 		return errors.New("instance not in running state")
 	}
 
+	// Is OnDemand
+	if err := a.handleNewOnDemandInstanceLaunch(r, i); err != nil {
+		return err
+	}
+
+	// Is Spot
+	if err := a.handleNewSpotInstanceLaunch(r, i); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r region, i *instance) error {
 	if i.belongsToEnabledASG() && i.shouldBeReplacedWithSpot() {
 		logger.Printf("%s instance %s belongs to an enabled ASG and should be "+
 			"replaced with spot, attempting to launch spot replacement",
@@ -375,7 +388,10 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 			i.region.name, *i.InstanceId)
 		debug.Printf("%#v", i)
 	}
+	return nil
+}
 
+func (a *AutoSpotting) handleNewSpotInstanceLaunch(r region, i *instance) error {
 	logger.Printf("%s Checking if %s is a spot instance that should be "+
 		"attached to any ASG", i.region.name, *i.InstanceId)
 	unattached := i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
@@ -385,38 +401,42 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 		return nil
 	}
 
-	asgName := i.getReplacementTargetASGName()
-	asg := i.region.findEnabledASGByName(*asgName)
-
-	if asg == nil {
-		logger.Printf("Missing ASG data for region %s", i.region.name)
-		return fmt.Errorf("region %s is missing asg data", i.region.name)
-	}
-
-	logger.Printf("%s Found instance %s is not yet attached to its ASG, "+
-		"attempting to swap it against a running on-demand instance",
-		i.region.name, *i.InstanceId)
-
-	hasHooks, err := asg.hasLaunchLifecycleHooks()
-
-	if err != nil {
-		logger.Printf("%s ASG %s - couldn't describe Lifecycle Hooks",
-			i.region.name, *asgName)
+	if err := i.region.sendMessageToSQSQueue(i.InstanceId); err != nil {
 		return err
 	}
+	/*
+		asgName := i.getReplacementTargetASGName()
+		asg := i.region.findEnabledASGByName(*asgName)
 
-	if hasHooks {
-		logger.Printf("%s ASG %s has instance launch lifecycle hooks, skipping "+
-			"instance %s until it attempts to continue the lifecycle hook itself",
-			i.region.name, *asgName, *i.InstanceId)
-		return nil
-	}
+		if asg == nil {
+			logger.Printf("Missing ASG data for region %s", i.region.name)
+			return fmt.Errorf("region %s is missing asg data", i.region.name)
+		}
 
-	if _, err := i.swapWithGroupMember(asg); err != nil {
-		logger.Printf("%s, couldn't perform spot replacement of %s ",
+		logger.Printf("%s Found instance %s is not yet attached to its ASG, "+
+			"attempting to swap it against a running on-demand instance",
 			i.region.name, *i.InstanceId)
-		return err
-	}
 
+		hasHooks, err := asg.hasLaunchLifecycleHooks()
+
+		if err != nil {
+			logger.Printf("%s ASG %s - couldn't describe Lifecycle Hooks",
+				i.region.name, *asgName)
+			return err
+		}
+
+		if hasHooks {
+			logger.Printf("%s ASG %s has instance launch lifecycle hooks, skipping "+
+				"instance %s until it attempts to continue the lifecycle hook itself",
+				i.region.name, *asgName, *i.InstanceId)
+			return nil
+		}
+
+		if _, err := i.swapWithGroupMember(asg); err != nil {
+			logger.Printf("%s, couldn't perform spot replacement of %s ",
+				i.region.name, *i.InstanceId)
+			return err
+		}
+	*/
 	return nil
 }

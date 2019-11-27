@@ -67,6 +67,7 @@ func init() {
 		SleepMultiplier: 1,
 		Version:         Version,
 		LicenseType:     os.Getenv("LICENSE"),
+		SQSQueueSpot:    os.Getenv("SQSQUEUE_SPOT_INSTANCES"),
 	}
 	parseCommandLineFlags()
 

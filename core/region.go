@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
 // Tag represents an Asg Tag: Key, Value
@@ -340,6 +341,20 @@ func getTagValueFromASGWithMatchingTag(asg *autoscaling.Group, tagToMatch Tag) *
 		if tagsMatch(asgTag, tagToMatch) {
 			return asgTag.Value
 		}
+	}
+	return nil
+}
+
+func (r *region) sendMessageToSQSQueue(InstaceId *string) error {
+	_, err := r.services.sqs.SendMessage(
+		&sqs.SendMessageInput{
+			QueueUrl:    aws.String(r.conf.SQSQueueSpot),
+			MessageBody: aws.String(*InstaceId),
+		})
+
+	if err != nil {
+		logger.Println("Failed to send message for spot instance %v: %v",
+			*InstaceId, err.Error())
 	}
 	return nil
 }

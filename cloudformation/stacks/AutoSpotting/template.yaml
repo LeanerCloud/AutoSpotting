@@ -579,6 +579,8 @@
               Ref: "TerminationNotificationAction"
             PATCH_BEANSTALK_USERDATA:
               Ref: "PatchBeanstalkUserdata"
+            SQSQUEUE_SPOT_INSTANCES:
+              Ref: "SQSQueueSpotInstances"
         Handler:
           Ref: "LambdaHandlerFunction"
         MemorySize:
@@ -763,6 +765,9 @@
                 - "Arn"
             Id: "AutoSpottingEventGenerator"
       Type: "AWS::Events::Rule"
+    SQSQueueSpotInstances:
+      Condition: "StackIsMain"
+      Type: AWS::SQS::Queue
     RegionalStackCreationLambdaFunction:
       Condition: "StackSetsFalse"
       Type: AWS::Lambda::Function

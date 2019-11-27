@@ -12,6 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 )
 
 type connections struct {
@@ -19,6 +21,7 @@ type connections struct {
 	autoScaling    autoscalingiface.AutoScalingAPI
 	ec2            ec2iface.EC2API
 	cloudFormation cloudformationiface.CloudFormationAPI
+	sqs            sqsiface.SQSAPI
 	region         string
 }
 
@@ -38,12 +41,14 @@ func (c *connections) connect(region string) {
 	asConn := make(chan *autoscaling.AutoScaling)
 	ec2Conn := make(chan *ec2.EC2)
 	cloudformationConn := make(chan *cloudformation.CloudFormation)
+	sqsConn := make(chan *sqs.SQS)
 
 	go func() { asConn <- autoscaling.New(c.session) }()
 	go func() { ec2Conn <- ec2.New(c.session) }()
 	go func() { cloudformationConn <- cloudformation.New(c.session) }()
+	go func() { sqsConn <- sqs.New(c.session) }()
 
-	c.autoScaling, c.ec2, c.cloudFormation, c.region = <-asConn, <-ec2Conn, <-cloudformationConn, region
+	c.autoScaling, c.ec2, c.cloudFormation, c.sqs, c.region = <-asConn, <-ec2Conn, <-cloudformationConn, <-sqsConn, region
 
 	debug.Println("Created service connections in", region)
 }
