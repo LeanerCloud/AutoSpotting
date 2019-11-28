@@ -401,11 +401,11 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r region, i *instance) error 
 		return nil
 	}
 
-	if err := i.region.sendMessageToSQSQueue(i.InstanceId); err != nil {
+	if err := i.region.sendMessageToSQSQueue(i.InstanceId, i.region.name); err != nil {
 		return err
 	}
 
-        logger.Println("%s Sent message to SQSQueue for spot instance %v:",
+        logger.Printf("%s Sent message to SQSQueue for spot instance %s:",
 		i.region.name, *i.InstanceId)
 
 	/*

@@ -2,6 +2,7 @@ package autospotting
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -47,6 +48,8 @@ type prices struct {
 // The key in this map is the availavility zone
 type spotPriceMap map[string]float64
 
+type sqsMap map[string][]string
+
 func (r *region) enabled() bool {
 
 	var enabledRegions []string
@@ -85,6 +88,16 @@ func (r *region) processRegion() {
 	// only process further the region if there are any enabled autoscaling groups
 	// within it
 	if r.hasEnabledAutoScalingGroups() {
+		if sqsMap, err := r.getMessageFromSQSQueue(); err != nil {
+			logger.Println("Failed to get message from SQSQueue: %v",
+				err.Error())
+		} else if instances, ok := sqsMap[r.name]; ok {
+			for _, i := range instances {
+				logger.Println("Instance from sqs %v",
+					i)
+			}
+		}
+		return
 
 		logger.Println("Scanning full instance information in", r.name)
 		r.determineInstanceTypeInformation(r.conf)
@@ -345,11 +358,12 @@ func getTagValueFromASGWithMatchingTag(asg *autoscaling.Group, tagToMatch Tag) *
 	return nil
 }
 
-func (r *region) sendMessageToSQSQueue(InstaceId *string) error {
+func (r *region) sendMessageToSQSQueue(InstaceId *string, region string) error {
 	_, err := r.services.sqs.SendMessage(
 		&sqs.SendMessageInput{
-			QueueUrl:    aws.String(r.conf.SQSQueueSpot),
-			MessageBody: aws.String(*InstaceId),
+			QueueUrl: aws.String(r.conf.SQSQueueSpot),
+			MessageBody: aws.String(fmt.Sprintf("%s %s",
+				region, *InstaceId)),
 		})
 
 	if err != nil {
@@ -358,6 +372,28 @@ func (r *region) sendMessageToSQSQueue(InstaceId *string) error {
 		return err
 	}
 	return nil
+}
+
+func (r *region) getMessageFromSQSQueue() (sqsMap, error) {
+	var m sqsMap
+	resp, err := r.services.sqs.ReceiveMessage(
+		&sqs.ReceiveMessageInput{
+			QueueUrl: aws.String(r.conf.SQSQueueSpot),
+		})
+
+	if err != nil {
+		return m, err
+	}
+
+	msgs := resp.Messages
+	for _, e := range msgs {
+		msg := *e.Body
+		region := strings.Fields(msg)[0]
+		instanceId := strings.Fields(msg)[1]
+		m[region] = append(m[region], instanceId)
+	}
+
+	return m, nil
 }
 
 func (r *region) isStackUpdating(stackName *string) (string, bool) {
