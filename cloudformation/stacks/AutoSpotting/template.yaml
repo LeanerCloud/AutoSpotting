@@ -640,6 +640,7 @@
                 - "sqs:SendMessage*"
                 - "sqs:DeleteMessage*"
                 - "sqs:ReceiveMessage"
+                - "sqs:PurgeQueue"
                 - "sqs:ChangeMessageVisibility*"
               Effect: "Allow"
               Resource: !GetAtt SQSQueueSpotInstances.Arn 

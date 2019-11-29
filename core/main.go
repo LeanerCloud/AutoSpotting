@@ -15,6 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	ec2instancesinfo "github.com/cristim/ec2-instances-info"
 )
 
@@ -27,7 +29,14 @@ type AutoSpotting struct {
 	hourlySavings float64
 	savingsMutex  *sync.RWMutex
 	mainEC2Conn   ec2iface.EC2API
+	mainSQSConn   sqsiface.SQSAPI
 }
+
+type sqsMessage struct {
+	region, asgName string
+}
+
+type sqsMap map[sqsMessage][]string
 
 var as *AutoSpotting
 
@@ -44,6 +53,8 @@ func (a *AutoSpotting) Init(cfg *Config) {
 	a.config.setupLogging()
 	// use this only to list all the other regions
 	a.mainEC2Conn = connectEC2(a.config.MainRegion)
+	// need this to acces SQS messages before begin processing regions
+	a.mainSQSConn = connectSQS(a.config.MainRegion)
 	as = a
 }
 
@@ -103,6 +114,37 @@ func (cfg *Config) setupLogging() {
 
 }
 
+func (a *AutoSpotting) getMessageFromSQSQueue() (sqsMap, error) {
+	m := make(sqsMap)
+	resp, err := a.mainSQSConn.ReceiveMessage(
+		&sqs.ReceiveMessageInput{
+			QueueUrl: aws.String(a.config.SQSQueueSpot),
+		})
+
+	if err != nil {
+		return m, err
+	}
+
+	msgs := resp.Messages
+	for _, e := range msgs {
+		msg := *e.Body
+		region := strings.Fields(msg)[0]
+		asgName := strings.Fields(msg)[1]
+		instanceId := strings.Fields(msg)[2]
+		m[sqsMessage{region, asgName}] = append(m[sqsMessage{region, asgName}], instanceId)
+	}
+	_, err = a.mainSQSConn.PurgeQueue(
+		&sqs.PurgeQueueInput{
+			QueueUrl: aws.String(a.config.SQSQueueSpot),
+		})
+	if err != nil {
+		logger.Printf("Failed to purge queue %v: %v",
+			a.config.SQSQueueSpot, err.Error())
+	}
+
+	return m, nil
+}
+
 // processAllRegions iterates all regions in parallel, and replaces instances
 // for each of the ASGs tagged with tags as specified by slice represented by cfg.FilterByTags
 // by default this is all asg with the tag 'spot-enabled=true'.
@@ -120,6 +162,14 @@ func (a *AutoSpotting) processRegions(regions []string) {
 
 			if r.enabled() {
 				logger.Printf("Enabled to run in %s, processing region.\n", r.name)
+				logger.Printf("Retrieving messages from SQSQueue %v",
+					r.conf.SQSQueueSpot)
+				sqsMap, err := a.getMessageFromSQSQueue()
+				if err != nil {
+					logger.Printf("Failed to get message from SQSQueue: %v",
+						err.Error())
+				}
+				r.sqsRegionAsgMap = sqsMap
 				r.processRegion()
 			} else {
 				debug.Println("Not enabled to run in", r.name)
@@ -140,6 +190,17 @@ func connectEC2(region string) *ec2.EC2 {
 	}
 
 	return ec2.New(sess,
+		aws.NewConfig().WithRegion(region))
+}
+
+func connectSQS(region string) *sqs.SQS {
+
+	sess, err := session.NewSession()
+	if err != nil {
+		panic(err)
+	}
+
+	return sqs.New(sess,
 		aws.NewConfig().WithRegion(region))
 }
 
@@ -401,12 +462,14 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r region, i *instance) error 
 		return nil
 	}
 
-	if err := i.region.sendMessageToSQSQueue(i.InstanceId, i.region.name); err != nil {
+	asgName := i.getReplacementTargetASGName()
+
+	if err := i.region.sendMessageToSQSQueue(i.InstanceId, asgName, i.region.name); err != nil {
 		return err
 	}
 
-        logger.Printf("%s Sent message to SQSQueue for spot instance %s:",
-		i.region.name, *i.InstanceId)
+	logger.Printf("%s Sent message to SQSQueue %s for spot instance %s belonging to ASG %s",
+		i.region.name, r.conf.SQSQueueSpot, *i.InstanceId, *asgName)
 
 	/*
 		asgName := i.getReplacementTargetASGName()

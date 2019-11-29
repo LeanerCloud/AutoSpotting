@@ -144,6 +144,13 @@ func (a *autoScalingGroup) cronEventAction() runer {
 	a.loadDefaultConfig()
 	a.loadConfigFromTags()
 
+	logger.Println("Looking for spot instances in Queue created for ASG", a.name)
+	for _, i := range a.region.sqsRegionAsgMap[sqsMessage{a.region.name, a.name}] {
+		logger.Printf("%v Found spot instance %v in Queue created for ASG %v",
+			a.region.name, i, a.name)
+		a.handleSpotInstanceFromQueue(i)
+	}
+
 	logger.Println("Finding spot instances created for", a.name)
 
 	spotInstance := a.findUnattachedInstanceLaunchedForThisASG()
@@ -539,7 +546,7 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64) error {
 		})
 
 	if err != nil || len(resp.AutoScalingGroups) == 0 {
-		logger.Println("Unable to describe ASG %v: %v",
+		logger.Printf("Unable to describe ASG %v: %v",
 			a.name, err.Error())
 		return err
 	}
@@ -555,7 +562,7 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64) error {
 	if err != nil {
 		// Print the error, cast err to awserr.Error to get the Code and
 		// Message from an error.
-		logger.Println("Unable to update ASG %v MaxSize: %v",
+		logger.Printf("Unable to update ASG %v MaxSize: %v",
 			a.name, err.Error())
 		return err
 	}
@@ -819,4 +826,30 @@ func (a *autoScalingGroup) isTerminationSuspended() bool {
 		}
 	}
 	return false
+}
+
+func (a *autoScalingGroup) handleSpotInstanceFromQueue(instanceID string) error {
+	i := a.region.instances.get(instanceID)
+
+        hasHooks, err := a.hasLaunchLifecycleHooks()
+
+        if err != nil {
+                logger.Printf("%s ASG %s - couldn't describe Lifecycle Hooks",
+                        a.region.name, a.name)
+                return err
+        }
+
+        if hasHooks {
+                logger.Printf("%s ASG %s has instance launch lifecycle hooks, skipping "+
+                        "instance %s until it attempts to continue the lifecycle hook itself",
+                        a.region.name, a.name, *i.InstanceId)
+                return nil
+        }
+
+        if _, err := i.swapWithGroupMember(a); err != nil {
+                logger.Printf("%s, couldn't perform spot replacement of %s ",
+                        a.region.name, *i.InstanceId)
+                return err
+        }
+        return nil
 }
