@@ -116,9 +116,11 @@ func (cfg *Config) setupLogging() {
 
 func (a *AutoSpotting) getMessageFromSQSQueue() (sqsMap, error) {
 	m := make(sqsMap)
+	maxMessages := int64(10)
 	resp, err := a.mainSQSConn.ReceiveMessage(
 		&sqs.ReceiveMessageInput{
 			QueueUrl: aws.String(a.config.SQSQueueSpot),
+			MaxNumberOfMessages: &maxMessages,
 		})
 
 	if err != nil {
@@ -132,14 +134,16 @@ func (a *AutoSpotting) getMessageFromSQSQueue() (sqsMap, error) {
 		asgName := strings.Fields(msg)[1]
 		instanceId := strings.Fields(msg)[2]
 		m[sqsMessage{region, asgName}] = append(m[sqsMessage{region, asgName}], instanceId)
-	}
-	_, err = a.mainSQSConn.PurgeQueue(
-		&sqs.PurgeQueueInput{
-			QueueUrl: aws.String(a.config.SQSQueueSpot),
-		})
-	if err != nil {
-		logger.Printf("Failed to purge queue %v: %v",
-			a.config.SQSQueueSpot, err.Error())
+
+		_, err = a.mainSQSConn.DeleteMessage(
+			&sqs.DeleteMessageInput{
+				QueueUrl: aws.String(a.config.SQSQueueSpot),
+				ReceiptHandle: e.ReceiptHandle,
+			})
+		if err != nil {
+			logger.Printf("Failed to delete message %v from queue %v: %v",
+				*e.ReceiptHandle, a.config.SQSQueueSpot, err.Error())
+		}
 	}
 
 	return m, nil
