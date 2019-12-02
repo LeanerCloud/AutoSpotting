@@ -821,11 +821,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 	defer waiter.Wait()
 	go asg.temporarilySuspendTerminations(&waiter)
 
-	if err := asg.waitForInstanceStatus(odInstanceID, "InService", 5); err != nil {
-		logger.Printf("OnDemand instance %v not InService",
-			*odInstanceID)
-	}
-
 	if *asg.DesiredCapacity == *asg.MaxSize {
 		logger.Println(asg.name, "Temporarily increasing MaxSize")
 		if err := asg.changeAutoScalingMaxSize(1); err != nil {
@@ -858,12 +853,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 			}
 
 		}
-	}
-
-	if err := asg.waitForInstanceStatus(i.InstanceId, "InService", 5); err != nil {
-		logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
-			*i.InstanceId, asg.name)
-		i.terminate()
 	}
 
 	logger.Printf("Terminating on-demand instance %s from the group %s",

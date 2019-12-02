@@ -332,6 +332,12 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 		spotInst.terminate()
 		return errors.New("couldn't find ondemand instance to replace")
 	}
+
+        if err := a.waitForInstanceStatus(odInstanceID, "InService", 5); err != nil {
+                logger.Printf("OnDemand instance %v not InService",
+                        *odInstanceID)
+        }
+
 	logger.Println(a.name, "found on-demand instance", *odInstanceID,
 		"replacing with new spot instance", *spotInst.InstanceId)
 	// revert attach/detach order when running on minimum capacity
@@ -607,6 +613,12 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		return err
 	}
 
+        if err := a.waitForInstanceStatus(&spotInstanceID, "InService", 5); err != nil {
+                logger.Printf("Spot instance %s couldn't be attached to the group %s: %v",
+                        spotInstanceID, a.name, err.Error())
+                return err
+        }
+
 	return nil
 }
 
@@ -667,6 +679,11 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 		if err != nil {
 			logger.Printf("Issue while waiting for instance %v to start: %v",
 				instanceID, err.Error())
+		}
+
+		if err = a.waitForInstanceStatus(instanceID, "InService", 5); err != nil {
+			logger.Printf("OnDemand instance %v is still not InService, trying to terminate it anyway.",
+				*instanceID)
 		}
 	}
 
@@ -829,8 +846,6 @@ func (a *autoScalingGroup) isTerminationSuspended() bool {
 }
 
 func (a *autoScalingGroup) handleSpotInstanceFromQueue(instanceID string) error {
-	i := a.region.instances.get(instanceID)
-
         hasHooks, err := a.hasLaunchLifecycleHooks()
 
         if err != nil {
@@ -842,13 +857,13 @@ func (a *autoScalingGroup) handleSpotInstanceFromQueue(instanceID string) error 
         if hasHooks {
                 logger.Printf("%s ASG %s has instance launch lifecycle hooks, skipping "+
                         "instance %s until it attempts to continue the lifecycle hook itself",
-                        a.region.name, a.name, *i.InstanceId)
+                        a.region.name, a.name, instanceID)
                 return nil
         }
 
-        if _, err := i.swapWithGroupMember(a); err != nil {
+        if err := a.replaceOnDemandInstanceWithSpot(nil, instanceID); err != nil {
                 logger.Printf("%s, couldn't perform spot replacement of %s ",
-                        a.region.name, *i.InstanceId)
+                        a.region.name, instanceID)
                 return err
         }
         return nil

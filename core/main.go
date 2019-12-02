@@ -117,10 +117,12 @@ func (cfg *Config) setupLogging() {
 func (a *AutoSpotting) getMessageFromSQSQueue() (sqsMap, error) {
 	m := make(sqsMap)
 	maxMessages := int64(10)
+	waitTimeSeconds := int64(5)
 	resp, err := a.mainSQSConn.ReceiveMessage(
 		&sqs.ReceiveMessageInput{
 			QueueUrl: aws.String(a.config.SQSQueueSpot),
 			MaxNumberOfMessages: &maxMessages,
+			WaitTimeSeconds: &waitTimeSeconds,
 		})
 
 	if err != nil {
