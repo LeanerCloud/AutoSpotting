@@ -155,6 +155,13 @@ func (a *AutoSpotting) getMessageFromSQSQueue() (sqsMap, error) {
 // for each of the ASGs tagged with tags as specified by slice represented by cfg.FilterByTags
 // by default this is all asg with the tag 'spot-enabled=true'.
 func (a *AutoSpotting) processRegions(regions []string) {
+	logger.Printf("Retrieving messages from SQSQueue %v",
+		a.config.SQSQueueSpot)
+	sqsMap, err := a.getMessageFromSQSQueue()
+	if err != nil {
+		logger.Printf("Failed to get message from SQSQueue: %v",
+			err.Error())
+	}
 
 	var wg sync.WaitGroup
 
@@ -162,20 +169,12 @@ func (a *AutoSpotting) processRegions(regions []string) {
 
 		wg.Add(1)
 
-		r := region{name: r, conf: a.config}
+		r := region{name: r, conf: a.config, sqsRegionAsgMap: sqsMap}
 
 		go func() {
 
 			if r.enabled() {
 				logger.Printf("Enabled to run in %s, processing region.\n", r.name)
-				logger.Printf("Retrieving messages from SQSQueue %v",
-					r.conf.SQSQueueSpot)
-				sqsMap, err := a.getMessageFromSQSQueue()
-				if err != nil {
-					logger.Printf("Failed to get message from SQSQueue: %v",
-						err.Error())
-				}
-				r.sqsRegionAsgMap = sqsMap
 				r.processRegion()
 			} else {
 				debug.Println("Not enabled to run in", r.name)
