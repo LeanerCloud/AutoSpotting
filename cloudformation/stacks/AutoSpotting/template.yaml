@@ -579,8 +579,8 @@
               Ref: "TerminationNotificationAction"
             PATCH_BEANSTALK_USERDATA:
               Ref: "PatchBeanstalkUserdata"
-            SQSQUEUE_SPOT_INSTANCES:
-              Ref: "SQSQueueSpotInstances"
+            LAMBDA_MANAGE_ASG:
+              Ref: "LambdaManageASG"
         Handler:
           Ref: "LambdaHandlerFunction"
         MemorySize:
@@ -636,21 +636,88 @@
               Effect: "Allow"
               Resource: "*"
             -
-              Action:
-                - "sqs:SendMessage*"
-                - "sqs:DeleteMessage*"
-                - "sqs:ReceiveMessage"
-                - "sqs:PurgeQueue"
-                - "sqs:ChangeMessageVisibility*"
+              Action: "lambda:InvokeFunction"
               Effect: "Allow"
-              Resource: !GetAtt SQSQueueSpotInstances.Arn 
+              Resource: !GetAtt LambdaManageASG.Arn
         PolicyName: "LambdaPolicy"
         Roles:
           -
             Ref: "LambdaExecutionRole"
       Type: "AWS::IAM::Policy"
+    LambdaManageASG:
+      Condition: "StackIsMain"
+      Properties:
+        Description: "Invoked synchronously by the main Lambda to change ASG MaxSize if attachinstances method fail"
+        Handler: "index.handler"
+        Runtime: "python3.8"
+        Timeout: "120"
+        ReservedConcurrentExecutions: 1
+        Role: !GetAtt LambdaManageASGExecutionRole.Arn
+        Code:
+          ZipFile: |
+            import logging
+            from boto3 import client
+
+            def handler(event, context):
+                region = event['region']
+                asg = event['asg']
+                variation = event['variation']
+
+                svc = client('autoscaling', region_name=event['region'])
+                try:
+                    response = svc.describe_auto_scaling_groups(
+                        AutoScalingGroupNames=[event['asg']],
+                    )
+                    
+                if not response['AutoScalingGroups']:
+                    raise Exception(f'AutoScalingGroup {asg} not found!')
+                except Exception as e:
+                    logging.error(f'Failed to describe {asg}: {e}')
+                    return False
+
+                currentSize = response['AutoScalingGroups'][0]['MaxSize']
+                newSize = int(currentSize) + int(variation)
+            
+                try:
+                    response = svc.update_auto_scaling_group(
+                        AutoScalingGroupName=asg,
+                        MaxSize=newSize,
+                    )
+                except Exception as e:
+                    logging.error(f'Failed to change AutoScalingGroup {asg} MaxSize to {newSize}: {e}')
+                    return False
+            
+                return True
     # This allows the creation and deletion of the regional CloudFormation templates
     # and it used by the secondary Lambda function, backing the custom resource
+    LambdaManageASGExecutionRole:
+      Condition: "StackIsMain"
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            - 
+              Action: "sts:AssumeRole"
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - "lambda.amazonaws.com"
+        Path: "/lambda/"
+      Type: "AWS::IAM::Role"
+    LambdaManageASGPolicy:
+      Condition: "StackIsMain"
+      Properties:
+        PolicyDocument:
+          Statement:
+            -
+              Action:
+                - "autoscaling:DescribeAutoScalingGroups"
+                - "autoscaling:UpdateAutoScalingGroup"
+              Effect: "Allow"
+              Resource: "*"
+        PolicyName: "LambdaManageASGPolicy"
+        Roles:
+          -
+            Ref: "LambdaManageASGExecutionRole"
     LambdaRegionalStackPolicy:
       Condition: "StackSetsFalse"
       Properties:
@@ -774,9 +841,6 @@
                 - "Arn"
             Id: "AutoSpottingEventGenerator"
       Type: "AWS::Events::Rule"
-    SQSQueueSpotInstances:
-      Condition: "StackIsMain"
-      Type: AWS::SQS::Queue
     RegionalStackCreationLambdaFunction:
       Condition: "StackSetsFalse"
       Type: AWS::Lambda::Function

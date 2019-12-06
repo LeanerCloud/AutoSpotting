@@ -821,6 +821,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 	defer waiter.Wait()
 	go asg.temporarilySuspendTerminations(&waiter)
 
+	/*
 	if *asg.DesiredCapacity == *asg.MaxSize {
 		logger.Println(asg.name, "Temporarily increasing MaxSize")
 		if err := asg.changeAutoScalingMaxSize(1); err != nil {
@@ -829,31 +830,19 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 			return nil, fmt.Errorf("couldn't increase ASG %s", asg.name)
 		}
 	}
+	*/
 
-	logger.Printf("Attaching spot instance %s to the group %s",
-		*i.InstanceId, asg.name)
+        logger.Printf("Attaching spot instance %s to the group %s",
+                *i.InstanceId, asg.name)
+        retry, err := asg.attachSpotInstance(*i.InstanceId, true)
+	defer asg.changeAutoScalingMaxSize(int64(-1 * retry))
 
-	attaching := false
-
-	for retry, maxRetry := 1, 3; attaching == false; retry++ {
-		if retry > maxRetry {
-			logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
-				*i.InstanceId, asg.name)
-			i.terminate()
-			asg.changeAutoScalingMaxSize(int64(-1 * retry))
-			return nil, fmt.Errorf("couldn't attach spot instance %s ", *i.InstanceId)
-		} else {
-			if err := asg.attachSpotInstance(*i.InstanceId, true); err != nil {
-				logger.Printf("Error attaching instance %v to group %s - retrying increasing MaxSize: %v",
-					*i.InstanceId, asg.name, err.Error())
-				asg.changeAutoScalingMaxSize(1)
-			} else {
-				defer asg.changeAutoScalingMaxSize(int64(-1 * retry))
-				attaching = true
-			}
-
-		}
-	}
+	if err != nil {
+                logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
+                        *i.InstanceId, asg.name)
+                i.terminate()
+                return nil, fmt.Errorf("couldn't attach spot instance %s ", *i.InstanceId)
+        }
 
 	logger.Printf("Terminating on-demand instance %s from the group %s",
 		*odInstanceID, asg.name)

@@ -2,7 +2,6 @@ package autospotting
 
 import (
 	"errors"
-	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
 // Tag represents an Asg Tag: Key, Value
@@ -37,8 +35,6 @@ type region struct {
 	tagsToFilterASGsBy []Tag
 
 	wg sync.WaitGroup
-
-	sqsRegionAsgMap sqsMap
 }
 
 type prices struct {
@@ -343,22 +339,6 @@ func getTagValueFromASGWithMatchingTag(asg *autoscaling.Group, tagToMatch Tag) *
 		if tagsMatch(asgTag, tagToMatch) {
 			return asgTag.Value
 		}
-	}
-	return nil
-}
-
-func (r *region) sendMessageToSQSQueue(InstaceId *string, asgName *string, region string) error {
-	_, err := r.services.sqs.SendMessage(
-		&sqs.SendMessageInput{
-			QueueUrl: aws.String(r.conf.SQSQueueSpot),
-			MessageBody: aws.String(fmt.Sprintf("%s %s %s",
-				region, *asgName, *InstaceId)),
-		})
-
-	if err != nil {
-		logger.Printf("Failed to send message to SQSQueue %v for spot instance %v: %v",
-			r.conf.SQSQueueSpot, *InstaceId, err.Error())
-		return err
 	}
 	return nil
 }

@@ -85,6 +85,6 @@ type Config struct {
 	// authentication method
 	PatchBeanstalkUserdata string
 
-	// SQSQueue Url to post message of launched spot instances
-	SQSQueueSpot string
+	// Lambda to use for Managing ASG
+	LambdaManageASG string
 }

@@ -1,6 +1,7 @@
 package autospotting
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,8 +9,10 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/lambda"
 )
 
 type autoScalingGroup struct {
@@ -143,13 +146,6 @@ func (a *autoScalingGroup) cronEventAction() runer {
 	a.scanInstances()
 	a.loadDefaultConfig()
 	a.loadConfigFromTags()
-
-	logger.Println("Looking for spot instances in Queue created for ASG", a.name)
-	for _, i := range a.region.sqsRegionAsgMap[sqsMessage{a.region.name, a.name}] {
-		logger.Printf("%v Found spot instance %v in Queue created for ASG %v",
-			a.region.name, i, a.name)
-		a.handleSpotInstanceFromQueue(i)
-	}
 
 	logger.Println("Finding spot instances created for", a.name)
 
@@ -333,16 +329,16 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 		return errors.New("couldn't find ondemand instance to replace")
 	}
 
-        if err := a.waitForInstanceStatus(odInstanceID, "InService", 5); err != nil {
-                logger.Printf("OnDemand instance %v not InService",
-                        *odInstanceID)
-        }
+	if err := a.waitForInstanceStatus(odInstanceID, "InService", 5); err != nil {
+		logger.Printf("OnDemand instance %v not InService",
+			*odInstanceID)
+	}
 
 	logger.Println(a.name, "found on-demand instance", *odInstanceID,
 		"replacing with new spot instance", *spotInst.InstanceId)
 	// revert attach/detach order when running on minimum capacity
 	if *a.DesiredCapacity == *a.MinSize {
-		attachErr := a.attachSpotInstance(spotInstanceID, true)
+		_, attachErr := a.attachSpotInstance(spotInstanceID, true)
 		if attachErr != nil {
 			logger.Println(a.name, "skipping detaching on-demand due to failure to",
 				"attach the new spot instance", *spotInst.InstanceId)
@@ -544,38 +540,42 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 }
 
 func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64) error {
-	svc := a.region.services.autoScaling
+	payload, _ := json.Marshal(map[string]interface{}{
+		"region":    a.region.name,
+		"asg":       a.name,
+		"variation": value,
+	})
 
-	resp, err := svc.DescribeAutoScalingGroups(
-		&autoscaling.DescribeAutoScalingGroupsInput{
-			AutoScalingGroupNames: []*string{aws.String(a.name)},
-		})
+	changed := false
+	svc := a.region.services.lambda
 
-	if err != nil || len(resp.AutoScalingGroups) == 0 {
-		logger.Printf("Unable to describe ASG %v: %v",
-			a.name, err.Error())
-		return err
+	for retry, maxRetry := 0, 5; changed == false; {
+		if retry > maxRetry {
+			return fmt.Errorf("Unable to update ASG %v MaxSize", a.name)
+		} else {
+			_, err := svc.Invoke(
+				&lambda.InvokeInput{
+					FunctionName: &a.region.conf.LambdaManageASG,
+					Payload:      payload,
+				})
+
+			awsErr, _ := err.(awserr.Error)
+
+			if awsErr.Code() == "ErrCodeTooManyRequestsException" {
+				time.Sleep(time.Duration(1*retry) * time.Second)
+				continue
+			} else if err != nil {
+				retry++
+			} else {
+				changed = true
+			}
+		}
 	}
 
-	newMax := *resp.AutoScalingGroups[0].MaxSize + value
-
-	_, err = svc.UpdateAutoScalingGroup(
-		&autoscaling.UpdateAutoScalingGroupInput{
-			AutoScalingGroupName: aws.String(a.name),
-			MaxSize:              aws.Int64(newMax),
-		})
-
-	if err != nil {
-		// Print the error, cast err to awserr.Error to get the Code and
-		// Message from an error.
-		logger.Printf("Unable to update ASG %v MaxSize: %v",
-			a.name, err.Error())
-		return err
-	}
 	return nil
 }
 
-func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) error {
+func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) (int, error) {
 	if wait {
 		err := a.region.services.ec2.WaitUntilInstanceRunning(
 			&ec2.DescribeInstancesInput{
@@ -589,37 +589,48 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 
 	}
 
-	// temporarily increase AutoScaling group in case it's of static size
-	if *a.DesiredCapacity == *a.MaxSize {
-		logger.Println(a.name, "Temporarily increasing MaxSize")
-		//a.setAutoScalingMaxSize(*a.MaxSize + 1)
-		//defer a.setAutoScalingMaxSize(*a.MaxSize)
-		a.changeAutoScalingMaxSize(1)
-		defer a.changeAutoScalingMaxSize(-1)
+	attaching := false
+	increase := 0
+
+	for retry, maxRetry := 0, 5; attaching == false; {
+		if retry > maxRetry {
+			logger.Printf("Spot instance %s couldn't be attached to the group %s",
+				spotInstanceID, a.name)
+			return increase, fmt.Errorf("couldn't attach spot instance %s ", spotInstanceID)
+		} else {
+			resp, err := a.region.services.autoScaling.AttachInstances(
+				&autoscaling.AttachInstancesInput{
+					AutoScalingGroupName: aws.String(a.name),
+					InstanceIds: []*string{
+						&spotInstanceID,
+					},
+				},
+			)
+			awsErr, _ := err.(awserr.Error)
+			if strings.Contains(awsErr.Message(), "please update the AutoScalingGroup sizes appropriately") {
+				if err := a.changeAutoScalingMaxSize(1); err != nil {
+					return increase, err
+				} else {
+					increase++
+				}
+			} else if err != nil {
+				logger.Println(err.Error())
+				logger.Println(awsErr.Message())
+				logger.Println(resp)
+				retry++
+			} else {
+				attaching = true
+			}
+		}
 	}
 
-	resp, err := a.region.services.autoScaling.AttachInstances(
-		&autoscaling.AttachInstancesInput{
-			AutoScalingGroupName: aws.String(a.name),
-			InstanceIds: []*string{
-				&spotInstanceID,
-			},
-		})
-
-	if err != nil {
-		logger.Println(err.Error())
-		// Pretty-print the response data.
-		logger.Println(resp)
-		return err
+	if err := a.waitForInstanceStatus(&spotInstanceID, "InService", 5); err != nil {
+		logger.Printf("Spot instance %s couldn't be attached to the group %s: %v",
+			spotInstanceID, a.name, err.Error())
+		return increase, err
 	}
 
-        if err := a.waitForInstanceStatus(&spotInstanceID, "InService", 5); err != nil {
-                logger.Printf("Spot instance %s couldn't be attached to the group %s: %v",
-                        spotInstanceID, a.name, err.Error())
-                return err
-        }
-
-	return nil
+	return increase, nil
 }
 
 // Terminates an on-demand instance from the group,
@@ -846,25 +857,25 @@ func (a *autoScalingGroup) isTerminationSuspended() bool {
 }
 
 func (a *autoScalingGroup) handleSpotInstanceFromQueue(instanceID string) error {
-        hasHooks, err := a.hasLaunchLifecycleHooks()
+	hasHooks, err := a.hasLaunchLifecycleHooks()
 
-        if err != nil {
-                logger.Printf("%s ASG %s - couldn't describe Lifecycle Hooks",
-                        a.region.name, a.name)
-                return err
-        }
+	if err != nil {
+		logger.Printf("%s ASG %s - couldn't describe Lifecycle Hooks",
+			a.region.name, a.name)
+		return err
+	}
 
-        if hasHooks {
-                logger.Printf("%s ASG %s has instance launch lifecycle hooks, skipping "+
-                        "instance %s until it attempts to continue the lifecycle hook itself",
-                        a.region.name, a.name, instanceID)
-                return nil
-        }
+	if hasHooks {
+		logger.Printf("%s ASG %s has instance launch lifecycle hooks, skipping "+
+			"instance %s until it attempts to continue the lifecycle hook itself",
+			a.region.name, a.name, instanceID)
+		return nil
+	}
 
-        if err := a.replaceOnDemandInstanceWithSpot(nil, instanceID); err != nil {
-                logger.Printf("%s, couldn't perform spot replacement of %s ",
-                        a.region.name, instanceID)
-                return err
-        }
-        return nil
+	if err := a.replaceOnDemandInstanceWithSpot(nil, instanceID); err != nil {
+		logger.Printf("%s, couldn't perform spot replacement of %s ",
+			a.region.name, instanceID)
+		return err
+	}
+	return nil
 }
