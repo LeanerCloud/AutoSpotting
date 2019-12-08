@@ -589,38 +589,31 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 
 	}
 
-	attaching := false
-	increase := 0
-
-	for retry, maxRetry := 0, 5; attaching == false; {
-		if retry > maxRetry {
-			logger.Printf("Spot instance %s couldn't be attached to the group %s",
-				spotInstanceID, a.name)
-			return increase, fmt.Errorf("couldn't attach spot instance %s ", spotInstanceID)
-		} else {
-			resp, err := a.region.services.autoScaling.AttachInstances(
-				&autoscaling.AttachInstancesInput{
-					AutoScalingGroupName: aws.String(a.name),
-					InstanceIds: []*string{
-						&spotInstanceID,
-					},
+	for increase, attaching := 0, false; attaching == false; increase++ {
+		resp, err := a.region.services.autoScaling.AttachInstances(
+			&autoscaling.AttachInstancesInput{
+				AutoScalingGroupName: aws.String(a.name),
+				InstanceIds: []*string{
+					&spotInstanceID,
 				},
-			)
-			awsErr, _ := err.(awserr.Error)
-			if strings.Contains(awsErr.Message(), "please update the AutoScalingGroup sizes appropriately") {
-				if err := a.changeAutoScalingMaxSize(1); err != nil {
-					return increase, err
-				} else {
-					increase++
-				}
-			} else if err != nil {
-				logger.Println(err.Error())
-				logger.Println(awsErr.Message())
-				logger.Println(resp)
-				retry++
+			},
+		)
+
+		awsErr, _ := err.(awserr.Error)
+
+		if strings.Contains(awsErr.Message(), "please update the AutoScalingGroup sizes appropriately") {
+			if err := a.changeAutoScalingMaxSize(1); err != nil {
+				return increase, err
 			} else {
-				attaching = true
+				increase++
 			}
+		} else if err != nil {
+			logger.Println(err.Error())
+			logger.Println(awsErr.Message())
+			logger.Println(resp)
+			return increase, err
+		} else {
+			attaching = true
 		}
 	}
 
