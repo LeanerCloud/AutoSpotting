@@ -645,11 +645,12 @@
             Ref: "LambdaExecutionRole"
       Type: "AWS::IAM::Policy"
     LambdaManageASG:
+      Type: "AWS::Lambda::Function"
       Condition: "StackIsMain"
       Properties:
         Description: "Invoked synchronously by the main Lambda to change ASG MaxSize if attachinstances method fail"
         Handler: "index.handler"
-        Runtime: "python3.8"
+        Runtime: "python3.7"
         Timeout: "120"
         ReservedConcurrentExecutions: 1
         Role: !GetAtt LambdaManageASGExecutionRole.Arn
@@ -657,6 +658,9 @@
           ZipFile: |
             import logging
             from boto3 import client
+
+            logger = logging.getLogger()
+            logger.setLevel(logging.INFO)
 
             def handler(event, context):
                 region = event['region']
@@ -669,10 +673,10 @@
                         AutoScalingGroupNames=[event['asg']],
                     )
                     
-                if not response['AutoScalingGroups']:
-                    raise Exception(f'AutoScalingGroup {asg} not found!')
+                    if not response['AutoScalingGroups']:
+                        raise Exception(f'AutoScalingGroup {asg} not found!')
                 except Exception as e:
-                    logging.error(f'Failed to describe {asg}: {e}')
+                    logger.error(f'Failed to describe {asg}: {e}')
                     return False
 
                 currentSize = response['AutoScalingGroups'][0]['MaxSize']
@@ -684,13 +688,15 @@
                         MaxSize=newSize,
                     )
                 except Exception as e:
-                    logging.error(f'Failed to change AutoScalingGroup {asg} MaxSize to {newSize}: {e}')
+                    logger.error(f'Failed to change AutoScalingGroup {asg} MaxSize to {newSize}: {e}')
                     return False
-            
+
+                logger.info(f'AutoScalingGroup {asg} MaxSize changed to {newSize}')
                 return True
     # This allows the creation and deletion of the regional CloudFormation templates
     # and it used by the secondary Lambda function, backing the custom resource
     LambdaManageASGExecutionRole:
+      Type: "AWS::IAM::Role"
       Condition: "StackIsMain"
       Properties:
         AssumeRolePolicyDocument:
@@ -704,6 +710,7 @@
         Path: "/lambda/"
       Type: "AWS::IAM::Role"
     LambdaManageASGPolicy:
+      Type: "AWS::IAM::Policy"
       Condition: "StackIsMain"
       Properties:
         PolicyDocument:

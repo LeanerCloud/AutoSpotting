@@ -834,8 +834,10 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 
         logger.Printf("Attaching spot instance %s to the group %s",
                 *i.InstanceId, asg.name)
-        retry, err := asg.attachSpotInstance(*i.InstanceId, true)
-	defer asg.changeAutoScalingMaxSize(int64(-1 * retry))
+        increase, err := asg.attachSpotInstance(*i.InstanceId, true)
+	if increase > 0 {
+		defer asg.changeAutoScalingMaxSize(int64(-1 * increase))
+	}
 
 	if err != nil {
                 logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",

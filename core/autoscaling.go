@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -549,23 +550,34 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64) error {
 	changed := false
 	svc := a.region.services.lambda
 
+	logger.Printf("Changing AutoScalingGroup %s MaxSize of %v unit",
+		a.name, value)
+
 	for retry, maxRetry := 0, 5; changed == false; {
 		if retry > maxRetry {
 			return fmt.Errorf("Unable to update ASG %v MaxSize", a.name)
 		} else {
 			_, err := svc.Invoke(
 				&lambda.InvokeInput{
-					FunctionName: &a.region.conf.LambdaManageASG,
+					FunctionName: aws.String(a.region.conf.LambdaManageASG),
 					Payload:      payload,
 				})
 
-			awsErr, _ := err.(awserr.Error)
+			if err != nil {
+				awsErr, _ := err.(awserr.Error)
+				if awsErr.Code() == "ErrCodeTooManyRequestsException" {
+					rand.Seed(time.Now().UnixNano())
+					sleepDuration := float64(retry) * float64(100) * rand.Float64()
+					sleepTime := time.Duration(sleepDuration) * time.Millisecond
+					time.Sleep(sleepTime)
+					logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
+					continue
+				} else {
+					logger.Printf("Error invoking LambdaManageASG retrying attempt %s on %s: %v", 
+						retry, maxRetry, err.Error())
+					retry++
+				}
 
-			if awsErr.Code() == "ErrCodeTooManyRequestsException" {
-				time.Sleep(time.Duration(1*retry) * time.Second)
-				continue
-			} else if err != nil {
-				retry++
 			} else {
 				changed = true
 			}
@@ -589,7 +601,9 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 
 	}
 
-	for increase, attaching := 0, false; attaching == false; increase++ {
+	increase := 0
+
+	for attaching := false; attaching == false; {
 		resp, err := a.region.services.autoScaling.AttachInstances(
 			&autoscaling.AttachInstancesInput{
 				AutoScalingGroupName: aws.String(a.name),
@@ -601,17 +615,19 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 
 		awsErr, _ := err.(awserr.Error)
 
-		if strings.Contains(awsErr.Message(), "please update the AutoScalingGroup sizes appropriately") {
-			if err := a.changeAutoScalingMaxSize(1); err != nil {
-				return increase, err
-			} else {
+		if err != nil {
+			if awsErr.Code() == "ValidationError" &&
+				strings.Contains(awsErr.Message(), "update the AutoScalingGroup sizes") {
+				if err := a.changeAutoScalingMaxSize(1); err != nil {
+					return increase, err
+				}
 				increase++
+			} else {
+				logger.Println(err.Error())
+				logger.Println(awsErr.Message())
+				logger.Println(resp)
+				return increase, err
 			}
-		} else if err != nil {
-			logger.Println(err.Error())
-			logger.Println(awsErr.Message())
-			logger.Println(resp)
-			return increase, err
 		} else {
 			attaching = true
 		}
