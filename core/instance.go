@@ -821,17 +821,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 	defer waiter.Wait()
 	go asg.temporarilySuspendTerminations(&waiter)
 
-	/*
-	if *asg.DesiredCapacity == *asg.MaxSize {
-		logger.Println(asg.name, "Temporarily increasing MaxSize")
-		if err := asg.changeAutoScalingMaxSize(1); err != nil {
-			logger.Printf("%s Couldn't temporarily expand ASG %s",
-				i.region.name, asg.name)
-			return nil, fmt.Errorf("couldn't increase ASG %s", asg.name)
-		}
-	}
-	*/
-
         logger.Printf("Attaching spot instance %s to the group %s",
                 *i.InstanceId, asg.name)
         increase, err := asg.attachSpotInstance(*i.InstanceId, true)

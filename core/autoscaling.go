@@ -864,27 +864,3 @@ func (a *autoScalingGroup) isTerminationSuspended() bool {
 	}
 	return false
 }
-
-func (a *autoScalingGroup) handleSpotInstanceFromQueue(instanceID string) error {
-	hasHooks, err := a.hasLaunchLifecycleHooks()
-
-	if err != nil {
-		logger.Printf("%s ASG %s - couldn't describe Lifecycle Hooks",
-			a.region.name, a.name)
-		return err
-	}
-
-	if hasHooks {
-		logger.Printf("%s ASG %s has instance launch lifecycle hooks, skipping "+
-			"instance %s until it attempts to continue the lifecycle hook itself",
-			a.region.name, a.name, instanceID)
-		return nil
-	}
-
-	if err := a.replaceOnDemandInstanceWithSpot(nil, instanceID); err != nil {
-		logger.Printf("%s, couldn't perform spot replacement of %s ",
-			a.region.name, instanceID)
-		return err
-	}
-	return nil
-}

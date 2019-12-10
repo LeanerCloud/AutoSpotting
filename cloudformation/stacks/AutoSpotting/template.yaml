@@ -672,7 +672,7 @@
                     response = svc.describe_auto_scaling_groups(
                         AutoScalingGroupNames=[event['asg']],
                     )
-                    
+
                     if not response['AutoScalingGroups']:
                         raise Exception(f'AutoScalingGroup {asg} not found!')
                 except Exception as e:
@@ -681,7 +681,7 @@
 
                 currentSize = response['AutoScalingGroups'][0]['MaxSize']
                 newSize = int(currentSize) + int(variation)
-            
+
                 try:
                     response = svc.update_auto_scaling_group(
                         AutoScalingGroupName=asg,
@@ -701,7 +701,7 @@
       Properties:
         AssumeRolePolicyDocument:
           Statement:
-            - 
+            -
               Action: "sts:AssumeRole"
               Effect: "Allow"
               Principal:
