@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
@@ -208,6 +209,7 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 			log.Println("Could't get instance ID of terminating spot instance", err.Error())
 			return
 		} else if instanceID != nil {
+			logger.SetPrefix(fmt.Sprintf("TE:%s ", *instanceID))
 			spotTermination := newSpotTermination(cloudwatchEvent.Region)
 			spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
 		}
@@ -220,6 +222,7 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 			log.Println("Could't get instance ID of newly launched instance", err.Error())
 			return
 		} else if instanceID != nil {
+			logger.SetPrefix(fmt.Sprintf("ST:%s ", *instanceID))
 			a.handleNewInstanceLaunch(cloudwatchEvent.Region, *instanceID, *state)
 		}
 
@@ -228,9 +231,12 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 		a.handleLifecycleHookEvent(cloudwatchEvent)
 	} else {
 		// Cron Scheduling
+		t := time.Now()
+		logger.SetPrefix(fmt.Sprintf("SC:%s ", t.Format("2006-01-02T15:04:00")))
 		a.ProcessCronEvent()
 	}
 
+	logger.SetPrefix("")
 }
 
 func isValidLifecycleHookEvent(ctEvent CloudTrailEvent) bool {
