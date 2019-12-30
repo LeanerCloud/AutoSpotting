@@ -864,3 +864,51 @@ func (a *autoScalingGroup) isTerminationSuspended() bool {
 	}
 	return false
 }
+
+func (a *autoScalingGroup) suspendResumeProcess(instanceId string, action string) error {
+	payload, _ := json.Marshal(map[string]interface{}{
+		"region":    a.region.name,
+		"asg":       a.name,
+		"instanceid": instanceId,
+		"action": action,
+	})
+
+	changed := false
+	svc := a.region.services.lambda
+
+	logger.Printf("Process %s for AutoScalingGroup %s",
+		action, a.name)
+
+	for retry, maxRetry := 0, 5; changed == false; {
+		if retry > maxRetry {
+			return fmt.Errorf("Unable to %s process for ASG", action, a.name)
+		} else {
+			_, err := svc.Invoke(
+				&lambda.InvokeInput{
+					FunctionName: aws.String(a.region.conf.LambdaManageASG),
+					Payload:      payload,
+				})
+
+			if err != nil {
+				awsErr, _ := err.(awserr.Error)
+				if awsErr.Code() == "ErrCodeTooManyRequestsException" {
+					rand.Seed(time.Now().UnixNano())
+					sleepDuration := float64(retry) * float64(100) * rand.Float64()
+					sleepTime := time.Duration(sleepDuration) * time.Millisecond
+					time.Sleep(sleepTime)
+					logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
+					continue
+				} else {
+					logger.Printf("Error invoking LambdaManageASG retrying attempt %s on %s: %v", 
+						retry, maxRetry, err.Error())
+					retry++
+				}
+
+			} else {
+				changed = true
+			}
+		}
+	}
+
+	return nil
+}

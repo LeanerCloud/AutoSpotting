@@ -662,15 +662,10 @@
             logger = logging.getLogger()
             logger.setLevel(logging.INFO)
 
-            def handler(event, context):
-                region = event['region']
-                asg = event['asg']
-                variation = event['variation']
-
-                svc = client('autoscaling', region_name=event['region'])
+            def change_max_size(svc, region, asg, variation):
                 try:
                     response = svc.describe_auto_scaling_groups(
-                        AutoScalingGroupNames=[event['asg']],
+                        AutoScalingGroupNames=[asg],
                     )
 
                     if not response['AutoScalingGroups']:
@@ -693,6 +688,71 @@
 
                 logger.info(f'AutoScalingGroup {asg} MaxSize changed to {newSize}')
                 return True
+               
+            def suspend_resume(svc, region, asg, action, instanceId):
+                tag = {
+                    'ResourceId':asg,
+                    'Key': 'autospotting_suspend_processes_by',
+                    'ResourceType': 'auto-scaling-group',
+                    'PropagateAtLaunch': False,
+                    'Value': instanceId,
+                }
+                if action == 'suspend':
+                    try:
+                        svc.suspend_processes(
+                            AutoScalingGroupName=asg,
+                            ScalingProcesses=['Terminate'],
+                        )
+                    except Exception as e:
+                        logger.error(f'Failed suspend process on AutoScalingGroup {asg}: {e}')
+                        return False
+                    else:
+                        try:
+                            svc.create_or_update_tags(Tags=[tag])
+                            return True
+                        except Exception as e:
+                              logger.error(f'Failed to tag AutoScalingGroup {asg} for suspend process by {instanceId}: {e}')
+                              return False
+                if action == 'resume':
+                    try:
+                        response = svc.describe_tags(
+                            Filters=[
+                                {
+                                    'Name': 'auto-scaling-group',
+                                    'Values': [asg],
+                                },
+                                {
+                                    'Name': 'key',
+                                    'Values': ['autospotting_suspend_processes_by'],
+                                },
+                                {
+                                    'Name': 'value',
+                                    'Values': [instanceId],
+                                }
+                            ]
+                        )
+                        if response['Tags']:
+                           svc.resume_processes(
+                               AutoScalingGroupName=asg,
+                               ScalingProcesses=['Terminate'],
+                           )
+                           svc.delete_tags(Tags=[tag])
+                    except Exception as e:
+                        logger.error(f'Failed resume process on AutoScalingGroup {asg}: {e}')
+                        return False
+
+            def handler(event, context):
+                region = event['region']
+                svc = client('autoscaling', region_name=event['region'])
+                asg = event['asg']
+                if 'variation' in event:
+                    variation = event['variation']
+                    return change_max_size(svc, region, asg, variation)
+                else:
+                    instanceId = event['instanceid']
+                    action = event['action']
+                    return suspend_resume(svc, region, asg, action, instanceId)
+
     # This allows the creation and deletion of the regional CloudFormation templates
     # and it used by the secondary Lambda function, backing the custom resource
     LambdaManageASGExecutionRole:
@@ -719,6 +779,11 @@
               Action:
                 - "autoscaling:DescribeAutoScalingGroups"
                 - "autoscaling:UpdateAutoScalingGroup"
+                - "autoscaling:ResumeProcesses"
+                - "autoscaling:SuspendProcesses"
+                - "autoscaling:CreateOrUpdateTags"
+                - "autoscaling:DeleteTags"
+                - "autoscaling:DescribeTags"
               Effect: "Allow"
               Resource: "*"
         PolicyName: "LambdaManageASGPolicy"
