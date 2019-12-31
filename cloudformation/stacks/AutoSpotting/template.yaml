@@ -691,7 +691,7 @@
                
             def suspend_resume(svc, region, asg, action, instanceId):
                 tag = {
-                    'ResourceId':asg,
+                    'ResourceId': asg,
                     'Key': 'autospotting_suspend_processes_by',
                     'ResourceType': 'auto-scaling-group',
                     'PropagateAtLaunch': False,
