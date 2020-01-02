@@ -552,7 +552,7 @@ func (a *autoScalingGroup) getRandSeed(instanceId string) int64 {
 	for i := 2; i < len(runes); i++ {
 		n += int64(runes[i])
 		rand.Seed(n)
-		randN := rand.Intn(9)
+		randN := rand.Intn(10)
 		result += fmt.Sprintf("%v", randN)
 	}
 
