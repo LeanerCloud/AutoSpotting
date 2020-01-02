@@ -338,16 +338,15 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 
 	logger.Println(a.name, "found on-demand instance", *odInstanceID,
 		"replacing with new spot instance", *spotInst.InstanceId)
-	// revert attach/detach order when running on minimum capacity
-	if *a.DesiredCapacity == *a.MinSize {
-		_, attachErr := a.attachSpotInstance(spotInstanceID, true)
-		if attachErr != nil {
-			logger.Println(a.name, "skipping detaching on-demand due to failure to",
-				"attach the new spot instance", *spotInst.InstanceId)
-			return nil
-		}
-	} else {
-		defer a.attachSpotInstance(spotInstanceID, true)
+
+	increase, attachErr := a.attachSpotInstance(spotInstanceID, true)
+	if increase > 0 {
+		defer a.changeAutoScalingMaxSize(int64(-1 * increase), *spotInst.InstanceId)
+	}
+	if attachErr != nil {
+		logger.Println(a.name, "skipping detaching on-demand due to failure to",
+			"attach the new spot instance", *spotInst.InstanceId)
+		return nil
 	}
 
 	switch a.config.TerminationMethod {
