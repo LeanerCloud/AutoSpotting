@@ -408,7 +408,6 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r region, i *instance) error 
 
 	asgName := i.getReplacementTargetASGName()
 
-
 	asg := i.region.findEnabledASGByName(*asgName)
 
 	if asg == nil {

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -339,12 +339,12 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 	logger.Println(a.name, "found on-demand instance", *odInstanceID,
 		"replacing with new spot instance", *spotInst.InstanceId)
 
-	a.suspendResumeProcess(*spotInst.InstanceId + "S", "suspend")
-	defer a.suspendResumeProcess(*spotInst.InstanceId + "S", "resume")
+	a.suspendResumeProcess(*spotInst.InstanceId+"S", "suspend")
+	defer a.suspendResumeProcess(*spotInst.InstanceId+"S", "resume")
 
 	increase, attachErr := a.attachSpotInstance(*spotInst.InstanceId, true)
 	if increase > 0 {
-		defer a.changeAutoScalingMaxSize(int64(-1 * increase), *spotInst.InstanceId)
+		defer a.changeAutoScalingMaxSize(int64(-1*increase), *spotInst.InstanceId)
 	}
 	if attachErr != nil {
 		logger.Println(a.name, "skipping detaching on-demand due to failure to",
@@ -595,7 +595,7 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceId stri
 					logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
 					continue
 				} else {
-					logger.Printf("Error invoking LambdaManageASG retrying attempt %s on %s: %v", 
+					logger.Printf("Error invoking LambdaManageASG retrying attempt %s on %s: %v",
 						retry, maxRetry, err.Error())
 					retry++
 				}
@@ -889,10 +889,10 @@ func (a *autoScalingGroup) isTerminationSuspended() bool {
 
 func (a *autoScalingGroup) suspendResumeProcess(instanceId string, action string) error {
 	payload, _ := json.Marshal(map[string]interface{}{
-		"region":    a.region.name,
-		"asg":       a.name,
+		"region":     a.region.name,
+		"asg":        a.name,
 		"instanceid": instanceId,
-		"action": action,
+		"action":     action,
 	})
 
 	changed := false
@@ -922,7 +922,7 @@ func (a *autoScalingGroup) suspendResumeProcess(instanceId string, action string
 					logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
 					continue
 				} else {
-					logger.Printf("Error invoking LambdaManageASG retrying attempt %s on %s: %v", 
+					logger.Printf("Error invoking LambdaManageASG retrying attempt %s on %s: %v",
 						retry, maxRetry, err.Error())
 					retry++
 				}

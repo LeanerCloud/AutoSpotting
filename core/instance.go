@@ -823,19 +823,19 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 	asg.suspendResumeProcess(*i.InstanceId, "suspend")
 	defer asg.suspendResumeProcess(*i.InstanceId, "resume")
 
-        logger.Printf("Attaching spot instance %s to the group %s",
-                *i.InstanceId, asg.name)
-        increase, err := asg.attachSpotInstance(*i.InstanceId, true)
+	logger.Printf("Attaching spot instance %s to the group %s",
+		*i.InstanceId, asg.name)
+	increase, err := asg.attachSpotInstance(*i.InstanceId, true)
 	if increase > 0 {
-		defer asg.changeAutoScalingMaxSize(int64(-1 * increase), *i.InstanceId)
+		defer asg.changeAutoScalingMaxSize(int64(-1*increase), *i.InstanceId)
 	}
 
 	if err != nil {
-                logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
-                        *i.InstanceId, asg.name)
-                i.terminate()
-                return nil, fmt.Errorf("couldn't attach spot instance %s ", *i.InstanceId)
-        }
+		logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
+			*i.InstanceId, asg.name)
+		i.terminate()
+		return nil, fmt.Errorf("couldn't attach spot instance %s ", *i.InstanceId)
+	}
 
 	logger.Printf("Terminating on-demand instance %s from the group %s",
 		*odInstanceID, asg.name)
