@@ -821,6 +821,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 	// defer waiter.Wait()
 	// go asg.temporarilySuspendTerminations(&waiter)
 	asg.suspendResumeProcess(*i.InstanceId, "suspend")
+	defer asg.suspendResumeProcess(*i.InstanceId, "resume")
 
         logger.Printf("Attaching spot instance %s to the group %s",
                 *i.InstanceId, asg.name)
@@ -847,7 +848,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 
 	// asg.resumeTerminationProcess()
 	// waiter.Done()
-	asg.suspendResumeProcess(*i.InstanceId, "resume")
 	return odInstance, nil
 }
 

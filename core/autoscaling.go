@@ -339,7 +339,10 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 	logger.Println(a.name, "found on-demand instance", *odInstanceID,
 		"replacing with new spot instance", *spotInst.InstanceId)
 
-	increase, attachErr := a.attachSpotInstance(spotInstanceID, true)
+	a.suspendResumeProcess(*spotInst.InstanceId + "S", "suspend")
+	defer a.suspendResumeProcess(*spotInst.InstanceId + "S", "resume")
+
+	increase, attachErr := a.attachSpotInstance(*spotInst.InstanceId, true)
 	if increase > 0 {
 		defer a.changeAutoScalingMaxSize(int64(-1 * increase), *spotInst.InstanceId)
 	}
