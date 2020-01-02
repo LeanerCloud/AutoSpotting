@@ -826,7 +826,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
                 *i.InstanceId, asg.name)
         increase, err := asg.attachSpotInstance(*i.InstanceId, true)
 	if increase > 0 {
-		defer asg.changeAutoScalingMaxSize(int64(-1 * increase))
+		defer asg.changeAutoScalingMaxSize(int64(-1 * increase), *i.InstanceId)
 	}
 
 	if err != nil {

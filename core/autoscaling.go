@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -540,7 +541,25 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 	return nil
 }
 
-func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64) error {
+func (a *autoScalingGroup) getRandSeed(instanceId string) int64 {
+	runes := []rune(instanceId)
+	result := ""
+	n := int64(0)
+
+	// Aws instance Id are like "i-0b2183ffced338d58" so we start from third char
+	for i := 2; i < len(runes); i++ {
+		n += int64(runes[i])
+		rand.Seed(n)
+		randN := rand.Intn(9)
+		result += fmt.Sprintf("%v", randN)
+	}
+
+	seed, _ := strconv.ParseInt(result, 10, 64)
+
+	return seed
+}
+
+func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceId string) error {
 	payload, _ := json.Marshal(map[string]interface{}{
 		"region":    a.region.name,
 		"asg":       a.name,
@@ -548,6 +567,7 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64) error {
 	})
 
 	changed := false
+	seed := a.getRandSeed(instanceId)
 	svc := a.region.services.lambda
 
 	logger.Printf("Changing AutoScalingGroup %s MaxSize of %v unit",
@@ -566,7 +586,7 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64) error {
 			if err != nil {
 				awsErr, _ := err.(awserr.Error)
 				if awsErr.Code() == "ErrCodeTooManyRequestsException" {
-					rand.Seed(time.Now().UnixNano())
+					rand.Seed(seed)
 					sleepDuration := float64(retry) * float64(100) * rand.Float64()
 					sleepTime := time.Duration(sleepDuration) * time.Millisecond
 					time.Sleep(sleepTime)
@@ -618,7 +638,7 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		if err != nil {
 			if awsErr.Code() == "ValidationError" &&
 				strings.Contains(awsErr.Message(), "update the AutoScalingGroup sizes") {
-				if err := a.changeAutoScalingMaxSize(1); err != nil {
+				if err := a.changeAutoScalingMaxSize(1, spotInstanceID); err != nil {
 					return increase, err
 				}
 				increase++
@@ -874,6 +894,7 @@ func (a *autoScalingGroup) suspendResumeProcess(instanceId string, action string
 	})
 
 	changed := false
+	seed := a.getRandSeed(instanceId)
 	svc := a.region.services.lambda
 
 	logger.Printf("Process %s for AutoScalingGroup %s",
@@ -892,7 +913,7 @@ func (a *autoScalingGroup) suspendResumeProcess(instanceId string, action string
 			if err != nil {
 				awsErr, _ := err.(awserr.Error)
 				if awsErr.Code() == "ErrCodeTooManyRequestsException" {
-					rand.Seed(time.Now().UnixNano())
+					rand.Seed(seed)
 					sleepDuration := float64(retry) * float64(100) * rand.Float64()
 					sleepTime := time.Duration(sleepDuration) * time.Millisecond
 					time.Sleep(sleepTime)
