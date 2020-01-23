@@ -254,6 +254,19 @@
         binaries are restricted to up to $1000 in monthly savings, the others
         are not restricted"
       Type: "String"
+    PatchBeanstalkUserdata:
+      Default: "false"
+      AllowedValues:
+        - "false"
+        - "true"
+      Description: >
+        "Controls whether AutoSpotting patches Elastic Beanstalk UserData
+        scripts to use the instance role when calling CloudFormation helpers
+        instead of the standard CloudFormation authentication method.
+        After creating this CloudFormation stack, you must add the
+        AutoSpottingElasticBeanstalk managed policy to your Beanstalk
+        instance profile/role if you turn this option to On"
+      Type: "String"
   Conditions:
     StackSetsFalse: !Equals
         - !Ref DeployUsingStackSets
@@ -289,7 +302,21 @@
           - "LambdaRegionalExecutionRole"
           - "Arn"
   Resources:
-    AutoSpotTeminationEventRule:
+    SpotTerminationLambdaPermission:
+      Condition: "StackSetsTrue"
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName: !If
+          - "StackSetsIsRegional"
+          - Ref: "EventHandler"
+          - Ref: "LambdaFunction"
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::GetAtt:
+            - "SpotTeminationEventRule"
+            - "Arn"
+    SpotTeminationEventRule:
       Condition: "StackSetsTrue"
       Type: "AWS::Events::Rule"
       Properties:
@@ -302,7 +329,7 @@
         State: "ENABLED"
         Targets:
           -
-            Id: "AutoSpottingTerminationEventGenerator"
+            Id: "SpotTerminationEventGenerator"
             InputTransformer: !If
               - "StackSetsIsRegional"
               -
@@ -335,7 +362,148 @@
             Arn: !If
               - "StackSetsIsRegional"
               - Fn::GetAtt:
-                  - "TerminationEventRuleFunction"
+                  - "EventHandler"
+                  - "Arn"
+              - Fn::GetAtt:
+                  - "LambdaFunction"
+                  - "Arn"
+    InstanceRunningLambdaPermission:
+      Condition: "StackSetsTrue"
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName: !If
+          - "StackSetsIsRegional"
+          - Ref: "EventHandler"
+          - Ref: "LambdaFunction"
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::GetAtt:
+            - "InstanceRunningEventRule"
+            - "Arn"
+    InstanceRunningEventRule:
+      Condition: "StackSetsTrue"
+      Type: "AWS::Events::Rule"
+      Properties:
+        Description: "This rule is triggered after EC2 launched a new instance"
+        EventPattern:
+          detail-type:
+            - "EC2 Instance State-change Notification"
+          source:
+            - "aws.ec2"
+          detail:
+            state:
+              - "running"
+        State: "ENABLED"
+        Targets:
+          -
+            Id: "InstanceRunningEventGenerator"
+            InputTransformer: !If
+              - "StackSetsIsRegional"
+              -
+                InputPathsMap: {
+                  "id": "$.id",
+                  "detail-type": "$.detail-type",
+                  "source": "$.source",
+                  "account": "$.account",
+                  "time": "$.time",
+                  "region": "$.region",
+                  "resources": "$.resources",
+                  "detail": "$.detail"
+                }
+                InputTemplate: !Join ["",
+                  [
+                    "{",
+                    "\"id\": <id>,",
+                    "\"detail-type\": <detail-type>,",
+                    "\"source\": <source>,",
+                    "\"account\": <account>,",
+                    "\"time\": <time>,",
+                    "\"region\": <region>,",
+                    "\"resources\": <resources>,",
+                    "\"detail\": <detail>,",
+                    "\"AutospottingLambdaArn\": \"", !GetAtt RegionalStackSetCustomResource.AutoSpottingLambdaARN, "\"",
+                    "}"
+                  ]
+                ]
+              - !Ref 'AWS::NoValue'
+            Arn: !If
+              - "StackSetsIsRegional"
+              - Fn::GetAtt:
+                  - "EventHandler"
+                  - "Arn"
+              - Fn::GetAtt:
+                  - "LambdaFunction"
+                  - "Arn"
+    LifecycleHookLambdaPermission:
+      Condition: "StackSetsTrue"
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName: !If
+          - "StackSetsIsRegional"
+          - Ref: "EventHandler"
+          - Ref: "LambdaFunction"
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::GetAtt:
+            - "LifecycleHookEventRule"
+            - "Arn"
+    LifecycleHookEventRule:
+      Condition: "StackSetsTrue"
+      Type: "AWS::Events::Rule"
+      Properties:
+        Description: "This rule is triggered after we failed to complete a lifecycle hook"
+        EventPattern:
+          detail-type:
+            - "AWS API Call via CloudTrail"
+          source:
+            - "aws.autoscaling"
+          detail:
+            eventName:
+              - "CompleteLifecycleAction"
+            errorCode:
+              - "ValidationException"
+            requestParameters:
+              lifecycleActionResult:
+                - "CONTINUE"
+        State: "ENABLED"
+        Targets:
+          -
+            Id: "LifecycleHookEventGenerator"
+            InputTransformer: !If
+              - "StackSetsIsRegional"
+              -
+                InputPathsMap: {
+                  "id": "$.id",
+                  "detail-type": "$.detail-type",
+                  "source": "$.source",
+                  "account": "$.account",
+                  "time": "$.time",
+                  "region": "$.region",
+                  "resources": "$.resources",
+                  "detail": "$.detail"
+                }
+                InputTemplate: !Join ["",
+                  [
+                    "{",
+                    "\"id\": <id>,",
+                    "\"detail-type\": <detail-type>,",
+                    "\"source\": <source>,",
+                    "\"account\": <account>,",
+                    "\"time\": <time>,",
+                    "\"region\": <region>,",
+                    "\"resources\": <resources>,",
+                    "\"detail\": <detail>,",
+                    "\"AutospottingLambdaArn\": \"", !GetAtt RegionalStackSetCustomResource.AutoSpottingLambdaARN, "\"",
+                    "}"
+                  ]
+                ]
+              - !Ref 'AWS::NoValue'
+            Arn: !If
+              - "StackSetsIsRegional"
+              - Fn::GetAtt:
+                  - "EventHandler"
                   - "Arn"
               - Fn::GetAtt:
                   - "LambdaFunction"
@@ -409,6 +577,10 @@
               Ref: "FilterByTags"
             TERMINATION_NOTIFICATION_ACTION:
               Ref: "TerminationNotificationAction"
+            PATCH_BEANSTALK_USERDATA:
+              Ref: "PatchBeanstalkUserdata"
+            LAMBDA_MANAGE_ASG:
+              Ref: "LambdaManageASG"
         Handler:
           Ref: "LambdaHandlerFunction"
         MemorySize:
@@ -426,20 +598,6 @@
               Ref: "LambdaFunctionTagValue"
         Timeout: "900"
       Type: "AWS::Lambda::Function"
-    LambdaPermissionAutoSpotTeminationEventRule:
-      Condition: "StackSetsTrue"
-      Type: "AWS::Lambda::Permission"
-      Properties:
-        Action: "lambda:InvokeFunction"
-        FunctionName: !If
-          - "StackSetsIsRegional"
-          - Ref: "TerminationEventRuleFunction"
-          - Ref: "LambdaFunction"
-        Principal: "events.amazonaws.com"
-        SourceArn:
-          Fn::GetAtt:
-            - "AutoSpotTeminationEventRule"
-            - "Arn"
     LambdaPolicy:
       Condition: "StackIsMain"
       Properties:
@@ -477,13 +635,161 @@
                 - "logs:PutLogEvents"
               Effect: "Allow"
               Resource: "*"
+            -
+              Action: "lambda:InvokeFunction"
+              Effect: "Allow"
+              Resource: !GetAtt LambdaManageASG.Arn
         PolicyName: "LambdaPolicy"
         Roles:
           -
             Ref: "LambdaExecutionRole"
       Type: "AWS::IAM::Policy"
+    LambdaManageASG:
+      Type: "AWS::Lambda::Function"
+      Condition: "StackIsMain"
+      Properties:
+        Description: "Invoked synchronously by the main Lambda to change ASG MaxSize if attachinstances method fail"
+        Handler: "index.handler"
+        Runtime: "python3.7"
+        Timeout: "120"
+        ReservedConcurrentExecutions: 1
+        Role: !GetAtt LambdaManageASGExecutionRole.Arn
+        Code:
+          ZipFile: |
+            import logging
+            from boto3 import client
+
+            logger = logging.getLogger()
+            logger.setLevel(logging.INFO)
+
+            def change_max_size(svc, region, asg, variation):
+                try:
+                    response = svc.describe_auto_scaling_groups(
+                        AutoScalingGroupNames=[asg],
+                    )
+
+                    if not response['AutoScalingGroups']:
+                        raise Exception(f'AutoScalingGroup {asg} not found!')
+                except Exception as e:
+                    logger.error(f'Failed to describe {asg}: {e}')
+                    return False
+
+                currentSize = response['AutoScalingGroups'][0]['MaxSize']
+                newSize = int(currentSize) + int(variation)
+
+                try:
+                    response = svc.update_auto_scaling_group(
+                        AutoScalingGroupName=asg,
+                        MaxSize=newSize,
+                    )
+                except Exception as e:
+                    logger.error(f'Failed to change AutoScalingGroup {asg} MaxSize to {newSize}: {e}')
+                    return False
+
+                logger.info(f'AutoScalingGroup {asg} MaxSize changed to {newSize}')
+                return True
+               
+            def suspend_resume(svc, region, asg, action, instanceId):
+                tag = {
+                    'ResourceId': asg,
+                    'Key': 'autospotting_suspend_processes_by',
+                    'ResourceType': 'auto-scaling-group',
+                    'PropagateAtLaunch': False,
+                    'Value': instanceId,
+                }
+                if action == 'suspend':
+                    try:
+                        svc.suspend_processes(
+                            AutoScalingGroupName=asg,
+                            ScalingProcesses=['Terminate'],
+                        )
+                    except Exception as e:
+                        logger.error(f'Failed suspend process on AutoScalingGroup {asg}: {e}')
+                        return False
+                    else:
+                        try:
+                            svc.create_or_update_tags(Tags=[tag])
+                            return True
+                        except Exception as e:
+                              logger.error(f'Failed to tag AutoScalingGroup {asg} for suspend process by {instanceId}: {e}')
+                              return False
+                if action == 'resume':
+                    try:
+                        response = svc.describe_tags(
+                            Filters=[
+                                {
+                                    'Name': 'auto-scaling-group',
+                                    'Values': [asg],
+                                },
+                                {
+                                    'Name': 'key',
+                                    'Values': ['autospotting_suspend_processes_by'],
+                                },
+                                {
+                                    'Name': 'value',
+                                    'Values': [instanceId],
+                                }
+                            ]
+                        )
+                        if response['Tags']:
+                           svc.resume_processes(
+                               AutoScalingGroupName=asg,
+                               ScalingProcesses=['Terminate'],
+                           )
+                           svc.delete_tags(Tags=[tag])
+                    except Exception as e:
+                        logger.error(f'Failed resume process on AutoScalingGroup {asg}: {e}')
+                        return False
+
+            def handler(event, context):
+                region = event['region']
+                svc = client('autoscaling', region_name=event['region'])
+                asg = event['asg']
+                if 'variation' in event:
+                    variation = event['variation']
+                    return change_max_size(svc, region, asg, variation)
+                else:
+                    instanceId = event['instanceid']
+                    action = event['action']
+                    return suspend_resume(svc, region, asg, action, instanceId)
+
     # This allows the creation and deletion of the regional CloudFormation templates
     # and it used by the secondary Lambda function, backing the custom resource
+    LambdaManageASGExecutionRole:
+      Type: "AWS::IAM::Role"
+      Condition: "StackIsMain"
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            -
+              Action: "sts:AssumeRole"
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - "lambda.amazonaws.com"
+        Path: "/lambda/"
+      Type: "AWS::IAM::Role"
+    LambdaManageASGPolicy:
+      Type: "AWS::IAM::Policy"
+      Condition: "StackIsMain"
+      Properties:
+        PolicyDocument:
+          Statement:
+            -
+              Action:
+                - "autoscaling:DescribeAutoScalingGroups"
+                - "autoscaling:UpdateAutoScalingGroup"
+                - "autoscaling:ResumeProcesses"
+                - "autoscaling:SuspendProcesses"
+                - "autoscaling:CreateOrUpdateTags"
+                - "autoscaling:DeleteTags"
+                - "autoscaling:DescribeTags"
+              Effect: "Allow"
+              Resource: "*"
+        PolicyName: "LambdaManageASGPolicy"
+        Roles:
+          -
+            Ref: "LambdaManageASGExecutionRole"
     LambdaRegionalStackPolicy:
       Condition: "StackSetsFalse"
       Properties:
@@ -653,10 +959,10 @@
       Properties:
         ServiceToken:
           Fn::GetAtt:
-            - "TerminationEventRuleFunction"
+            - "EventHandler"
             - "Arn"
       DependsOn: LambdaRegionalPolicy
-    TerminationEventRuleFunction:
+    EventHandler:
       Type: AWS::Lambda::Function
       Condition: "StackSetsIsRegional"
       Properties:
@@ -734,3 +1040,21 @@
                     except:
                         print_exc()
                         print("Unexpected error:", exc_info()[0])
+    ElasticBeanstalkPolicy:
+      Type: AWS::IAM::ManagedPolicy
+      Condition: "StackIsMain"
+      Properties:
+        Description: "Allow instances to get initialization information from CloudFormation when they are a part of a Beanstalk cluster. Add this policy to your Elastic Beanstalk instance profile (role) when enabling patch_beanstalk_userdata in AutoSpotting. (Managed policy created by AutoSpotting)"
+        ManagedPolicyName: AutoSpottingElasticBeanstalk
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            -
+              Action:
+                - "cloudformation:DescribeStackResource"
+                - "cloudformation:DescribeStackResources"
+                - "cloudformation:SignalResource"
+                - "cloudformation:RegisterListener"
+                - "cloudformation:GetListenerCredentials"
+              Effect: "Allow"
+              Resource: "*"

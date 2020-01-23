@@ -67,6 +67,7 @@ func init() {
 		SleepMultiplier: 1,
 		Version:         Version,
 		LicenseType:     os.Getenv("LICENSE"),
+		LambdaManageASG: os.Getenv("LAMBDA_MANAGE_ASG"),
 	}
 	parseCommandLineFlags()
 

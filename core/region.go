@@ -84,7 +84,6 @@ func (r *region) processRegion() {
 	// only process further the region if there are any enabled autoscaling groups
 	// within it
 	if r.hasEnabledAutoScalingGroups() {
-
 		logger.Println("Scanning full instance information in", r.name)
 		r.determineInstanceTypeInformation(r.conf)
 
@@ -290,7 +289,7 @@ func (r *region) requestSpotPrices() error {
 		}
 
 		if r.instanceTypeInformation[instType].pricing.spot == nil {
-			logger.Println(r.name, "Instance data missing for", instType, "in", az,
+			debug.Println(r.name, "Instance data missing for", instType, "in", az,
 				"skipping because this region is currently not supported")
 			continue
 		}

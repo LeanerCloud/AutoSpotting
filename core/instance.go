@@ -673,7 +673,11 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		}
 		retval.ImageId = lc.ImageId
 
-		retval.UserData = lc.UserData
+		if strings.ToLower(i.asg.config.PatchBeanstalkUserdata) == "true" {
+			retval.UserData = getPatchedUserDataForBeanstalk(lc.UserData)
+		} else {
+			retval.UserData = lc.UserData
+		}
 
 		BDMs := i.convertBlockDeviceMappings(lc)
 
@@ -813,24 +817,20 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 			*odInstanceID)
 	}
 
-	var waiter sync.WaitGroup
-	defer waiter.Wait()
-	go asg.temporarilySuspendTerminations(&waiter)
-
-	max := *asg.MaxSize
-
-	if *asg.DesiredCapacity == max {
-		if err := asg.setAutoScalingMaxSize(max + 1); err != nil {
-			logger.Printf("%s Couldn't temporarily expand ASG %s",
-				i.region.name, *asg.AutoScalingGroupName)
-			return nil, fmt.Errorf("couldn't increase ASG %s", *asg.AutoScalingGroupName)
-		}
-		defer asg.setAutoScalingMaxSize(max)
-	}
+	// var waiter sync.WaitGroup
+	// defer waiter.Wait()
+	// go asg.temporarilySuspendTerminations(&waiter)
+	asg.suspendResumeProcess(*i.InstanceId, "suspend")
+	defer asg.suspendResumeProcess(*i.InstanceId, "resume")
 
 	logger.Printf("Attaching spot instance %s to the group %s",
 		*i.InstanceId, asg.name)
-	if err := asg.attachSpotInstance(*i.InstanceId, true); err != nil {
+	increase, err := asg.attachSpotInstance(*i.InstanceId, true)
+	if increase > 0 {
+		defer asg.changeAutoScalingMaxSize(int64(-1*increase), *i.InstanceId)
+	}
+
+	if err != nil {
 		logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
 			*i.InstanceId, asg.name)
 		i.terminate()
@@ -846,6 +846,8 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 			*odInstanceID)
 	}
 
+	// asg.resumeTerminationProcess()
+	// waiter.Done()
 	return odInstance, nil
 }
 
