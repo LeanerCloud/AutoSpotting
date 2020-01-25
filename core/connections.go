@@ -32,7 +32,7 @@ func (c *connections) setSession(region string) {
 
 func (c *connections) connect(region string) {
 
-	logger.Println("Creating Service connections in", region)
+	debug.Println("Creating service connections in", region)
 
 	if c.session == nil {
 		c.setSession(region)
@@ -48,5 +48,5 @@ func (c *connections) connect(region string) {
 
 	c.autoScaling, c.ec2, c.cloudFormation, c.region = <-asConn, <-ec2Conn, <-cloudformationConn, region
 
-	logger.Println("Created service connections in", region)
+	debug.Println("Created service connections in", region)
 }
