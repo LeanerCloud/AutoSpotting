@@ -31,6 +31,11 @@ func TestLoadSpotPriceBufferPercentage(t *testing.T) {
 			valueExpected:   10.0,
 			loadingExpected: false,
 		},
+		{
+			tagValue:        aws.String("0"),
+			valueExpected:   0.0,
+			loadingExpected: true,
+		},
 	}
 	for _, tt := range tests {
 		a := autoScalingGroup{Group: &autoscaling.Group{}}
