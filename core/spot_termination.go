@@ -119,6 +119,11 @@ func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
 	}
 
 	result, err := s.asSvc.DescribeAutoScalingInstances(&asParams)
+	if err != nil {
+		return "", err
+	} else if len(result.AutoScalingInstances) == 0 {
+		return "", nil
+	}
 
 	var asgName = ""
 	if err == nil {
@@ -219,6 +224,9 @@ func (s *SpotTermination) isInAutoSpottingASG(instanceID *string, tagFilteringMo
 
 	if err != nil {
 		logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
+		return false
+	} else if asgName == "" {
+		logger.Println("Instance", instanceID, "is not in an autoscaling group")
 		return false
 	}
 

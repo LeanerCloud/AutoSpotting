@@ -211,7 +211,10 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 		} else if instanceID != nil {
 			spotTermination := newSpotTermination(cloudwatchEvent.Region)
 			if spotTermination.isInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
-				spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
+				err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
+				if err != nil {
+					logger.Printf("Error executing spot termination action: %s\n", err.Error())
+				}
 			} else {
 				log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
 				return
