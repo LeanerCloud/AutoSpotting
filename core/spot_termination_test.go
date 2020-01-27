@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
@@ -369,6 +370,181 @@ func TestExecuteAction(t *testing.T) {
 				t.Errorf("Error in ExecuteAction: expected %s actual %s", tc.expectedError.Error(), err.Error())
 			}
 
+		})
+	}
+}
+
+func TestIsInAutoSpottingASG(t *testing.T) {
+	instanceID := "dummyInstanceID"
+
+	tests := []struct {
+		name             string
+		spotTermination  *SpotTermination
+		tagFilteringMode string
+		filterByTags     string
+		expected         bool
+	}{
+		{
+			name: "When instance is not in an ASG",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{
+					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+						AutoScalingInstances: []*autoscaling.InstanceDetails{},
+					},
+				},
+			},
+			tagFilteringMode: "opt-in",
+			filterByTags:     "spot-enabled=true",
+			expected:         false,
+		},
+		{
+			name: "When instance is in ASG with matching tags",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{
+					dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+						AutoScalingGroups: []*autoscaling.Group{
+							{
+								AutoScalingGroupName: aws.String("asg1"),
+								Tags: []*autoscaling.TagDescription{
+									{
+										Key:   aws.String("spot-enabled"),
+										Value: aws.String("true"),
+									},
+								},
+							},
+						},
+					},
+					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+						AutoScalingInstances: []*autoscaling.InstanceDetails{
+							{
+								AutoScalingGroupName: aws.String("asg1"),
+							},
+						},
+					},
+				},
+			},
+			tagFilteringMode: "opt-in",
+			filterByTags:     "spot-enabled=true",
+			expected:         true,
+		},
+		{
+			name: "When instance is in ASG without matching tag value",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{
+					dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+						AutoScalingGroups: []*autoscaling.Group{
+							{
+								AutoScalingGroupName: aws.String("asg1"),
+								Tags: []*autoscaling.TagDescription{
+									{
+										Key:   aws.String("spot-enabled"),
+										Value: aws.String("false"),
+									},
+								},
+							},
+						},
+					},
+					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+						AutoScalingInstances: []*autoscaling.InstanceDetails{
+							{
+								AutoScalingGroupName: aws.String("asg1"),
+							},
+						},
+					},
+				},
+			},
+			tagFilteringMode: "opt-in",
+			filterByTags:     "spot-enabled=true",
+			expected:         false,
+		},
+		{
+			name: "When instance is in ASG with no tags",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{
+					dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+						AutoScalingGroups: []*autoscaling.Group{
+							{
+								AutoScalingGroupName: aws.String("asg1"),
+								Tags:                 []*autoscaling.TagDescription{},
+							},
+						},
+					},
+					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+						AutoScalingInstances: []*autoscaling.InstanceDetails{
+							{
+								AutoScalingGroupName: aws.String("asg1"),
+							},
+						},
+					},
+				},
+			},
+			tagFilteringMode: "opt-in",
+			filterByTags:     "spot-enabled=true",
+			expected:         false,
+		},
+		{
+			name: "When instance is in ASG that has opted out",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{
+					dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+						AutoScalingGroups: []*autoscaling.Group{
+							{
+								AutoScalingGroupName: aws.String("asg1"),
+								Tags: []*autoscaling.TagDescription{
+									{
+										Key:   aws.String("spot-enabled"),
+										Value: aws.String("false"),
+									},
+								},
+							},
+						},
+					},
+					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+						AutoScalingInstances: []*autoscaling.InstanceDetails{
+							{
+								AutoScalingGroupName: aws.String("asg1"),
+							},
+						},
+					},
+				},
+			},
+			tagFilteringMode: "opt-out",
+			filterByTags:     "spot-enabled=false",
+			expected:         false,
+		},
+		{
+			name: "When instance is in ASG that has not opted out",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{
+					dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
+						AutoScalingGroups: []*autoscaling.Group{
+							{
+								AutoScalingGroupName: aws.String("asg1"),
+							},
+						},
+					},
+					dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+						AutoScalingInstances: []*autoscaling.InstanceDetails{
+							{
+								AutoScalingGroupName: aws.String("asg1"),
+							},
+						},
+					},
+				},
+			},
+			tagFilteringMode: "opt-out",
+			filterByTags:     "spot-enabled=false",
+			expected:         true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+
+			actual := tc.spotTermination.IsInAutoSpottingASG(&instanceID, tc.tagFilteringMode, tc.filterByTags)
+
+			if tc.expected != actual {
+				t.Errorf("isInAutoSpottingASG received for %s: %v expected %v", tc.name, actual, tc.expected)
+			}
 		})
 	}
 }
