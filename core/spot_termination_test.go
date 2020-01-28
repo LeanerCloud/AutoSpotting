@@ -178,6 +178,7 @@ func TestGetAsgName(t *testing.T) {
 		name            string
 		spotTermination *SpotTermination
 		expectedError   error
+		expectedName    string
 	}{
 		{
 			name: "When DescribeAutoScalingInstances return error",
@@ -185,6 +186,17 @@ func TestGetAsgName(t *testing.T) {
 				asSvc: mockASG{dasierr: errors.New("")},
 			},
 			expectedError: errors.New(""),
+			expectedName:  "",
+		},
+		{
+			name: "When DescribeAutoScalingInstances returns no instances",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+					AutoScalingInstances: []*autoscaling.InstanceDetails{},
+				}},
+			},
+			expectedError: nil,
+			expectedName:  "",
 		},
 		{
 			name: "When DescribeAutoScalingInstances returns asgName",
@@ -198,15 +210,18 @@ func TestGetAsgName(t *testing.T) {
 				}},
 			},
 			expectedError: nil,
+			expectedName:  asgName,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			_, err := tc.spotTermination.getAsgName(&instanceID)
+			name, err := tc.spotTermination.getAsgName(&instanceID)
 
 			if err != nil && err.Error() != tc.expectedError.Error() {
-				t.Errorf("Error in getAsgName: expected %s actual %s", tc.expectedError.Error(), err.Error())
+				t.Errorf("Error in getAsgName: expected error %s actual %s", tc.expectedError.Error(), err.Error())
+			} else if name != tc.expectedName {
+				t.Errorf("Error in getAsgName: expected name %s actual %s", tc.expectedName, name)
 			}
 
 		})
@@ -274,6 +289,15 @@ func TestExecuteAction(t *testing.T) {
 				asSvc: mockASG{dasierr: errors.New("")},
 			},
 			expectedError: errors.New(""),
+		},
+		{
+			name: "When AutoScaling service returns no instances",
+			spotTermination: &SpotTermination{
+				asSvc: mockASG{dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+					AutoScalingInstances: []*autoscaling.InstanceDetails{},
+				}},
+			},
+			expectedError: nil,
 		},
 		{
 			name: "When AutoScaling service returns asgName and action is auto",
