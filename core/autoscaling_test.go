@@ -1210,22 +1210,8 @@ func TestGetOnDemandInstanceInAZ(t *testing.T) {
 					},
 				},
 			),
-			az: aws.String("1b"),
-			expected: &instance{
-				Instance: &ec2.Instance{
-					InstanceId:        aws.String("ondemand-running"),
-					State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
-					Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
-					InstanceLifecycle: aws.String(""),
-				},
-				region: &region{
-					services: connections{
-						ec2: mockEC2{
-							diaerr: errors.New("error when determining instance termination protection"),
-						},
-					},
-				},
-			},
+			az:       aws.String("1b"),
+			expected: nil,
 		},
 
 		{

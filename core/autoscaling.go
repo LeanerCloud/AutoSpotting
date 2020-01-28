@@ -294,9 +294,20 @@ func (a *autoScalingGroup) getInstance(
 				continue
 			}
 
-			if considerInstanceProtection && (i.isProtectedFromScaleIn() || i.isProtectedFromTermination()) {
-				debug.Println(a.name, "skipping protected instance", *i.InstanceId)
-				continue
+			if considerInstanceProtection {
+				protected := i.isProtectedFromScaleIn()
+				if !protected {
+					protectedT, err := i.isProtectedFromTermination()
+					if err != nil {
+						debug.Println(a.name, "failed to determine termination protection for", *i.InstanceId)
+					}
+					protected = protectedT
+				}
+
+				if protected {
+					debug.Println(a.name, "skipping protected instance", *i.InstanceId)
+					continue
+				}
 			}
 
 			if (availabilityZone != nil) && (*availabilityZone != *i.Placement.AvailabilityZone) {
