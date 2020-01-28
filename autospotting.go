@@ -133,11 +133,20 @@ func Handler(ctx context.Context, rawEvent json.RawMessage) {
 
 	// If event is Instance Spot Interruption
 	if cloudwatchEvent.DetailType == "EC2 Spot Instance Interruption Warning" {
-		if instanceID, err := autospotting.GetInstanceIDDueForTermination(cloudwatchEvent); err != nil {
+		instanceID, err := autospotting.GetInstanceIDDueForTermination(cloudwatchEvent)
+		if err != nil || instanceID == nil {
 			return
-		} else if instanceID != nil {
-			spotTermination := autospotting.NewSpotTermination(cloudwatchEvent.Region)
-			spotTermination.ExecuteAction(instanceID, conf.TerminationNotificationAction)
+		}
+
+		spotTermination := autospotting.NewSpotTermination(cloudwatchEvent.Region)
+		if spotTermination.IsInAutoSpottingASG(instanceID, conf.TagFilteringMode, conf.FilterByTags) {
+			err := spotTermination.ExecuteAction(instanceID, conf.TerminationNotificationAction)
+			if err != nil {
+				log.Printf("Error executing spot termination action: %s\n", err.Error())
+			}
+		} else {
+			log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
+			return
 		}
 	} else {
 		// Event is Autospotting Cron Scheduling
