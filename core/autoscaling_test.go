@@ -796,7 +796,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 						dlcerr: nil},
 				},
 			},
-			expectedErr: errors.New("missing launch configuration"),
+			expectedErr: nil,
 			expectedLC:  nil,
 		},
 		{name: "no err during get launch configuration",
