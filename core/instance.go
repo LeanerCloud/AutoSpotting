@@ -146,8 +146,9 @@ func (i *instance) isSpot() bool {
 		*i.InstanceLifecycle == "spot"
 }
 
-func (i *instance) isProtectedFromTermination() bool {
+func (i *instance) isProtectedFromTermination() (bool, error) {
 
+	debug.Println("\tChecking termination protection for instance: ", *i.InstanceId)
 	// determine and set the API termination protection field
 	diaRes, err := i.region.services.ec2.DescribeInstanceAttribute(
 		&ec2.DescribeInstanceAttributeInput{
@@ -155,15 +156,22 @@ func (i *instance) isProtectedFromTermination() bool {
 			InstanceId: i.InstanceId,
 		})
 
-	if err == nil &&
+	if err != nil {
+		// better safe than sorry!
+		logger.Printf("Couldn't describe instance attributes, assuming instance %v is protected: %v\n",
+			*i.InstanceId, err.Error())
+		return true, err
+	}
+
+	if diaRes != nil &&
 		diaRes.DisableApiTermination != nil &&
 		diaRes.DisableApiTermination.Value != nil &&
 		*diaRes.DisableApiTermination.Value {
 		logger.Printf("\t: %v Instance, %v is protected from termination\n",
 			*i.Placement.AvailabilityZone, *i.InstanceId)
-		return true
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
 func (i *instance) isProtectedFromScaleIn() bool {
