@@ -25,16 +25,16 @@ type autoScalingGroup struct {
 	config              AutoScalingConfig
 }
 
-func (a *autoScalingGroup) loadLaunchConfiguration() error {
+func (a *autoScalingGroup) loadLaunchConfiguration() (*launchConfiguration, error) {
 	//already done
 	if a.launchConfiguration != nil {
-		return nil
+		return a.launchConfiguration, nil
 	}
 
 	lcName := a.LaunchConfigurationName
 
 	if lcName == nil {
-		return errors.New("missing launch configuration")
+		return nil, errors.New("missing launch configuration")
 	}
 
 	svc := a.region.services.autoScaling
@@ -46,13 +46,13 @@ func (a *autoScalingGroup) loadLaunchConfiguration() error {
 
 	if err != nil {
 		logger.Println(err.Error())
-		return err
+		return nil, err
 	}
 
 	a.launchConfiguration = &launchConfiguration{
 		LaunchConfiguration: resp.LaunchConfigurations[0],
 	}
-	return nil
+	return a.launchConfiguration, nil
 }
 
 func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
