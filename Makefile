@@ -120,7 +120,7 @@ travisci: archive travisci-checks travisci-cover             ## Executes inside 
 .PHONY: travisci
 
 travisci-docker:                                             ## Executed by TravisCI
-	@docker-compose up --build --exit-code-from autospotting
+	@docker-compose up --build --abort-on-container-exit --exit-code-from autospotting
 .PHONY: travisci-docker
 
 help:                                                        ## Show this help
