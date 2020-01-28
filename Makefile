@@ -7,6 +7,8 @@ BUCKET_NAME ?= cloudprowess
 FLAVOR ?= custom
 LOCAL_PATH := build/s3/$(FLAVOR)
 LICENSE_FILES := LICENSE THIRDPARTY
+GOOS ?= linux
+GOARCH ?= amd64
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
@@ -44,7 +46,7 @@ update_deps:                                                 ## Update all depen
 .PHONY: update_deps
 
 build: build_deps                                            ## Build the AutoSpotting binary
-	GOOS=linux go build -ldflags=$(LDFLAGS) -o $(BINARY)
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags=$(LDFLAGS) -o $(BINARY)
 .PHONY: build
 
 archive: build                                               ## Create archive to be uploaded
