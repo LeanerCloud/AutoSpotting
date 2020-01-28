@@ -56,7 +56,7 @@ func (a *autoScalingGroup) loadLaunchConfiguration() error {
 }
 
 func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
-	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, "")
+	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, nil)
 	if onDemandRunning > a.minOnDemand {
 		logger.Println("Currently more than enough OnDemand instances running")
 		return true
@@ -87,7 +87,7 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
 }
 
 func (a *autoScalingGroup) allInstancesRunning() bool {
-	_, totalRunning := a.alreadyRunningInstanceCount(false, "")
+	_, totalRunning := a.alreadyRunningInstanceCount(false, nil)
 	return totalRunning == a.instances.count64()
 }
 
@@ -492,7 +492,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.
 func (a *autoScalingGroup) alreadyRunningInstanceCount(
-	spot bool, availabilityZone string) (int64, int64) {
+	spot bool, availabilityZone *string) (int64, int64) {
 
 	var total, count int64
 	instanceCategory := "spot"
@@ -505,11 +505,11 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 		if *inst.Instance.State.Name == "running" {
 			// Count running Spot instances
 			if spot && inst.isSpot() &&
-				(*inst.Placement.AvailabilityZone == availabilityZone || availabilityZone == "") {
+				(availabilityZone == nil || *inst.Placement.AvailabilityZone == *availabilityZone) {
 				count++
 				// Count running OnDemand instances
 			} else if !spot && !inst.isSpot() &&
-				(*inst.Placement.AvailabilityZone == availabilityZone || availabilityZone == "") {
+				(availabilityZone == nil || *inst.Placement.AvailabilityZone == *availabilityZone) {
 				count++
 			}
 			// Count total running instances
