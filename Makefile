@@ -10,6 +10,8 @@ LICENSE_FILES := LICENSE THIRDPARTY
 GOOS ?= linux
 GOARCH ?= amd64
 
+export SHELL = /bin/bash
+
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
 
