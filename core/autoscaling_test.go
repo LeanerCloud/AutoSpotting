@@ -796,7 +796,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 						dlcerr: nil},
 				},
 			},
-			expectedErr: errors.New("missing launch configuration"),
+			expectedErr: nil,
 			expectedLC:  nil,
 		},
 		{name: "no err during get launch configuration",
@@ -845,8 +845,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 					LaunchConfigurationName: tt.nameLC,
 				},
 			}
-			err := a.loadLaunchConfiguration()
-			lc := a.launchConfiguration
+			lc, err := a.loadLaunchConfiguration()
 
 			if !reflect.DeepEqual(tt.expectedErr, err) {
 				t.Errorf("loadLaunchConfiguration received error status: %+v expected %+v",
@@ -856,6 +855,11 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 			if !reflect.DeepEqual(tt.expectedLC, lc) {
 				t.Errorf("loadLaunchConfiguration received: %+v expected %+v",
 					lc, tt.expectedLC)
+			}
+
+			if lc != a.launchConfiguration {
+				t.Errorf("loadLaunchConfiguration returned %+v but set member field launchConfiguration to %+v",
+					lc, a.launchConfiguration)
 			}
 		})
 	}
