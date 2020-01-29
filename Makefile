@@ -107,21 +107,21 @@ html-cover: test                                             ## Display coverage
 	@go tool cover -html=$(COVER_PROFILE)
 .PHONY: html-cover
 
-travisci-cover: html-cover                                   ## Test & generate coverage in the TravisCI format, fails unless executed from TravisCI
+ci-cover: html-cover                                         ## Test & generate coverage in the TravisCI format, fails unless executed from TravisCI
 ifdef COVERALLS_TOKEN
 	@goveralls -coverprofile=$(COVER_PROFILE) -service=travis-ci -repotoken=$(COVERALLS_TOKEN)
 endif
-.PHONY: travisci-cover
+.PHONY: ci-cover
 
-travisci-checks: fmt-check vet-check lint                    ## Pass fmt / vet & lint format
-.PHONY: travisci-checks
+ci-checks: fmt-check vet-check lint                          ## Pass fmt / vet & lint format
+.PHONY: ci-checks
 
-travisci: archive travisci-checks travisci-cover             ## Executes inside the TravisCI Docker builder
-.PHONY: travisci
+ci: archive ci-checks ci-cover                               ## Executes inside the CI Docker builder
+.PHONY: ci
 
-travisci-docker:                                             ## Executed by TravisCI
+ci-docker:                                                   ## Executed by CI
 	@docker-compose up --build --abort-on-container-exit --exit-code-from autospotting
-.PHONY: travisci-docker
+.PHONY: ci-docker
 
 help:                                                        ## Show this help
 	@printf "Rules:\n"

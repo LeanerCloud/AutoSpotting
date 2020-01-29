@@ -5,7 +5,7 @@ env:
     # encrypted coveralls secret token, defined as the COVERALLS_TOKEN environment variable
     secure: E0H+b3i171uG8e/w6AVV9HDCCcoReTNlk2+YSENFYmnzxBmvQOo2YwI1jtBRgktG51yZZCzUJZnc0bkaghRT6nS6H8gVUN5GuZjMXdEwY3r+2Zqka6sS1ym+PK6JEA1bRjtX2iQFtk2V68gzUNvjKj8YB2zVJmX6St7tcQ9lBcluQ0xEFu7MZMknYrl9W2NnAhajt27D50uUELtSo3n61TEXXIvFRQyjHCMpGmqeZcXYtiSZAyZjraTsZr9/dngOSw0iExXDDa7cYPHHmmre+3aQUJ9AzotgB+C3+SJ+zOaOGPvVc4PS/G2Wj4siQ1Yv3nl9pvGgxeKtZgVQ92KN9ngdVtRs+XnwMC/x9VJN8vHHgI+coETZ9lhwhjeS8yFIXdBaktXz014ZVrVVpSB+BzoW4r6x/MlmZh0muJNME5OGFXbR0qFaaUB9WdQCst+MhVvSKiZ3Slmck4/3UcyAsuePj0sF1Z/yv9YJR84NTEUdif/PQnBDC1ulhXAIhZ+gm7ZOMZXRW9U7YZlHnFpBg8KoVETlnkT6AjKZ5jy+gz4CgisN2H7OuyjVQm5kIEXPo8ORJqYHPM3tu9HVsCHb6Pm+y9pec/1YXSKtmFbJiYeAmbz3Lp8vVUX5tOo24o0hCyU7qA/ypCUxRoHrHHC+c9u8nQDWGcQBD0azp+dcy2s=
 script:
-- make travisci-docker
+- make ci-docker
 after_success:
 - curl --request POST "https://goreportcard.com/checks" --data "repo=github.com/AutoSpotting/AutoSpotting"
 deploy:
