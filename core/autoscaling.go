@@ -25,16 +25,17 @@ type autoScalingGroup struct {
 	config              AutoScalingConfig
 }
 
-func (a *autoScalingGroup) loadLaunchConfiguration() error {
+func (a *autoScalingGroup) loadLaunchConfiguration() (*launchConfiguration, error) {
 	//already done
 	if a.launchConfiguration != nil {
-		return nil
+		return a.launchConfiguration, nil
 	}
 
 	lcName := a.LaunchConfigurationName
 
 	if lcName == nil {
-		return errors.New("missing launch configuration")
+		// ASG does not have launch configuration
+		return nil, nil
 	}
 
 	svc := a.region.services.autoScaling
@@ -46,13 +47,13 @@ func (a *autoScalingGroup) loadLaunchConfiguration() error {
 
 	if err != nil {
 		logger.Println(err.Error())
-		return err
+		return nil, err
 	}
 
 	a.launchConfiguration = &launchConfiguration{
 		LaunchConfiguration: resp.LaunchConfigurations[0],
 	}
-	return nil
+	return a.launchConfiguration, nil
 }
 
 func (a *autoScalingGroup) needReplaceOnDemandInstances() bool {
@@ -158,7 +159,10 @@ func (a *autoScalingGroup) process() {
 			return
 		}
 
-		a.loadLaunchConfiguration()
+		if _, err := a.loadLaunchConfiguration(); err != nil {
+			logger.Printf("Could not launch configuration: %s", err)
+		}
+
 		err := onDemandInstance.launchSpotReplacement()
 		if err != nil {
 			logger.Printf("Could not launch cheapest spot instance: %s", err)
