@@ -5,18 +5,12 @@ package autospotting
 
 import (
 	"errors"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
-
-func TestMain(m *testing.M) {
-	disableLogging()
-	os.Exit(m.Run())
-}
 
 func Test_fetch(t *testing.T) {
 	tests := []struct {
