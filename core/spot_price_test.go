@@ -29,10 +29,12 @@ func Test_fetch(t *testing.T) {
 				data: []*ec2.SpotPrice{},
 				conn: connections{
 					ec2: mockEC2{
-						dspho: &ec2.DescribeSpotPriceHistoryOutput{
-							SpotPriceHistory: []*ec2.SpotPrice{},
+						dsphpo: []*ec2.DescribeSpotPriceHistoryOutput{
+							{
+								SpotPriceHistory: []*ec2.SpotPrice{},
+							},
 						},
-						dspherr: errors.New("error"),
+						dsphperr: errors.New("error"),
 					},
 				},
 			},
@@ -45,9 +47,11 @@ func Test_fetch(t *testing.T) {
 				data: []*ec2.SpotPrice{},
 				conn: connections{
 					ec2: mockEC2{
-						dspho: &ec2.DescribeSpotPriceHistoryOutput{
-							SpotPriceHistory: []*ec2.SpotPrice{
-								{SpotPrice: aws.String("1")},
+						dsphpo: []*ec2.DescribeSpotPriceHistoryOutput{
+							{
+								SpotPriceHistory: []*ec2.SpotPrice{
+									{SpotPrice: aws.String("1")},
+								},
 							},
 						},
 					},
@@ -57,6 +61,33 @@ func Test_fetch(t *testing.T) {
 				{SpotPrice: aws.String("1")},
 			},
 			err: errors.New(""),
+		},
+		{
+			name: "paginated output",
+			config: &spotPrices{
+				data: []*ec2.SpotPrice{},
+				conn: connections{
+					ec2: mockEC2{
+						dsphpo: []*ec2.DescribeSpotPriceHistoryOutput{
+							{
+								SpotPriceHistory: []*ec2.SpotPrice{
+									{SpotPrice: aws.String("1")},
+								},
+							},
+							{
+								SpotPriceHistory: []*ec2.SpotPrice{
+									{SpotPrice: aws.String("2")},
+								},
+							},
+						},
+						dsphperr: nil,
+					},
+				},
+			},
+			data: []*ec2.SpotPrice{
+				{SpotPrice: aws.String("1")},
+				{SpotPrice: aws.String("2")},
+			},
 		},
 	}
 
