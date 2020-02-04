@@ -212,7 +212,7 @@ func (i *instance) terminate() error {
 
 func (i *instance) isPriceCompatible(spotPrice float64) bool {
 	if spotPrice == 0 {
-		logger.Printf("\tUnavailable in this Availability Zone")
+		debug.Printf("\tUnavailable in this Availability Zone")
 		return false
 	}
 
@@ -220,7 +220,7 @@ func (i *instance) isPriceCompatible(spotPrice float64) bool {
 		return true
 	}
 
-	logger.Printf("\tNot price compatible")
+	debug.Printf("\tNot price compatible")
 	return false
 }
 
@@ -239,7 +239,7 @@ func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool
 		spotCandidate.GPU >= current.GPU {
 		return true
 	}
-	logger.Println("\tNot class compatible (CPU/memory/GPU)")
+	debug.Println("\tNot class compatible (CPU/memory/GPU)")
 	return false
 }
 
@@ -251,7 +251,7 @@ func (i *instance) isSameArch(other instanceTypeInformation) bool {
 		(isARM(thisCPU) && isARM(otherCPU))
 
 	if !ret {
-		logger.Println("\tInstance CPU architecture mismatch, current CPU architecture",
+		debug.Println("\tInstance CPU architecture mismatch, current CPU architecture",
 			thisCPU, "is incompatible with candidate CPU architecture", otherCPU)
 	}
 	return ret
@@ -277,7 +277,7 @@ func isARM(cpuName string) bool {
 
 func (i *instance) isEBSCompatible(spotCandidate instanceTypeInformation) bool {
 	if spotCandidate.EBSThroughput < i.typeInfo.EBSThroughput {
-		logger.Println("\tEBS throughput insufficient:", spotCandidate.EBSThroughput, "<", i.typeInfo.EBSThroughput)
+		debug.Println("\tEBS throughput insufficient:", spotCandidate.EBSThroughput, "<", i.typeInfo.EBSThroughput)
 		return false
 	}
 	return true
@@ -311,7 +311,7 @@ func (i *instance) isStorageCompatible(spotCandidate instanceTypeInformation, at
 				spotCandidate.instanceStoreIsSSD == existing.instanceStoreIsSSD)) {
 		return true
 	}
-	logger.Println("\tNot storage compatible")
+	debug.Println("\tNot storage compatible")
 	return false
 }
 
@@ -330,7 +330,7 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 			return true
 		}
 	}
-	logger.Println("\tNot virtualization compatible")
+	debug.Println("\tNot virtualization compatible")
 	return false
 }
 
@@ -381,7 +381,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 		candidate := i.region.instanceTypeInformation[k]
 
 		candidatePrice := i.calculatePrice(candidate)
-		logger.Println("Comparing current type", current.instanceType, "with price", i.price,
+		debug.Println("Comparing current type", current.instanceType, "with price", i.price,
 			"with candidate", candidate.instanceType, "with price", candidatePrice)
 
 		if i.isAllowed(candidate.instanceType, allowedList, disallowedList) &&
@@ -391,7 +391,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
 			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice})
-			logger.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candiates list")
+			logger.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candiates list for instance", i.InstanceId)
 		} else if candidate.instanceType != "" {
 			debug.Println("Non compatible option found:", candidate.instanceType, "at", candidatePrice, " - discarding")
 		}
@@ -460,16 +460,16 @@ func (i *instance) launchSpotReplacement() error {
 func (i *instance) getPricetoBid(
 	baseOnDemandPrice float64, currentSpotPrice float64) float64 {
 
-	logger.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
+	debug.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
 
 	if i.region.conf.BiddingPolicy == DefaultBiddingPolicy {
-		logger.Println("Bidding base on demand price", baseOnDemandPrice)
+		logger.Println("Bidding base on demand price", baseOnDemandPrice, "to replace instance", i.InstanceId)
 		return baseOnDemandPrice
 	}
 
 	bufferPrice := math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))
 	logger.Println("Bidding buffer-based price of", bufferPrice, "based on current spot price of", currentSpotPrice,
-		"and buffer percentage of", i.region.conf.SpotPriceBufferPercentage)
+		"and buffer percentage of", i.region.conf.SpotPriceBufferPercentage, "to replace instance", i.InstanceId)
 	return bufferPrice
 }
 
