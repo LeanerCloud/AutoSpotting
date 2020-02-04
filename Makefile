@@ -35,9 +35,7 @@ check_deps:                                                  ## Verify the syste
 .PHONY: check_deps
 
 build_deps:
-	@command -v goveralls || go get github.com/mattn/goveralls
-	@command -v golint || go get golang.org/x/lint/golint
-	@go tool cover -V || go get golang.org/x/tools/cmd/cover
+	@go mod tidy -v
 .PHONY: build_deps
 
 update_deps:                                                 ## Update all dependencies
@@ -45,7 +43,7 @@ update_deps:                                                 ## Update all depen
 	@go mod tidy
 .PHONY: update_deps
 
-build: build_deps                                            ## Build the AutoSpotting binary
+build:                                                       ## Build the AutoSpotting binary
 	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags=$(LDFLAGS) -o $(BINARY)
 .PHONY: build
 
@@ -92,6 +90,10 @@ endif
 
 .PHONY: fmt-check
 
+module-check: build_deps                                     ## Verify that all changes to go.mod and go.sum are checked in, and fail otherwise
+	@git diff-index --exit-code HEAD -- go.mod go.sum
+.PHONY: module-check
+
 test:                                                        ## Test go code and coverage
 	@go test -covermode=count -coverprofile=$(COVER_PROFILE) ./...
 .PHONY: test
@@ -113,7 +115,7 @@ ifdef COVERALLS_TOKEN
 endif
 .PHONY: ci-cover
 
-ci-checks: fmt-check vet-check lint                          ## Pass fmt / vet & lint format
+ci-checks: fmt-check vet-check module-check lint             ## Pass fmt / vet & lint format
 .PHONY: ci-checks
 
 ci: archive ci-checks ci-cover                               ## Executes inside the CI Docker builder
