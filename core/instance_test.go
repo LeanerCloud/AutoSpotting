@@ -1154,6 +1154,9 @@ func TestGetPricetoBid(t *testing.T) {
 				name: "us-east-1",
 				conf: cfg,
 			},
+			Instance: &ec2.Instance{
+				InstanceId: aws.String("i-0000000"),
+			},
 		}
 
 		currentSpotPrice := tt.currentSpotPrice
