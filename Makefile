@@ -70,26 +70,12 @@ upload: archive                                              ## Upload binary
 	aws s3 sync build/s3/ s3://$(BUCKET_NAME)/
 .PHONY: upload
 
-vet-check: build_deps                                        ## Verify vet compliance
-ifeq ($(shell go vet -all . | wc -l | tr -d '[:space:]'), 0)
-	@printf "ok\tall files passed go vet\n"
-else
-	@printf "error\tsome files did not pass go vet\n"
-	@go vet -all . 2>&1
-	@exit 1
-endif
-
+vet-check:                                                   ## Verify vet compliance
+	@go vet -all ./...
 .PHONY: vet-check
 
-fmt-check: build_deps                                        ## Verify fmt compliance
-ifeq ($(shell gofmt -l -s . | wc -l | tr -d '[:space:]'), 0)
-	@printf "ok\tall files passed go fmt\n"
-else
-	@printf "error\tsome files did not pass go fmt, fix the following formatting diff:\n"
+fmt-check:                                                   ## Verify fmt compliance
 	@gofmt -l -s -d .
-	@exit 1
-endif
-
 .PHONY: fmt-check
 
 test:                                                        ## Test go code and coverage
