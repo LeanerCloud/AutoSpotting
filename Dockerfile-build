@@ -5,4 +5,4 @@ COPY . /src
 WORKDIR /src
 
 # fetch deps and cache them in a Docker storage layer
-RUN go get ./...
+RUN go mod download
