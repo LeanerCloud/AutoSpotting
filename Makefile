@@ -75,7 +75,7 @@ vet-check:                                                   ## Verify vet compl
 .PHONY: vet-check
 
 fmt-check:                                                   ## Verify fmt compliance
-	@gofmt -l -s -d .
+	@sh -c 'test -z "$$(gofmt -l -s -d . | tee /dev/stderr)"'
 .PHONY: fmt-check
 
 test:                                                        ## Test go code and coverage
