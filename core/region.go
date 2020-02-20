@@ -263,7 +263,7 @@ func (r *region) requestSpotPrices() error {
 		price, err := strconv.ParseFloat(*priceInfo.SpotPrice, 64)
 		if err != nil {
 			logger.Println(r.name, "Instance type ", instType,
-				"Coudln't parse spot price, may not be available on the spot market")
+				"Couldn't parse spot price, may not be available on the spot market")
 			continue
 		}
 
