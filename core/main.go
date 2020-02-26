@@ -144,26 +144,28 @@ func handler(conf *Config) func(context.Context, json.RawMessage) error {
 		}
 
 		// If event is Instance Spot Interruption
-		if cloudwatchEvent.DetailType == "EC2 Spot Instance Interruption Warning" {
-			instanceID, err := GetInstanceIDDueForTermination(cloudwatchEvent)
-			if err != nil || instanceID == nil {
-				return err
-			}
-
-			spotTermination := NewSpotTermination(cloudwatchEvent.Region)
-			if spotTermination.IsInAutoSpottingASG(instanceID, conf.TagFilteringMode, conf.FilterByTags) {
-				err := spotTermination.ExecuteAction(instanceID, conf.TerminationNotificationAction)
-				if err != nil {
-					log.Printf("Error executing spot termination action: %s\n", err.Error())
-					return err
-				}
-			} else {
-				log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
-				return nil
-			}
-		} else {
+		if cloudwatchEvent.DetailType != "EC2 Spot Instance Interruption Warning" {
 			// Event is Autospotting Cron Scheduling
 			start(conf)
+			return nil
+		}
+
+		instanceID, err := GetInstanceIDDueForTermination(cloudwatchEvent)
+		if err != nil || instanceID == nil {
+			log.Println("Couldn't get ID of instance due for termination", err.Error())
+			return err
+		}
+
+		spotTermination := NewSpotTermination(cloudwatchEvent.Region)
+		if !spotTermination.IsInAutoSpottingASG(instanceID, conf.TagFilteringMode, conf.FilterByTags) {
+			log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
+			return nil
+		}
+
+		err = spotTermination.ExecuteAction(instanceID, conf.TerminationNotificationAction)
+		if err != nil {
+			log.Printf("Error executing spot termination action: %s\n", err.Error())
+			return err
 		}
 
 		return nil
