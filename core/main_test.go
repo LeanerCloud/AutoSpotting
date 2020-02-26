@@ -113,28 +113,24 @@ func Test_getRegions(t *testing.T) {
 
 func Test_handler(t *testing.T) {
 	tests := []struct {
-		name           string
-		config         *Config
-		rawEvent       json.RawMessage
-		expectedResult string
-		expectedErr    string
+		name        string
+		config      *Config
+		rawEvent    json.RawMessage
+		expectedErr string
 	}{
 		{
-			name:           "returns error if event is not JSON",
-			config:         &Config{},
-			rawEvent:       json.RawMessage(`not JSON`),
-			expectedResult: "",
-			expectedErr:    "invalid",
+			name:        "returns error if event is not JSON",
+			config:      &Config{},
+			rawEvent:    json.RawMessage(`not JSON`),
+			expectedErr: "invalid",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := handler(tt.config)(context.TODO(), tt.rawEvent)
+			err := handler(tt.config)(context.TODO(), tt.rawEvent)
 			if err != nil || tt.expectedErr != "" {
 				assert.ErrorContains(t, err, tt.expectedErr)
 			}
-
-			assert.Equal(t, result, tt.expectedResult)
 		})
 	}
 }

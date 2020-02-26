@@ -118,8 +118,8 @@ func getRegions(ec2conn ec2iface.EC2API) ([]string, error) {
 }
 
 // handler returns an AWS Lambda handler given a config.
-func handler(conf *Config) func(context.Context, json.RawMessage) (string, error) {
-	return func(ctx context.Context, rawEvent json.RawMessage) (string, error) {
+func handler(conf *Config) func(context.Context, json.RawMessage) error {
+	return func(ctx context.Context, rawEvent json.RawMessage) error {
 
 		var snsEvent events.SNSEvent
 		var cloudwatchEvent events.CloudWatchEvent
@@ -128,7 +128,7 @@ func handler(conf *Config) func(context.Context, json.RawMessage) (string, error
 		// Try to parse event as an SNS Message
 		if err := json.Unmarshal(parseEvent, &snsEvent); err != nil {
 			log.Println(err.Error())
-			return "", err
+			return err
 		}
 
 		// If event is from SNS - extract Cloudwatch's one
@@ -140,14 +140,14 @@ func handler(conf *Config) func(context.Context, json.RawMessage) (string, error
 		// Try to parse event as Cloudwatch Event Rule
 		if err := json.Unmarshal(parseEvent, &cloudwatchEvent); err != nil {
 			log.Println(err.Error())
-			return "", err
+			return err
 		}
 
 		// If event is Instance Spot Interruption
 		if cloudwatchEvent.DetailType == "EC2 Spot Instance Interruption Warning" {
 			instanceID, err := GetInstanceIDDueForTermination(cloudwatchEvent)
 			if err != nil || instanceID == nil {
-				return "", err
+				return err
 			}
 
 			spotTermination := NewSpotTermination(cloudwatchEvent.Region)
@@ -155,17 +155,17 @@ func handler(conf *Config) func(context.Context, json.RawMessage) (string, error
 				err := spotTermination.ExecuteAction(instanceID, conf.TerminationNotificationAction)
 				if err != nil {
 					log.Printf("Error executing spot termination action: %s\n", err.Error())
-					return "", err
+					return err
 				}
 			} else {
 				log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
-				return "", nil
+				return nil
 			}
 		} else {
 			// Event is Autospotting Cron Scheduling
 			start(conf)
 		}
 
-		return "", nil
+		return nil
 	}
 }
