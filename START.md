@@ -298,6 +298,10 @@ Usage of ./AutoSpotting:
   -spot_product_description="Linux/UNIX (Amazon VPC)":
         The Spot Product or operating system to use when looking up spot price history in the market.
         Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)
+  -spot_product_premium=0:
+        The Product Premium to apply to the on demand price to improve spot
+        selection and savings calculations when using a premium instance type
+        such as RHEL.
 
   -tag_filters=[{spot-enabled true}]: Set of tags to filter the ASGs on.  Default is -tag_filters 'spot-enabled=true'
         Example: ./AutoSpotting -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'

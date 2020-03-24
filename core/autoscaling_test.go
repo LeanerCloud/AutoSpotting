@@ -929,6 +929,7 @@ func TestScanInstances(t *testing.T) {
 							typeInfo: instanceTypeInformation{
 								pricing: prices{
 									onDemand: 0.5,
+									premium:  0.0,
 									spot: map[string]float64{
 										"az-1": 0.1,
 										"az-2": 0.2,
@@ -947,6 +948,7 @@ func TestScanInstances(t *testing.T) {
 							typeInfo: instanceTypeInformation{
 								pricing: prices{
 									onDemand: 0.8,
+									premium:  0.0,
 									spot: map[string]float64{
 										"az-1": 0.4,
 										"az-2": 0.5,
@@ -3233,6 +3235,31 @@ func Test_autoScalingGroup_calculateHourlySavings(t *testing.T) {
 					},
 				}),
 			want: 0.9,
+		},
+		{
+			name: "premium-instance",
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"ondemand-1": {
+						price: 1.6,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+								premium:  0.6,
+							},
+						},
+					},
+					"spot-1": {
+						price: 0.1,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+								premium:  0.6,
+							},
+						},
+					},
+				}),
+			want: 1.5,
 		},
 	}
 	for _, tt := range tests {

@@ -47,6 +47,10 @@ const (
 	// to use when looking up spot price history in the market.
 	DefaultSpotProductDescription = "Linux/UNIX (Amazon VPC)"
 
+	// DefaultSpotProductPremium stores the default value to add to the
+	// on demand price for premium instance types.
+	DefaultSpotProductPremium = 0.0
+
 	// DefaultMinOnDemandValue stores the default on-demand capacity to be kept
 	// running in a group managed by autospotting.
 	DefaultMinOnDemandValue = 0
@@ -93,6 +97,7 @@ type AutoScalingConfig struct {
 	SpotPriceBufferPercentage float64
 
 	SpotProductDescription string
+	SpotProductPremium     float64
 
 	BiddingPolicy string
 
