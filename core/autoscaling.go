@@ -95,7 +95,7 @@ func (a *autoScalingGroup) allInstancesRunning() bool {
 func (a *autoScalingGroup) calculateHourlySavings() float64 {
 	var savings float64
 	for i := range a.instances.instances() {
-		savings += i.typeInfo.pricing.onDemand - i.price
+		savings += (i.typeInfo.pricing.onDemand + i.typeInfo.pricing.premium) - i.price
 	}
 	return savings
 }
@@ -212,7 +212,7 @@ func (a *autoScalingGroup) scanInstances() instances {
 		if i.isSpot() {
 			i.price = i.typeInfo.pricing.spot[*i.Placement.AvailabilityZone]
 		} else {
-			i.price = i.typeInfo.pricing.onDemand
+			i.price = i.typeInfo.pricing.onDemand + i.typeInfo.pricing.premium
 		}
 
 		a.instances.add(i)
