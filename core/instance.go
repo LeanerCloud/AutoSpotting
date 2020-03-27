@@ -427,7 +427,7 @@ func (i *instance) launchSpotReplacement() error {
 	for _, instanceType := range instanceTypes {
 		az := *i.Placement.AvailabilityZone
 		bidPrice := i.getPricetoBid(i.price,
-			instanceType.pricing.spot[az])
+			instanceType.pricing.spot[az], instanceType.pricing.premium)
 
 		runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
 		logger.Println(az, i.asg.name, "Launching spot instance of type", instanceType.instanceType, "with bid price", bidPrice)
@@ -458,7 +458,7 @@ func (i *instance) launchSpotReplacement() error {
 }
 
 func (i *instance) getPricetoBid(
-	baseOnDemandPrice float64, currentSpotPrice float64) float64 {
+	baseOnDemandPrice float64, currentSpotPrice float64, spotPremium float64) float64 {
 
 	debug.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
 
@@ -467,7 +467,7 @@ func (i *instance) getPricetoBid(
 		return baseOnDemandPrice
 	}
 
-	bufferPrice := math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))
+	bufferPrice := math.Min(baseOnDemandPrice, ((currentSpotPrice-spotPremium)*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))+spotPremium)
 	logger.Println("Bidding buffer-based price of", bufferPrice, "based on current spot price of", currentSpotPrice,
 		"and buffer percentage of", i.region.conf.SpotPriceBufferPercentage, "to replace instance", i.InstanceId)
 	return bufferPrice
