@@ -1104,6 +1104,7 @@ func TestGetPricetoBid(t *testing.T) {
 		spotPercentage       float64
 		currentSpotPrice     float64
 		currentOnDemandPrice float64
+		spotPremium          float64
 		policy               string
 		want                 float64
 	}{
@@ -1111,6 +1112,7 @@ func TestGetPricetoBid(t *testing.T) {
 			spotPercentage:       50.0,
 			currentSpotPrice:     0.0216,
 			currentOnDemandPrice: 0.0464,
+			spotPremium:          0.0,
 			policy:               "aggressive",
 			want:                 0.0324,
 		},
@@ -1118,6 +1120,7 @@ func TestGetPricetoBid(t *testing.T) {
 			spotPercentage:       79.0,
 			currentSpotPrice:     0.0216,
 			currentOnDemandPrice: 0.0464,
+			spotPremium:          0.0,
 			policy:               "aggressive",
 			want:                 0.038664,
 		},
@@ -1125,6 +1128,7 @@ func TestGetPricetoBid(t *testing.T) {
 			spotPercentage:       79.0,
 			currentSpotPrice:     0.0216,
 			currentOnDemandPrice: 0.0464,
+			spotPremium:          0.0,
 			policy:               "normal",
 			want:                 0.0464,
 		},
@@ -1132,6 +1136,7 @@ func TestGetPricetoBid(t *testing.T) {
 			spotPercentage:       200.0,
 			currentSpotPrice:     0.0216,
 			currentOnDemandPrice: 0.0464,
+			spotPremium:          0.0,
 			policy:               "aggressive",
 			want:                 0.0464,
 		},
@@ -1139,8 +1144,17 @@ func TestGetPricetoBid(t *testing.T) {
 			spotPercentage:       0.0,
 			currentSpotPrice:     0.0216,
 			currentOnDemandPrice: 0.0464,
+			spotPremium:          0.0,
 			policy:               "aggressive",
 			want:                 0.0216,
+		},
+		{
+			spotPercentage:       50.0,
+			currentSpotPrice:     0.0816,
+			currentOnDemandPrice: 0.1064,
+			spotPremium:          0.06,
+			policy:               "aggressive",
+			want:                 0.0924,
 		},
 	}
 	for _, tt := range tests {
@@ -1161,7 +1175,8 @@ func TestGetPricetoBid(t *testing.T) {
 
 		currentSpotPrice := tt.currentSpotPrice
 		currentOnDemandPrice := tt.currentOnDemandPrice
-		actualPrice := i.getPricetoBid(currentOnDemandPrice, currentSpotPrice)
+		currentSpotPremium := tt.spotPremium
+		actualPrice := i.getPricetoBid(currentOnDemandPrice, currentSpotPrice, currentSpotPremium)
 		if math.Abs(actualPrice-tt.want) > 0.000001 {
 			t.Errorf("percentage = %.2f, policy = %s, expected price = %.5f, want %.5f, currentSpotPrice = %.5f",
 				tt.spotPercentage, tt.policy, actualPrice, tt.want, currentSpotPrice)
