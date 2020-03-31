@@ -89,14 +89,16 @@ func (a *autoScalingGroup) terminateRandomSpotInstanceIfHavingEnough(totalRunnin
 		return nil
 	}
 
-	if a.allInstancesRunning() && totalRunning == *a.minOnDemand && a.instances.count64() == *a.DesiredCapacity {
-		logger.Println("Currently Spot running equals to the required number, skipping termination")
-		return nil
-	}
+	if a.allInstancesRunning() {
+		if a.instances.count64() == *a.DesiredCapacity && totalRunning == a.minOnDemand {
+			logger.Println("Currently Spot running equals to the required number, skipping termination")
+			return nil
+		}
 
-	if a.allInstancesRunning() && a.instances.count64() < *a.DesiredCapacity {
-		logger.Println("Not enough capacity in the group")
-		return nil
+		if a.instances.count64() < *a.DesiredCapacity {
+			logger.Println("Not enough capacity in the group")
+			return nil
+		}
 	}
 
 	randomSpot := a.getAnySpotInstance()
