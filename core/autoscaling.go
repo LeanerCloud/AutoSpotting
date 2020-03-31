@@ -89,8 +89,8 @@ func (a *autoScalingGroup) terminateRandomSpotInstanceIfHavingEnough(totalRunnin
 		return nil
 	}
 
-	if a.allInstancesRunning() {
-		if a.instances.count64() == *a.DesiredCapacity && totalRunning == a.minOnDemand {
+	if allInstancesAreRunning, onDemandRunning := a.allInstancesRunning(); allInstancesAreRunning {
+		if a.instances.count64() == *a.DesiredCapacity && onDemandRunning == a.minOnDemand {
 			logger.Println("Currently Spot running equals to the required number, skipping termination")
 			return nil
 		}
@@ -118,9 +118,9 @@ func (a *autoScalingGroup) terminateRandomSpotInstanceIfHavingEnough(totalRunnin
 	}
 }
 
-func (a *autoScalingGroup) allInstancesRunning() bool {
-	_, totalRunning := a.alreadyRunningInstanceCount(false, nil)
-	return totalRunning == a.instances.count64()
+func (a *autoScalingGroup) allInstancesRunning() (bool, int64) {
+	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, nil)
+	return totalRunning == a.instances.count64(), onDemandRunning
 }
 
 func (a *autoScalingGroup) calculateHourlySavings() float64 {
