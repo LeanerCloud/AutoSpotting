@@ -115,8 +115,9 @@ func parseCommandLineFlags() {
 			"Can be overridden on a per-group basis using the tag "+autospotting.OnDemandPercentageTag+
 			"\n\tIt is ignored if min_on_demand_number is also set.\n")
 
-	flag.Float64Var(&conf.OnDemandPriceMultiplier, "on_demand_price_multiplier", 1.0,
+	flag.Float64Var(&conf.OnDemandPriceMultiplier, "on_demand_price_multiplier", autospotting.DefaultOnDemandPriceMultiplier,
 		"\n\tMultiplier for the on-demand price. Numbers less than 1.0 are useful for volume discounts.\n"+
+			"The tag "+autospotting.OnDemandPriceMultiplierTag+" can be used to override this on a group level.\n"+
 			"\tExample: ./AutoSpotting -on_demand_price_multiplier 0.6 will have the on-demand price "+
 			"considered at 60% of the actual value.\n")
 
