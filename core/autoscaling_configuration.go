@@ -305,7 +305,7 @@ func (a *autoScalingGroup) loadConfOnDemandPriceMultiplier() bool {
 		return false
 	}
 
-	a.region.conf.OnDemandPriceMultiplier = newValue
+	a.config.OnDemandPriceMultiplier = newValue
 	return done
 }
 
