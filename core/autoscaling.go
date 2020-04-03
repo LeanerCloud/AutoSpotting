@@ -602,7 +602,7 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceId stri
 					logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
 					continue
 				} else {
-					logger.Printf("Error invoking LambdaManageASG retrying attempt %s on %s: %v",
+					logger.Printf("Error invoking LambdaManageASG retrying attempt %d on %d: %v",
 						retry, maxRetry, err.Error())
 					retry++
 				}
@@ -911,7 +911,7 @@ func (a *autoScalingGroup) suspendResumeProcess(instanceId string, action string
 
 	for retry, maxRetry := 0, 5; changed == false; {
 		if retry > maxRetry {
-			return fmt.Errorf("Unable to %s process for ASG", action, a.name)
+			return fmt.Errorf("Unable to %s process for ASG %s", action, a.name)
 		} else {
 			_, err := svc.Invoke(
 				&lambda.InvokeInput{
@@ -929,7 +929,7 @@ func (a *autoScalingGroup) suspendResumeProcess(instanceId string, action string
 					logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
 					continue
 				} else {
-					logger.Printf("Error invoking LambdaManageASG retrying attempt %s on %s: %v",
+					logger.Printf("Error invoking LambdaManageASG retrying attempt %d on %d: %v",
 						retry, maxRetry, err.Error())
 					retry++
 				}

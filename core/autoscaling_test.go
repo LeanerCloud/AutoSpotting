@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/davecgh/go-spew/spew"
@@ -819,7 +820,16 @@ func TestAttachSpotInstance(t *testing.T) {
 			regionASG: &region{
 				name: "regionTest",
 				services: connections{
-					autoScaling: mockASG{aierr: nil},
+					autoScaling: mockASG{
+						aierr: nil,
+						dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+							AutoScalingInstances: []*autoscaling.InstanceDetails{
+								{
+									LifecycleState: aws.String("InService"),
+								},
+							},
+						},
+					},
 					ec2: mockEC2{
 						dio: &ec2.DescribeInstancesOutput{
 							Reservations: []*ec2.Reservation{
@@ -844,7 +854,10 @@ func TestAttachSpotInstance(t *testing.T) {
 			regionASG: &region{
 				name: "regionTest",
 				services: connections{
-					autoScaling: mockASG{aierr: errors.New("attach")},
+					autoScaling: mockASG{
+						aierr: error(awserr.New("ValidationError", "Error", errors.New("attach"))),
+						// aierr: errors.New("attach"),
+					},
 					ec2: mockEC2{
 						dio: &ec2.DescribeInstancesOutput{
 							Reservations: []*ec2.Reservation{
@@ -863,7 +876,7 @@ func TestAttachSpotInstance(t *testing.T) {
 				},
 			},
 			instanceID: "1",
-			expected:   errors.New("attach"),
+			expected:   error(awserr.New("ValidationError", "Error", errors.New("attach"))),
 		},
 	}
 	for _, tt := range tests {
@@ -877,7 +890,7 @@ func TestAttachSpotInstance(t *testing.T) {
 					DesiredCapacity: aws.Int64(3),
 				},
 			}
-			err := a.attachSpotInstance(tt.instanceID, false)
+			_, err := a.attachSpotInstance(tt.instanceID, false)
 			CheckErrors(t, err, tt.expected)
 		})
 	}
