@@ -244,7 +244,7 @@ func (i *instance) belongsToEnabledASG() bool {
 			asg.loadConfigFromTags()
 			asg.loadLaunchConfiguration()
 			i.asg = &asg
-			i.price = i.typeInfo.pricing.onDemand
+			i.price = i.typeInfo.pricing.onDemand / i.region.conf.OnDemandPriceMultiplier * i.asg.config.OnDemandPriceMultiplier
 			logger.Printf("%s instace %s belongs to enabled ASG %s", i.region.name,
 				*i.InstanceId, i.asg.name)
 			return true
@@ -476,6 +476,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 }
 
 func (i *instance) launchSpotReplacement() (*string, error) {
+	i.price = i.typeInfo.pricing.onDemand / i.region.conf.OnDemandPriceMultiplier * i.asg.config.OnDemandPriceMultiplier
 	instanceTypes, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(
 		i.asg.getAllowedInstanceTypes(i),
 		i.asg.getDisallowedInstanceTypes(i))

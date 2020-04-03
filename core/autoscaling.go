@@ -89,9 +89,16 @@ func (a *autoScalingGroup) terminateRandomSpotInstanceIfHavingEnough(totalRunnin
 		return nil
 	}
 
-	if a.allInstancesRunning() && a.instances.count64() < *a.DesiredCapacity {
-		logger.Println("Not enough capacity in the group")
-		return nil
+	if allInstancesAreRunning, onDemandRunning := a.allInstancesRunning(); allInstancesAreRunning {
+		if a.instances.count64() == *a.DesiredCapacity && onDemandRunning == a.minOnDemand {
+			logger.Println("Currently Spot running equals to the required number, skipping termination")
+			return nil
+		}
+
+		if a.instances.count64() < *a.DesiredCapacity {
+			logger.Println("Not enough capacity in the group")
+			return nil
+		}
 	}
 
 	randomSpot := a.getAnySpotInstance()
@@ -111,9 +118,9 @@ func (a *autoScalingGroup) terminateRandomSpotInstanceIfHavingEnough(totalRunnin
 	}
 }
 
-func (a *autoScalingGroup) allInstancesRunning() bool {
-	_, totalRunning := a.alreadyRunningInstanceCount(false, nil)
-	return totalRunning == a.instances.count64()
+func (a *autoScalingGroup) allInstancesRunning() (bool, int64) {
+	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, nil)
+	return totalRunning == a.instances.count64(), onDemandRunning
 }
 
 func (a *autoScalingGroup) calculateHourlySavings() float64 {
@@ -595,7 +602,7 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceId stri
 					logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
 					continue
 				} else {
-					logger.Printf("Error invoking LambdaManageASG retrying attempt %s on %s: %v",
+					logger.Printf("Error invoking LambdaManageASG retrying attempt %d on %d: %v",
 						retry, maxRetry, err.Error())
 					retry++
 				}
@@ -807,7 +814,7 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	if !spot {
 		instanceCategory = "on-demand"
 	}
-	logger.Println(a.name, "Counting already running on demand instances ")
+	logger.Println(a.name, "Counting already running", instanceCategory, "instances")
 	for inst := range a.instances.instances() {
 
 		if *inst.Instance.State.Name == "running" {
@@ -904,7 +911,7 @@ func (a *autoScalingGroup) suspendResumeProcess(instanceId string, action string
 
 	for retry, maxRetry := 0, 5; changed == false; {
 		if retry > maxRetry {
-			return fmt.Errorf("Unable to %s process for ASG", action, a.name)
+			return fmt.Errorf("Unable to %s process for ASG %s", action, a.name)
 		} else {
 			_, err := svc.Invoke(
 				&lambda.InvokeInput{
@@ -922,7 +929,7 @@ func (a *autoScalingGroup) suspendResumeProcess(instanceId string, action string
 					logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
 					continue
 				} else {
-					logger.Printf("Error invoking LambdaManageASG retrying attempt %s on %s: %v",
+					logger.Printf("Error invoking LambdaManageASG retrying attempt %d on %d: %v",
 						retry, maxRetry, err.Error())
 					retry++
 				}
