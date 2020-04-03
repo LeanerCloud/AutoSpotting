@@ -2426,8 +2426,18 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							dlho: &autoscaling.DescribeLifecycleHooksOutput{
 								LifecycleHooks: []*autoscaling.LifecycleHook{},
 							},
+							dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+								AutoScalingInstances: []*autoscaling.InstanceDetails{
+									{
+										LifecycleState: aws.String("InService"),
+									},
+								},
+							},
 						},
 						ec2: &mockEC2{},
+						lambda: &mockLambda{
+							ierr: nil,
+						},
 					},
 					instances: makeInstancesWithCatalog(
 						instanceMap{
