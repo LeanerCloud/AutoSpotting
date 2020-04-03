@@ -3665,6 +3665,33 @@ func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.
 			wantErr: false,
 		},
 
+		{name: "spot capacity is correct, skip termination",
+			group: &autoscaling.Group{
+				DesiredCapacity: aws.Int64(2),
+			},
+			minOnDemand: 1,
+			instances: makeInstancesWithCatalog(instanceMap{
+				"i-f00": &instance{
+					Instance: &ec2.Instance{
+						InstanceId: aws.String("i-foo0"),
+						InstanceLifecycle: aws.String("spot"),
+						State: &ec2.InstanceState{
+							Name: aws.String("running"),
+						},
+					},
+				},
+				"i-f01": &instance{
+					Instance: &ec2.Instance{
+						InstanceId: aws.String("i-foo1"),
+						State: &ec2.InstanceState{
+							Name: aws.String("running"),
+						},
+					},
+				},
+			}),
+			wantErr: false,
+		},
+
 		{name: "spot capacity exists in the group, terminating using the default termination method",
 			group: &autoscaling.Group{
 				DesiredCapacity: aws.Int64(1),
