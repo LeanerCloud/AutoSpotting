@@ -1,0 +1,803 @@
+?   	github.com/AutoSpotting/AutoSpotting	[no test files]
+=== RUN   TestLoadSpotPriceBufferPercentage
+--- PASS: TestLoadSpotPriceBufferPercentage (0.00s)
+=== RUN   TestGetTagValue
+=== RUN   TestGetTagValue/Tag_can't_be_found_in_ASG_(no_tags)
+=== RUN   TestGetTagValue/Tag_can't_be_found_in_ASG_(many_tags)
+=== RUN   TestGetTagValue/Tag_can_be_found_in_ASG_(many_tags)
+--- PASS: TestGetTagValue (0.00s)
+    --- PASS: TestGetTagValue/Tag_can't_be_found_in_ASG_(no_tags) (0.00s)
+    --- PASS: TestGetTagValue/Tag_can't_be_found_in_ASG_(many_tags) (0.00s)
+    --- PASS: TestGetTagValue/Tag_can_be_found_in_ASG_(many_tags) (0.00s)
+=== RUN   TestLoadConfOnDemand
+=== RUN   TestLoadConfOnDemand/ASG_does_not_have_any_conf_tags
+=== RUN   TestLoadConfOnDemand/Percentage_value_not_a_number
+=== RUN   TestLoadConfOnDemand/Percentage_value_out_of_range_(0-100)
+=== RUN   TestLoadConfOnDemand/Percentage_value_out_of_range_-_negative_(0-100)
+=== RUN   TestLoadConfOnDemand/Percentage_equals_0.00%
+=== RUN   TestLoadConfOnDemand/Percentage_equals_33.0%
+=== RUN   TestLoadConfOnDemand/Percentage_equals_75.0%
+=== RUN   TestLoadConfOnDemand/Percentage_equals_100.0%
+=== RUN   TestLoadConfOnDemand/Number_passed_is_text
+=== RUN   TestLoadConfOnDemand/Number_passed_is_an_invalid_integer
+=== RUN   TestLoadConfOnDemand/Number_passed_out_of_range_(negative)
+=== RUN   TestLoadConfOnDemand/Number_superior_to_ASG_size
+=== RUN   TestLoadConfOnDemand/Number_is_valid_1
+=== RUN   TestLoadConfOnDemand/Number_has_priority_on_percentage_value
+=== RUN   TestLoadConfOnDemand/Number_is_invalid_so_percentage_value_is_used
+=== RUN   TestLoadConfOnDemand/Both_number_and_percentage_are_invalid
+--- PASS: TestLoadConfOnDemand (0.00s)
+    --- PASS: TestLoadConfOnDemand/ASG_does_not_have_any_conf_tags (0.00s)
+    --- PASS: TestLoadConfOnDemand/Percentage_value_not_a_number (0.00s)
+    --- PASS: TestLoadConfOnDemand/Percentage_value_out_of_range_(0-100) (0.00s)
+    --- PASS: TestLoadConfOnDemand/Percentage_value_out_of_range_-_negative_(0-100) (0.00s)
+    --- PASS: TestLoadConfOnDemand/Percentage_equals_0.00% (0.00s)
+    --- PASS: TestLoadConfOnDemand/Percentage_equals_33.0% (0.00s)
+    --- PASS: TestLoadConfOnDemand/Percentage_equals_75.0% (0.00s)
+    --- PASS: TestLoadConfOnDemand/Percentage_equals_100.0% (0.00s)
+    --- PASS: TestLoadConfOnDemand/Number_passed_is_text (0.00s)
+    --- PASS: TestLoadConfOnDemand/Number_passed_is_an_invalid_integer (0.00s)
+    --- PASS: TestLoadConfOnDemand/Number_passed_out_of_range_(negative) (0.00s)
+    --- PASS: TestLoadConfOnDemand/Number_superior_to_ASG_size (0.00s)
+    --- PASS: TestLoadConfOnDemand/Number_is_valid_1 (0.00s)
+    --- PASS: TestLoadConfOnDemand/Number_has_priority_on_percentage_value (0.00s)
+    --- PASS: TestLoadConfOnDemand/Number_is_invalid_so_percentage_value_is_used (0.00s)
+    --- PASS: TestLoadConfOnDemand/Both_number_and_percentage_are_invalid (0.00s)
+=== RUN   TestLoadBiddingPolicy
+--- PASS: TestLoadBiddingPolicy (0.00s)
+=== RUN   TestLoadConfSpot
+--- PASS: TestLoadConfSpot (0.00s)
+=== RUN   TestLoadConfSpotPrice
+--- PASS: TestLoadConfSpotPrice (0.00s)
+=== RUN   TestLoadConfigFromTags
+=== RUN   TestLoadConfigFromTags/Percentage_value_not_a_number
+=== RUN   TestLoadConfigFromTags/Number_is_invalid_so_percentage_value_is_used
+--- PASS: TestLoadConfigFromTags (0.00s)
+    --- PASS: TestLoadConfigFromTags/Percentage_value_not_a_number (0.00s)
+    --- PASS: TestLoadConfigFromTags/Number_is_invalid_so_percentage_value_is_used (0.00s)
+=== RUN   TestLoadDefaultConf
+=== RUN   TestLoadDefaultConf/No_configuration_given
+=== RUN   TestLoadDefaultConf/Percentage_value_out_of_range_(0-100)
+=== RUN   TestLoadDefaultConf/Percentage_value_out_of_range_-_negative_(0-100)
+=== RUN   TestLoadDefaultConf/Percentage_equals_33.0%
+=== RUN   TestLoadDefaultConf/Percentage_equals_75.0%
+=== RUN   TestLoadDefaultConf/Percentage_equals_100.0%
+=== RUN   TestLoadDefaultConf/Number_passed_out_of_range_(negative)
+=== RUN   TestLoadDefaultConf/Number_superior_to_ASG_size
+=== RUN   TestLoadDefaultConf/Number_is_valid_1
+=== RUN   TestLoadDefaultConf/Number_has_priority_on_percentage_value
+=== RUN   TestLoadDefaultConf/Number_is_invalid_so_percentage_value_is_used
+=== RUN   TestLoadDefaultConf/Both_number_and_percentage_are_invalid
+--- PASS: TestLoadDefaultConf (0.00s)
+    --- PASS: TestLoadDefaultConf/No_configuration_given (0.00s)
+    --- PASS: TestLoadDefaultConf/Percentage_value_out_of_range_(0-100) (0.00s)
+    --- PASS: TestLoadDefaultConf/Percentage_value_out_of_range_-_negative_(0-100) (0.00s)
+    --- PASS: TestLoadDefaultConf/Percentage_equals_33.0% (0.00s)
+    --- PASS: TestLoadDefaultConf/Percentage_equals_75.0% (0.00s)
+    --- PASS: TestLoadDefaultConf/Percentage_equals_100.0% (0.00s)
+    --- PASS: TestLoadDefaultConf/Number_passed_out_of_range_(negative) (0.00s)
+    --- PASS: TestLoadDefaultConf/Number_superior_to_ASG_size (0.00s)
+    --- PASS: TestLoadDefaultConf/Number_is_valid_1 (0.00s)
+    --- PASS: TestLoadDefaultConf/Number_has_priority_on_percentage_value (0.00s)
+    --- PASS: TestLoadDefaultConf/Number_is_invalid_so_percentage_value_is_used (0.00s)
+    --- PASS: TestLoadDefaultConf/Both_number_and_percentage_are_invalid (0.00s)
+=== RUN   Test_autoScalingGroup_LoadCronSchedule
+=== RUN   Test_autoScalingGroup_LoadCronSchedule/No_tag_set_on_the_group
+=== RUN   Test_autoScalingGroup_LoadCronSchedule/Tag_set_on_the_group
+--- PASS: Test_autoScalingGroup_LoadCronSchedule (0.00s)
+    --- PASS: Test_autoScalingGroup_LoadCronSchedule/No_tag_set_on_the_group (0.00s)
+    --- PASS: Test_autoScalingGroup_LoadCronSchedule/Tag_set_on_the_group (0.00s)
+=== RUN   Test_autoScalingGroup_LoadCronTimezone
+=== RUN   Test_autoScalingGroup_LoadCronTimezone/No_tag_set_on_the_group
+=== RUN   Test_autoScalingGroup_LoadCronTimezone/Tag_set_on_the_group
+--- PASS: Test_autoScalingGroup_LoadCronTimezone (0.00s)
+    --- PASS: Test_autoScalingGroup_LoadCronTimezone/No_tag_set_on_the_group (0.00s)
+    --- PASS: Test_autoScalingGroup_LoadCronTimezone/Tag_set_on_the_group (0.00s)
+=== RUN   Test_autoScalingGroup_LoadCronScheduleState
+=== RUN   Test_autoScalingGroup_LoadCronScheduleState/No_tag_set_on_the_group
+=== RUN   Test_autoScalingGroup_LoadCronScheduleState/Tag_set_on_the_group
+--- PASS: Test_autoScalingGroup_LoadCronScheduleState (0.00s)
+    --- PASS: Test_autoScalingGroup_LoadCronScheduleState/No_tag_set_on_the_group (0.00s)
+    --- PASS: Test_autoScalingGroup_LoadCronScheduleState/Tag_set_on_the_group (0.00s)
+=== RUN   Test_autoScalingGroup_LoadPatchBeanstalkUserdata
+=== RUN   Test_autoScalingGroup_LoadPatchBeanstalkUserdata/No_tag_set_on_the_group,_use_region_config_(no_value)
+=== RUN   Test_autoScalingGroup_LoadPatchBeanstalkUserdata/No_tag_set_on_the_group,_use_region_config_(true)
+=== RUN   Test_autoScalingGroup_LoadPatchBeanstalkUserdata/Tag_set_on_the_group
+--- PASS: Test_autoScalingGroup_LoadPatchBeanstalkUserdata (0.00s)
+    --- PASS: Test_autoScalingGroup_LoadPatchBeanstalkUserdata/No_tag_set_on_the_group,_use_region_config_(no_value) (0.00s)
+    --- PASS: Test_autoScalingGroup_LoadPatchBeanstalkUserdata/No_tag_set_on_the_group,_use_region_config_(true) (0.00s)
+    --- PASS: Test_autoScalingGroup_LoadPatchBeanstalkUserdata/Tag_set_on_the_group (0.00s)
+=== RUN   TestAlreadyRunningInstanceCount
+=== RUN   TestAlreadyRunningInstanceCount/ASG_has_no_instance_at_all
+=== RUN   TestAlreadyRunningInstanceCount/ASG_has_no_'running'_instance_but_has_some
+=== RUN   TestAlreadyRunningInstanceCount/ASG_has_no_'running'_spot_instances_but_has_some
+=== RUN   TestAlreadyRunningInstanceCount/ASG_has_no_'running'_on-demand_instances_but_has_some
+=== RUN   TestAlreadyRunningInstanceCount/ASG_has_no_'running'_on-demand_instances_in_the_AZ
+=== RUN   TestAlreadyRunningInstanceCount/ASG_has_some_'running'_on-demand_instances_in_the_AZ
+=== RUN   TestAlreadyRunningInstanceCount/ASG_has_no_'running'_spot_instances_in_the_AZ
+=== RUN   TestAlreadyRunningInstanceCount/ASG_has_some_'running'_spot_instances_in_any_AZ
+=== RUN   TestAlreadyRunningInstanceCount/ASG_has_no_'running'_spot_instances_in_any_AZ
+=== RUN   TestAlreadyRunningInstanceCount/ASG_has_some_'running'_on-demand_instances_in_any_AZ
+=== RUN   TestAlreadyRunningInstanceCount/ASG_has_no_'running'_on-demand_instances_in_any_AZ
+--- PASS: TestAlreadyRunningInstanceCount (0.00s)
+    --- PASS: TestAlreadyRunningInstanceCount/ASG_has_no_instance_at_all (0.00s)
+    --- PASS: TestAlreadyRunningInstanceCount/ASG_has_no_'running'_instance_but_has_some (0.00s)
+    --- PASS: TestAlreadyRunningInstanceCount/ASG_has_no_'running'_spot_instances_but_has_some (0.00s)
+    --- PASS: TestAlreadyRunningInstanceCount/ASG_has_no_'running'_on-demand_instances_but_has_some (0.00s)
+    --- PASS: TestAlreadyRunningInstanceCount/ASG_has_no_'running'_on-demand_instances_in_the_AZ (0.00s)
+    --- PASS: TestAlreadyRunningInstanceCount/ASG_has_some_'running'_on-demand_instances_in_the_AZ (0.00s)
+    --- PASS: TestAlreadyRunningInstanceCount/ASG_has_no_'running'_spot_instances_in_the_AZ (0.00s)
+    --- PASS: TestAlreadyRunningInstanceCount/ASG_has_some_'running'_spot_instances_in_any_AZ (0.00s)
+    --- PASS: TestAlreadyRunningInstanceCount/ASG_has_no_'running'_spot_instances_in_any_AZ (0.00s)
+    --- PASS: TestAlreadyRunningInstanceCount/ASG_has_some_'running'_on-demand_instances_in_any_AZ (0.00s)
+    --- PASS: TestAlreadyRunningInstanceCount/ASG_has_no_'running'_on-demand_instances_in_any_AZ (0.00s)
+=== RUN   TestNeedReplaceOnDemandInstances
+=== RUN   TestNeedReplaceOnDemandInstances/ASG_has_no_instance_at_all_-_1_on-demand_required
+=== RUN   TestNeedReplaceOnDemandInstances/ASG_has_no_instance_at_all_-_0_on-demand_required
+=== RUN   TestNeedReplaceOnDemandInstances/ASG_has_no_instance_running_-_1_on-demand_required
+=== RUN   TestNeedReplaceOnDemandInstances/ASG_has_no_instance_running_-_0_on-demand_required
+=== RUN   TestNeedReplaceOnDemandInstances/ASG_has_not_the_required_on-demand_running
+=== RUN   TestNeedReplaceOnDemandInstances/ASG_has_just_enough_on-demand_instances_running
+=== RUN   TestNeedReplaceOnDemandInstances/ASG_has_only_one_remaining_instance,_less_than_enough_on-demand
+=== RUN   TestNeedReplaceOnDemandInstances/ASG_has_more_than_enough_on-demand_instances_running_but_not_desired_capacity
+=== RUN   TestNeedReplaceOnDemandInstances/ASG_has_more_than_enough_on-demand_instances_running_and_desired_capacity
+=== RUN   TestNeedReplaceOnDemandInstances/ASG_has_on-demand_instances_equal_to_the_min_on-demand_number
+--- PASS: TestNeedReplaceOnDemandInstances (0.00s)
+    --- PASS: TestNeedReplaceOnDemandInstances/ASG_has_no_instance_at_all_-_1_on-demand_required (0.00s)
+    --- PASS: TestNeedReplaceOnDemandInstances/ASG_has_no_instance_at_all_-_0_on-demand_required (0.00s)
+    --- PASS: TestNeedReplaceOnDemandInstances/ASG_has_no_instance_running_-_1_on-demand_required (0.00s)
+    --- PASS: TestNeedReplaceOnDemandInstances/ASG_has_no_instance_running_-_0_on-demand_required (0.00s)
+    --- PASS: TestNeedReplaceOnDemandInstances/ASG_has_not_the_required_on-demand_running (0.00s)
+    --- PASS: TestNeedReplaceOnDemandInstances/ASG_has_just_enough_on-demand_instances_running (0.00s)
+    --- PASS: TestNeedReplaceOnDemandInstances/ASG_has_only_one_remaining_instance,_less_than_enough_on-demand (0.00s)
+    --- PASS: TestNeedReplaceOnDemandInstances/ASG_has_more_than_enough_on-demand_instances_running_but_not_desired_capacity (0.00s)
+    --- PASS: TestNeedReplaceOnDemandInstances/ASG_has_more_than_enough_on-demand_instances_running_and_desired_capacity (0.00s)
+    --- PASS: TestNeedReplaceOnDemandInstances/ASG_has_on-demand_instances_equal_to_the_min_on-demand_number (0.00s)
+=== RUN   TestDetachAndTerminateOnDemandInstance
+=== RUN   TestDetachAndTerminateOnDemandInstance/no_err_during_detach_nor_terminate
+=== RUN   TestDetachAndTerminateOnDemandInstance/err_during_detach_not_during_terminate
+=== RUN   TestDetachAndTerminateOnDemandInstance/no_err_during_detach_but_error_during_terminate
+=== RUN   TestDetachAndTerminateOnDemandInstance/errors_during_detach_and_terminate
+--- PASS: TestDetachAndTerminateOnDemandInstance (0.00s)
+    --- PASS: TestDetachAndTerminateOnDemandInstance/no_err_during_detach_nor_terminate (0.00s)
+    --- PASS: TestDetachAndTerminateOnDemandInstance/err_during_detach_not_during_terminate (0.00s)
+    --- PASS: TestDetachAndTerminateOnDemandInstance/no_err_during_detach_but_error_during_terminate (0.00s)
+    --- PASS: TestDetachAndTerminateOnDemandInstance/errors_during_detach_and_terminate (0.00s)
+=== RUN   TestTerminateInstanceInAutoScalingGroup
+=== RUN   TestTerminateInstanceInAutoScalingGroup/no_err_during_terminate
+=== RUN   TestTerminateInstanceInAutoScalingGroup/errors_during_terminate
+--- PASS: TestTerminateInstanceInAutoScalingGroup (0.00s)
+    --- PASS: TestTerminateInstanceInAutoScalingGroup/no_err_during_terminate (0.00s)
+    --- PASS: TestTerminateInstanceInAutoScalingGroup/errors_during_terminate (0.00s)
+=== RUN   TestAttachSpotInstance
+=== RUN   TestAttachSpotInstance/no_err_during_attach
+=== RUN   TestAttachSpotInstance/err_during_attach
+--- PASS: TestAttachSpotInstance (0.00s)
+    --- PASS: TestAttachSpotInstance/no_err_during_attach (0.00s)
+    --- PASS: TestAttachSpotInstance/err_during_attach (0.00s)
+=== RUN   TestLoadLaunchConfiguration
+=== RUN   TestLoadLaunchConfiguration/nil_launch_configuration_name
+=== RUN   TestLoadLaunchConfiguration/no_err_during_get_launch_configuration
+=== RUN   TestLoadLaunchConfiguration/err_during_get_launch_configuration
+--- PASS: TestLoadLaunchConfiguration (0.00s)
+    --- PASS: TestLoadLaunchConfiguration/nil_launch_configuration_name (0.00s)
+    --- PASS: TestLoadLaunchConfiguration/no_err_during_get_launch_configuration (0.00s)
+    --- PASS: TestLoadLaunchConfiguration/err_during_get_launch_configuration (0.00s)
+=== RUN   TestSetAutoScalingMaxSize
+=== RUN   TestSetAutoScalingMaxSize/err_during_set_autoscaling_max_size
+=== RUN   TestSetAutoScalingMaxSize/no_err_during_set_autoscaling_max_size
+--- PASS: TestSetAutoScalingMaxSize (0.00s)
+    --- PASS: TestSetAutoScalingMaxSize/err_during_set_autoscaling_max_size (0.00s)
+    --- PASS: TestSetAutoScalingMaxSize/no_err_during_set_autoscaling_max_size (0.00s)
+=== RUN   TestScanInstances
+=== RUN   TestScanInstances/multiple_instances_to_scan
+--- PASS: TestScanInstances (0.00s)
+    --- PASS: TestScanInstances/multiple_instances_to_scan (0.00s)
+=== RUN   TestGetOnDemandInstanceInAZ
+=== RUN   TestGetOnDemandInstanceInAZ/ASG_has_no_'running'_instance_in_the_current_AZ_but_only_in_other_AZs
+=== RUN   TestGetOnDemandInstanceInAZ/ASG_has_'running'_instance_in_AZ
+=== RUN   TestGetOnDemandInstanceInAZ/ASG_has_'running'_instance_in_AZ_ad_we_we_get_error_when_trying_to_determine_termination_protection
+=== RUN   TestGetOnDemandInstanceInAZ/ASG_has_'running'_but_protected_from_termination_instance_in_AZ
+=== RUN   TestGetOnDemandInstanceInAZ/ASG_has_'running'_but_protected_from_ASG_scale-in_instance_in_AZ
+=== RUN   TestGetOnDemandInstanceInAZ/ASG_has_no_instance_in_AZ
+=== RUN   TestGetOnDemandInstanceInAZ/ASG_has_no_instance_at_all
+--- PASS: TestGetOnDemandInstanceInAZ (0.00s)
+    --- PASS: TestGetOnDemandInstanceInAZ/ASG_has_no_'running'_instance_in_the_current_AZ_but_only_in_other_AZs (0.00s)
+    --- PASS: TestGetOnDemandInstanceInAZ/ASG_has_'running'_instance_in_AZ (0.00s)
+    --- PASS: TestGetOnDemandInstanceInAZ/ASG_has_'running'_instance_in_AZ_ad_we_we_get_error_when_trying_to_determine_termination_protection (0.00s)
+    --- PASS: TestGetOnDemandInstanceInAZ/ASG_has_'running'_but_protected_from_termination_instance_in_AZ (0.00s)
+    --- PASS: TestGetOnDemandInstanceInAZ/ASG_has_'running'_but_protected_from_ASG_scale-in_instance_in_AZ (0.00s)
+    --- PASS: TestGetOnDemandInstanceInAZ/ASG_has_no_instance_in_AZ (0.00s)
+    --- PASS: TestGetOnDemandInstanceInAZ/ASG_has_no_instance_at_all (0.00s)
+=== RUN   TestGetAnyOnDemandInstance
+=== RUN   TestGetAnyOnDemandInstance/ASG_has_no_'running'_OnDemand_instance
+=== RUN   TestGetAnyOnDemandInstance/ASG_has_one_'running'_OnDemand_instance
+=== RUN   TestGetAnyOnDemandInstance/ASG_has_multiple_'running'_OnDemand_instances
+=== RUN   TestGetAnyOnDemandInstance/ASG_has_no_instance_at_all
+--- PASS: TestGetAnyOnDemandInstance (0.00s)
+    --- PASS: TestGetAnyOnDemandInstance/ASG_has_no_'running'_OnDemand_instance (0.00s)
+    --- PASS: TestGetAnyOnDemandInstance/ASG_has_one_'running'_OnDemand_instance (0.00s)
+    --- PASS: TestGetAnyOnDemandInstance/ASG_has_multiple_'running'_OnDemand_instances (0.00s)
+    --- PASS: TestGetAnyOnDemandInstance/ASG_has_no_instance_at_all (0.00s)
+=== RUN   TestGetAnySpotInstance
+=== RUN   TestGetAnySpotInstance/ASG_has_no_'running'_Spot_instance
+=== RUN   TestGetAnySpotInstance/ASG_has_one_'running'_Spot_instance
+=== RUN   TestGetAnySpotInstance/ASG_has_multiple_'running'_Spot_instances
+=== RUN   TestGetAnySpotInstance/ASG_has_no_instance_at_all
+--- PASS: TestGetAnySpotInstance (0.00s)
+    --- PASS: TestGetAnySpotInstance/ASG_has_no_'running'_Spot_instance (0.00s)
+    --- PASS: TestGetAnySpotInstance/ASG_has_one_'running'_Spot_instance (0.00s)
+    --- PASS: TestGetAnySpotInstance/ASG_has_multiple_'running'_Spot_instances (0.00s)
+    --- PASS: TestGetAnySpotInstance/ASG_has_no_instance_at_all (0.00s)
+=== RUN   TestReplaceOnDemandInstanceWithSpot
+=== RUN   TestReplaceOnDemandInstanceWithSpot/OnDemand_is_replaced_by_spot_instance_-_min/max/des_identical
+=== RUN   TestReplaceOnDemandInstanceWithSpot/OnDemand_is_replaced_by_spot_instance_-_min/max/des_identical-detach-method
+=== RUN   TestReplaceOnDemandInstanceWithSpot/OnDemand_is_replaced_by_spot_instance_-_min/max/des_different
+=== RUN   TestReplaceOnDemandInstanceWithSpot/OnDemand_is_replaced_by_spot_instance_-_min/max/des_different-detach-method
+=== RUN   TestReplaceOnDemandInstanceWithSpot/no_spot_instances_found_in_region
+=== RUN   TestReplaceOnDemandInstanceWithSpot/no_spot_instances_found_in_region-detach-method
+=== RUN   TestReplaceOnDemandInstanceWithSpot/no_OnDemand_instances_found_in_asg
+=== RUN   TestReplaceOnDemandInstanceWithSpot/no_OnDemand_instances_found_in_asg-detach-method
+--- PASS: TestReplaceOnDemandInstanceWithSpot (0.00s)
+    --- PASS: TestReplaceOnDemandInstanceWithSpot/OnDemand_is_replaced_by_spot_instance_-_min/max/des_identical (0.00s)
+    --- PASS: TestReplaceOnDemandInstanceWithSpot/OnDemand_is_replaced_by_spot_instance_-_min/max/des_identical-detach-method (0.00s)
+    --- PASS: TestReplaceOnDemandInstanceWithSpot/OnDemand_is_replaced_by_spot_instance_-_min/max/des_different (0.00s)
+    --- PASS: TestReplaceOnDemandInstanceWithSpot/OnDemand_is_replaced_by_spot_instance_-_min/max/des_different-detach-method (0.00s)
+    --- PASS: TestReplaceOnDemandInstanceWithSpot/no_spot_instances_found_in_region (0.00s)
+    --- PASS: TestReplaceOnDemandInstanceWithSpot/no_spot_instances_found_in_region-detach-method (0.00s)
+    --- PASS: TestReplaceOnDemandInstanceWithSpot/no_OnDemand_instances_found_in_asg (0.00s)
+    --- PASS: TestReplaceOnDemandInstanceWithSpot/no_OnDemand_instances_found_in_asg-detach-method (0.00s)
+=== RUN   TestGetAllowedInstanceTypes
+=== RUN   TestGetAllowedInstanceTypes/Single_Type_Tag_c2.xlarge
+=== RUN   TestGetAllowedInstanceTypes/Single_Type_Cmd_Line_c2.xlarge
+=== RUN   TestGetAllowedInstanceTypes/Single_Type_from_Base_c2.xlarge
+=== RUN   TestGetAllowedInstanceTypes/ASG_precedence_on_command_line
+=== RUN   TestGetAllowedInstanceTypes/ASG_'current'_precedence_on_command_line
+=== RUN   TestGetAllowedInstanceTypes/Comma_separated_list
+=== RUN   TestGetAllowedInstanceTypes/Space_separated_list
+=== RUN   TestGetAllowedInstanceTypes/No_empty_elements_in_comma_separated_list
+=== RUN   TestGetAllowedInstanceTypes/No_empty_elements_in_space_separated_list
+--- PASS: TestGetAllowedInstanceTypes (0.00s)
+    --- PASS: TestGetAllowedInstanceTypes/Single_Type_Tag_c2.xlarge (0.00s)
+    --- PASS: TestGetAllowedInstanceTypes/Single_Type_Cmd_Line_c2.xlarge (0.00s)
+    --- PASS: TestGetAllowedInstanceTypes/Single_Type_from_Base_c2.xlarge (0.00s)
+    --- PASS: TestGetAllowedInstanceTypes/ASG_precedence_on_command_line (0.00s)
+    --- PASS: TestGetAllowedInstanceTypes/ASG_'current'_precedence_on_command_line (0.00s)
+    --- PASS: TestGetAllowedInstanceTypes/Comma_separated_list (0.00s)
+    --- PASS: TestGetAllowedInstanceTypes/Space_separated_list (0.00s)
+    --- PASS: TestGetAllowedInstanceTypes/No_empty_elements_in_comma_separated_list (0.00s)
+    --- PASS: TestGetAllowedInstanceTypes/No_empty_elements_in_space_separated_list (0.00s)
+=== RUN   TestGetDisallowedInstanceTypes
+=== RUN   TestGetDisallowedInstanceTypes/Single_Type_Tag_c2.xlarge
+=== RUN   TestGetDisallowedInstanceTypes/Single_Type_Cmd_Line_c2.xlarge
+=== RUN   TestGetDisallowedInstanceTypes/ASG_precedence_on_command_line
+=== RUN   TestGetDisallowedInstanceTypes/Comma_separated_list
+=== RUN   TestGetDisallowedInstanceTypes/Space_separated_list
+=== RUN   TestGetDisallowedInstanceTypes/No_empty_elements_in_comma_separated_list
+=== RUN   TestGetDisallowedInstanceTypes/No_empty_elements_in_space_separated_list
+--- PASS: TestGetDisallowedInstanceTypes (0.00s)
+    --- PASS: TestGetDisallowedInstanceTypes/Single_Type_Tag_c2.xlarge (0.00s)
+    --- PASS: TestGetDisallowedInstanceTypes/Single_Type_Cmd_Line_c2.xlarge (0.00s)
+    --- PASS: TestGetDisallowedInstanceTypes/ASG_precedence_on_command_line (0.00s)
+    --- PASS: TestGetDisallowedInstanceTypes/Comma_separated_list (0.00s)
+    --- PASS: TestGetDisallowedInstanceTypes/Space_separated_list (0.00s)
+    --- PASS: TestGetDisallowedInstanceTypes/No_empty_elements_in_comma_separated_list (0.00s)
+    --- PASS: TestGetDisallowedInstanceTypes/No_empty_elements_in_space_separated_list (0.00s)
+=== RUN   Test_autoScalingGroup_hasMemberInstance
+=== RUN   Test_autoScalingGroup_hasMemberInstance/has_member
+=== RUN   Test_autoScalingGroup_hasMemberInstance/doesn't_have_member
+--- PASS: Test_autoScalingGroup_hasMemberInstance (0.00s)
+    --- PASS: Test_autoScalingGroup_hasMemberInstance/has_member (0.00s)
+    --- PASS: Test_autoScalingGroup_hasMemberInstance/doesn't_have_member (0.00s)
+=== RUN   Test_autoScalingGroup_findUnattachedInstanceLaunchedForThisASG
+=== RUN   Test_autoScalingGroup_findUnattachedInstanceLaunchedForThisASG/no_instances_launched_for_this_ASG
+=== RUN   Test_autoScalingGroup_findUnattachedInstanceLaunchedForThisASG/instance_launched_for_another_ASG
+=== RUN   Test_autoScalingGroup_findUnattachedInstanceLaunchedForThisASG/instance_launched_for_current_ASG
+--- PASS: Test_autoScalingGroup_findUnattachedInstanceLaunchedForThisASG (0.00s)
+    --- PASS: Test_autoScalingGroup_findUnattachedInstanceLaunchedForThisASG/no_instances_launched_for_this_ASG (0.00s)
+    --- PASS: Test_autoScalingGroup_findUnattachedInstanceLaunchedForThisASG/instance_launched_for_another_ASG (0.00s)
+    --- PASS: Test_autoScalingGroup_findUnattachedInstanceLaunchedForThisASG/instance_launched_for_current_ASG (0.00s)
+=== RUN   Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance
+=== RUN   Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance/ASG_has_unprotected_and_protected_from_scale-in_instance
+=== RUN   Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance/ASG_has_unprotected_and_protected_from_termination_instance
+=== RUN   Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance/ASG_has_no_unprotected_instances_in_AZ
+--- PASS: Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance (0.00s)
+    --- PASS: Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance/ASG_has_unprotected_and_protected_from_scale-in_instance (0.00s)
+    --- PASS: Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance/ASG_has_unprotected_and_protected_from_termination_instance (0.00s)
+    --- PASS: Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance/ASG_has_no_unprotected_instances_in_AZ (0.00s)
+=== RUN   Test_autoScalingGroup_licensedToRun
+=== RUN   Test_autoScalingGroup_licensedToRun/On-demand-only
+=== RUN   Test_autoScalingGroup_licensedToRun/spot-less-than-1000-monthly
+=== RUN   Test_autoScalingGroup_licensedToRun/spot-more-than-1000-monthly-evaluation
+=== RUN   Test_autoScalingGroup_licensedToRun/spot-more-than-1000-monthly-custom
+=== RUN   Test_autoScalingGroup_licensedToRun/spot-more-than-1000-monthly-patron
+--- PASS: Test_autoScalingGroup_licensedToRun (0.00s)
+    --- PASS: Test_autoScalingGroup_licensedToRun/On-demand-only (0.00s)
+    --- PASS: Test_autoScalingGroup_licensedToRun/spot-less-than-1000-monthly (0.00s)
+    --- PASS: Test_autoScalingGroup_licensedToRun/spot-more-than-1000-monthly-evaluation (0.00s)
+    --- PASS: Test_autoScalingGroup_licensedToRun/spot-more-than-1000-monthly-custom (0.00s)
+    --- PASS: Test_autoScalingGroup_licensedToRun/spot-more-than-1000-monthly-patron (0.00s)
+=== RUN   Test_autoScalingGroup_calculateHourlySavings
+=== RUN   Test_autoScalingGroup_calculateHourlySavings/On-demand-only
+=== RUN   Test_autoScalingGroup_calculateHourlySavings/spot-only
+=== RUN   Test_autoScalingGroup_calculateHourlySavings/spot-and-on-demand
+=== RUN   Test_autoScalingGroup_calculateHourlySavings/premium-instance
+--- PASS: Test_autoScalingGroup_calculateHourlySavings (0.00s)
+    --- PASS: Test_autoScalingGroup_calculateHourlySavings/On-demand-only (0.00s)
+    --- PASS: Test_autoScalingGroup_calculateHourlySavings/spot-only (0.00s)
+    --- PASS: Test_autoScalingGroup_calculateHourlySavings/spot-and-on-demand (0.00s)
+    --- PASS: Test_autoScalingGroup_calculateHourlySavings/premium-instance (0.00s)
+=== RUN   TestDecodeUserData
+=== RUN   TestDecodeUserData/returns_plain_user_data_as_is
+=== RUN   TestDecodeUserData/decodes_base64_data
+--- PASS: TestDecodeUserData (0.00s)
+    --- PASS: TestDecodeUserData/returns_plain_user_data_as_is (0.00s)
+    --- PASS: TestDecodeUserData/decodes_base64_data (0.00s)
+=== RUN   TestEncodeUserData
+=== RUN   TestEncodeUserData/encodes_data_to_base64
+--- PASS: TestEncodeUserData (0.00s)
+    --- PASS: TestEncodeUserData/encodes_data_to_base64 (0.00s)
+=== RUN   TestGetPatchedUserDataForBeanstalk
+=== RUN   TestGetPatchedUserDataForBeanstalk/does_nothing_if_the_user_data_does_not_belong_to_Beanstalk
+=== RUN   TestGetPatchedUserDataForBeanstalk/decodes_base64_data_and_does_nothing_if_the_user_data_does_not_belong_to_Beanstalk
+=== RUN   TestGetPatchedUserDataForBeanstalk/adds_wrappers
+=== RUN   TestGetPatchedUserDataForBeanstalk/adds_wrappers#01
+--- PASS: TestGetPatchedUserDataForBeanstalk (0.00s)
+    --- PASS: TestGetPatchedUserDataForBeanstalk/does_nothing_if_the_user_data_does_not_belong_to_Beanstalk (0.00s)
+    --- PASS: TestGetPatchedUserDataForBeanstalk/decodes_base64_data_and_does_nothing_if_the_user_data_does_not_belong_to_Beanstalk (0.00s)
+    --- PASS: TestGetPatchedUserDataForBeanstalk/adds_wrappers (0.00s)
+    --- PASS: TestGetPatchedUserDataForBeanstalk/adds_wrappers#01 (0.00s)
+=== RUN   TestParseConfig
+=== RUN   TestParseConfig/default_settings
+=== RUN   TestParseConfig/with_AWS_REGION_set
+=== RUN   TestParseConfig/with_LICENSE_set
+--- PASS: TestParseConfig (0.66s)
+    --- PASS: TestParseConfig/default_settings (0.23s)
+    --- PASS: TestParseConfig/with_AWS_REGION_set (0.22s)
+    --- PASS: TestParseConfig/with_LICENSE_set (0.22s)
+=== RUN   Test_connections_connect
+=== RUN   Test_connections_connect/connect_to_region_foo
+--- PASS: Test_connections_connect (0.00s)
+    --- PASS: Test_connections_connect/connect_to_region_foo (0.00s)
+=== RUN   TestMake
+--- PASS: TestMake (0.00s)
+=== RUN   TestAdd
+=== RUN   TestAdd/map_contains_a_nil_pointer
+=== RUN   TestAdd/map_has_1_instance
+=== RUN   TestAdd/map_has_several_instances
+--- PASS: TestAdd (0.00s)
+    --- PASS: TestAdd/map_contains_a_nil_pointer (0.00s)
+    --- PASS: TestAdd/map_has_1_instance (0.00s)
+    --- PASS: TestAdd/map_has_several_instances (0.00s)
+=== RUN   TestGet
+=== RUN   TestGet/map_contains_the_required_instance
+=== RUN   TestGet/catalog_doesn't_contain_the_instance
+--- PASS: TestGet (0.00s)
+    --- PASS: TestGet/map_contains_the_required_instance (0.00s)
+    --- PASS: TestGet/catalog_doesn't_contain_the_instance (0.00s)
+=== RUN   TestCount
+=== RUN   TestCount/map_is_nil
+=== RUN   TestCount/map_is_empty
+=== RUN   TestCount/map_has_1_instance
+=== RUN   TestCount/map_has_several_instances
+--- PASS: TestCount (0.00s)
+    --- PASS: TestCount/map_is_nil (0.00s)
+    --- PASS: TestCount/map_is_empty (0.00s)
+    --- PASS: TestCount/map_has_1_instance (0.00s)
+    --- PASS: TestCount/map_has_several_instances (0.00s)
+=== RUN   TestCount64
+=== RUN   TestCount64/map_is_nil
+=== RUN   TestCount64/map_is_empty
+=== RUN   TestCount64/map_has_1_instance
+=== RUN   TestCount64/map_has_several_instances
+--- PASS: TestCount64 (0.00s)
+    --- PASS: TestCount64/map_is_nil (0.00s)
+    --- PASS: TestCount64/map_is_empty (0.00s)
+    --- PASS: TestCount64/map_has_1_instance (0.00s)
+    --- PASS: TestCount64/map_has_several_instances (0.00s)
+=== RUN   TestIsSpot
+=== RUN   TestIsSpot/LifeCycle_is_nil
+=== RUN   TestIsSpot/LifeCycle_is_not_nil_but_not_spot
+=== RUN   TestIsSpot/LifeCycle_is_not_nil_and_is_spot
+--- PASS: TestIsSpot (0.00s)
+    --- PASS: TestIsSpot/LifeCycle_is_nil (0.00s)
+    --- PASS: TestIsSpot/LifeCycle_is_not_nil_but_not_spot (0.00s)
+    --- PASS: TestIsSpot/LifeCycle_is_not_nil_and_is_spot (0.00s)
+=== RUN   TestIsEBSCompatible
+=== RUN   TestIsEBSCompatible/EBS_not_Optimized_Spot_not_Optimized
+=== RUN   TestIsEBSCompatible/EBS_Optimized_Spot_Optimized_with_same_throughput
+=== RUN   TestIsEBSCompatible/EBS_Optimized_Spot_Optimized_with_more_throughput
+=== RUN   TestIsEBSCompatible/EBS_Optimized_Spot_not_Optimized
+=== RUN   TestIsEBSCompatible/EBS_not_Optimized_Spot_Optimized
+--- PASS: TestIsEBSCompatible (0.00s)
+    --- PASS: TestIsEBSCompatible/EBS_not_Optimized_Spot_not_Optimized (0.00s)
+    --- PASS: TestIsEBSCompatible/EBS_Optimized_Spot_Optimized_with_same_throughput (0.00s)
+    --- PASS: TestIsEBSCompatible/EBS_Optimized_Spot_Optimized_with_more_throughput (0.00s)
+    --- PASS: TestIsEBSCompatible/EBS_Optimized_Spot_not_Optimized (0.00s)
+    --- PASS: TestIsEBSCompatible/EBS_not_Optimized_Spot_Optimized (0.00s)
+=== RUN   TestIsPriceCompatible
+=== RUN   TestIsPriceCompatible/No_spot_price_for_such_availability_zone
+=== RUN   TestIsPriceCompatible/Spot_price_is_0.0
+=== RUN   TestIsPriceCompatible/Spot_price_is_higher_than_instance_price
+--- PASS: TestIsPriceCompatible (0.00s)
+    --- PASS: TestIsPriceCompatible/No_spot_price_for_such_availability_zone (0.00s)
+    --- PASS: TestIsPriceCompatible/Spot_price_is_0.0 (0.00s)
+    --- PASS: TestIsPriceCompatible/Spot_price_is_higher_than_instance_price (0.00s)
+=== RUN   TestIsClassCompatible
+=== RUN   TestIsClassCompatible/Spot_is_higher_in_both_CPU_&_memory
+=== RUN   TestIsClassCompatible/Spot_is_lower_in_CPU_but_higher_in_memory
+=== RUN   TestIsClassCompatible/Spot_is_lower_in_memory_but_higher_in_CPU
+=== RUN   TestIsClassCompatible/Spot_is_lower_in_both_CPU_&_memory
+=== RUN   TestIsClassCompatible/Spot_is_lower_in_CPU,_memory_and_GPU_
+=== RUN   TestIsClassCompatible/Spot_is_higher_in_CPU,_memory_and_GPU_
+--- PASS: TestIsClassCompatible (0.00s)
+    --- PASS: TestIsClassCompatible/Spot_is_higher_in_both_CPU_&_memory (0.00s)
+    --- PASS: TestIsClassCompatible/Spot_is_lower_in_CPU_but_higher_in_memory (0.00s)
+    --- PASS: TestIsClassCompatible/Spot_is_lower_in_memory_but_higher_in_CPU (0.00s)
+    --- PASS: TestIsClassCompatible/Spot_is_lower_in_both_CPU_&_memory (0.00s)
+    --- PASS: TestIsClassCompatible/Spot_is_lower_in_CPU,_memory_and_GPU_ (0.00s)
+    --- PASS: TestIsClassCompatible/Spot_is_higher_in_CPU,_memory_and_GPU_ (0.00s)
+=== RUN   TestIsStorageCompatible
+=== RUN   TestIsStorageCompatible/Instance_has_no_attached_volumes
+=== RUN   TestIsStorageCompatible/Spot's_storage_is_identical_to_instance
+=== RUN   TestIsStorageCompatible/Spot's_storage_is_lower_than_the_instance's_one
+=== RUN   TestIsStorageCompatible/Spot's_storage_is_bigger_than_the_instance's_one
+=== RUN   TestIsStorageCompatible/Spot's_storage_is_bigger_and_has_less_storage_attached
+=== RUN   TestIsStorageCompatible/Spot's_storage_is_bigger_and_has_more_storage_attached
+=== RUN   TestIsStorageCompatible/Spot's_storage_is_bigger_and_has_more_storage_attached_but_isn't_SSD_(unlike_the_instance)
+=== RUN   TestIsStorageCompatible/Spot's_storage_is_bigger,_has_more_storage_attached,_is_SSD_(like_the_instance)
+--- PASS: TestIsStorageCompatible (0.00s)
+    --- PASS: TestIsStorageCompatible/Instance_has_no_attached_volumes (0.00s)
+    --- PASS: TestIsStorageCompatible/Spot's_storage_is_identical_to_instance (0.00s)
+    --- PASS: TestIsStorageCompatible/Spot's_storage_is_lower_than_the_instance's_one (0.00s)
+    --- PASS: TestIsStorageCompatible/Spot's_storage_is_bigger_than_the_instance's_one (0.00s)
+    --- PASS: TestIsStorageCompatible/Spot's_storage_is_bigger_and_has_less_storage_attached (0.00s)
+    --- PASS: TestIsStorageCompatible/Spot's_storage_is_bigger_and_has_more_storage_attached (0.00s)
+    --- PASS: TestIsStorageCompatible/Spot's_storage_is_bigger_and_has_more_storage_attached_but_isn't_SSD_(unlike_the_instance) (0.00s)
+    --- PASS: TestIsStorageCompatible/Spot's_storage_is_bigger,_has_more_storage_attached,_is_SSD_(like_the_instance) (0.00s)
+=== RUN   TestIsVirtualizationCompatible
+=== RUN   TestIsVirtualizationCompatible/Spot's_virtualization_includes_instance's_one_(pv_case)
+=== RUN   TestIsVirtualizationCompatible/Spot's_virtualization_includes_instance's_one_(hvm_case)
+=== RUN   TestIsVirtualizationCompatible/Spot's_virtualization_does_not_include_any_type
+=== RUN   TestIsVirtualizationCompatible/Spot's_virtualization_doesn't_include_instance's_one_(pv_case)
+=== RUN   TestIsVirtualizationCompatible/Spot's_virtualization_doesn't_include_instance's_one_(hvm_case)
+--- PASS: TestIsVirtualizationCompatible (0.00s)
+    --- PASS: TestIsVirtualizationCompatible/Spot's_virtualization_includes_instance's_one_(pv_case) (0.00s)
+    --- PASS: TestIsVirtualizationCompatible/Spot's_virtualization_includes_instance's_one_(hvm_case) (0.00s)
+    --- PASS: TestIsVirtualizationCompatible/Spot's_virtualization_does_not_include_any_type (0.00s)
+    --- PASS: TestIsVirtualizationCompatible/Spot's_virtualization_doesn't_include_instance's_one_(pv_case) (0.00s)
+    --- PASS: TestIsVirtualizationCompatible/Spot's_virtualization_doesn't_include_instance's_one_(hvm_case) (0.00s)
+=== RUN   TestGetCheapestCompatibleSpotInstanceType
+=== RUN   TestGetCheapestCompatibleSpotInstanceType/better/cheaper_spot_instance_found
+=== RUN   TestGetCheapestCompatibleSpotInstanceType/better/cheaper_spot_instance_found_but_marked_as_disallowed
+=== RUN   TestGetCheapestCompatibleSpotInstanceType/better/cheaper_spot_instance_found_but_not_marked_as_allowed
+=== RUN   TestGetCheapestCompatibleSpotInstanceType/better/cheaper_spot_instance_found_and_marked_as_allowed
+=== RUN   TestGetCheapestCompatibleSpotInstanceType/better/cheaper_spot_instance_not_found
+--- PASS: TestGetCheapestCompatibleSpotInstanceType (0.00s)
+    --- PASS: TestGetCheapestCompatibleSpotInstanceType/better/cheaper_spot_instance_found (0.00s)
+    --- PASS: TestGetCheapestCompatibleSpotInstanceType/better/cheaper_spot_instance_found_but_marked_as_disallowed (0.00s)
+    --- PASS: TestGetCheapestCompatibleSpotInstanceType/better/cheaper_spot_instance_found_but_not_marked_as_allowed (0.00s)
+    --- PASS: TestGetCheapestCompatibleSpotInstanceType/better/cheaper_spot_instance_found_and_marked_as_allowed (0.00s)
+    --- PASS: TestGetCheapestCompatibleSpotInstanceType/better/cheaper_spot_instance_not_found (0.00s)
+=== RUN   TestGetPricetoBid
+--- PASS: TestGetPricetoBid (0.00s)
+=== RUN   TestTerminate
+--- PASS: TestTerminate (0.00s)
+=== RUN   TestMin
+=== RUN   TestMin/Testing_min_between_0_and_0
+=== RUN   TestMin/Testing_min_between_0_and_10
+--- PASS: TestMin (0.00s)
+    --- PASS: TestMin/Testing_min_between_0_and_0 (0.00s)
+    --- PASS: TestMin/Testing_min_between_0_and_10 (0.00s)
+=== RUN   TestGenerateTagList
+=== RUN   TestGenerateTagList/no_tags_on_original_instance
+=== RUN   TestGenerateTagList/Multiple_tags_on_original_instance
+--- PASS: TestGenerateTagList (0.00s)
+    --- PASS: TestGenerateTagList/no_tags_on_original_instance (0.00s)
+    --- PASS: TestGenerateTagList/Multiple_tags_on_original_instance (0.00s)
+=== RUN   Test_instance_convertBlockDeviceMappings
+=== RUN   Test_instance_convertBlockDeviceMappings/nil_launch_configuration
+=== RUN   Test_instance_convertBlockDeviceMappings/nil_block_device_mapping
+=== RUN   Test_instance_convertBlockDeviceMappings/instance-store_only,_skipping_one_of_the_volumes_from_the_BDMs
+=== RUN   Test_instance_convertBlockDeviceMappings/instance-store_and_EBS
+--- PASS: Test_instance_convertBlockDeviceMappings (0.00s)
+    --- PASS: Test_instance_convertBlockDeviceMappings/nil_launch_configuration (0.00s)
+    --- PASS: Test_instance_convertBlockDeviceMappings/nil_block_device_mapping (0.00s)
+    --- PASS: Test_instance_convertBlockDeviceMappings/instance-store_only,_skipping_one_of_the_volumes_from_the_BDMs (0.00s)
+    --- PASS: Test_instance_convertBlockDeviceMappings/instance-store_and_EBS (0.00s)
+=== RUN   Test_instance_convertSecurityGroups
+=== RUN   Test_instance_convertSecurityGroups/missing_SGs
+=== RUN   Test_instance_convertSecurityGroups/single_SG
+=== RUN   Test_instance_convertSecurityGroups/multiple_SGs
+--- PASS: Test_instance_convertSecurityGroups (0.00s)
+    --- PASS: Test_instance_convertSecurityGroups/missing_SGs (0.00s)
+    --- PASS: Test_instance_convertSecurityGroups/single_SG (0.00s)
+    --- PASS: Test_instance_convertSecurityGroups/multiple_SGs (0.00s)
+=== RUN   Test_instance_createRunInstancesInput
+=== RUN   Test_instance_createRunInstancesInput/create_run_instances_input_with_basic_launch_template
+=== RUN   Test_instance_createRunInstancesInput/create_run_instances_input_with_launch_template_containing_advanced_network_configuration
+=== RUN   Test_instance_createRunInstancesInput/create_run_instances_input_with_simple_LC
+=== RUN   Test_instance_createRunInstancesInput/create_run_instances_input_with_full_launch_configuration
+=== RUN   Test_instance_createRunInstancesInput/create_run_instances_input_with_customized_UserData_for_Beanstalk
+--- PASS: Test_instance_createRunInstancesInput (0.00s)
+    --- PASS: Test_instance_createRunInstancesInput/create_run_instances_input_with_basic_launch_template (0.00s)
+    --- PASS: Test_instance_createRunInstancesInput/create_run_instances_input_with_launch_template_containing_advanced_network_configuration (0.00s)
+    --- PASS: Test_instance_createRunInstancesInput/create_run_instances_input_with_simple_LC (0.00s)
+    --- PASS: Test_instance_createRunInstancesInput/create_run_instances_input_with_full_launch_configuration (0.00s)
+    --- PASS: Test_instance_createRunInstancesInput/create_run_instances_input_with_customized_UserData_for_Beanstalk (0.00s)
+=== RUN   Test_instance_isReadyToAttach
+=== RUN   Test_instance_isReadyToAttach/pending_instance
+=== RUN   Test_instance_isReadyToAttach/not-ready_running_instance
+=== RUN   Test_instance_isReadyToAttach/ready_running_instance
+--- PASS: Test_instance_isReadyToAttach (0.00s)
+    --- PASS: Test_instance_isReadyToAttach/pending_instance (0.00s)
+    --- PASS: Test_instance_isReadyToAttach/not-ready_running_instance (0.00s)
+    --- PASS: Test_instance_isReadyToAttach/ready_running_instance (0.00s)
+=== RUN   Test_instance_isSameArch
+=== RUN   Test_instance_isSameArch/Same_architecture:_both_Intel
+=== RUN   Test_instance_isSameArch/Same_architecture:_both_AMD
+=== RUN   Test_instance_isSameArch/Same_architecture:_Intel_and_AMD
+=== RUN   Test_instance_isSameArch/Same_architecture:_AMD_and_Intel
+=== RUN   Test_instance_isSameArch/Same_architecture:_Intel_and_Variable
+=== RUN   Test_instance_isSameArch/Same_architecture:_Variable_and_Intel
+=== RUN   Test_instance_isSameArch/Same_architecture,_both_ARM-based
+=== RUN   Test_instance_isSameArch/Different_architecture,_Intel_and_ARM
+=== RUN   Test_instance_isSameArch/Different_architecture,_AMD_and_ARM
+=== RUN   Test_instance_isSameArch/Different_architecture,_ARM_and_Intel
+=== RUN   Test_instance_isSameArch/Different_architecture,_ARM_and_AMD
+--- PASS: Test_instance_isSameArch (0.00s)
+    --- PASS: Test_instance_isSameArch/Same_architecture:_both_Intel (0.00s)
+    --- PASS: Test_instance_isSameArch/Same_architecture:_both_AMD (0.00s)
+    --- PASS: Test_instance_isSameArch/Same_architecture:_Intel_and_AMD (0.00s)
+    --- PASS: Test_instance_isSameArch/Same_architecture:_AMD_and_Intel (0.00s)
+    --- PASS: Test_instance_isSameArch/Same_architecture:_Intel_and_Variable (0.00s)
+    --- PASS: Test_instance_isSameArch/Same_architecture:_Variable_and_Intel (0.00s)
+    --- PASS: Test_instance_isSameArch/Same_architecture,_both_ARM-based (0.00s)
+    --- PASS: Test_instance_isSameArch/Different_architecture,_Intel_and_ARM (0.00s)
+    --- PASS: Test_instance_isSameArch/Different_architecture,_AMD_and_ARM (0.00s)
+    --- PASS: Test_instance_isSameArch/Different_architecture,_ARM_and_Intel (0.00s)
+    --- PASS: Test_instance_isSameArch/Different_architecture,_ARM_and_AMD (0.00s)
+=== RUN   Test_countLaunchConfigEphemeralVolumes
+=== RUN   Test_countLaunchConfigEphemeralVolumes/empty_launchConfiguration
+=== RUN   Test_countLaunchConfigEphemeralVolumes/empty_BlockDeviceMappings
+=== RUN   Test_countLaunchConfigEphemeralVolumes/mix_of_valid_and_invalid_configuration
+=== RUN   Test_countLaunchConfigEphemeralVolumes/valid_configuration
+--- PASS: Test_countLaunchConfigEphemeralVolumes (0.00s)
+    --- PASS: Test_countLaunchConfigEphemeralVolumes/empty_launchConfiguration (0.00s)
+    --- PASS: Test_countLaunchConfigEphemeralVolumes/empty_BlockDeviceMappings (0.00s)
+    --- PASS: Test_countLaunchConfigEphemeralVolumes/mix_of_valid_and_invalid_configuration (0.00s)
+    --- PASS: Test_countLaunchConfigEphemeralVolumes/valid_configuration (0.00s)
+=== RUN   Test_getRegions
+=== RUN   Test_getRegions/return_some_regions
+=== RUN   Test_getRegions/return_an_error
+--- PASS: Test_getRegions (0.00s)
+    --- PASS: Test_getRegions/return_some_regions (0.00s)
+    --- PASS: Test_getRegions/return_an_error (0.00s)
+=== RUN   Test_spotEnabledIsAddedByDefault
+=== RUN   Test_spotEnabledIsAddedByDefault/Default_No_ASG_Tags
+=== RUN   Test_spotEnabledIsAddedByDefault/Specified_ASG_Tags
+=== RUN   Test_spotEnabledIsAddedByDefault/Specified_ASG_that_is_just_whitespace
+=== RUN   Test_spotEnabledIsAddedByDefault/Default_No_ASG_Tags#01
+--- PASS: Test_spotEnabledIsAddedByDefault (0.00s)
+    --- PASS: Test_spotEnabledIsAddedByDefault/Default_No_ASG_Tags (0.00s)
+    --- PASS: Test_spotEnabledIsAddedByDefault/Specified_ASG_Tags (0.00s)
+    --- PASS: Test_spotEnabledIsAddedByDefault/Specified_ASG_that_is_just_whitespace (0.00s)
+    --- PASS: Test_spotEnabledIsAddedByDefault/Default_No_ASG_Tags#01 (0.00s)
+=== RUN   Test_addDefaultFilterMode
+=== RUN   Test_addDefaultFilterMode/Missing_FilterMode
+=== RUN   Test_addDefaultFilterMode/Opt-in_FilterMode
+=== RUN   Test_addDefaultFilterMode/Opt-out_FilterMode
+=== RUN   Test_addDefaultFilterMode/Anything_else_gives_the_opt-in_FilterMode
+--- PASS: Test_addDefaultFilterMode (0.00s)
+    --- PASS: Test_addDefaultFilterMode/Missing_FilterMode (0.00s)
+    --- PASS: Test_addDefaultFilterMode/Opt-in_FilterMode (0.00s)
+    --- PASS: Test_addDefaultFilterMode/Opt-out_FilterMode (0.00s)
+    --- PASS: Test_addDefaultFilterMode/Anything_else_gives_the_opt-in_FilterMode (0.00s)
+=== RUN   Test_region_enabled
+=== RUN   Test_region_enabled/No_regions_given_in_the_filter
+=== RUN   Test_region_enabled/Running_in_a_different_region_than_one_allowed_one
+=== RUN   Test_region_enabled/Running_in_a_different_region_than_a_list_of_allowed_ones
+=== RUN   Test_region_enabled/Running_in_a_region_from_the_allowed_ones
+=== RUN   Test_region_enabled/Comma-separated_allowed_regions
+=== RUN   Test_region_enabled/Comma_and_whitespace-separated_allowed_regions
+=== RUN   Test_region_enabled/Whitespace-and-comma-separated_allowed_regions
+=== RUN   Test_region_enabled/Region_globs_matching
+=== RUN   Test_region_enabled/Region_globs_not_matching
+=== RUN   Test_region_enabled/Region_globs_without_dash_matching
+=== RUN   Test_region_enabled/Region_globs_without_dash_not_matching
+=== RUN   Test_region_enabled/Non-separated_allowed_regions
+--- PASS: Test_region_enabled (0.00s)
+    --- PASS: Test_region_enabled/No_regions_given_in_the_filter (0.00s)
+    --- PASS: Test_region_enabled/Running_in_a_different_region_than_one_allowed_one (0.00s)
+    --- PASS: Test_region_enabled/Running_in_a_different_region_than_a_list_of_allowed_ones (0.00s)
+    --- PASS: Test_region_enabled/Running_in_a_region_from_the_allowed_ones (0.00s)
+    --- PASS: Test_region_enabled/Comma-separated_allowed_regions (0.00s)
+    --- PASS: Test_region_enabled/Comma_and_whitespace-separated_allowed_regions (0.00s)
+    --- PASS: Test_region_enabled/Whitespace-and-comma-separated_allowed_regions (0.00s)
+    --- PASS: Test_region_enabled/Region_globs_matching (0.00s)
+    --- PASS: Test_region_enabled/Region_globs_not_matching (0.00s)
+    --- PASS: Test_region_enabled/Region_globs_without_dash_matching (0.00s)
+    --- PASS: Test_region_enabled/Region_globs_without_dash_not_matching (0.00s)
+    --- PASS: Test_region_enabled/Non-separated_allowed_regions (0.00s)
+=== RUN   TestAsgFiltersSetupOnRegion
+--- PASS: TestAsgFiltersSetupOnRegion (0.00s)
+=== RUN   TestOnDemandPriceMultiplier
+--- PASS: TestOnDemandPriceMultiplier (0.00s)
+=== RUN   TestDefaultASGFiltering
+--- PASS: TestDefaultASGFiltering (0.00s)
+=== RUN   TestFilterAsgs
+=== RUN   TestFilterAsgs/Test_with_single_filter
+=== RUN   TestFilterAsgs/Test_opt-out_mode
+=== RUN   TestFilterAsgs/Test_opt-out_mode_with_multiple_tag_filters
+=== RUN   TestFilterAsgs/Test_with_two_filters
+=== RUN   TestFilterAsgs/Test_with_multiple_secondary_filter
+=== RUN   TestFilterAsgs/Test_with_multiple_secondary_filters_with_glob_expression
+=== RUN   TestFilterAsgs/Test_filters_with_invalid_glob_expression
+=== RUN   TestFilterAsgs/Test_skipping_execution_against_mixed_groups
+--- PASS: TestFilterAsgs (0.00s)
+    --- PASS: TestFilterAsgs/Test_with_single_filter (0.00s)
+    --- PASS: TestFilterAsgs/Test_opt-out_mode (0.00s)
+    --- PASS: TestFilterAsgs/Test_opt-out_mode_with_multiple_tag_filters (0.00s)
+    --- PASS: TestFilterAsgs/Test_with_two_filters (0.00s)
+    --- PASS: TestFilterAsgs/Test_with_multiple_secondary_filter (0.00s)
+    --- PASS: TestFilterAsgs/Test_with_multiple_secondary_filters_with_glob_expression (0.00s)
+    --- PASS: TestFilterAsgs/Test_filters_with_invalid_glob_expression (0.00s)
+    --- PASS: TestFilterAsgs/Test_skipping_execution_against_mixed_groups (0.00s)
+=== RUN   TestIsStackUpdating
+=== RUN   TestIsStackUpdating/Stack_is_not_updating
+=== RUN   TestIsStackUpdating/Stack_is_updating
+--- PASS: TestIsStackUpdating (0.00s)
+    --- PASS: TestIsStackUpdating/Stack_is_not_updating (0.00s)
+    --- PASS: TestIsStackUpdating/Stack_is_updating (0.00s)
+=== RUN   Test_region_scanInstances
+=== RUN   Test_region_scanInstances/region_with_a_single_instance
+--- PASS: Test_region_scanInstances (0.00s)
+    --- PASS: Test_region_scanInstances/region_with_a_single_instance (0.00s)
+=== RUN   Test_region_processDescribeInstancesPage
+=== RUN   Test_region_processDescribeInstancesPage/region_with_a_single_instance
+--- PASS: Test_region_processDescribeInstancesPage (0.00s)
+    --- PASS: Test_region_processDescribeInstancesPage/region_with_a_single_instance (0.00s)
+=== RUN   Test_insideSchedule
+=== RUN   Test_insideSchedule/All_the_time
+<nil>
+<nil>
+=== RUN   Test_insideSchedule/Inside_business_week
+<nil>
+<nil>
+=== RUN   Test_insideSchedule/Inside_business_week,_before_interval_start
+<nil>
+<nil>
+=== RUN   Test_insideSchedule/Inside_business_week,_after_interval_end
+<nil>
+<nil>
+=== RUN   Test_insideSchedule/Inside_business_week,_One_minute_before_interval_start
+<nil>
+<nil>
+=== RUN   Test_insideSchedule/Inside_business_week,_One_minute_after_interval_start
+<nil>
+<nil>
+=== RUN   Test_insideSchedule/Inside_business_week,_One_minute_before_interval_end
+<nil>
+<nil>
+=== RUN   Test_insideSchedule/Inside_business_week,_One_minute_after_interval_end
+<nil>
+<nil>
+=== RUN   Test_insideSchedule/During_the_weekend
+<nil>
+<nil>
+=== RUN   Test_insideSchedule/During_the_weekend,_but_incorrect_crontab
+<nil>
+failed to parse int from : strconv.Atoi: parsing "": invalid syntax
+--- PASS: Test_insideSchedule (0.00s)
+    --- PASS: Test_insideSchedule/All_the_time (0.00s)
+    --- PASS: Test_insideSchedule/Inside_business_week (0.00s)
+    --- PASS: Test_insideSchedule/Inside_business_week,_before_interval_start (0.00s)
+    --- PASS: Test_insideSchedule/Inside_business_week,_after_interval_end (0.00s)
+    --- PASS: Test_insideSchedule/Inside_business_week,_One_minute_before_interval_start (0.00s)
+    --- PASS: Test_insideSchedule/Inside_business_week,_One_minute_after_interval_start (0.00s)
+    --- PASS: Test_insideSchedule/Inside_business_week,_One_minute_before_interval_end (0.00s)
+    --- PASS: Test_insideSchedule/Inside_business_week,_One_minute_after_interval_end (0.00s)
+    --- PASS: Test_insideSchedule/During_the_weekend (0.00s)
+    --- PASS: Test_insideSchedule/During_the_weekend,_but_incorrect_crontab (0.00s)
+=== RUN   Test_runAction
+=== RUN   Test_runAction/On_inside_interval_and_currently_in_the_interval
+<nil>
+<nil>
+Inside schedule for 9-18 1-5 : true
+=== RUN   Test_runAction/On_inside_interval,_but_currently_outside_interval
+<nil>
+<nil>
+Inside schedule for 9-18 1-5 : false
+=== RUN   Test_runAction/Off_inside_interval,_and_currently_in_the_interval
+<nil>
+<nil>
+Inside schedule for 9-18 1-5 : true
+=== RUN   Test_runAction/Off_inside_interval,_and_currently_outside_the_interval
+<nil>
+<nil>
+Inside schedule for 9-18 1-5 : false
+=== RUN   Test_runAction/Incorrect_cron_rule
+<nil>
+failed to parse int from : strconv.Atoi: parsing "": invalid syntax
+Inside schedule for -18 1-5 : false
+--- PASS: Test_runAction (0.00s)
+    --- PASS: Test_runAction/On_inside_interval_and_currently_in_the_interval (0.00s)
+    --- PASS: Test_runAction/On_inside_interval,_but_currently_outside_interval (0.00s)
+    --- PASS: Test_runAction/Off_inside_interval,_and_currently_in_the_interval (0.00s)
+    --- PASS: Test_runAction/Off_inside_interval,_and_currently_outside_the_interval (0.00s)
+    --- PASS: Test_runAction/Incorrect_cron_rule (0.00s)
+=== RUN   Test_fetch
+=== RUN   Test_fetch/error
+=== RUN   Test_fetch/ok
+=== RUN   Test_fetch/paginated_output
+--- PASS: Test_fetch (0.00s)
+    --- PASS: Test_fetch/error (0.00s)
+    --- PASS: Test_fetch/ok (0.00s)
+    --- PASS: Test_fetch/paginated_output (0.00s)
+=== RUN   TestNewSpotTermination
+--- PASS: TestNewSpotTermination (0.00s)
+=== RUN   TestGetInstanceIDDueForTermination
+=== RUN   TestGetInstanceIDDueForTermination/Invalid_Detail_in_CloudWatch_event
+=== RUN   TestGetInstanceIDDueForTermination/Detail_in_event_is_empty
+=== RUN   TestGetInstanceIDDueForTermination/Detail_has_spot_termination_event_data
+--- PASS: TestGetInstanceIDDueForTermination (0.00s)
+    --- PASS: TestGetInstanceIDDueForTermination/Invalid_Detail_in_CloudWatch_event (0.00s)
+    --- PASS: TestGetInstanceIDDueForTermination/Detail_in_event_is_empty (0.00s)
+    --- PASS: TestGetInstanceIDDueForTermination/Detail_has_spot_termination_event_data (0.00s)
+=== RUN   TestDetachInstance
+=== RUN   TestDetachInstance/When_DetachInstances_returns_error
+=== RUN   TestDetachInstance/When_DetachInstances_execute_successfully
+--- PASS: TestDetachInstance (0.00s)
+    --- PASS: TestDetachInstance/When_DetachInstances_returns_error (0.00s)
+    --- PASS: TestDetachInstance/When_DetachInstances_execute_successfully (0.00s)
+=== RUN   TestTerminateInstance
+=== RUN   TestTerminateInstance/When_TerminateInstance_returns_error
+=== RUN   TestTerminateInstance/When_TerminateInstance_execute_successfully
+--- PASS: TestTerminateInstance (0.00s)
+    --- PASS: TestTerminateInstance/When_TerminateInstance_returns_error (0.00s)
+    --- PASS: TestTerminateInstance/When_TerminateInstance_execute_successfully (0.00s)
+=== RUN   TestGetAsgName
+=== RUN   TestGetAsgName/When_DescribeAutoScalingInstances_return_error
+=== RUN   TestGetAsgName/When_DescribeAutoScalingInstances_returns_no_instances
+=== RUN   TestGetAsgName/When_DescribeAutoScalingInstances_returns_asgName
+--- PASS: TestGetAsgName (0.00s)
+    --- PASS: TestGetAsgName/When_DescribeAutoScalingInstances_return_error (0.00s)
+    --- PASS: TestGetAsgName/When_DescribeAutoScalingInstances_returns_no_instances (0.00s)
+    --- PASS: TestGetAsgName/When_DescribeAutoScalingInstances_returns_asgName (0.00s)
+=== RUN   TestDeleteTagInstanceLaunchedForAsg
+=== RUN   TestDeleteTagInstanceLaunchedForAsg/When_DeleteTags_return_error
+=== RUN   TestDeleteTagInstanceLaunchedForAsg/When_DeleteTags_execute_successfully
+--- PASS: TestDeleteTagInstanceLaunchedForAsg (0.00s)
+    --- PASS: TestDeleteTagInstanceLaunchedForAsg/When_DeleteTags_return_error (0.00s)
+    --- PASS: TestDeleteTagInstanceLaunchedForAsg/When_DeleteTags_execute_successfully (0.00s)
+=== RUN   TestExecuteAction
+=== RUN   TestExecuteAction/When_AutoScaling_service_is_nil
+=== RUN   TestExecuteAction/When_AutoScaling_service_returns_error
+=== RUN   TestExecuteAction/When_AutoScaling_service_returns_no_instances
+=== RUN   TestExecuteAction/When_AutoScaling_service_returns_asgName_and_action_is_auto
+=== RUN   TestExecuteAction/When_AutoScaling_service_returns_asgName_and_action_is_terminate
+=== RUN   TestExecuteAction/When_AutoScaling_service_returns_asgName_and_action_is_detach
+--- PASS: TestExecuteAction (0.00s)
+    --- PASS: TestExecuteAction/When_AutoScaling_service_is_nil (0.00s)
+    --- PASS: TestExecuteAction/When_AutoScaling_service_returns_error (0.00s)
+    --- PASS: TestExecuteAction/When_AutoScaling_service_returns_no_instances (0.00s)
+    --- PASS: TestExecuteAction/When_AutoScaling_service_returns_asgName_and_action_is_auto (0.00s)
+    --- PASS: TestExecuteAction/When_AutoScaling_service_returns_asgName_and_action_is_terminate (0.00s)
+    --- PASS: TestExecuteAction/When_AutoScaling_service_returns_asgName_and_action_is_detach (0.00s)
+=== RUN   TestIsInAutoSpottingASG
+=== RUN   TestIsInAutoSpottingASG/When_instance_is_not_in_an_ASG
+=== RUN   TestIsInAutoSpottingASG/When_instance_is_in_ASG_with_matching_tags
+=== RUN   TestIsInAutoSpottingASG/When_instance_is_in_ASG_without_matching_tag_value
+=== RUN   TestIsInAutoSpottingASG/When_instance_is_in_ASG_with_no_tags
+=== RUN   TestIsInAutoSpottingASG/When_instance_is_in_ASG_that_has_opted_out
+=== RUN   TestIsInAutoSpottingASG/When_instance_is_in_ASG_that_has_not_opted_out
+--- PASS: TestIsInAutoSpottingASG (0.00s)
+    --- PASS: TestIsInAutoSpottingASG/When_instance_is_not_in_an_ASG (0.00s)
+    --- PASS: TestIsInAutoSpottingASG/When_instance_is_in_ASG_with_matching_tags (0.00s)
+    --- PASS: TestIsInAutoSpottingASG/When_instance_is_in_ASG_without_matching_tag_value (0.00s)
+    --- PASS: TestIsInAutoSpottingASG/When_instance_is_in_ASG_with_no_tags (0.00s)
+    --- PASS: TestIsInAutoSpottingASG/When_instance_is_in_ASG_that_has_opted_out (0.00s)
+    --- PASS: TestIsInAutoSpottingASG/When_instance_is_in_ASG_that_has_not_opted_out (0.00s)
+PASS
+coverage: 83.3% of statements
+ok  	github.com/AutoSpotting/AutoSpotting/core	0.730s	coverage: 83.3% of statements

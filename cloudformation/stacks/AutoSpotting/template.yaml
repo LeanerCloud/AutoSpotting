@@ -41,8 +41,16 @@
         the usual 9-18 office hours. This is a global value that can be
         overridden on a per-group basis using the 'autospotting_cron_schedule'
         tag set on the AutoScaling group. The default value '* *' makes it run
-        at all times. The timezone is the local timezone set on the Lambda
-        runtime, which currently appears to be UTC."
+        at all times.
+      Type: "String"
+    CronTimezone:
+      Default: "UTC"
+      Description: >
+        "Sets the timezone in which to check the CronSchedule. Example: If the
+        timezone is set to 'UTC' and the CronSchedule is '9-18 1-5' it would start
+        the interval at 9am UTC, with the timezone set to 'Europe/London' it would
+        start the interval at 9am BST (10am UTC) or 9am GMT (9am UTC) depending on
+        daylight savings."
       Type: "String"
     CronScheduleState:
       AllowedValues:
@@ -413,6 +421,8 @@
               Ref: "BiddingPolicy"
             CRON_SCHEDULE:
               Ref: "CronSchedule"
+            CRON_TIMEZONE:
+              Ref: "CronTimezone"
             CRON_SCHEDULE_STATE:
               Ref: "CronScheduleState"
             DISALLOWED_INSTANCE_TYPES:
