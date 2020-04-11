@@ -129,7 +129,7 @@ func (a *autoScalingGroup) process() {
 	spotInstance := a.findUnattachedInstanceLaunchedForThisASG()
 	debug.Println("Candidate Spot instance", spotInstance)
 
-	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronScheduleState)
+	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronTimezone, a.config.CronScheduleState)
 	debug.Println(a.region.name, a.name, "Should take replacement actions:", shouldRun)
 
 	if ok, err := a.licensedToRun(); !ok {
