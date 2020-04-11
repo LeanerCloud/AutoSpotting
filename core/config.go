@@ -171,6 +171,9 @@ func ParseConfig(conf *Config) {
 	flagSet.StringVar(&conf.CronSchedule, "cron_schedule", "* *", "\n\tCron-like schedule in which to"+
 		"\tperform(or not) spot replacement actions. Format: hour day-of-week\n"+
 		"\tExample: ./AutoSpotting --cron_schedule '9-18 1-5' # workdays during the office hours \n")
+	flagSet.StringVar(&conf.CronTimezone, "cron_timezone", "UTC", "\n\tTimezone to"+
+		"\tperform(or not) spot replacement actions. Format: timezone\n"+
+		"\tExample: ./AutoSpotting --cron_timezone 'Europe/London' \n")
 
 	flagSet.StringVar(&conf.CronScheduleState, "cron_schedule_state", "on", "\n\tControls whether to take actions "+
 		"inside or outside the schedule defined by cron_schedule. Allowed values: on|off\n"+

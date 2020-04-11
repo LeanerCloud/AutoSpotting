@@ -9,7 +9,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/mattn/goveralls v0.0.5
 	github.com/namsral/flag v0.0.0-20170814194028-67f268f20922
-	github.com/robfig/cron v1.2.0
+	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/tools v0.0.0-20200408132156-9ee5ef7a2c0d
