@@ -29,12 +29,12 @@ const (
 	DetachTerminationMethod = "detach"
 
 	// TerminateTerminationNotificationAction terminate the spot instance, which will be terminated
-	// by AWS in 2 minutes, without reducing the ASG capcity, so that a new instance will
+	// by AWS in 2 minutes, without reducing the ASG capacity, so that a new instance will
 	// be launched. LifeCycle Hooks are triggered.
 	TerminateTerminationNotificationAction = "terminate"
 
 	// DetachTerminationNotificationAction detach the spot instance, which will be terminated
-	// by AWS in 2 minutes, without reducing the ASG capcity, so that a new instance will
+	// by AWS in 2 minutes, without reducing the ASG capacity, so that a new instance will
 	// be launched. LifeCycle Hooks are not triggered.
 	DetachTerminationNotificationAction = "detach"
 
