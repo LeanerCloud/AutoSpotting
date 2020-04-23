@@ -436,7 +436,7 @@ func (i *instance) launchSpotReplacement() error {
 
 		if err != nil {
 			if strings.Contains(err.Error(), "InsufficientInstanceCapacity") {
-				logger.Println("Couldn't launch spot instance due to lack of capcity, trying next instance type:", err.Error())
+				logger.Println("Couldn't launch spot instance due to lack of capacity, trying next instance type:", err.Error())
 			} else {
 				logger.Println("Couldn't launch spot instance:", err.Error(), "trying next instance type")
 				debug.Println(runInstancesInput)
