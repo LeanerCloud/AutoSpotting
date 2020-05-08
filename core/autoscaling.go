@@ -223,16 +223,6 @@ func (a *autoScalingGroup) scanInstances() instances {
 func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 	spotInstanceID string) error {
 
-	minSize, maxSize := *a.MinSize, *a.MaxSize
-	desiredCapacity := *a.DesiredCapacity
-
-	// temporarily increase AutoScaling group in case it's of static size
-	if minSize == maxSize {
-		logger.Println(a.name, "Temporarily increasing MaxSize")
-		a.setAutoScalingMaxSize(maxSize + 1)
-		defer a.setAutoScalingMaxSize(maxSize)
-	}
-
 	// get the details of our spot instance so we can see its AZ
 	logger.Println(a.name, "Retrieving instance details for ", spotInstanceID)
 	spotInst := a.region.instances.get(spotInstanceID)
@@ -255,16 +245,22 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(
 	}
 	logger.Println(a.name, "found on-demand instance", *odInst.InstanceId,
 		"replacing with new spot instance", *spotInst.InstanceId)
-	// revert attach/detach order when running on minimum capacity
-	if desiredCapacity == minSize {
-		attachErr := a.attachSpotInstance(spotInstanceID)
-		if attachErr != nil {
-			logger.Println(a.name, "skipping detaching on-demand due to failure to",
-				"attach the new spot instance", *spotInst.InstanceId)
-			return nil
-		}
-	} else {
-		defer a.attachSpotInstance(spotInstanceID)
+
+	desiredCapacity, maxSize := *a.DesiredCapacity, *a.MaxSize
+
+	// temporarily increase AutoScaling group in case the desired capacity reaches the max size,
+	// otherwise attachSpotInstance might fail
+	if desiredCapacity == maxSize {
+		logger.Println(a.name, "Temporarily increasing MaxSize")
+		a.setAutoScalingMaxSize(maxSize + 1)
+		defer a.setAutoScalingMaxSize(maxSize)
+	}
+
+	attachErr := a.attachSpotInstance(spotInstanceID)
+	if attachErr != nil {
+		logger.Println(a.name, "skipping detaching on-demand due to failure to",
+			"attach the new spot instance ", *spotInst.InstanceId)
+		return nil
 	}
 
 	switch a.config.TerminationMethod {
