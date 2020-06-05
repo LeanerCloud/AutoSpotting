@@ -1,5 +1,25 @@
 # AutoSpotting #
 
+**CEASED ACTIVE DEVELOPMENT**
+
+Hello,
+
+I decided to stop actively working on AutoSpotting going forward.
+
+I don't have the time to work on it and all my attempts to ramp up the income I get from it to eventually replace my full time job failed. I've also seen it repeatedly forked by companies who launched proprietary products based on it without any sort of contributions to the project, which also impacted my motivation to work on it as a hobby.
+
+If you're using it you can keep running the current version as long as it works for you. Going forward I will keep creating stable builds occasionally for my Patreon supporters in case there are significant updates from other people, but I won't be actively working on new features for the forseable future. You can also consider migrating to some of the AWS native offerings or proprietary tools in this space.
+
+If anyone is interested in taking over the development/maintenance work feel free to reach out on gitter.
+
+Huge thanks to everyone who supported development by purshasing stable build licenses on Patreon and to all the open source contributors who helped over the years.
+
+Best regards,
+
+Cristian
+
+--------------------------
+
 <!-- markdownlint-disable MD003 MD026 MD033 -->
 
 <img src="logo.png" width="150" align="right">
