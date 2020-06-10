@@ -10,7 +10,7 @@ I don't have the time to work on it and all my attempts to ramp up the income I 
 
 If you're using it you can keep running the current version as long as it works for you. Going forward I will keep creating stable builds occasionally for my Patreon supporters in case there are significant updates from other people, but I won't be actively working on new features for the forseable future. You can also consider migrating to some of the AWS native offerings or proprietary tools in this space.
 
-If anyone is interested in taking over the development/maintenance work feel free to reach out on gitter.
+If anyone is interested in taking over the development/maintenance work feel free to reach out on [gitter](https://gitter.im/cristim/autospotting) and/or this Github [issue](https://github.com/AutoSpotting/AutoSpotting/issues/431).
 
 Huge thanks to everyone who supported development by purshasing stable build licenses on Patreon and to all the open source contributors who helped over the years.
 
