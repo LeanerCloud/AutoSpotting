@@ -183,18 +183,23 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 		OnDemandNumberLong:    a.loadNumberOnDemand,
 	}
 
+	foundLimit := false
 	for _, tagKey := range tagList {
 		if tagValue := a.getTagValue(tagKey); tagValue != nil {
 			if _, ok := loadDyn[tagKey]; ok {
 				if newValue, done := loadDyn[tagKey](tagValue); done {
-					a.minOnDemand = newValue
-					return done
+					if !foundLimit {
+						a.minOnDemand = newValue
+						foundLimit = done
+					} else if newValue > a.minOnDemand {
+						a.minOnDemand = newValue
+					}
 				}
 			}
 		}
 		debug.Println("Couldn't find tag", tagKey)
 	}
-	return false
+	return foundLimit
 }
 
 func (a *autoScalingGroup) loadPatchBeanstalkUserdata() {
