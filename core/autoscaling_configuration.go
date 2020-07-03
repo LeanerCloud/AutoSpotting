@@ -176,6 +176,13 @@ func (a *autoScalingGroup) getTagValue(keyMatch string) *string {
 	return nil
 }
 
+func (a *autoScalingGroup) setMinOnDemandIfLarger(newValue int64, hasMinOnDemand bool) bool {
+	if !hasMinOnDemand || newValue > a.minOnDemand {
+		a.minOnDemand = newValue
+	}
+	return true
+}
+
 func (a *autoScalingGroup) loadConfOnDemand() bool {
 	tagList := [2]string{OnDemandNumberLong, OnDemandPercentageTag}
 	loadDyn := map[string]func(*string) (int64, bool){
@@ -188,12 +195,7 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 		if tagValue := a.getTagValue(tagKey); tagValue != nil {
 			if _, ok := loadDyn[tagKey]; ok {
 				if newValue, done := loadDyn[tagKey](tagValue); done {
-					if !foundLimit {
-						a.minOnDemand = newValue
-						foundLimit = done
-					} else if newValue > a.minOnDemand {
-						a.minOnDemand = newValue
-					}
+					foundLimit = a.setMinOnDemandIfLarger(newValue, foundLimit)
 				}
 			}
 		}
