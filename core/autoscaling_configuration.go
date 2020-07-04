@@ -176,6 +176,13 @@ func (a *autoScalingGroup) getTagValue(keyMatch string) *string {
 	return nil
 }
 
+func (a *autoScalingGroup) setMinOnDemandIfLarger(newValue int64, hasMinOnDemand bool) bool {
+	if !hasMinOnDemand || newValue > a.minOnDemand {
+		a.minOnDemand = newValue
+	}
+	return true
+}
+
 func (a *autoScalingGroup) loadConfOnDemand() bool {
 	tagList := [2]string{OnDemandNumberLong, OnDemandPercentageTag}
 	loadDyn := map[string]func(*string) (int64, bool){
@@ -183,18 +190,18 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 		OnDemandNumberLong:    a.loadNumberOnDemand,
 	}
 
+	foundLimit := false
 	for _, tagKey := range tagList {
 		if tagValue := a.getTagValue(tagKey); tagValue != nil {
 			if _, ok := loadDyn[tagKey]; ok {
 				if newValue, done := loadDyn[tagKey](tagValue); done {
-					a.minOnDemand = newValue
-					return done
+					foundLimit = a.setMinOnDemandIfLarger(newValue, foundLimit)
 				}
 			}
 		}
 		debug.Println("Couldn't find tag", tagKey)
 	}
-	return false
+	return foundLimit
 }
 
 func (a *autoScalingGroup) loadPatchBeanstalkUserdata() {

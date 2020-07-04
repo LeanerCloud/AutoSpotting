@@ -350,33 +350,6 @@ func TestLoadConfOnDemand(t *testing.T) {
 			numberExpected:  1,
 			loadingExpected: true,
 		},
-		{name: "Number has priority on percentage value",
-			asgTags: []*autoscaling.TagDescription{
-				{
-					Key:   aws.String("Name"),
-					Value: aws.String("asg-test"),
-				},
-				{
-					Key:   aws.String(OnDemandPercentageTag),
-					Value: aws.String("75"),
-				},
-				{
-					Key:   aws.String(OnDemandNumberLong),
-					Value: aws.String("2"),
-				},
-			},
-			asgInstances: makeInstancesWithCatalog(
-				instanceMap{
-					"id-1": {},
-					"id-2": {},
-					"id-3": {},
-					"id-4": {},
-				},
-			),
-			maxSize:         aws.Int64(10),
-			numberExpected:  2,
-			loadingExpected: true,
-		},
 		{name: "Number is invalid so percentage value is used",
 			asgTags: []*autoscaling.TagDescription{
 				{
@@ -423,6 +396,64 @@ func TestLoadConfOnDemand(t *testing.T) {
 			asgInstances:    makeInstances(),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
+		},
+		{name: "Number lower than percentage and both valid so take the percentage",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+				{
+					Key:   aws.String(OnDemandPercentageTag),
+					Value: aws.String("75"),
+				},
+				{
+					Key:   aws.String(OnDemandNumberLong),
+					Value: aws.String("2"),
+				},
+			},
+			asgInstances: makeInstancesWithCatalog(
+				instanceMap{
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
+					"id-4": {},
+					"id-5": {},
+					"id-6": {},
+					"id-7": {},
+					"id-8": {},
+				},
+			),
+			maxSize:         aws.Int64(10),
+			numberExpected:  6,
+			loadingExpected: true,
+		},
+		{name: "Number higher than percentage and both valid so take the number",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+				{
+					Key:   aws.String(OnDemandPercentageTag),
+					Value: aws.String("10"),
+				},
+				{
+					Key:   aws.String(OnDemandNumberLong),
+					Value: aws.String("3"),
+				},
+			},
+			asgInstances: makeInstancesWithCatalog(
+				instanceMap{
+					"id-1": {},
+					"id-2": {},
+					"id-3": {},
+					"id-4": {},
+				},
+			),
+			maxSize:         aws.Int64(10),
+			numberExpected:  3,
+			loadingExpected: true,
 		},
 	}
 
