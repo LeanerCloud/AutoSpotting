@@ -1134,6 +1134,13 @@ func TestGetPricetoBid(t *testing.T) {
 			policy:               "aggressive",
 			want:                 0.0464,
 		},
+		{
+			spotPercentage:       0.0,
+			currentSpotPrice:     0.0216,
+			currentOnDemandPrice: 0.0464,
+			policy:               "aggressive",
+			want:                 0.0216,
+		},
 	}
 	for _, tt := range tests {
 		cfg := &Config{

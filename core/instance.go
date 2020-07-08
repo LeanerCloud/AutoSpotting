@@ -535,7 +535,8 @@ func (i *instance) getPricetoBid(
 	}
 
 	bufferPrice := math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))
-	logger.Println("Bidding buffer-based price", bufferPrice)
+	logger.Println("Bidding buffer-based price of", bufferPrice, "based on current spot price of", currentSpotPrice,
+	  "and buffer percentage of", i.region.conf.SpotPriceBufferPercentage)
 	return bufferPrice
 }
 

@@ -149,7 +149,7 @@ func (a *autoScalingGroup) loadSpotPriceBufferPercentage(tagValue *string) (floa
 	if err != nil {
 		logger.Printf("Error with ParseFloat: %s\n", err.Error())
 		return DefaultSpotPriceBufferPercentage, false
-	} else if spotPriceBufferPercentage <= 0 {
+	} else if spotPriceBufferPercentage < 0 {
 		logger.Printf("Ignoring out of range value : %f\n", spotPriceBufferPercentage)
 		return DefaultSpotPriceBufferPercentage, false
 	}
