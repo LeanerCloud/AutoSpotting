@@ -121,13 +121,13 @@ func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
 	}
 
 	result, err := s.asSvc.DescribeAutoScalingInstances(&asParams)
-
-	var asgName = ""
-	if err == nil {
-		asgName = *result.AutoScalingInstances[0].AutoScalingGroupName
+	if err != nil {
+		return "", err
+	} else if len(result.AutoScalingInstances) == 0 {
+		return "", nil
 	}
 
-	return asgName, err
+	return *result.AutoScalingInstances[0].AutoScalingGroupName, nil
 }
 
 // ExecuteAction execute the proper termination action (terminate|detach) based on the value of
@@ -142,6 +142,9 @@ func (s *SpotTermination) executeAction(instanceID *string, terminationNotificat
 	if err != nil {
 		logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
 		return err
+	} else if asgName == "" {
+		logger.Println("Instance", instanceID, "does not belong to an autoscaling group")
+		return nil
 	}
 
 	switch terminationNotificationAction {
