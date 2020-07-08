@@ -11,7 +11,7 @@ services:
         - TRAVIS_BUILD_NUMBER
         entrypoint:
           - make
-          - travisci
+          - ci
         volumes:
           - type: bind
             source: ./build
