@@ -35,7 +35,7 @@ func (c *connections) setSession(region string) {
 
 func (c *connections) connect(region string) {
 
-	logger.Println("Creating Service connections in", region)
+	debug.Println("Creating service connections in", region)
 
 	if c.session == nil {
 		c.setSession(region)

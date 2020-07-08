@@ -137,7 +137,7 @@ func splitTagAndValue(value string) *Tag {
 }
 
 func (r *region) processDescribeInstancesPage(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
-	logger.Println("Processing page of DescribeInstancesPages for", r.name)
+	debug.Println("Processing page of DescribeInstancesPages for", r.name)
 
 	if len(page.Reservations) > 0 &&
 		page.Reservations[0].Instances != nil {
@@ -286,7 +286,7 @@ func (r *region) requestSpotPrices() error {
 		// spot market
 		price, err := strconv.ParseFloat(*priceInfo.SpotPrice, 64)
 		if err != nil {
-			logger.Println(r.name, "Instance type ", instType,
+			debug.Println(r.name, "Instance type ", instType,
 				"is not available on the spot market")
 			continue
 		}
@@ -399,7 +399,7 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
 		}
 
 		if stackName := getTagValueFromASGWithMatchingTag(group, tagCloudFormationStackName); stackName != nil {
-			logger.Println("Stack: ", *stackName)
+			debug.Println("Stack: ", *stackName)
 			if status, updating := r.isStackUpdating(stackName); updating {
 				logger.Printf("Skipping group %s because stack %s is in state %s\n",
 					asgName, *stackName, status)
