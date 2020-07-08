@@ -197,10 +197,11 @@ func TestOnDemandPriceMultiplier(t *testing.T) {
 			conf: cfg,
 			services: connections{
 				ec2: mockEC2{
-					dspho: &ec2.DescribeSpotPriceHistoryOutput{
-						SpotPriceHistory: []*ec2.SpotPrice{},
+					dsphpo: []*ec2.DescribeSpotPriceHistoryOutput{
+						{
+							SpotPriceHistory: []*ec2.SpotPrice{},
+						},
 					},
-					dspherr: nil,
 				},
 			}}
 		r.determineInstanceTypeInformation(cfg)

@@ -31,9 +31,11 @@ func CheckErrors(t *testing.T, err error, expected error) {
 type mockEC2 struct {
 	ec2iface.EC2API
 
-	// Describe Spot Price History
-	dspho   *ec2.DescribeSpotPriceHistoryOutput
-	dspherr error
+	// DescribeSpotPriceHistoryPages output
+	dsphpo []*ec2.DescribeSpotPriceHistoryOutput
+
+	 // DescribeSpotPriceHistoryPages error
+	dsphperr error
 
 	// DescribeInstancesOutput
 	dio *ec2.DescribeInstancesOutput
@@ -65,13 +67,16 @@ type mockEC2 struct {
 	wuirerr error
 }
 
-func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
-	return m.dspho, m.dspherr
+func (m mockEC2) DescribeSpotPriceHistoryPages(in *ec2.DescribeSpotPriceHistoryInput, f func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool) error {
+	for i, page := range m.dsphpo {
+		f(page, i == len(m.dsphpo)-1)
+	}
+	return m.dsphperr
 }
 
 func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, f func(*ec2.DescribeInstancesOutput, bool) bool) error {
 	f(m.dio, true)
-	return nil
+	return m.diperr
 }
 
 func (m mockEC2) DescribeInstanceAttribute(in *ec2.DescribeInstanceAttributeInput) (*ec2.DescribeInstanceAttributeOutput, error) {
