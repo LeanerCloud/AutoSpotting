@@ -269,7 +269,7 @@
         scripts to use the instance role when calling CloudFormation helpers
         instead of the standard CloudFormation authentication method.
         After creating this CloudFormation stack, you must add the
-        AutoSpottingElasticBeanstalk managed policy to your Beanstalk
+        AutoSpotting's ElasticBeanstalk managed policy to your Beanstalk
         instance profile/role if you turn this option to On"
       Type: "String"
   Conditions:
@@ -1050,7 +1050,6 @@
       Condition: "StackIsMain"
       Properties:
         Description: "Allow instances to get initialization information from CloudFormation when they are a part of a Beanstalk cluster. Add this policy to your Elastic Beanstalk instance profile (role) when enabling patch_beanstalk_userdata in AutoSpotting. (Managed policy created by AutoSpotting)"
-        ManagedPolicyName: AutoSpottingElasticBeanstalk
         PolicyDocument:
           Version: "2012-10-17"
           Statement:
