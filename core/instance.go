@@ -456,7 +456,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
 			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice})
-			logger.Println("\tFound compatible instance type", candidate.instanceType, "added to launch candiates list")
+			logger.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candiates list for instance", i.InstanceId)
 		} else if candidate.instanceType != "" {
 			debug.Println("Non compatible option found:", candidate.instanceType, "at", candidatePrice, " - discarding")
 		}
@@ -527,16 +527,16 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 func (i *instance) getPricetoBid(
 	baseOnDemandPrice float64, currentSpotPrice float64) float64 {
 
-	logger.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
+	debug.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
 
 	if i.region.conf.BiddingPolicy == DefaultBiddingPolicy {
-		logger.Println("Bidding base on demand price", baseOnDemandPrice)
+		logger.Println("Bidding base on demand price", baseOnDemandPrice, "to replace instance", i.InstanceId)
 		return baseOnDemandPrice
 	}
 
 	bufferPrice := math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))
 	logger.Println("Bidding buffer-based price of", bufferPrice, "based on current spot price of", currentSpotPrice,
-	  "and buffer percentage of", i.region.conf.SpotPriceBufferPercentage)
+	  "and buffer percentage of", i.region.conf.SpotPriceBufferPercentage, "to replace instance", i.InstanceId)
 	return bufferPrice
 }
 

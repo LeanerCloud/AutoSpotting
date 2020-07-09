@@ -272,7 +272,7 @@ func (a *autoScalingGroup) loadConfSpot() bool {
 	}
 	if newValue, done := a.loadBiddingPolicy(tagValue); done {
 		a.region.conf.BiddingPolicy = newValue
-		logger.Println("BiddingPolicy =", a.region.conf.BiddingPolicy)
+		debug.Println("BiddingPolicy =", a.region.conf.BiddingPolicy)
 		return done
 	}
 	return false
