@@ -218,43 +218,43 @@ func (s *SpotTermination) IsInAutoSpottingASG(instanceID *string, tagFilteringMo
 
 	asgName, err := s.getAsgName(instanceID)
 
-        if err != nil {
-                logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
-                return false
-        } else if asgName == "" {
-                logger.Println("Instance", instanceID, "is not in an autoscaling group")
-                return false
-        }
+	if err != nil {
+		logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
+		return false
+	} else if asgName == "" {
+		logger.Println("Instance", instanceID, "is not in an autoscaling group")
+		return false
+	}
 
-        asgGroupsOutput, err := s.asSvc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
-                AutoScalingGroupNames: []*string{
-                        &asgName,
-                },
-        })
+	asgGroupsOutput, err := s.asSvc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: []*string{
+			&asgName,
+		},
+	})
 
-        if err != nil {
-                logger.Printf("Failed to get ASG using ASG name %s with err: %s\n", asgName, err.Error())
-                return false
-        }
+	if err != nil {
+		logger.Printf("Failed to get ASG using ASG name %s with err: %s\n", asgName, err.Error())
+		return false
+	}
 
-        filters := replaceWhitespace(filterByTags)
+	filters := replaceWhitespace(filterByTags)
 
-        var tagsToMatch = []Tag{}
+	var tagsToMatch = []Tag{}
 
-        for _, tagWithValue := range strings.Split(filters, ",") {
-                tag := splitTagAndValue(tagWithValue)
-                if tag != nil {
-                        tagsToMatch = append(tagsToMatch, *tag)
-                }
-        }
+	for _, tagWithValue := range strings.Split(filters, ",") {
+		tag := splitTagAndValue(tagWithValue)
+		if tag != nil {
+			tagsToMatch = append(tagsToMatch, *tag)
+		}
+	}
 
-        isInASG := optInFilterMode == isASGWithMatchingTags(asgGroupsOutput.AutoScalingGroups[0], tagsToMatch)
+	isInASG := optInFilterMode == isASGWithMatchingTags(asgGroupsOutput.AutoScalingGroups[0], tagsToMatch)
 
-        if !isInASG {
-                logger.Printf("Skipping group %s because its tags, the currently "+
-                        "configured filtering mode (%s) and tag filters do not align\n",
-                        asgName, tagFilteringMode)
-        }
+	if !isInASG {
+		logger.Printf("Skipping group %s because its tags, the currently "+
+			"configured filtering mode (%s) and tag filters do not align\n",
+			asgName, tagFilteringMode)
+	}
 
-        return isInASG
+	return isInASG
 }

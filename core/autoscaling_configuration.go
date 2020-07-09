@@ -53,7 +53,7 @@ const (
 
 	// DefaultSpotProductPremium stores the default value to add to the
 	// on demand price for premium instance types.
-	 DefaultSpotProductPremium = 0.0
+	DefaultSpotProductPremium = 0.0
 
 	// DefaultMinOnDemandValue stores the default on-demand capacity to be kept
 	// running in a group managed by autospotting.
@@ -79,9 +79,9 @@ const (
 	// can override the global value of the Schedule parameter
 	ScheduleTag = "autospotting_cron_schedule"
 
-        // TimezoneTag is the name of the tag set on the AutoScaling Group that
-        // can override the global value of the Timezone parameter
-        TimezoneTag = "autospotting_cron_timezone"
+	// TimezoneTag is the name of the tag set on the AutoScaling Group that
+	// can override the global value of the Timezone parameter
+	TimezoneTag = "autospotting_cron_timezone"
 
 	// CronScheduleState controls whether to run or not to run during the time interval
 	// specified in the Schedule variable or its per-group tag overrides. It
@@ -206,10 +206,10 @@ func (a *autoScalingGroup) getTagValue(keyMatch string) *string {
 }
 
 func (a *autoScalingGroup) setMinOnDemandIfLarger(newValue int64, hasMinOnDemand bool) bool {
-        if !hasMinOnDemand || newValue > a.minOnDemand {
-                a.minOnDemand = newValue
-        }
-        return true
+	if !hasMinOnDemand || newValue > a.minOnDemand {
+		a.minOnDemand = newValue
+	}
+	return true
 }
 
 func (a *autoScalingGroup) loadConfOnDemand() bool {
@@ -270,16 +270,16 @@ func (a *autoScalingGroup) LoadCronSchedule() {
 }
 
 func (a *autoScalingGroup) LoadCronTimezone() {
-        tagValue := a.getTagValue(TimezoneTag)
+	tagValue := a.getTagValue(TimezoneTag)
 
-        if tagValue != nil {
-                logger.Printf("Loaded CronTimezone value %v from tag %v\n", *tagValue, TimezoneTag)
-                a.config.CronTimezone = *tagValue
-                return
-        }
+	if tagValue != nil {
+		logger.Printf("Loaded CronTimezone value %v from tag %v\n", *tagValue, TimezoneTag)
+		a.config.CronTimezone = *tagValue
+		return
+	}
 
-        debug.Println("Couldn't find tag", TimezoneTag, "on the group", a.name, "using the default configuration")
-        a.config.CronTimezone = a.region.conf.CronTimezone
+	debug.Println("Couldn't find tag", TimezoneTag, "on the group", a.name, "using the default configuration")
+	a.config.CronTimezone = a.region.conf.CronTimezone
 }
 
 func (a *autoScalingGroup) LoadCronScheduleState() {

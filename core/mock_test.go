@@ -32,7 +32,7 @@ type mockEC2 struct {
 	// DescribeSpotPriceHistoryPages output
 	dsphpo []*ec2.DescribeSpotPriceHistoryOutput
 
-	 // DescribeSpotPriceHistoryPages error
+	// DescribeSpotPriceHistoryPages error
 	dsphperr error
 
 	// DescribeInstancesOutput
@@ -124,7 +124,7 @@ type mockASG struct {
 	dto *autoscaling.DescribeTagsOutput
 
 	// Describe AutoScaling Group
-	dasgo	*autoscaling.DescribeAutoScalingGroupsOutput
+	dasgo   *autoscaling.DescribeAutoScalingGroupsOutput
 	dasgerr error
 
 	// Describe AutoScalingInstances
@@ -204,10 +204,10 @@ func (m mockCloudFormation) DescribeStacks(*cloudformation.DescribeStacksInput) 
 type mockLambda struct {
 	lambdaiface.LambdaAPI
 	// Invoke
-	io *lambda.InvokeOutput
+	io   *lambda.InvokeOutput
 	ierr error
 }
 
-func (m mockLambda) Invoke(*lambda.InvokeInput) (*lambda.InvokeOutput, error){
+func (m mockLambda) Invoke(*lambda.InvokeInput) (*lambda.InvokeOutput, error) {
 	return m.io, m.ierr
 }

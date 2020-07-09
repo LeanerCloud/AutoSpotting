@@ -177,9 +177,9 @@ func ParseConfig(conf *Config) {
 			"\tValid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | \n"+
 			"\tSUSE Linux (Amazon VPC) | Windows (Amazon VPC) | Red Hat Enterprise Linux\n\tDefault value: "+DefaultSpotProductDescription+"\n")
 
-        flagSet.Float64Var(&conf.SpotProductPremium, "spot_product_premium", DefaultSpotProductPremium,
-	                "\n\tThe Product Premium to apply to the on demand price to improve spot selection and savings calculations\n"+
-			                        "\twhen using a premium instance type such as RHEL.")
+	flagSet.Float64Var(&conf.SpotProductPremium, "spot_product_premium", DefaultSpotProductPremium,
+		"\n\tThe Product Premium to apply to the on demand price to improve spot selection and savings calculations\n"+
+			"\twhen using a premium instance type such as RHEL.")
 
 	flagSet.StringVar(&conf.TagFilteringMode, "tag_filtering_mode", "opt-in", "\n\tControls the behavior of the tag_filters option.\n"+
 		"\tValid choices: opt-in | opt-out\n\tDefault value: 'opt-in'\n\tExample: ./AutoSpotting --tag_filtering_mode opt-out\n")
@@ -193,9 +193,9 @@ func ParseConfig(conf *Config) {
 		"\tperform(or not) spot replacement actions. Format: hour day-of-week\n"+
 		"\tExample: ./AutoSpotting --cron_schedule '9-18 1-5' # workdays during the office hours \n")
 
-        flagSet.StringVar(&conf.CronTimezone, "cron_timezone", "UTC", "\n\tTimezone to"+
-                "\tperform(or not) spot replacement actions. Format: timezone\n"+
-                "\tExample: ./AutoSpotting --cron_timezone 'Europe/London' \n")
+	flagSet.StringVar(&conf.CronTimezone, "cron_timezone", "UTC", "\n\tTimezone to"+
+		"\tperform(or not) spot replacement actions. Format: timezone\n"+
+		"\tExample: ./AutoSpotting --cron_timezone 'Europe/London' \n")
 
 	flagSet.StringVar(&conf.CronScheduleState, "cron_schedule_state", "on", "\n\tControls whether to take actions "+
 		"inside or outside the schedule defined by cron_schedule. Allowed values: on|off\n"+

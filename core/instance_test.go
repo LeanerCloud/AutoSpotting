@@ -1147,14 +1147,14 @@ func TestGetPricetoBid(t *testing.T) {
 			policy:               "aggressive",
 			want:                 0.0216,
 		},
-                {
-                        spotPercentage:       50.0,
-                        currentSpotPrice:     0.0816,
-                        currentOnDemandPrice: 0.1064,
-                        spotPremium:          0.06,
-                        policy:               "aggressive",
-                        want:                 0.0924,
-                },
+		{
+			spotPercentage:       50.0,
+			currentSpotPrice:     0.0816,
+			currentOnDemandPrice: 0.1064,
+			spotPremium:          0.06,
+			policy:               "aggressive",
+			want:                 0.0924,
+		},
 	}
 	for _, tt := range tests {
 		cfg := &Config{
@@ -2177,7 +2177,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 							Value: aws.String("mygroup"),
 						},
 						{
-							Key:   aws.String("launched-for-replacing-instance"),
+							Key: aws.String("launched-for-replacing-instance"),
 						},
 					},
 				},

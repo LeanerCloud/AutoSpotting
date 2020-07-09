@@ -3523,31 +3523,31 @@ func Test_autoScalingGroup_calculateHourlySavings(t *testing.T) {
 				}),
 			want: 0.9,
 		},
-                {
-                        name: "premium-instance",
-                        instances: makeInstancesWithCatalog(
-                                instanceMap{
-                                        "ondemand-1": {
-                                                price: 1.6,
-                                                typeInfo: instanceTypeInformation{
-                                                        pricing: prices{
-                                                                onDemand: 1.0,
-                                                                premium:  0.6,
-                                                        },
-                                                },
-                                        },
-                                        "spot-1": {
-                                                price: 0.1,
-                                                typeInfo: instanceTypeInformation{
-                                                        pricing: prices{
-                                                                onDemand: 1.0,
-                                                                premium:  0.6,
-                                                        },
-                                                },
-                                        },
-                                }),
-                        want: 1.5,
-                },
+		{
+			name: "premium-instance",
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"ondemand-1": {
+						price: 1.6,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+								premium:  0.6,
+							},
+						},
+					},
+					"spot-1": {
+						price: 0.1,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+								premium:  0.6,
+							},
+						},
+					},
+				}),
+			want: 1.5,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3703,7 +3703,7 @@ func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.
 			instances: makeInstancesWithCatalog(instanceMap{
 				"i-f00": &instance{
 					Instance: &ec2.Instance{
-						InstanceId: aws.String("i-foo0"),
+						InstanceId:        aws.String("i-foo0"),
 						InstanceLifecycle: aws.String("spot"),
 						State: &ec2.InstanceState{
 							Name: aws.String("running"),
