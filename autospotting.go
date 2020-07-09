@@ -23,6 +23,7 @@ var Version = "number missing"
 var eventFile string
 
 func main() {
+	eventFile = conf.EventFile
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		lambda.Start(Handler)
@@ -55,7 +56,7 @@ func init() {
 		Version: Version,
 	}
 
-	as.ParseConfig(&conf)
+	autospotting.ParseConfig(&conf)
 	as.Init(&conf)
 }
 

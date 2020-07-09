@@ -6,6 +6,7 @@ package autospotting
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"

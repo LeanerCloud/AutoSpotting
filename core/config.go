@@ -95,6 +95,9 @@ type Config struct {
 
 	// Lambda to use for Managing ASG
 	LambdaManageASG string
+
+	// JSON file containing event data used for locally simulating execution from Lambda.
+	EventFile string
 }
 
 // ParseConfig loads configuration from command line flags, environments variables, and config files.
@@ -122,7 +125,7 @@ func ParseConfig(conf *Config) {
 			"\tAccepts a list of comma or whitespace separated instance types (supports globs).\n"+
 			"\tExample: ./AutoSpotting -allowed_instance_types 'c5.*,c4.xlarge'\n")
 
-	flagSet.StringVar(&conf.BiddingPolicy, "bidding_policy", autospotting.DefaultBiddingPolicy,
+	flagSet.StringVar(&conf.BiddingPolicy, "bidding_policy", DefaultBiddingPolicy,
 		"\n\tPolicy choice for spot bid. If set to 'normal', we bid at the on-demand price(times the multiplier).\n"+
 			"\tIf set to 'aggressive', we bid at a percentage value above the spot price \n"+
 			"\tconfigurable using the spot_price_buffer_percentage.\n")
@@ -132,29 +135,29 @@ func ParseConfig(conf *Config) {
 			"\tAccepts a list of comma or whitespace separated instance types (supports globs).\n"+
 			"\tExample: ./AutoSpotting -disallowed_instance_types 't2.*,c4.xlarge'\n")
 
-	flagSet.StringVar(&conf.InstanceTerminationMethod, "instance_termination_method", autospotting.DefaultInstanceTerminationMethod,
-		"\n\tInstance termination method.  Must be one of '"+autospotting.DefaultInstanceTerminationMethod+"' (default),\n"+
+	flagSet.StringVar(&conf.InstanceTerminationMethod, "instance_termination_method", DefaultInstanceTerminationMethod,
+		"\n\tInstance termination method.  Must be one of '"+DefaultInstanceTerminationMethod+"' (default),\n"+
 			"\t or 'detach' (compatibility mode, not recommended)\n")
 
-	flagSet.StringVar(&conf.TerminationNotificationAction, "termination_notification_action", autospotting.DefaultTerminationNotificationAction,
+	flagSet.StringVar(&conf.TerminationNotificationAction, "termination_notification_action", DefaultTerminationNotificationAction,
 		"\n\tTermination Notification Action.\n"+
 			"\tValid choices:\n"+
-			"\t'"+autospotting.DefaultTerminationNotificationAction+
+			"\t'"+DefaultTerminationNotificationAction+
 			"' (terminate if lifecyclehook else detach) | 'terminate' (lifecyclehook triggered)"+
 			" | 'detach' (lifecyclehook not triggered)\n")
 
-	flag.Int64Var(&conf.MinOnDemandNumber, "min_on_demand_number", autospotting.DefaultMinOnDemandValue,
+	flagSet.Int64Var(&conf.MinOnDemandNumber, "min_on_demand_number", DefaultMinOnDemandValue,
 		"\n\tNumber of on-demand nodes to be kept running in each of the groups.\n\t"+
-			"Can be overridden on a per-group basis using the tag "+autospotting.OnDemandNumberLong+".\n")
+			"Can be overridden on a per-group basis using the tag "+OnDemandNumberLong+".\n")
 
-	flag.Float64Var(&conf.MinOnDemandPercentage, "min_on_demand_percentage", 0.0,
+	flagSet.Float64Var(&conf.MinOnDemandPercentage, "min_on_demand_percentage", 0.0,
 		"\n\tPercentage of the total number of instances in each group to be kept on-demand\n\t"+
-			"Can be overridden on a per-group basis using the tag "+autospotting.OnDemandPercentageTag+
+			"Can be overridden on a per-group basis using the tag "+OnDemandPercentageTag+
 			"\n\tIt is ignored if min_on_demand_number is also set.\n")
 
-	flag.Float64Var(&conf.OnDemandPriceMultiplier, "on_demand_price_multiplier", autospotting.DefaultOnDemandPriceMultiplier,
+	flagSet.Float64Var(&conf.OnDemandPriceMultiplier, "on_demand_price_multiplier", DefaultOnDemandPriceMultiplier,
 		"\n\tMultiplier for the on-demand price. Numbers less than 1.0 are useful for volume discounts.\n"+
-			"The tag "+autospotting.OnDemandPriceMultiplierTag+" can be used to override this on a group level.\n"+
+			"The tag "+OnDemandPriceMultiplierTag+" can be used to override this on a group level.\n"+
 			"\tExample: ./AutoSpotting -on_demand_price_multiplier 0.6 will have the on-demand price "+
 			"considered at 60% of the actual value.\n")
 
@@ -163,16 +166,16 @@ func ParseConfig(conf *Config) {
 			"\tBy default it runs on all regions.\n"+
 			"\tExample: ./AutoSpotting -regions 'eu-*,us-east-1'\n")
 
-	flag.Float64Var(&conf.SpotPriceBufferPercentage, "spot_price_buffer_percentage", autospotting.DefaultSpotPriceBufferPercentage,
+	flagSet.Float64Var(&conf.SpotPriceBufferPercentage, "spot_price_buffer_percentage", DefaultSpotPriceBufferPercentage,
 		"\n\tBid a given percentage above the current spot price.\n\tProtects the group from running spot"+
 			"instances that got significantly more expensive than when they were initially launched\n"+
-			"\tThe tag "+autospotting.SpotPriceBufferPercentageTag+" can be used to override this on a group level.\n"+
+			"\tThe tag "+SpotPriceBufferPercentageTag+" can be used to override this on a group level.\n"+
 			"\tIf the bid exceeds the on-demand price, we place a bid at on-demand price itself.\n")
 
-	flagSet.StringVar(&conf.SpotProductDescription, "spot_product_description", autospotting.DefaultSpotProductDescription,
+	flagSet.StringVar(&conf.SpotProductDescription, "spot_product_description", DefaultSpotProductDescription,
 		"\n\tThe Spot Product to use when looking up spot price history in the market.\n"+
 			"\tValid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | \n"+
-			"\tSUSE Linux (Amazon VPC) | Windows (Amazon VPC)\n\tDefault value: "+autospotting.DefaultSpotProductDescription+"\n")
+			"\tSUSE Linux (Amazon VPC) | Windows (Amazon VPC)\n\tDefault value: "+DefaultSpotProductDescription+"\n")
 
 	flagSet.StringVar(&conf.TagFilteringMode, "tag_filtering_mode", "opt-in", "\n\tControls the behavior of the tag_filters option.\n"+
 		"\tValid choices: opt-in | opt-out\n\tDefault value: 'opt-in'\n\tExample: ./AutoSpotting --tag_filtering_mode opt-out\n")
@@ -194,10 +197,13 @@ func ParseConfig(conf *Config) {
 		"Allowed values: evaluation|I_am_supporting_it_on_Patreon|I_contributed_to_development_within_the_last_year|I_built_it_from_source_code\n"+
 		"\tExample: ./AutoSpotting --license evaluation\n")
 
-	flagSet.StringVar(&eventFile, "event_file", "", "\n\tJSON file containing event data, "+
+	flagSet.StringVar(&conf.EventFile, "event_file", "", "\n\tJSON file containing event data, "+
 		"used for locally simulating execution from Lambda. AutoSpotting now expects to be "+
 		"triggered by events and won't do anything if no event is passed either as result of "+
 		"AWS instance state notifications or simulated manually using this flag.\n")
+
+	flagSet.StringVar(&conf.PatchBeanstalkUserdata, "patch_beanstalk_userdata", "", "\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the instance role when calling CloudFormation helpers instead of the standard CloudFormation authentication method\n"+
+		"\tExample: ./AutoSpotting --patch_beanstalk_userdata true\n")
 
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 
