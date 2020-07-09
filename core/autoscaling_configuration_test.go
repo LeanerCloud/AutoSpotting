@@ -989,6 +989,65 @@ func Test_autoScalingGroup_LoadCronSchedule(t *testing.T) {
 	}
 }
 
+func Test_autoScalingGroup_LoadCronTimezone(t *testing.T) {
+
+        tests := []struct {
+                name    string
+                Group   *autoscaling.Group
+                asgName string
+                region  *region
+                config  AutoScalingConfig
+                want    string
+        }{
+                {
+                        name:  "No tag set on the group",
+                        Group: &autoscaling.Group{},
+                        region: &region{
+                                conf: &Config{
+                                        AutoScalingConfig: AutoScalingConfig{
+                                                CronTimezone: "UTC",
+                                        },
+                                },
+                        },
+                        want: "UTC",
+                },
+                {
+                        name: "Tag set on the group",
+                        Group: &autoscaling.Group{
+                                Tags: []*autoscaling.TagDescription{
+                                        {
+                                                Key:   aws.String(TimezoneTag),
+                                                Value: aws.String("Europe/London"),
+                                        },
+                                },
+                        },
+                        region: &region{
+                                conf: &Config{
+                                        AutoScalingConfig: AutoScalingConfig{
+                                                CronTimezone: "UTC",
+                                        },
+                                },
+                        },
+                        want: "Europe/London",
+                },
+        }
+        for _, tt := range tests {
+                t.Run(tt.name, func(t *testing.T) {
+                        a := &autoScalingGroup{
+                                Group:  tt.Group,
+                                name:   tt.asgName,
+                                region: tt.region,
+                                config: tt.config,
+                        }
+                        a.LoadCronTimezone()
+                        got := a.config.CronTimezone
+                        if got != tt.want {
+                                t.Errorf("LoadCronTimezone got %v, expected %v", got, tt.want)
+                        }
+                })
+        }
+}
+
 func Test_autoScalingGroup_LoadCronScheduleState(t *testing.T) {
 
 	tests := []struct {

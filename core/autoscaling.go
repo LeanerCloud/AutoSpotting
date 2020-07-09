@@ -163,7 +163,7 @@ func (a *autoScalingGroup) cronEventAction() runer {
 
 	spotInstance := a.findUnattachedInstanceLaunchedForThisASG()
 
-	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronScheduleState)
+	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronTimezone, a.config.CronScheduleState)
 	debug.Println(a.region.name, a.name, "Should take replacement actions:", shouldRun)
 
 	if !shouldRun {
