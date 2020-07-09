@@ -44,6 +44,7 @@ type prices struct {
 	onDemand     float64
 	spot         spotPriceMap
 	ebsSurcharge float64
+	premium      float64
 }
 
 // The key in this map is the availavility zone
@@ -226,6 +227,7 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 		price.onDemand = it.Pricing[r.name].Linux.OnDemand * cfg.OnDemandPriceMultiplier
 		price.spot = make(spotPriceMap)
 		price.ebsSurcharge = it.Pricing[r.name].EBSSurcharge
+		price.premium = r.conf.SpotProductPremium
 
 		// if at this point the instance price is still zero, then that
 		// particular instance type doesn't even exist in the current

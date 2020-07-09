@@ -175,7 +175,11 @@ func ParseConfig(conf *Config) {
 	flagSet.StringVar(&conf.SpotProductDescription, "spot_product_description", DefaultSpotProductDescription,
 		"\n\tThe Spot Product to use when looking up spot price history in the market.\n"+
 			"\tValid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | \n"+
-			"\tSUSE Linux (Amazon VPC) | Windows (Amazon VPC)\n\tDefault value: "+DefaultSpotProductDescription+"\n")
+			"\tSUSE Linux (Amazon VPC) | Windows (Amazon VPC) | Red Hat Enterprise Linux\n\tDefault value: "+DefaultSpotProductDescription+"\n")
+
+        flagSet.Float64Var(&conf.SpotProductPremium, "spot_product_premium", DefaultSpotProductPremium,
+	                "\n\tThe Product Premium to apply to the on demand price to improve spot selection and savings calculations\n"+
+			                        "\twhen using a premium instance type such as RHEL.")
 
 	flagSet.StringVar(&conf.TagFilteringMode, "tag_filtering_mode", "opt-in", "\n\tControls the behavior of the tag_filters option.\n"+
 		"\tValid choices: opt-in | opt-out\n\tDefault value: 'opt-in'\n\tExample: ./AutoSpotting --tag_filtering_mode opt-out\n")

@@ -221,13 +221,21 @@
         - "Linux/UNIX (Amazon VPC)"
         - "SUSE Linux (Amazon VPC)"
         - "Windows (Amazon VPC)"
+        - "Red Hat Enterprise Linux"
       Default: "Linux/UNIX (Amazon VPC)"
       Description: >
         "The Spot Product or operating system to use when looking up spot price
         history in the market. Valid choices: 'Linux/UNIX | SUSE Linux | Windows
         | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon
-        VPC)'"
+        VPC) | Red Hat Enterprise Linux'"
       Type: "String"
+    SpotProductPremium:
+      Default: 0.0
+      Description: >
+        "The Product Premium to apply to the on demand price to improve spot
+        selection and savings calculations when using a premium instance type
+        such as RHEL."
+      Type: "Number"
     StackSetsMainRegion:
       Default: "us-east-1"
       Description: >
@@ -305,6 +313,12 @@
       Value:
         Fn::GetAtt:
           - "LambdaRegionalExecutionRole"
+          - "Arn"
+    LambdaExecutionRoleARN:
+      Condition: "StackSetsIsMain"
+      Value:
+        Fn::GetAtt:
+          - "LambdaExecutionRole"
           - "Arn"
   Resources:
     SpotTerminationLambdaPermission:
@@ -576,6 +590,8 @@
               Ref: "SpotPricePercentageBuffer"
             SPOT_PRODUCT_DESCRIPTION:
               Ref: "SpotProductDescription"
+            SPOT_PRODUCT_PREMIUM:
+              Ref: "SpotProductPremium"
             TAG_FILTERING_MODE:
               Ref: "TagFilteringMode"
             TAG_FILTERS:
