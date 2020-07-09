@@ -1,5 +1,4 @@
 # AutoSpotting #
-
 <!-- markdownlint-disable MD003 MD026 MD033 -->
 
 <img src="logo.png" width="150" align="right">
@@ -170,26 +169,16 @@ Unlike multiple commercial products in this space that cost a lot of money and
 attempt to lock you in, this project is fully open source and developed in the
 open by a vibrant community.
 
-It was largely developed by volunteers who spent countless hours of their own
-spare time to make it easy for you to use. If you find it useful and you
-appreciate the work they put in it, please consider contributing to the
-development effort as well.
+We urge you to support us on [Github Sponsors](https://github.com/sponsors/cristim)
+if this software helps you save any significant amount of money, this will greatly help
+further development.
 
-You can just try it out and give
+Financial sponsorship is voluntary, it's also fine if you just try it out and give
 [feedback](https://gitter.im/cristim/autospotting), report issues, improve the
 documentation, write some code or assign a developer to work on it, or even just
-spread the word among your peers who might be interested in it. Any amount of
-help would be greatly appreciated and would make a huge difference to the
-project.
-
-You can also contribute financially, we gladly accept recurrent tips on
-[Patreon](https://www.patreon.com/cristim/overview), regardless of the amount.
-These donations will pay for hosting infrastructure of the easy to install
-binaries and the project website, and will also encourage further development
-by the main author.
-
-Companies can also use the official stable and easy to install binaries (see
-below for more details) and get support plans to support the development effort.
+spread the word among your peers who might be interested in it. Any sort of
+support would be greatly appreciated and would make a huge difference
+to the project.
 
 Note: Non-trivial code should be submitted according to the contribution
 [guidelines](CONTRIBUTING.md).
@@ -255,8 +244,8 @@ More details are available [here](CUSTOM_BUILDS.md)
 ## Users ##
 
 Autospotting is already used by hundreds of individuals and organizations around
-the world, and we estimate to already save them in the millions of dollars. Some
-of them we know of are mentioned in the [list](USERS.md) of notable users.
+the world, and we estimate to already save them in the millions of dollars monthly.
+Some of them we know of are mentioned in the [list](USERS.md) of notable users.
 
 The following deserve a special mention for contributing significantly to the
 development effort (listed in alphabetical order):
