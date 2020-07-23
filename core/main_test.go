@@ -4,6 +4,8 @@
 package autospotting
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,6 +16,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"gotest.tools/v3/assert"
 )
 
 func TestMain(m *testing.M) {
@@ -29,6 +32,34 @@ func TestMain(m *testing.M) {
 	debug = log.New(logOutput, "", 0)
 
 	os.Exit(m.Run())
+}
+
+func Test_processRegions(t *testing.T) {
+	tests := []struct {
+		name    string
+		regions []string
+		config  *Config
+	}{
+		{
+			name:    "does nothing if no available regions",
+			regions: []string{},
+			config: &Config{
+				Regions: "us-east-1",
+			},
+		},
+		{
+			name:    "does nothing if not enabled for any matching regions",
+			regions: []string{"us-east-1"},
+			config: &Config{
+				Regions: "us-east-2",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			processRegions(tt.regions, tt.config)
+		})
+	}
 }
 
 func Test_getRegions(t *testing.T) {
@@ -80,92 +111,30 @@ func Test_getRegions(t *testing.T) {
 	}
 }
 
-func Test_spotEnabledIsAddedByDefault(t *testing.T) {
-
+func Test_handler(t *testing.T) {
 	tests := []struct {
-		name   string
-		config Config
-		want   string
+		name           string
+		config         *Config
+		rawEvent       json.RawMessage
+		expectedResult string
+		expectedErr    string
 	}{
 		{
-			name:   "Default No ASG Tags",
-			config: Config{},
-			want:   "spot-enabled=true",
-		},
-		{
-			name: "Specified ASG Tags",
-			config: Config{
-				FilterByTags: "environment=dev",
-			},
-			want: "environment=dev",
-		},
-		{
-			name: "Specified ASG that is just whitespace",
-			config: Config{
-				FilterByTags: "         ",
-			},
-			want: "spot-enabled=true",
-		},
-		{
-			name:   "Default No ASG Tags",
-			config: Config{TagFilteringMode: "opt-out"},
-			want:   "spot-enabled=false",
+			name:           "returns error if event is not JSON",
+			config:         &Config{},
+			rawEvent:       json.RawMessage(`not JSON`),
+			expectedResult: "",
+			expectedErr:    "invalid",
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			addDefaultFilter(&tt.config)
-
-			if !reflect.DeepEqual(tt.config.FilterByTags, tt.want) {
-				t.Errorf("addDefaultFilter() = %v, want %v", tt.config.FilterByTags, tt.want)
+			result, err := handler(tt.config)(context.TODO(), tt.rawEvent)
+			if err != nil || tt.expectedErr != "" {
+				assert.ErrorContains(t, err, tt.expectedErr)
 			}
-		})
-	}
-}
 
-func Test_addDefaultFilterMode(t *testing.T) {
-	tests := []struct {
-		name string
-		cfg  Config
-		want string
-	}{
-		{
-			name: "Missing FilterMode",
-			cfg:  Config{TagFilteringMode: ""},
-			want: "opt-in",
-		},
-		{
-			name: "Opt-in FilterMode",
-			cfg: Config{
-				TagFilteringMode: "opt-in",
-			},
-			want: "opt-in",
-		},
-		{
-			name: "Opt-out FilterMode",
-			cfg: Config{
-				TagFilteringMode: "opt-out",
-			},
-			want: "opt-out",
-		},
-		{
-			name: "Anything else gives the opt-in FilterMode",
-			cfg: Config{
-				TagFilteringMode: "whatever",
-			},
-			want: "opt-in",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			addDefaultFilteringMode(&tt.cfg)
-			if !reflect.DeepEqual(tt.cfg.TagFilteringMode, tt.want) {
-				t.Errorf("addDefaultFilteringMode() = %v, want %v",
-					tt.cfg.TagFilteringMode, tt.want)
-			}
+			assert.Equal(t, result, tt.expectedResult)
 		})
 	}
 }

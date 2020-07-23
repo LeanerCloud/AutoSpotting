@@ -4,12 +4,14 @@
 package autospotting
 
 import (
-	"io/ioutil"
+	"context"
+	"encoding/json"
 	"log"
 	"os"
-	"strings"
 	"sync"
 
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -21,21 +23,26 @@ var logger, debug *log.Logger
 var hourlySavings float64
 var savingsMutex = &sync.RWMutex{}
 
-// Run starts processing all AWS regions looking for AutoScaling groups
-// enabled and taking action by replacing more pricy on-demand instances with
-// compatible and cheaper spot instances.
+// Run is the entry point of autospotting.
 func Run(cfg *Config) {
-
-	setupLogging(cfg)
+	logger = cfg.logger
+	debug = cfg.debug
 
 	debug.Println(*cfg)
 
+	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
+		lambda.Start(handler(cfg))
+	} else {
+		start(cfg)
+	}
+}
+
+// start processes all AWS regions looking for AutoScaling groups
+// enabled and taking action by replacing more pricy on-demand instances with
+// compatible and cheaper spot instances.
+func start(cfg *Config) {
 	// use this only to list all the other regions
 	ec2Conn := connectEC2(cfg.MainRegion)
-
-	addDefaultFilteringMode(cfg)
-	addDefaultFilter(cfg)
-
 	allRegions, err := getRegions(ec2Conn)
 
 	if err != nil {
@@ -44,39 +51,6 @@ func Run(cfg *Config) {
 	}
 
 	processRegions(allRegions, cfg)
-
-}
-
-func addDefaultFilteringMode(cfg *Config) {
-	if cfg.TagFilteringMode != "opt-out" {
-		debug.Printf("Configured filtering mode: '%s', considering it as 'opt-in'(default)\n",
-			cfg.TagFilteringMode)
-		cfg.TagFilteringMode = "opt-in"
-	} else {
-		debug.Println("Configured filtering mode: 'opt-out'")
-	}
-}
-
-func addDefaultFilter(cfg *Config) {
-	if len(strings.TrimSpace(cfg.FilterByTags)) == 0 {
-		switch cfg.TagFilteringMode {
-		case "opt-out":
-			cfg.FilterByTags = "spot-enabled=false"
-		default:
-			cfg.FilterByTags = "spot-enabled=true"
-		}
-	}
-}
-
-func setupLogging(cfg *Config) {
-	logger = log.New(cfg.LogFile, "", cfg.LogFlag)
-
-	if os.Getenv("AUTOSPOTTING_DEBUG") == "true" {
-		debug = log.New(cfg.LogFile, "", cfg.LogFlag)
-	} else {
-		debug = log.New(ioutil.Discard, "", 0)
-	}
-
 }
 
 // processAllRegions iterates all regions in parallel, and replaces instances
@@ -141,4 +115,57 @@ func getRegions(ec2conn ec2iface.EC2API) ([]string, error) {
 		}
 	}
 	return output, nil
+}
+
+// handler returns an AWS Lambda handler given a config.
+func handler(conf *Config) func(context.Context, json.RawMessage) (string, error) {
+	return func(ctx context.Context, rawEvent json.RawMessage) (string, error) {
+
+		var snsEvent events.SNSEvent
+		var cloudwatchEvent events.CloudWatchEvent
+		parseEvent := rawEvent
+
+		// Try to parse event as an SNS Message
+		if err := json.Unmarshal(parseEvent, &snsEvent); err != nil {
+			log.Println(err.Error())
+			return "", err
+		}
+
+		// If event is from SNS - extract Cloudwatch's one
+		if snsEvent.Records != nil {
+			snsRecord := snsEvent.Records[0]
+			parseEvent = []byte(snsRecord.SNS.Message)
+		}
+
+		// Try to parse event as Cloudwatch Event Rule
+		if err := json.Unmarshal(parseEvent, &cloudwatchEvent); err != nil {
+			log.Println(err.Error())
+			return "", err
+		}
+
+		// If event is Instance Spot Interruption
+		if cloudwatchEvent.DetailType == "EC2 Spot Instance Interruption Warning" {
+			instanceID, err := GetInstanceIDDueForTermination(cloudwatchEvent)
+			if err != nil || instanceID == nil {
+				return "", err
+			}
+
+			spotTermination := NewSpotTermination(cloudwatchEvent.Region)
+			if spotTermination.IsInAutoSpottingASG(instanceID, conf.TagFilteringMode, conf.FilterByTags) {
+				err := spotTermination.ExecuteAction(instanceID, conf.TerminationNotificationAction)
+				if err != nil {
+					log.Printf("Error executing spot termination action: %s\n", err.Error())
+					return "", err
+				}
+			} else {
+				log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
+				return "", nil
+			}
+		} else {
+			// Event is Autospotting Cron Scheduling
+			start(conf)
+		}
+
+		return "", nil
+	}
 }

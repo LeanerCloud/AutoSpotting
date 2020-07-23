@@ -6,8 +6,10 @@ package autospotting
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -92,6 +94,9 @@ type Config struct {
 	// the instance role when calling CloudFormation helpers instead of the standard CloudFormation
 	// authentication method
 	PatchBeanstalkUserdata string
+
+	logger *log.Logger
+	debug  *log.Logger
 }
 
 // ParseConfig loads configuration from command line flags, environments variables, and config files.
@@ -112,6 +117,13 @@ func ParseConfig(conf *Config) {
 	conf.LogFlag = log.Ldate | log.Ltime | log.Lshortfile
 	conf.MainRegion = region
 	conf.SleepMultiplier = 1
+
+	conf.logger = log.New(conf.LogFile, "", conf.LogFlag)
+	if os.Getenv("AUTOSPOTTING_DEBUG") == "true" {
+		conf.debug = log.New(conf.LogFile, "", conf.LogFlag)
+	} else {
+		conf.debug = log.New(ioutil.Discard, "", 0)
+	}
 
 	flagSet.StringVar(&conf.AllowedInstanceTypes, "allowed_instance_types", "",
 		"\n\tIf specified, the spot instances will be searched only among these types.\n\tIf missing, any instance type is allowed.\n"+
@@ -200,4 +212,24 @@ func ParseConfig(conf *Config) {
 		log.Fatal(err.Error())
 	}
 	conf.InstanceData = data
+
+	addDefaultFilteringMode(conf)
+	addDefaultFilter(conf)
+}
+
+func addDefaultFilteringMode(conf *Config) {
+	if conf.TagFilteringMode != "opt-out" {
+		conf.TagFilteringMode = "opt-in"
+	}
+}
+
+func addDefaultFilter(conf *Config) {
+	if len(strings.TrimSpace(conf.FilterByTags)) == 0 {
+		switch conf.TagFilteringMode {
+		case "opt-out":
+			conf.FilterByTags = "spot-enabled=false"
+		default:
+			conf.FilterByTags = "spot-enabled=true"
+		}
+	}
 }
