@@ -182,16 +182,16 @@ func (a *autoScalingGroup) cronEventAction() runer {
 
 		onDemandInstance := a.getAnyUnprotectedOnDemandInstance()
 
+		if need, total := a.needReplaceOnDemandInstances(); !need {
+			logger.Printf("Not allowed to replace any more of the running OD instances in %s", a.name)
+			return terminateSpotInstance{target{asg: a, totalInstances: total}}
+		}
+
 		if onDemandInstance == nil {
 			logger.Println(a.region.name, a.name,
 				"No running unprotected on-demand instances were found, nothing to do here...")
 
 			return enableEventHandling{target{asg: a}}
-		}
-
-		if need, total := a.needReplaceOnDemandInstances(); !need {
-			logger.Printf("Not allowed to replace any more of the running OD instances in %s", a.name)
-			return terminateSpotInstance{target{asg: a, totalInstances: total}}
 		}
 
 		a.loadLaunchConfiguration()
