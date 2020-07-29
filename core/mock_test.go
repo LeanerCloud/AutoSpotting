@@ -1,11 +1,12 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
@@ -28,9 +29,11 @@ func CheckErrors(t *testing.T, err error, expected error) {
 type mockEC2 struct {
 	ec2iface.EC2API
 
-	// Describe Spot Price History
-	dspho   *ec2.DescribeSpotPriceHistoryOutput
-	dspherr error
+	// DescribeSpotPriceHistoryPages output
+	dsphpo []*ec2.DescribeSpotPriceHistoryOutput
+
+	// DescribeSpotPriceHistoryPages error
+	dsphperr error
 
 	// DescribeInstancesOutput
 	dio *ec2.DescribeInstancesOutput
@@ -62,13 +65,16 @@ type mockEC2 struct {
 	wuirerr error
 }
 
-func (m mockEC2) DescribeSpotPriceHistory(in *ec2.DescribeSpotPriceHistoryInput) (*ec2.DescribeSpotPriceHistoryOutput, error) {
-	return m.dspho, m.dspherr
+func (m mockEC2) DescribeSpotPriceHistoryPages(in *ec2.DescribeSpotPriceHistoryInput, f func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool) error {
+	for i, page := range m.dsphpo {
+		f(page, i == len(m.dsphpo)-1)
+	}
+	return m.dsphperr
 }
 
 func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, f func(*ec2.DescribeInstancesOutput, bool) bool) error {
 	f(m.dio, true)
-	return nil
+	return m.diperr
 }
 
 func (m mockEC2) DescribeInstanceAttribute(in *ec2.DescribeInstanceAttributeInput) (*ec2.DescribeInstanceAttributeOutput, error) {
@@ -95,46 +101,6 @@ func (m mockEC2) WaitUntilInstanceRunning(*ec2.DescribeInstancesInput) error {
 	return m.wuirerr
 }
 
-// For testing we "convert" the SecurityGroupIDs/SecurityGroupNames by
-// prefixing the original name/id with "sg-" if not present already. We
-// also fill up the rest of the string to the length of a typical ID with
-// characters taken from the string "deadbeef"
-func (m mockEC2) DescribeSecurityGroups(input *ec2.DescribeSecurityGroupsInput) (*ec2.DescribeSecurityGroupsOutput, error) {
-	var groups []*ec2.SecurityGroup
-
-	// we use this string to fill the length of an SecurityGroup name to an
-	// ID if the name is too short to be a correct ID
-	const testFillStringID = "deadbeef"
-
-	// "sg-" + 8 hex characters
-	const testLengthIDString = 11
-
-	for _, groupName := range input.GroupNames {
-		newgroup := *groupName
-
-		if !strings.HasPrefix(*groupName, "sg-") {
-			newgroup = "sg-" + *groupName
-		}
-
-		// a SecurityGroupID is supposed to have a length of 11
-		// characters. We fill up the missing characters to indicate that this is
-		// now an ID and that it was treated as a name before
-		lenng := len(newgroup)
-		if lenng < testLengthIDString {
-			needed := testLengthIDString - lenng
-			newgroup = newgroup + testFillStringID[:needed]
-		}
-
-		groups = append(groups, &ec2.SecurityGroup{GroupId: &newgroup})
-	}
-
-	for _, groupID := range input.GroupIds {
-		groups = append(groups, &ec2.SecurityGroup{GroupId: aws.String(*groupID)})
-	}
-
-	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: groups}, nil
-}
-
 // All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockASG struct {
@@ -158,7 +124,8 @@ type mockASG struct {
 	dto *autoscaling.DescribeTagsOutput
 
 	// Describe AutoScaling Group
-	dasgo *autoscaling.DescribeAutoScalingGroupsOutput
+	dasgo   *autoscaling.DescribeAutoScalingGroupsOutput
+	dasgerr error
 
 	// Describe AutoScalingInstances
 	dasio   *autoscaling.DescribeAutoScalingInstancesOutput
@@ -198,6 +165,10 @@ func (m mockASG) DescribeTagsPages(input *autoscaling.DescribeTagsInput, functio
 	return nil
 }
 
+func (m mockASG) DescribeAutoScalingGroups(input *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+	return m.dasgo, m.dasgerr
+}
+
 func (m mockASG) DescribeAutoScalingGroupsPages(input *autoscaling.DescribeAutoScalingGroupsInput, function func(*autoscaling.DescribeAutoScalingGroupsOutput, bool) bool) error {
 	function(m.dasgo, true)
 	return nil
@@ -233,10 +204,10 @@ func (m mockCloudFormation) DescribeStacks(*cloudformation.DescribeStacksInput) 
 type mockLambda struct {
 	lambdaiface.LambdaAPI
 	// Invoke
-	io *lambda.InvokeOutput
+	io   *lambda.InvokeOutput
 	ierr error
 }
 
-func (m mockLambda) Invoke(*lambda.InvokeInput) (*lambda.InvokeOutput, error){
+func (m mockLambda) Invoke(*lambda.InvokeInput) (*lambda.InvokeOutput, error) {
 	return m.io, m.ierr
 }

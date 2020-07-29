@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -211,7 +214,15 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 		} else if instanceID != nil {
 			logger.SetPrefix(fmt.Sprintf("TE:%s ", *instanceID))
 			spotTermination := newSpotTermination(cloudwatchEvent.Region)
-			spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
+			if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
+				err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
+				if err != nil {
+					log.Printf("Error executing spot termination action: %s\n", err.Error())
+				}
+			} else {
+				log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
+				return
+			}
 		}
 
 		// If event is Instance state change

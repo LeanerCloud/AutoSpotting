@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -453,7 +456,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
 			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice})
-			logger.Println("\tFound compatible instance type", candidate.instanceType, "added to launch candiates list")
+			logger.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candiates list for instance", i.InstanceId)
 		} else if candidate.instanceType != "" {
 			debug.Println("Non compatible option found:", candidate.instanceType, "at", candidatePrice, " - discarding")
 		}
@@ -490,7 +493,7 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 	for _, instanceType := range instanceTypes {
 		az := *i.Placement.AvailabilityZone
 		bidPrice := i.getPricetoBid(i.price,
-			instanceType.pricing.spot[az])
+			instanceType.pricing.spot[az], instanceType.pricing.premium)
 
 		runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
 		logger.Println(az, i.asg.name, "Launching spot instance of type", instanceType.instanceType, "with bid price", bidPrice)
@@ -499,7 +502,7 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 
 		if err != nil {
 			if strings.Contains(err.Error(), "InsufficientInstanceCapacity") {
-				logger.Println("Couldn't launch spot instance due to lack of capcity, trying next instance type:", err.Error())
+				logger.Println("Couldn't launch spot instance due to lack of capacity, trying next instance type:", err.Error())
 			} else {
 				logger.Println("Couldn't launch spot instance:", err.Error(), "trying next instance type")
 				debug.Println(runInstancesInput)
@@ -522,17 +525,18 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 }
 
 func (i *instance) getPricetoBid(
-	baseOnDemandPrice float64, currentSpotPrice float64) float64 {
+	baseOnDemandPrice float64, currentSpotPrice float64, spotPremium float64) float64 {
 
-	logger.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
+	debug.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
 
 	if i.region.conf.BiddingPolicy == DefaultBiddingPolicy {
-		logger.Println("Bidding base on demand price", baseOnDemandPrice)
+		logger.Println("Bidding base on demand price", baseOnDemandPrice, "to replace instance", i.InstanceId)
 		return baseOnDemandPrice
 	}
 
-	bufferPrice := math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))
-	logger.Println("Bidding buffer-based price", bufferPrice)
+	bufferPrice := math.Min(baseOnDemandPrice, ((currentSpotPrice-spotPremium)*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))+spotPremium)
+	logger.Println("Bidding buffer-based price of", bufferPrice, "based on current spot price of", currentSpotPrice,
+		"and buffer percentage of", i.region.conf.SpotPriceBufferPercentage, "to replace instance", i.InstanceId)
 	return bufferPrice
 }
 

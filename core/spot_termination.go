@@ -1,8 +1,12 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
@@ -118,13 +122,13 @@ func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
 	}
 
 	result, err := s.asSvc.DescribeAutoScalingInstances(&asParams)
-
-	var asgName = ""
-	if err == nil {
-		asgName = *result.AutoScalingInstances[0].AutoScalingGroupName
+	if err != nil {
+		return "", err
+	} else if len(result.AutoScalingInstances) == 0 {
+		return "", nil
 	}
 
-	return asgName, err
+	return *result.AutoScalingInstances[0].AutoScalingGroupName, nil
 }
 
 // ExecuteAction execute the proper termination action (terminate|detach) based on the value of
@@ -139,6 +143,9 @@ func (s *SpotTermination) executeAction(instanceID *string, terminationNotificat
 	if err != nil {
 		logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
 		return err
+	} else if asgName == "" {
+		logger.Println("Instance", instanceID, "does not belong to an autoscaling group")
+		return nil
 	}
 
 	switch terminationNotificationAction {
@@ -202,4 +209,52 @@ func (s *SpotTermination) asgHasTerminationLifecycleHook(autoScalingGroupName *s
 	}
 
 	return hasHook
+}
+
+// IsInAutoSpottingASG checks to see whether an instance is in an AutoSpotting ASG as defined by its tags.
+// If the ASG does not have the required tags, it is not an AutoSpotting ASG and should be left alone.
+func (s *SpotTermination) IsInAutoSpottingASG(instanceID *string, tagFilteringMode string, filterByTags string) bool {
+	var optInFilterMode = (tagFilteringMode != "opt-out")
+
+	asgName, err := s.getAsgName(instanceID)
+
+	if err != nil {
+		logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
+		return false
+	} else if asgName == "" {
+		logger.Println("Instance", instanceID, "is not in an autoscaling group")
+		return false
+	}
+
+	asgGroupsOutput, err := s.asSvc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: []*string{
+			&asgName,
+		},
+	})
+
+	if err != nil {
+		logger.Printf("Failed to get ASG using ASG name %s with err: %s\n", asgName, err.Error())
+		return false
+	}
+
+	filters := replaceWhitespace(filterByTags)
+
+	var tagsToMatch = []Tag{}
+
+	for _, tagWithValue := range strings.Split(filters, ",") {
+		tag := splitTagAndValue(tagWithValue)
+		if tag != nil {
+			tagsToMatch = append(tagsToMatch, *tag)
+		}
+	}
+
+	isInASG := optInFilterMode == isASGWithMatchingTags(asgGroupsOutput.AutoScalingGroups[0], tagsToMatch)
+
+	if !isInASG {
+		logger.Printf("Skipping group %s because its tags, the currently "+
+			"configured filtering mode (%s) and tag filters do not align\n",
+			asgName, tagFilteringMode)
+	}
+
+	return isInASG
 }

@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -126,7 +129,7 @@ func (a *autoScalingGroup) allInstancesRunning() (bool, int64) {
 func (a *autoScalingGroup) calculateHourlySavings() float64 {
 	var savings float64
 	for i := range a.instances.instances() {
-		savings += i.typeInfo.pricing.onDemand - i.price
+		savings += (i.typeInfo.pricing.onDemand + i.typeInfo.pricing.premium) - i.price
 	}
 	return savings
 }
@@ -160,7 +163,7 @@ func (a *autoScalingGroup) cronEventAction() runer {
 
 	spotInstance := a.findUnattachedInstanceLaunchedForThisASG()
 
-	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronScheduleState)
+	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronTimezone, a.config.CronScheduleState)
 	debug.Println(a.region.name, a.name, "Should take replacement actions:", shouldRun)
 
 	if !shouldRun {
@@ -179,16 +182,16 @@ func (a *autoScalingGroup) cronEventAction() runer {
 
 		onDemandInstance := a.getAnyUnprotectedOnDemandInstance()
 
+		if need, total := a.needReplaceOnDemandInstances(); !need {
+			logger.Printf("Not allowed to replace any more of the running OD instances in %s", a.name)
+			return terminateSpotInstance{target{asg: a, totalInstances: total}}
+		}
+
 		if onDemandInstance == nil {
 			logger.Println(a.region.name, a.name,
 				"No running unprotected on-demand instances were found, nothing to do here...")
 
 			return enableEventHandling{target{asg: a}}
-		}
-
-		if need, total := a.needReplaceOnDemandInstances(); !need {
-			logger.Printf("Not allowed to replace any more of the running OD instances in %s", a.name)
-			return terminateSpotInstance{target{asg: a, totalInstances: total}}
 		}
 
 		a.loadLaunchConfiguration()
@@ -302,7 +305,7 @@ func (a *autoScalingGroup) scanInstances() instances {
 		if i.isSpot() {
 			i.price = i.typeInfo.pricing.spot[*i.Placement.AvailabilityZone]
 		} else {
-			i.price = i.typeInfo.pricing.onDemand
+			i.price = i.typeInfo.pricing.onDemand + i.typeInfo.pricing.premium
 		}
 
 		a.instances.add(i)

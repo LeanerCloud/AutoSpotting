@@ -1,3 +1,6 @@
+# Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+# Licensed under the Open Software License version 3.0
+
 ---
   AWSTemplateFormatVersion: "2010-09-09"
   Description: "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling"
@@ -38,8 +41,16 @@
         the usual 9-18 office hours. This is a global value that can be
         overridden on a per-group basis using the 'autospotting_cron_schedule'
         tag set on the AutoScaling group. The default value '* *' makes it run
-        at all times. The timezone is the local timezone set on the Lambda
-        runtime, which currently appears to be UTC."
+        at all times.
+      Type: "String"
+    CronTimezone:
+      Default: "UTC"
+      Description: >
+        "Sets the timezone in which to check the CronSchedule. Example: If the
+        timezone is set to 'UTC' and the CronSchedule is '9-18 1-5' it would start
+        the interval at 9am UTC, with the timezone set to 'Europe/London' it would
+        start the interval at 9am BST (10am UTC) or 9am GMT (9am UTC) depending on
+        daylight savings."
       Type: "String"
     CronScheduleState:
       AllowedValues:
@@ -218,13 +229,21 @@
         - "Linux/UNIX (Amazon VPC)"
         - "SUSE Linux (Amazon VPC)"
         - "Windows (Amazon VPC)"
+        - "Red Hat Enterprise Linux"
       Default: "Linux/UNIX (Amazon VPC)"
       Description: >
         "The Spot Product or operating system to use when looking up spot price
         history in the market. Valid choices: 'Linux/UNIX | SUSE Linux | Windows
         | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon
-        VPC)'"
+        VPC) | Red Hat Enterprise Linux'"
       Type: "String"
+    SpotProductPremium:
+      Default: 0.0
+      Description: >
+        "The Product Premium to apply to the on demand price to improve spot
+        selection and savings calculations when using a premium instance type
+        such as RHEL."
+      Type: "Number"
     StackSetsMainRegion:
       Default: "us-east-1"
       Description: >
@@ -266,7 +285,7 @@
         scripts to use the instance role when calling CloudFormation helpers
         instead of the standard CloudFormation authentication method.
         After creating this CloudFormation stack, you must add the
-        AutoSpottingElasticBeanstalk managed policy to your Beanstalk
+        AutoSpotting's ElasticBeanstalk managed policy to your Beanstalk
         instance profile/role if you turn this option to On"
       Type: "String"
   Conditions:
@@ -302,6 +321,12 @@
       Value:
         Fn::GetAtt:
           - "LambdaRegionalExecutionRole"
+          - "Arn"
+    LambdaExecutionRoleARN:
+      Condition: "StackSetsIsMain"
+      Value:
+        Fn::GetAtt:
+          - "LambdaExecutionRole"
           - "Arn"
   Resources:
     SpotTerminationLambdaPermission:
@@ -553,6 +578,8 @@
               Ref: "BiddingPolicy"
             CRON_SCHEDULE:
               Ref: "CronSchedule"
+            CRON_TIMEZONE:
+              Ref: "CronTimezone"
             CRON_SCHEDULE_STATE:
               Ref: "CronScheduleState"
             DISALLOWED_INSTANCE_TYPES:
@@ -573,6 +600,8 @@
               Ref: "SpotPricePercentageBuffer"
             SPOT_PRODUCT_DESCRIPTION:
               Ref: "SpotProductDescription"
+            SPOT_PRODUCT_PREMIUM:
+              Ref: "SpotProductPremium"
             TAG_FILTERING_MODE:
               Ref: "TagFilteringMode"
             TAG_FILTERS:
@@ -1047,7 +1076,6 @@
       Condition: "StackIsMain"
       Properties:
         Description: "Allow instances to get initialization information from CloudFormation when they are a part of a Beanstalk cluster. Add this policy to your Elastic Beanstalk instance profile (role) when enabling patch_beanstalk_userdata in AutoSpotting. (Managed policy created by AutoSpotting)"
-        ManagedPolicyName: AutoSpottingElasticBeanstalk
         PolicyDocument:
           Version: "2012-10-17"
           Statement:
