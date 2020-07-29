@@ -2177,7 +2177,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 							Value: aws.String("mygroup"),
 						},
 						{
-							Key: aws.String("launched-for-replacing-instance"),
+							Key:   aws.String("launched-for-replacing-instance"),
 						},
 					},
 				},

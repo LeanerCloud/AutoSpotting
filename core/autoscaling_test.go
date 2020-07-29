@@ -3703,7 +3703,7 @@ func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.
 			instances: makeInstancesWithCatalog(instanceMap{
 				"i-f00": &instance{
 					Instance: &ec2.Instance{
-						InstanceId:        aws.String("i-foo0"),
+						InstanceId: aws.String("i-foo0"),
 						InstanceLifecycle: aws.String("spot"),
 						State: &ec2.InstanceState{
 							Name: aws.String("running"),
