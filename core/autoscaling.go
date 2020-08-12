@@ -308,6 +308,11 @@ func (a *autoScalingGroup) scanInstances() instances {
 			i.price = i.typeInfo.pricing.onDemand + i.typeInfo.pricing.premium
 		}
 
+		// Avoid adding instance in Terminating (Wait|Proceed) Lifecycle State
+		if strings.HasPrefix(*inst.LifecycleState, "Terminating"){
+			continue
+		}
+
 		a.instances.add(i)
 	}
 	return a.instances
@@ -717,7 +722,7 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 	return a.region.instances.get(*instanceID).terminate()
 }
 
-// Terminates an on-demand instance from the group using the
+// Terminates an instance from the group using the
 // TerminateInstanceInAutoScalingGroup api call.
 func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	instanceID *string, wait bool, decreaseCapacity bool) error {
@@ -734,7 +739,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 		}
 
 		if err = a.waitForInstanceStatus(instanceID, "InService", 5); err != nil {
-			logger.Printf("OnDemand instance %v is still not InService, trying to terminate it anyway.",
+			logger.Printf("Instance %v is still not InService, trying to terminate it anyway.",
 				*instanceID)
 		}
 	}
