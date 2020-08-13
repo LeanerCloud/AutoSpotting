@@ -64,7 +64,6 @@ type terminateUnneededSpotInstance struct {
 
 func (tusi terminateUnneededSpotInstance) run() {
 	asg := tusi.target.asg
-	total := tusi.target.totalInstances
 	spotInstance := tusi.target.spotInstance
 	spotInstanceID := *spotInstance.InstanceId
 
