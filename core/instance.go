@@ -589,6 +589,9 @@ func (i *instance) convertBlockDeviceMappings(lc *launchConfiguration) []*ec2.Bl
 				VolumeSize:          lcBDM.Ebs.VolumeSize,
 				VolumeType:          lcBDM.Ebs.VolumeType,
 			}
+			if *ec2BDM.Ebs.VolumeType == "io1" {
+				*ec2BDM.Ebs.VolumeType = "io2"
+			}
 		}
 
 		// handle the noDevice field directly by skipping the device if set to true
