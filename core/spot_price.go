@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -31,14 +34,18 @@ func (s *spotPrices) fetch(product string,
 		InstanceTypes:    instanceTypes,
 	}
 
-	resp, err := ec2Conn.DescribeSpotPriceHistory(params)
+	data := []*ec2.SpotPrice{}
+	err := ec2Conn.DescribeSpotPriceHistoryPages(params, func(page *ec2.DescribeSpotPriceHistoryOutput, lastPage bool) bool {
+		data = append(data, page.SpotPriceHistory...)
+		return true
+	})
 
 	if err != nil {
 		logger.Println(s.conn.region, "Failed requesting spot prices:", err.Error())
 		return err
 	}
 
-	s.data = resp.SpotPriceHistory
+	s.data = data
 
 	return nil
 }

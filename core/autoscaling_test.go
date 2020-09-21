@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -8,6 +11,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/davecgh/go-spew/spew"
@@ -819,7 +823,16 @@ func TestAttachSpotInstance(t *testing.T) {
 			regionASG: &region{
 				name: "regionTest",
 				services: connections{
-					autoScaling: mockASG{aierr: nil},
+					autoScaling: mockASG{
+						aierr: nil,
+						dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+							AutoScalingInstances: []*autoscaling.InstanceDetails{
+								{
+									LifecycleState: aws.String("InService"),
+								},
+							},
+						},
+					},
 					ec2: mockEC2{
 						dio: &ec2.DescribeInstancesOutput{
 							Reservations: []*ec2.Reservation{
@@ -844,7 +857,10 @@ func TestAttachSpotInstance(t *testing.T) {
 			regionASG: &region{
 				name: "regionTest",
 				services: connections{
-					autoScaling: mockASG{aierr: errors.New("attach")},
+					autoScaling: mockASG{
+						aierr: error(awserr.New("ValidationError", "Error", errors.New("attach"))),
+						// aierr: errors.New("attach"),
+					},
 					ec2: mockEC2{
 						dio: &ec2.DescribeInstancesOutput{
 							Reservations: []*ec2.Reservation{
@@ -863,7 +879,7 @@ func TestAttachSpotInstance(t *testing.T) {
 				},
 			},
 			instanceID: "1",
-			expected:   errors.New("attach"),
+			expected:   error(awserr.New("ValidationError", "Error", errors.New("attach"))),
 		},
 	}
 	for _, tt := range tests {
@@ -877,7 +893,7 @@ func TestAttachSpotInstance(t *testing.T) {
 					DesiredCapacity: aws.Int64(3),
 				},
 			}
-			err := a.attachSpotInstance(tt.instanceID, false)
+			_, err := a.attachSpotInstance(tt.instanceID, false)
 			CheckErrors(t, err, tt.expected)
 		})
 	}
@@ -987,6 +1003,11 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 				t.Errorf("loadLaunchConfiguration received: %+v expected %+v",
 					lc, tt.expectedLC)
 			}
+
+			if lc != a.launchConfiguration {
+				t.Errorf("loadLaunchConfiguration returned %+v but set member field launchConfiguration to %+v",
+					lc, a.launchConfiguration)
+			}
 		})
 	}
 }
@@ -1060,6 +1081,7 @@ func TestScanInstances(t *testing.T) {
 							typeInfo: instanceTypeInformation{
 								pricing: prices{
 									onDemand: 0.5,
+									premium:  0.0,
 									spot: map[string]float64{
 										"az-1": 0.1,
 										"az-2": 0.2,
@@ -1078,6 +1100,7 @@ func TestScanInstances(t *testing.T) {
 							typeInfo: instanceTypeInformation{
 								pricing: prices{
 									onDemand: 0.8,
+									premium:  0.0,
 									spot: map[string]float64{
 										"az-1": 0.4,
 										"az-2": 0.5,
@@ -2413,8 +2436,18 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							dlho: &autoscaling.DescribeLifecycleHooksOutput{
 								LifecycleHooks: []*autoscaling.LifecycleHook{},
 							},
+							dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
+								AutoScalingInstances: []*autoscaling.InstanceDetails{
+									{
+										LifecycleState: aws.String("InService"),
+									},
+								},
+							},
 						},
 						ec2: &mockEC2{},
+						lambda: &mockLambda{
+							ierr: nil,
+						},
 					},
 					instances: makeInstancesWithCatalog(
 						instanceMap{
@@ -3495,6 +3528,31 @@ func Test_autoScalingGroup_calculateHourlySavings(t *testing.T) {
 				}),
 			want: 0.9,
 		},
+		{
+			name: "premium-instance",
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"ondemand-1": {
+						price: 1.6,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+								premium:  0.6,
+							},
+						},
+					},
+					"spot-1": {
+						price: 0.1,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								onDemand: 1.0,
+								premium:  0.6,
+							},
+						},
+					},
+				}),
+			want: 1.5,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3633,6 +3691,33 @@ func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.
 				"i-f00": &instance{
 					Instance: &ec2.Instance{
 						InstanceId: aws.String("i-foo"),
+						State: &ec2.InstanceState{
+							Name: aws.String("running"),
+						},
+					},
+				},
+			}),
+			wantErr: false,
+		},
+
+		{name: "spot capacity is correct, skip termination",
+			group: &autoscaling.Group{
+				DesiredCapacity: aws.Int64(2),
+			},
+			minOnDemand: 1,
+			instances: makeInstancesWithCatalog(instanceMap{
+				"i-f00": &instance{
+					Instance: &ec2.Instance{
+						InstanceId: aws.String("i-foo0"),
+						InstanceLifecycle: aws.String("spot"),
+						State: &ec2.InstanceState{
+							Name: aws.String("running"),
+						},
+					},
+				},
+				"i-f01": &instance{
+					Instance: &ec2.Instance{
+						InstanceId: aws.String("i-foo1"),
 						State: &ec2.InstanceState{
 							Name: aws.String("running"),
 						},

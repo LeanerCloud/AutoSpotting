@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -33,6 +36,7 @@ func TestMain(m *testing.M) {
 
 	os.Exit(m.Run())
 }
+
 func Test_getRegions(t *testing.T) {
 
 	tests := []struct {

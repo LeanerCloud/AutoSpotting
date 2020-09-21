@@ -7,6 +7,8 @@ BUCKET_NAME ?= cloudprowess
 FLAVOR ?= custom
 LOCAL_PATH := build/s3/$(FLAVOR)
 LICENSE_FILES := LICENSE THIRDPARTY
+GOOS ?= linux
+GOARCH ?= amd64
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
@@ -32,10 +34,8 @@ check_deps:                                                  ## Verify the syste
 	@echo "all dependencies satisifed: $(DEPS)"
 .PHONY: check_deps
 
-build_deps:
-	@command -v goveralls || go get github.com/mattn/goveralls
-	@command -v golint || go get golang.org/x/lint/golint
-	@go tool cover -V || go get golang.org/x/tools/cmd/cover
+build_deps:                                                  ## Install all dependencies specified in tools.go
+	@grep _ tools.go | cut -d '"' -f 2 | xargs go install
 .PHONY: build_deps
 
 update_deps:                                                 ## Update all dependencies
@@ -43,8 +43,8 @@ update_deps:                                                 ## Update all depen
 	@go mod tidy
 .PHONY: update_deps
 
-build: build_deps                                            ## Build the AutoSpotting binary
-	GOOS=linux go build -ldflags=$(LDFLAGS) -o $(BINARY)
+build:                                                       ## Build the AutoSpotting binary
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags=$(LDFLAGS) -o $(BINARY)
 .PHONY: build
 
 archive: build                                               ## Create archive to be uploaded
@@ -55,7 +55,8 @@ archive: build                                               ## Create archive t
 	@cp -f cloudformation/stacks/AutoSpotting/template.yaml $(LOCAL_PATH)/template_build_$(BUILD).yaml
 	@zip -j $(LOCAL_PATH)/regional_stack_lambda.zip cloudformation/stacks/AutoSpotting/regional_stack_lambda.py
 	@cp -f cloudformation/stacks/AutoSpotting/regional_template.yaml $(LOCAL_PATH)/
-	@sed -i "s#lambda\.zip#lambda_build_$(BUILD).zip#" $(LOCAL_PATH)/template_build_$(BUILD).yaml
+	@sed -e "s#lambda\.zip#lambda_build_$(BUILD).zip#" $(LOCAL_PATH)/template_build_$(BUILD).yaml > $(LOCAL_PATH)/template_build_$(BUILD).yaml.new
+	@mv -- $(LOCAL_PATH)/template_build_$(BUILD).yaml.new $(LOCAL_PATH)/template_build_$(BUILD).yaml
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(BUILD).zip
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(SHA).zip
 	@cp -f $(LOCAL_PATH)/regional_stack_lambda.zip $(LOCAL_PATH)/regional_stack_lambda_build_$(BUILD).zip
@@ -67,27 +68,18 @@ upload: archive                                              ## Upload binary
 	aws s3 sync build/s3/ s3://$(BUCKET_NAME)/
 .PHONY: upload
 
-vet-check: build_deps                                        ## Verify vet compliance
-ifeq ($(shell go vet -all . | wc -l | tr -d '[:space:]'), 0)
-	@printf "ok\tall files passed go vet\n"
-else
-	@printf "error\tsome files did not pass go vet\n"
-	@go vet -all . 2>&1
-	@exit 1
-endif
-
+vet-check:                                                   ## Verify vet compliance
+	@go vet -all ./...
 .PHONY: vet-check
 
-fmt-check: build_deps                                        ## Verify fmt compliance
-ifeq ($(shell gofmt -l -s . | wc -l | tr -d '[:space:]'), 0)
-	@printf "ok\tall files passed go fmt\n"
-else
-	@printf "error\tsome files did not pass go fmt, fix the following formatting diff:\n"
-	@gofmt -l -s -d .
-	@exit 1
-endif
-
+fmt-check:                                                   ## Verify fmt compliance
+	@sh -c 'test -z "$$(gofmt -l -s -d . | tee /dev/stderr)"'
 .PHONY: fmt-check
+
+module-check: build_deps                                     ## Verify that all changes to go.mod and go.sum are checked in, and fail otherwise
+	@go mod tidy -v
+	git diff --exit-code HEAD -- go.mod go.sum
+.PHONY: module-check
 
 test:                                                        ## Test go code and coverage
 	@go test -covermode=count -coverprofile=$(COVER_PROFILE) ./...
@@ -104,21 +96,21 @@ html-cover: test                                             ## Display coverage
 	@go tool cover -html=$(COVER_PROFILE)
 .PHONY: html-cover
 
-travisci-cover: html-cover                                   ## Test & generate coverage in the TravisCI format, fails unless executed from TravisCI
+ci-cover: html-cover                                         ## Test & generate coverage in the TravisCI format, fails unless executed from TravisCI
 ifdef COVERALLS_TOKEN
 	@goveralls -coverprofile=$(COVER_PROFILE) -service=travis-ci -repotoken=$(COVERALLS_TOKEN)
 endif
-.PHONY: travisci-cover
+.PHONY: ci-cover
 
-travisci-checks: fmt-check vet-check lint                    ## Pass fmt / vet & lint format
-.PHONY: travisci-checks
+ci-checks: fmt-check vet-check module-check lint             ## Pass fmt / vet & lint format
+.PHONY: ci-checks
 
-travisci: archive travisci-checks travisci-cover             ## Executes inside the TravisCI Docker builder
-.PHONY: travisci
+ci: archive ci-checks ci-cover                               ## Executes inside the CI Docker builder
+.PHONY: ci
 
-travisci-docker:                                             ## Executed by TravisCI
-	@docker-compose up --build --exit-code-from autospotting
-.PHONY: travisci-docker
+ci-docker:                                                   ## Executed by CI
+	@docker-compose up --build --abort-on-container-exit --exit-code-from autospotting
+.PHONY: ci-docker
 
 help:                                                        ## Show this help
 	@printf "Rules:\n"

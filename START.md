@@ -189,10 +189,53 @@ be risky, please handle with care.
 
 ### For Elastic Beanstalk ###
 
-* In order to add tags to existing Elastic Beanstalk environment, you will need
-  to rebuild or update the environment with the `spot-enabled` tag. For more
-  details you can follow this
-  [guide](http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments)
+Elastic Beanstalk uses CloudFormation to create an Auto-Scaling Group. The ASG
+is then in charge of automatically scaling your application up and down. As a
+result, AutoSpotting works natively with Elastic Beanstalk.
+
+Follow these steps to configure AutoSpotting with Elastic Beanstalk.
+
+#### 1 - Add the `spot-enabled` tag ####
+
+Similar to standalone auto-scaling groups, you need to tag your Elastic Beanstalk
+environment with the `spot-enabled` tag to let AutoSpotting manage the instances
+in the group.
+
+To add tags to an existing Elastic Beanstalk environment, you will need to rebuild
+or update the environment with the `spot-enabled` tag. For more details you can
+follow this [guide](http://www.boringgeek.com/add-or-update-tags-on-existing-elastic-beanstalk-environments).
+
+#### 2 - Enable `patch_beanstalk_userdata` in AutoSpotting (optional) ####
+
+Elastic Beanstalk leverages CloudFormation for creating resources and initializing
+instances. When a new instance is launched, Elastic Beanstalk configures it through
+the auto-scaling configuration (`UserData` and tags).
+
+AutoSpotting launches spot instances outside of the auto-scaling group and attaches
+them to the group after a grace period. As a result, the Elastic Beanstalk
+initialization process can randomly fail or be delayed by 10+ minutes.
+When it is delayed, the spot instances take a long time (10+ minutes) before being
+initialized, appearing as healthy in Elastic Beanstalk and being added
+to the load balancer.
+
+As a solution, you can configure AutoSpotting to alter the Elastic Beanstalk
+user-data so that the Elastic Beanstalk initialization process can run even
+if the spot instance is not a part of the auto-scaling group.
+
+To enable that option, set the `patch_beanstalk_userdata` variable to `true`
+in your configuration.
+
+You will also need to update the permissions of the role used by your instances
+to authorize requests to the CloudFormation API. Add the `AutoSpottingElasticBeanstalk`
+policy to the role `aws-elasticbeanstalk-ec2-role` or the custom instance profile/role
+used by your Beanstalk instances.
+
+The permissions contained in `AutoSpottingElasticBeanstalk` are required if you set
+`patch_beanstalk_userdata` variable to `true`. If they are not added, your spot
+instances will not be able to run correctly.
+
+You can get more information on the need for this configuration variable and
+the permissions in the [bug report](https://github.com/AutoSpotting/AutoSpotting/issues/344).
 
 ## Configuration of AutoSpotting ##
 
@@ -255,9 +298,20 @@ Usage of ./AutoSpotting:
   -spot_product_description="Linux/UNIX (Amazon VPC)":
         The Spot Product or operating system to use when looking up spot price history in the market.
         Valid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon VPC)
+  -spot_product_premium=0:
+        The Product Premium to apply to the on demand price to improve spot
+        selection and savings calculations when using a premium instance type
+        such as RHEL.
 
   -tag_filters=[{spot-enabled true}]: Set of tags to filter the ASGs on.  Default is -tag_filters 'spot-enabled=true'
         Example: ./AutoSpotting -tag_filters 'spot-enabled=true,Environment=dev,Team=vision'
+
+  -patch_beanstalk_userdata="true":
+        Controls whether AutoSpotting patches Elastic Beanstalk UserData
+        scripts to use the instance role when calling CloudFormation
+        helpers instead of the standard CloudFormation authentication
+        method
+        Example: ./AutoSpotting --patch_beanstalk_userdata true
 ```
 
 <!-- markdownlint-enable MD013 -->

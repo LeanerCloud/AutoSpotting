@@ -1,3 +1,6 @@
+# Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+# Licensed under the Open Software License version 3.0
+
 '''
     Creates regional CloudFormation stacks that trigger the main AutoSpotting
     Lambda function

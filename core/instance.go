@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -146,8 +149,8 @@ func (i *instance) isSpot() bool {
 }
 
 func (i *instance) isProtectedFromTermination() (bool, error) {
+  debug.Println("\tChecking termination protection for instance: ", *i.InstanceId)
 
-	debug.Println("\tCheching termination protection for instance: ", *i.InstanceId)
 	// determine and set the API termination protection field
 	diaRes, err := i.region.services.ec2.DescribeInstanceAttribute(
 		&ec2.DescribeInstanceAttributeInput{
@@ -157,7 +160,7 @@ func (i *instance) isProtectedFromTermination() (bool, error) {
 
 	if err != nil {
 		// better safe than sorry!
-		logger.Printf("Couldn't describe instance attritbutes, assuming instance %v is protected: %v\n",
+		logger.Printf("Couldn't describe instance attributes, assuming instance %v is protected: %v\n",
 			*i.InstanceId, err.Error())
 		return true, err
 	}
@@ -244,7 +247,7 @@ func (i *instance) belongsToEnabledASG() bool {
 			asg.loadConfigFromTags()
 			asg.loadLaunchConfiguration()
 			i.asg = &asg
-			i.price = i.typeInfo.pricing.onDemand
+			i.price = i.typeInfo.pricing.onDemand / i.region.conf.OnDemandPriceMultiplier * i.asg.config.OnDemandPriceMultiplier
 			logger.Printf("%s instace %s belongs to enabled ASG %s", i.region.name,
 				*i.InstanceId, i.asg.name)
 			return true
@@ -453,7 +456,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
 			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
 			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice})
-			logger.Println("\tFound compatible instance type", candidate.instanceType, "added to launch candiates list")
+			logger.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candiates list for instance", i.InstanceId)
 		} else if candidate.instanceType != "" {
 			debug.Println("Non compatible option found:", candidate.instanceType, "at", candidatePrice, " - discarding")
 		}
@@ -476,6 +479,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 }
 
 func (i *instance) launchSpotReplacement() (*string, error) {
+	i.price = i.typeInfo.pricing.onDemand / i.region.conf.OnDemandPriceMultiplier * i.asg.config.OnDemandPriceMultiplier
 	instanceTypes, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(
 		i.asg.getAllowedInstanceTypes(i),
 		i.asg.getDisallowedInstanceTypes(i))
@@ -489,7 +493,7 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 	for _, instanceType := range instanceTypes {
 		az := *i.Placement.AvailabilityZone
 		bidPrice := i.getPricetoBid(i.price,
-			instanceType.pricing.spot[az])
+			instanceType.pricing.spot[az], instanceType.pricing.premium)
 
 		runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
 		logger.Println(az, i.asg.name, "Launching spot instance of type", instanceType.instanceType, "with bid price", bidPrice)
@@ -498,7 +502,7 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 
 		if err != nil {
 			if strings.Contains(err.Error(), "InsufficientInstanceCapacity") {
-				logger.Println("Couldn't launch spot instance due to lack of capcity, trying next instance type:", err.Error())
+				logger.Println("Couldn't launch spot instance due to lack of capacity, trying next instance type:", err.Error())
 			} else {
 				logger.Println("Couldn't launch spot instance:", err.Error(), "trying next instance type")
 				debug.Println(runInstancesInput)
@@ -521,17 +525,18 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 }
 
 func (i *instance) getPricetoBid(
-	baseOnDemandPrice float64, currentSpotPrice float64) float64 {
+	baseOnDemandPrice float64, currentSpotPrice float64, spotPremium float64) float64 {
 
-	logger.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
+	debug.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
 
 	if i.region.conf.BiddingPolicy == DefaultBiddingPolicy {
-		logger.Println("Bidding base on demand price", baseOnDemandPrice)
+		logger.Println("Bidding base on demand price", baseOnDemandPrice, "to replace instance", i.InstanceId)
 		return baseOnDemandPrice
 	}
 
-	bufferPrice := math.Min(baseOnDemandPrice, currentSpotPrice*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))
-	logger.Println("Bidding buffer-based price", bufferPrice)
+	bufferPrice := math.Min(baseOnDemandPrice, ((currentSpotPrice-spotPremium)*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))+spotPremium)
+	logger.Println("Bidding buffer-based price of", bufferPrice, "based on current spot price of", currentSpotPrice,
+		"and buffer percentage of", i.region.conf.SpotPriceBufferPercentage, "to replace instance", i.InstanceId)
 	return bufferPrice
 }
 
@@ -673,7 +678,11 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		}
 		retval.ImageId = lc.ImageId
 
-		retval.UserData = lc.UserData
+		if strings.ToLower(i.asg.config.PatchBeanstalkUserdata) == "true" {
+			retval.UserData = getPatchedUserDataForBeanstalk(lc.UserData)
+		} else {
+			retval.UserData = lc.UserData
+		}
 
 		BDMs := i.convertBlockDeviceMappings(lc)
 
@@ -813,24 +822,20 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 			*odInstanceID)
 	}
 
-	var waiter sync.WaitGroup
-	defer waiter.Wait()
-	go asg.temporarilySuspendTerminations(&waiter)
-
-	max := *asg.MaxSize
-
-	if *asg.DesiredCapacity == max {
-		if err := asg.setAutoScalingMaxSize(max + 1); err != nil {
-			logger.Printf("%s Couldn't temporarily expand ASG %s",
-				i.region.name, *asg.AutoScalingGroupName)
-			return nil, fmt.Errorf("couldn't increase ASG %s", *asg.AutoScalingGroupName)
-		}
-		defer asg.setAutoScalingMaxSize(max)
-	}
+	// var waiter sync.WaitGroup
+	// defer waiter.Wait()
+	// go asg.temporarilySuspendTerminations(&waiter)
+	asg.suspendResumeProcess(*i.InstanceId, "suspend")
+	defer asg.suspendResumeProcess(*i.InstanceId, "resume")
 
 	logger.Printf("Attaching spot instance %s to the group %s",
 		*i.InstanceId, asg.name)
-	if err := asg.attachSpotInstance(*i.InstanceId, true); err != nil {
+	increase, err := asg.attachSpotInstance(*i.InstanceId, true)
+	if increase > 0 {
+		defer asg.changeAutoScalingMaxSize(int64(-1*increase), *i.InstanceId)
+	}
+
+	if err != nil {
 		logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
 			*i.InstanceId, asg.name)
 		i.terminate()
@@ -846,6 +851,8 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 			*odInstanceID)
 	}
 
+	// asg.resumeTerminationProcess()
+	// waiter.Done()
 	return odInstance, nil
 }
 

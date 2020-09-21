@@ -1,7 +1,12 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
+	"encoding/base64"
 	"errors"
+	"io/ioutil"
 	"math"
 	"reflect"
 	"sort"
@@ -1098,6 +1103,7 @@ func TestGetPricetoBid(t *testing.T) {
 		spotPercentage       float64
 		currentSpotPrice     float64
 		currentOnDemandPrice float64
+		spotPremium          float64
 		policy               string
 		want                 float64
 	}{
@@ -1105,6 +1111,7 @@ func TestGetPricetoBid(t *testing.T) {
 			spotPercentage:       50.0,
 			currentSpotPrice:     0.0216,
 			currentOnDemandPrice: 0.0464,
+			spotPremium:          0.0,
 			policy:               "aggressive",
 			want:                 0.0324,
 		},
@@ -1112,6 +1119,7 @@ func TestGetPricetoBid(t *testing.T) {
 			spotPercentage:       79.0,
 			currentSpotPrice:     0.0216,
 			currentOnDemandPrice: 0.0464,
+			spotPremium:          0.0,
 			policy:               "aggressive",
 			want:                 0.038664,
 		},
@@ -1119,6 +1127,7 @@ func TestGetPricetoBid(t *testing.T) {
 			spotPercentage:       79.0,
 			currentSpotPrice:     0.0216,
 			currentOnDemandPrice: 0.0464,
+			spotPremium:          0.0,
 			policy:               "normal",
 			want:                 0.0464,
 		},
@@ -1126,8 +1135,25 @@ func TestGetPricetoBid(t *testing.T) {
 			spotPercentage:       200.0,
 			currentSpotPrice:     0.0216,
 			currentOnDemandPrice: 0.0464,
+			spotPremium:          0.0,
 			policy:               "aggressive",
 			want:                 0.0464,
+		},
+		{
+			spotPercentage:       0.0,
+			currentSpotPrice:     0.0216,
+			currentOnDemandPrice: 0.0464,
+			spotPremium:          0.0,
+			policy:               "aggressive",
+			want:                 0.0216,
+		},
+		{
+			spotPercentage:       50.0,
+			currentSpotPrice:     0.0816,
+			currentOnDemandPrice: 0.1064,
+			spotPremium:          0.06,
+			policy:               "aggressive",
+			want:                 0.0924,
 		},
 	}
 	for _, tt := range tests {
@@ -1141,11 +1167,15 @@ func TestGetPricetoBid(t *testing.T) {
 				name: "us-east-1",
 				conf: cfg,
 			},
+			Instance: &ec2.Instance{
+				InstanceId: aws.String("i-0000000"),
+			},
 		}
 
 		currentSpotPrice := tt.currentSpotPrice
 		currentOnDemandPrice := tt.currentOnDemandPrice
-		actualPrice := i.getPricetoBid(currentOnDemandPrice, currentSpotPrice)
+		currentSpotPremium := tt.spotPremium
+		actualPrice := i.getPricetoBid(currentOnDemandPrice, currentSpotPrice, currentSpotPremium)
 		if math.Abs(actualPrice-tt.want) > 0.000001 {
 			t.Errorf("percentage = %.2f, policy = %s, expected price = %.5f, want %.5f, currentSpotPrice = %.5f",
 				tt.spotPercentage, tt.policy, actualPrice, tt.want, currentSpotPrice)
@@ -1524,6 +1554,15 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 }
 
 func Test_instance_createRunInstancesInput(t *testing.T) {
+	beanstalkUserDataExample, err := ioutil.ReadFile("../test_data/beanstalk_userdata_example.txt")
+	if err != nil {
+		t.Errorf("Unable to read Beanstalk UserData example")
+	}
+
+	beanstalkUserDataWrappedExample, err := ioutil.ReadFile("../test_data/beanstalk_userdata_wrapped_example.txt")
+	if err != nil {
+		t.Errorf("Unable to read Beanstalk UserData wrapped example")
+	}
 
 	type args struct {
 		instanceType string
@@ -2012,6 +2051,138 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				},
 				},
 				UserData: aws.String("userdata"),
+			},
+		},
+		{
+			name: "create run instances input with customized UserData for Beanstalk",
+			inst: instance{
+				asg: &autoScalingGroup{
+					name: "mygroup",
+					Group: &autoscaling.Group{
+						LaunchConfigurationName: aws.String("myLC"),
+					},
+					launchConfiguration: &launchConfiguration{
+						LaunchConfiguration: &autoscaling.LaunchConfiguration{
+							IamInstanceProfile: aws.String("profile-name"),
+							ImageId:            aws.String("ami-123"),
+							InstanceMonitoring: &autoscaling.InstanceMonitoring{
+								Enabled: aws.Bool(true),
+							},
+							KeyName: aws.String("current-key"),
+							BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+								{
+									DeviceName: aws.String("foo"),
+								},
+							},
+							AssociatePublicIpAddress: aws.Bool(true),
+							UserData:                 aws.String(string(beanstalkUserDataExample)),
+						},
+					},
+					config: AutoScalingConfig{
+						PatchBeanstalkUserdata: "true",
+					},
+				},
+				Instance: &ec2.Instance{
+					EbsOptimized: aws.Bool(true),
+
+					IamInstanceProfile: &ec2.IamInstanceProfile{
+						Arn: aws.String("profile-arn"),
+					},
+
+					InstanceType: aws.String("t2.medium"),
+					KeyName:      aws.String("older-key"),
+
+					Placement: &ec2.Placement{
+						Affinity: aws.String("foo"),
+					},
+
+					SecurityGroups: []*ec2.GroupIdentifier{
+						{
+							GroupName: aws.String("foo"),
+							GroupId:   aws.String("sg-123"),
+						},
+						{
+							GroupName: aws.String("bar"),
+							GroupId:   aws.String("sg-456"),
+						},
+					},
+
+					SubnetId: aws.String("subnet-123"),
+				},
+			}, args: args{
+				instanceType: "t2.small",
+				price:        1.5,
+			},
+			want: &ec2.RunInstancesInput{
+				BlockDeviceMappings: []*ec2.BlockDeviceMapping{
+					{
+						DeviceName: aws.String("foo"),
+					},
+				},
+
+				EbsOptimized: aws.Bool(true),
+
+				IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+					Name: aws.String("profile-name"),
+				},
+
+				ImageId: aws.String("ami-123"),
+
+				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
+					MarketType: aws.String("spot"),
+					SpotOptions: &ec2.SpotMarketOptions{
+						MaxPrice: aws.String("1.5"),
+					},
+				},
+
+				InstanceType: aws.String("t2.small"),
+				KeyName:      aws.String("current-key"),
+
+				MaxCount: aws.Int64(1),
+				MinCount: aws.Int64(1),
+
+				Monitoring: &ec2.RunInstancesMonitoringEnabled{
+					Enabled: aws.Bool(true),
+				},
+
+				Placement: &ec2.Placement{
+					Affinity: aws.String("foo"),
+				},
+
+				NetworkInterfaces: []*ec2.InstanceNetworkInterfaceSpecification{
+					{
+						AssociatePublicIpAddress: aws.Bool(true),
+						DeviceIndex:              aws.Int64(0),
+						SubnetId:                 aws.String("subnet-123"),
+						Groups: []*string{
+							aws.String("sg-123"),
+							aws.String("sg-456"),
+						},
+					},
+				},
+
+				TagSpecifications: []*ec2.TagSpecification{{
+					ResourceType: aws.String("instance"),
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("LaunchConfigurationName"),
+							Value: aws.String("myLC"),
+						},
+						{
+							Key:   aws.String("launched-by-autospotting"),
+							Value: aws.String("true"),
+						},
+						{
+							Key:   aws.String("launched-for-asg"),
+							Value: aws.String("mygroup"),
+						},
+						{
+							Key:   aws.String("launched-for-replacing-instance"),
+						},
+					},
+				},
+				},
+				UserData: aws.String(base64.StdEncoding.EncodeToString(beanstalkUserDataWrappedExample)),
 			},
 		},
 	}

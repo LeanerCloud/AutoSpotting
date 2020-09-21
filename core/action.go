@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 type target struct {
@@ -61,11 +64,9 @@ type terminateUnneededSpotInstance struct {
 
 func (tusi terminateUnneededSpotInstance) run() {
 	asg := tusi.target.asg
-	total := tusi.target.totalInstances
 	spotInstance := tusi.target.spotInstance
 	spotInstanceID := *spotInstance.InstanceId
 
-	asg.terminateRandomSpotInstanceIfHavingEnough(total, true)
 	logger.Println("Spot instance", spotInstanceID, "is not need anymore by ASG",
 		asg.name, "terminating the spot instance.")
 	spotInstance.terminate()

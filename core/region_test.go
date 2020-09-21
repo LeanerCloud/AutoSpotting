@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -194,10 +197,11 @@ func TestOnDemandPriceMultiplier(t *testing.T) {
 			conf: cfg,
 			services: connections{
 				ec2: mockEC2{
-					dspho: &ec2.DescribeSpotPriceHistoryOutput{
-						SpotPriceHistory: []*ec2.SpotPrice{},
+					dsphpo: []*ec2.DescribeSpotPriceHistoryOutput{
+						{
+							SpotPriceHistory: []*ec2.SpotPrice{},
+						},
 					},
-					dspherr: nil,
 				},
 			}}
 		r.determineInstanceTypeInformation(cfg)

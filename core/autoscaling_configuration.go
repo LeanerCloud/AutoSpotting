@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -23,6 +26,10 @@ const (
 	// absolute number.
 	OnDemandNumberLong = "autospotting_min_on_demand_number"
 
+	// OnDemandPriceMultiplierTag is the name of a tag that can be defined on a
+	// per-group level for overriding multiplier for the on-demand price.
+	OnDemandPriceMultiplierTag = "autospotting_on_demand_price_multiplier"
+
 	// BiddingPolicyTag stores the bidding policy for the spot instance
 	BiddingPolicyTag = "autospotting_bidding_policy"
 
@@ -44,6 +51,10 @@ const (
 	// to use when looking up spot price history in the market.
 	DefaultSpotProductDescription = "Linux/UNIX (Amazon VPC)"
 
+	// DefaultSpotProductPremium stores the default value to add to the
+	// on demand price for premium instance types.
+	DefaultSpotProductPremium = 0.0
+
 	// DefaultMinOnDemandValue stores the default on-demand capacity to be kept
 	// running in a group managed by autospotting.
 	DefaultMinOnDemandValue = 0
@@ -56,6 +67,10 @@ const (
 	// the spot bid on a per-group level
 	DefaultBiddingPolicy = "normal"
 
+	// DefaultOnDemandPriceMultiplier stores the default OnDemand price multiplier
+	// on a per-group level
+	DefaultOnDemandPriceMultiplier = 1.0
+
 	// DefaultInstanceTerminationMethod is the default value for the instance termination
 	// method configuration option
 	DefaultInstanceTerminationMethod = AutoScalingTerminationMethod
@@ -63,6 +78,10 @@ const (
 	// ScheduleTag is the name of the tag set on the AutoScaling Group that
 	// can override the global value of the Schedule parameter
 	ScheduleTag = "autospotting_cron_schedule"
+
+	// TimezoneTag is the name of the tag set on the AutoScaling Group that
+	// can override the global value of the Timezone parameter
+	TimezoneTag = "autospotting_cron_timezone"
 
 	// CronScheduleState controls whether to run or not to run during the time interval
 	// specified in the Schedule variable or its per-group tag overrides. It
@@ -78,6 +97,10 @@ const (
 	// for this group. It is set automatically once the legacy cron-based
 	// replacement logic is done replacing in stances in any given group.
 	EnableInstanceLaunchEventHandlingTag = "autospotting_enable_instance_launch_event_handling"
+
+	// PatchBeanstalkUserdataTag is the name of the tag set on the AutoScaling Group that
+	// can override the global value of the PatchBeanstalkUserdata parameter
+	PatchBeanstalkUserdataTag = "patch_beanstalk_userdata"
 )
 
 // AutoScalingConfig stores some group-specific configurations that can override
@@ -92,6 +115,7 @@ type AutoScalingConfig struct {
 	SpotPriceBufferPercentage float64
 
 	SpotProductDescription string
+	SpotProductPremium     float64
 
 	BiddingPolicy string
 
@@ -104,7 +128,10 @@ type AutoScalingConfig struct {
 	TerminationNotificationAction string
 
 	CronSchedule      string
+	CronTimezone      string
 	CronScheduleState string // "on" or "off", dictate whether to run inside the CronSchedule or not
+
+	PatchBeanstalkUserdata string
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -132,7 +159,7 @@ func (a *autoScalingGroup) loadSpotPriceBufferPercentage(tagValue *string) (floa
 	if err != nil {
 		logger.Printf("Error with ParseFloat: %s\n", err.Error())
 		return DefaultSpotPriceBufferPercentage, false
-	} else if spotPriceBufferPercentage <= 0 {
+	} else if spotPriceBufferPercentage < 0 {
 		logger.Printf("Ignoring out of range value : %f\n", spotPriceBufferPercentage)
 		return DefaultSpotPriceBufferPercentage, false
 	}
@@ -154,6 +181,21 @@ func (a *autoScalingGroup) loadNumberOnDemand(tagValue *string) (int64, bool) {
 	return DefaultMinOnDemandValue, false
 }
 
+func (a *autoScalingGroup) loadOnDemandPriceMultiplier(tagValue *string) (float64, bool) {
+	onDemandPriceMultiplier, err := strconv.ParseFloat(*tagValue, 64)
+
+	if err != nil {
+		logger.Printf("Error with ParseFloat: %s\n", err.Error())
+		return DefaultOnDemandPriceMultiplier, false
+	} else if onDemandPriceMultiplier <= 0 {
+		logger.Printf("Ignoring out of range value : %f\n", onDemandPriceMultiplier)
+		return DefaultOnDemandPriceMultiplier, false
+	}
+
+	logger.Printf("Loaded OnDemandPriceMultiplier value to %f from tag %s\n", onDemandPriceMultiplier, OnDemandPriceMultiplierTag)
+	return onDemandPriceMultiplier, true
+}
+
 func (a *autoScalingGroup) getTagValue(keyMatch string) *string {
 	for _, asgTag := range a.Tags {
 		if *asgTag.Key == keyMatch {
@@ -163,6 +205,13 @@ func (a *autoScalingGroup) getTagValue(keyMatch string) *string {
 	return nil
 }
 
+func (a *autoScalingGroup) setMinOnDemandIfLarger(newValue int64, hasMinOnDemand bool) bool {
+	if !hasMinOnDemand || newValue > a.minOnDemand {
+		a.minOnDemand = newValue
+	}
+	return true
+}
+
 func (a *autoScalingGroup) loadConfOnDemand() bool {
 	tagList := [2]string{OnDemandNumberLong, OnDemandPercentageTag}
 	loadDyn := map[string]func(*string) (int64, bool){
@@ -170,18 +219,31 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 		OnDemandNumberLong:    a.loadNumberOnDemand,
 	}
 
+	foundLimit := false
 	for _, tagKey := range tagList {
 		if tagValue := a.getTagValue(tagKey); tagValue != nil {
 			if _, ok := loadDyn[tagKey]; ok {
 				if newValue, done := loadDyn[tagKey](tagValue); done {
-					a.minOnDemand = newValue
-					return done
+					foundLimit = a.setMinOnDemandIfLarger(newValue, foundLimit)
 				}
 			}
 		}
 		debug.Println("Couldn't find tag", tagKey)
 	}
-	return false
+	return foundLimit
+}
+
+func (a *autoScalingGroup) loadPatchBeanstalkUserdata() {
+	tagValue := a.getTagValue(PatchBeanstalkUserdataTag)
+
+	if tagValue != nil {
+		logger.Printf("Loaded PatchBeanstalkUserdata value %v from tag %v\n", *tagValue, PatchBeanstalkUserdataTag)
+		a.config.PatchBeanstalkUserdata = *tagValue
+		return
+	}
+
+	debug.Println("Couldn't find tag", PatchBeanstalkUserdataTag, "on the group", a.name, "using the default configuration")
+	a.config.PatchBeanstalkUserdata = a.region.conf.PatchBeanstalkUserdata
 }
 
 func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
@@ -207,6 +269,19 @@ func (a *autoScalingGroup) LoadCronSchedule() {
 	a.config.CronSchedule = a.region.conf.CronSchedule
 }
 
+func (a *autoScalingGroup) LoadCronTimezone() {
+	tagValue := a.getTagValue(TimezoneTag)
+
+	if tagValue != nil {
+		logger.Printf("Loaded CronTimezone value %v from tag %v\n", *tagValue, TimezoneTag)
+		a.config.CronTimezone = *tagValue
+		return
+	}
+
+	debug.Println("Couldn't find tag", TimezoneTag, "on the group", a.name, "using the default configuration")
+	a.config.CronTimezone = a.region.conf.CronTimezone
+}
+
 func (a *autoScalingGroup) LoadCronScheduleState() {
 	tagValue := a.getTagValue(CronScheduleStateTag)
 	if tagValue != nil {
@@ -227,7 +302,7 @@ func (a *autoScalingGroup) loadConfSpot() bool {
 	}
 	if newValue, done := a.loadBiddingPolicy(tagValue); done {
 		a.region.conf.BiddingPolicy = newValue
-		logger.Println("BiddingPolicy =", a.region.conf.BiddingPolicy)
+		debug.Println("BiddingPolicy =", a.region.conf.BiddingPolicy)
 		return done
 	}
 	return false
@@ -250,20 +325,44 @@ func (a *autoScalingGroup) loadConfSpotPrice() bool {
 	return done
 }
 
+func (a *autoScalingGroup) loadConfOnDemandPriceMultiplier() bool {
+
+	tagValue := a.getTagValue(OnDemandPriceMultiplierTag)
+	if tagValue == nil {
+		return false
+	}
+
+	newValue, done := a.loadOnDemandPriceMultiplier(tagValue)
+	if !done {
+		debug.Println("Couldn't find tag", OnDemandPriceMultiplierTag)
+		return false
+	}
+
+	a.config.OnDemandPriceMultiplier = newValue
+	return done
+}
+
 // Add configuration of other elements here: prices, whitelisting, etc
 func (a *autoScalingGroup) loadConfigFromTags() bool {
 
 	resOnDemandConf := a.loadConfOnDemand()
+
+	resOnDemandPriceMultiplierConf := a.loadConfOnDemandPriceMultiplier()
 
 	resSpotConf := a.loadConfSpot()
 
 	resSpotPriceConf := a.loadConfSpotPrice()
 
 	a.LoadCronSchedule()
+	a.LoadCronTimezone()
 	a.LoadCronScheduleState()
+	a.loadPatchBeanstalkUserdata()
 
 	if resOnDemandConf {
 		logger.Println("Found and applied configuration for OnDemand value")
+	}
+	if resOnDemandPriceMultiplierConf {
+		logger.Println("Found and applied configuration for OnDemand Price Multiplier")
 	}
 	if resSpotConf {
 		logger.Println("Found and applied configuration for Spot Bid")
@@ -271,7 +370,7 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 	if resSpotPriceConf {
 		logger.Println("Found and applied configuration for Spot Price")
 	}
-	if resOnDemandConf || resSpotConf || resSpotPriceConf {
+	if resOnDemandConf || resOnDemandPriceMultiplierConf || resSpotConf || resSpotPriceConf {
 		return true
 	}
 	return false

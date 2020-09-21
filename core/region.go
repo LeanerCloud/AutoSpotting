@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -41,6 +44,7 @@ type prices struct {
 	onDemand     float64
 	spot         spotPriceMap
 	ebsSurcharge float64
+	premium      float64
 }
 
 // The key in this map is the availavility zone
@@ -84,7 +88,6 @@ func (r *region) processRegion() {
 	// only process further the region if there are any enabled autoscaling groups
 	// within it
 	if r.hasEnabledAutoScalingGroups() {
-
 		logger.Println("Scanning full instance information in", r.name)
 		r.determineInstanceTypeInformation(r.conf)
 
@@ -135,7 +138,7 @@ func splitTagAndValue(value string) *Tag {
 }
 
 func (r *region) processDescribeInstancesPage(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
-	logger.Println("Processing page of DescribeInstancesPages for", r.name)
+	debug.Println("Processing page of DescribeInstancesPages for", r.name)
 
 	if len(page.Reservations) > 0 &&
 		page.Reservations[0].Instances != nil {
@@ -224,6 +227,7 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 		price.onDemand = it.Pricing[r.name].Linux.OnDemand * cfg.OnDemandPriceMultiplier
 		price.spot = make(spotPriceMap)
 		price.ebsSurcharge = it.Pricing[r.name].EBSSurcharge
+		price.premium = r.conf.SpotProductPremium
 
 		// if at this point the instance price is still zero, then that
 		// particular instance type doesn't even exist in the current
@@ -284,13 +288,13 @@ func (r *region) requestSpotPrices() error {
 		// spot market
 		price, err := strconv.ParseFloat(*priceInfo.SpotPrice, 64)
 		if err != nil {
-			logger.Println(r.name, "Instance type ", instType,
+			debug.Println(r.name, "Instance type ", instType,
 				"is not available on the spot market")
 			continue
 		}
 
 		if r.instanceTypeInformation[instType].pricing.spot == nil {
-			logger.Println(r.name, "Instance data missing for", instType, "in", az,
+			debug.Println(r.name, "Instance data missing for", instType, "in", az,
 				"skipping because this region is currently not supported")
 			continue
 		}
@@ -397,7 +401,7 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
 		}
 
 		if stackName := getTagValueFromASGWithMatchingTag(group, tagCloudFormationStackName); stackName != nil {
-			logger.Println("Stack: ", *stackName)
+			debug.Println("Stack: ", *stackName)
 			if status, updating := r.isStackUpdating(stackName); updating {
 				logger.Printf("Skipping group %s because stack %s is in state %s\n",
 					asgName, *stackName, status)

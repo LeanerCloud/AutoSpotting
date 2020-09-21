@@ -1,3 +1,6 @@
+// Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+// Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -9,6 +12,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
@@ -87,6 +91,7 @@ func (cfg *Config) addDefaultFilter() {
 	}
 }
 
+
 func (cfg *Config) disableLogging() {
 	cfg.LogFile = ioutil.Discard
 	cfg.setupLogging()
@@ -107,7 +112,6 @@ func (cfg *Config) setupLogging() {
 // for each of the ASGs tagged with tags as specified by slice represented by cfg.FilterByTags
 // by default this is all asg with the tag 'spot-enabled=true'.
 func (a *AutoSpotting) processRegions(regions []string) {
-
 	var wg sync.WaitGroup
 
 	for _, r := range regions {
@@ -209,8 +213,17 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 			log.Println("Could't get instance ID of terminating spot instance", err.Error())
 			return
 		} else if instanceID != nil {
+			logger.SetPrefix(fmt.Sprintf("TE:%s ", *instanceID))
 			spotTermination := newSpotTermination(cloudwatchEvent.Region)
-			spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
+			if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
+				err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
+				if err != nil {
+					log.Printf("Error executing spot termination action: %s\n", err.Error())
+				}
+			} else {
+				log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
+				return
+			}
 		}
 
 		// If event is Instance state change
@@ -221,6 +234,7 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 			log.Println("Could't get instance ID of newly launched instance", err.Error())
 			return
 		} else if instanceID != nil {
+			logger.SetPrefix(fmt.Sprintf("ST:%s ", *instanceID))
 			a.handleNewInstanceLaunch(cloudwatchEvent.Region, *instanceID, *state)
 		}
 
@@ -229,9 +243,12 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 		a.handleLifecycleHookEvent(cloudwatchEvent)
 	} else {
 		// Cron Scheduling
+		t := time.Now()
+		logger.SetPrefix(fmt.Sprintf("SC:%s ", t.Format("2006-01-02T15:04:00")))
 		a.ProcessCronEvent()
 	}
 
+	logger.SetPrefix("")
 }
 
 func isValidLifecycleHookEvent(ctEvent CloudTrailEvent) bool {
@@ -360,6 +377,19 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 		return errors.New("instance not in running state")
 	}
 
+	// Try OnDemand
+	if err := a.handleNewOnDemandInstanceLaunch(r, i); err != nil {
+		return err
+	}
+
+	// Try Spot
+	if err := a.handleNewSpotInstanceLaunch(r, i); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r region, i *instance) error {
 	if i.belongsToEnabledASG() && i.shouldBeReplacedWithSpot() {
 		logger.Printf("%s instance %s belongs to an enabled ASG and should be "+
 			"replaced with spot, attempting to launch spot replacement",
@@ -375,7 +405,10 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 			i.region.name, *i.InstanceId)
 		debug.Printf("%#v", i)
 	}
+	return nil
+}
 
+func (a *AutoSpotting) handleNewSpotInstanceLaunch(r region, i *instance) error {
 	logger.Printf("%s Checking if %s is a spot instance that should be "+
 		"attached to any ASG", i.region.name, *i.InstanceId)
 	unattached := i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
@@ -386,6 +419,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 	}
 
 	asgName := i.getReplacementTargetASGName()
+
 	asg := i.region.findEnabledASGByName(*asgName)
 
 	if asg == nil {
@@ -417,6 +451,5 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 			i.region.name, *i.InstanceId)
 		return err
 	}
-
 	return nil
 }

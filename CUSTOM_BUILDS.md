@@ -64,9 +64,12 @@ your CloudFormation or Terraform stack to use those new binaries.
 
 1. Build the code:
 
-   `make build` or `go build` should both work, the only difference is the
-   inclusion of versioning information into the binary, which may not matter
-   much anyway.
+   Run `make build` to generate a binary at `./AutoSpotting`. The resulting
+   binary is suitable for running on AWS Lambda. If you want a binary for
+   running locally and your local environment is not linux/amd64, try running
+   the following:
+
+   `GOOS=$(go env GOOS) GOARCH=$(go env GOARCH) make build`
 
 ## Running locally ##
 
