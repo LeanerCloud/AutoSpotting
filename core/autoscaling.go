@@ -309,7 +309,7 @@ func (a *autoScalingGroup) scanInstances() instances {
 		}
 
 		// Avoid adding instance in Terminating (Wait|Proceed) Lifecycle State
-		if strings.HasPrefix(*inst.LifecycleState, "Terminating"){
+		if strings.HasPrefix(*inst.LifecycleState, "Terminating") {
 			continue
 		}
 

@@ -129,7 +129,7 @@ func ParseConfig(conf *Config) {
 		"\n\tPolicy choice for spot bid. If set to 'normal', we bid at the on-demand price(times the multiplier).\n"+
 			"\tIf set to 'aggressive', we bid at a percentage value above the spot price \n"+
 			"\tconfigurable using the spot_price_buffer_percentage.\n")
-  
+
 	flagSet.StringVar(&conf.DisallowedInstanceTypes, "disallowed_instance_types", "",
 		"\n\tIf specified, the spot instances will _never_ be of these types.\n"+
 			"\tAccepts a list of comma or whitespace separated instance types (supports globs).\n"+

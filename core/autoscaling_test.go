@@ -1114,13 +1114,20 @@ func TestScanInstances(t *testing.T) {
 			},
 			ec2ASG: &autoscaling.Group{
 				Instances: []*autoscaling.Instance{
-					{InstanceId: aws.String("1")},
+					{
+						InstanceId:     aws.String("1"),
+						LifecycleState: aws.String("Running"),
+					},
 					{
 						InstanceId:           aws.String("2"),
 						ProtectedFromScaleIn: aws.Bool(true),
 						AvailabilityZone:     aws.String("1a"),
+						LifecycleState:       aws.String("Running"),
 					},
-					{InstanceId: aws.String("3")},
+					{
+						InstanceId:     aws.String("3"),
+						LifecycleState: aws.String("Running"),
+					},
 				},
 			},
 			expectedInstances: instanceMap{
@@ -3708,7 +3715,7 @@ func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.
 			instances: makeInstancesWithCatalog(instanceMap{
 				"i-f00": &instance{
 					Instance: &ec2.Instance{
-						InstanceId: aws.String("i-foo0"),
+						InstanceId:        aws.String("i-foo0"),
 						InstanceLifecycle: aws.String("spot"),
 						State: &ec2.InstanceState{
 							Name: aws.String("running"),
@@ -3839,6 +3846,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 				{
 					InstanceId:           aws.String("i-ondemand"),
 					ProtectedFromScaleIn: aws.Bool(false),
+					LifecycleState:       aws.String("Running"),
 				},
 			},
 		},
@@ -3913,6 +3921,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 				{
 					InstanceId:           aws.String("i-ondemand"),
 					ProtectedFromScaleIn: aws.Bool(false),
+					LifecycleState:       aws.String("Running"),
 				},
 			},
 		},
@@ -3976,6 +3985,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 				{
 					InstanceId:           aws.String("i-ondemand"),
 					ProtectedFromScaleIn: aws.Bool(false),
+					LifecycleState:       aws.String("Running"),
 				},
 			},
 			HealthCheckGracePeriod: aws.Int64(60),
@@ -4012,6 +4022,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 				{
 					InstanceId:           aws.String("i-ondemand"),
 					ProtectedFromScaleIn: aws.Bool(false),
+					LifecycleState:       aws.String("Running"),
 				},
 			},
 			HealthCheckGracePeriod: aws.Int64(7200),
@@ -4047,6 +4058,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 				{
 					InstanceId:           aws.String("i-ondemand"),
 					ProtectedFromScaleIn: aws.Bool(false),
+					LifecycleState:       aws.String("Running"),
 				},
 			},
 			HealthCheckGracePeriod: aws.Int64(60),
@@ -4102,6 +4114,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 						{
 							InstanceId:           aws.String("i-spot"),
 							ProtectedFromScaleIn: aws.Bool(false),
+							LifecycleState:       aws.String("Running"),
 						},
 					},
 				},

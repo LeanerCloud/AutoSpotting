@@ -149,7 +149,7 @@ func (i *instance) isSpot() bool {
 }
 
 func (i *instance) isProtectedFromTermination() (bool, error) {
-  debug.Println("\tChecking termination protection for instance: ", *i.InstanceId)
+	debug.Println("\tChecking termination protection for instance: ", *i.InstanceId)
 
 	// determine and set the API termination protection field
 	diaRes, err := i.region.services.ec2.DescribeInstanceAttribute(

@@ -91,7 +91,6 @@ func (cfg *Config) addDefaultFilter() {
 	}
 }
 
-
 func (cfg *Config) disableLogging() {
 	cfg.LogFile = ioutil.Discard
 	cfg.setupLogging()
@@ -343,7 +342,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 }
 
 func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID string, state string) error {
-	r := region{name: regionName, conf: a.config, services: connections{}}
+	r := &region{name: regionName, conf: a.config, services: connections{}}
 
 	if !r.enabled() {
 		return fmt.Errorf("region %s is not enabled", regionName)
@@ -389,7 +388,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 	return nil
 }
 
-func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r region, i *instance) error {
+func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) error {
 	if i.belongsToEnabledASG() && i.shouldBeReplacedWithSpot() {
 		logger.Printf("%s instance %s belongs to an enabled ASG and should be "+
 			"replaced with spot, attempting to launch spot replacement",
@@ -408,7 +407,7 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r region, i *instance) er
 	return nil
 }
 
-func (a *AutoSpotting) handleNewSpotInstanceLaunch(r region, i *instance) error {
+func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error {
 	logger.Printf("%s Checking if %s is a spot instance that should be "+
 		"attached to any ASG", i.region.name, *i.InstanceId)
 	unattached := i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
