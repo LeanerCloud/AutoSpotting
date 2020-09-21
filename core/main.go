@@ -171,18 +171,11 @@ func (a *AutoSpotting) getRegions() ([]string, error) {
 	return output, nil
 }
 
-//EventHandler implements the event handling logic and is the main entrypoint of
-// AutoSpotting
-func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
+// convertRawEventToCloudwatchEvent parses a raw event into a CloudWatchEvent or
+// returns an error in case of failure
+func convertRawEventToCloudwatchEvent(event *json.RawMessage) (*events.CloudWatchEvent, error) {
 	var snsEvent events.SNSEvent
 	var cloudwatchEvent events.CloudWatchEvent
-
-	if event == nil {
-		logger.Println("Missing event data, running as if triggered from a cron event...")
-		// Event is Autospotting Cron Scheduling
-		a.ProcessCronEvent()
-		return
-	}
 
 	log.Println("Received event: \n", string(*event))
 	parseEvent := *event
@@ -190,7 +183,7 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 	// Try to parse event as an Sns Message
 	if err := json.Unmarshal(parseEvent, &snsEvent); err != nil {
 		log.Println(err.Error())
-		return
+		return nil, err
 	}
 
 	// If the event comes from Sns - extract the Cloudwatch event embedded in it
@@ -202,14 +195,34 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 	// Try to parse the event as Cloudwatch Event Rule
 	if err := json.Unmarshal(parseEvent, &cloudwatchEvent); err != nil {
 		log.Println(err.Error())
+		return nil, err
+	}
+	return &cloudwatchEvent, nil
+}
+
+// EventHandler implements the event handling logic and is the main entrypoint of
+// AutoSpotting
+func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
+
+	if event == nil {
+		logger.Println("Missing event data, running as if triggered from a cron event...")
+		// Event is Autospotting Cron Scheduling
+		a.ProcessCronEvent()
 		return
 	}
+
+	cloudwatchEvent, err := convertRawEventToCloudwatchEvent(event)
+	if err != nil {
+		log.Println("Couldn't parse event", event, err.Error())
+		return
+	}
+
 	eventType := cloudwatchEvent.DetailType
 	// If the event is for an Instance Spot Interruption
 	if eventType == "EC2 Spot Instance Interruption Warning" {
 		log.Println("Triggered by", eventType)
-		if instanceID, err := getInstanceIDDueForTermination(cloudwatchEvent); err != nil {
-			log.Println("Could't get instance ID of terminating spot instance", err.Error())
+		if instanceID, err := getInstanceIDDueForTermination(*cloudwatchEvent); err != nil {
+			log.Println("Couldn't get instance ID of terminating spot instance", err.Error())
 			return
 		} else if instanceID != nil {
 			logger.SetPrefix(fmt.Sprintf("TE:%s ", *instanceID))
@@ -228,9 +241,9 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 		// If event is Instance state change
 	} else if eventType == "EC2 Instance State-change Notification" {
 		log.Println("Triggered by", eventType)
-		instanceID, state, err := parseEventData(cloudwatchEvent)
+		instanceID, state, err := parseEventData(*cloudwatchEvent)
 		if err != nil {
-			log.Println("Could't get instance ID of newly launched instance", err.Error())
+			log.Println("Couldn't get instance ID of newly launched instance", err.Error())
 			return
 		} else if instanceID != nil {
 			logger.SetPrefix(fmt.Sprintf("ST:%s ", *instanceID))
@@ -239,7 +252,7 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 
 	} else if eventType == "AWS API Call via CloudTrail" {
 		log.Println("Triggered by", eventType)
-		a.handleLifecycleHookEvent(cloudwatchEvent)
+		a.handleLifecycleHookEvent(*cloudwatchEvent)
 	} else {
 		// Cron Scheduling
 		t := time.Now()
@@ -291,25 +304,15 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 	}
 
 	i := r.instances.get(instanceID)
+
 	if i == nil {
 		logger.Printf("%s Instance %s is missing, skipping...",
 			regionName, instanceID)
 		return errors.New("instance missing")
 	}
-	logger.Printf("%s Found instance %s in state %s",
-		i.region.name, *i.InstanceId, *i.State.Name)
 
-	if *i.State.Name != "running" {
-		logger.Printf("%s Instance %s is not in the running state",
-			i.region.name, *i.InstanceId)
-		return errors.New("instance not in running state")
-	}
-
-	unattached := i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
-	if !unattached {
-		logger.Printf("%s Instance %s is already attached to an ASG, skipping it",
-			i.region.name, *i.InstanceId)
-		return nil
+	if skipRun, err := i.handleInstanceStates(); skipRun {
+		return err
 	}
 
 	asgName := i.getReplacementTargetASGName()

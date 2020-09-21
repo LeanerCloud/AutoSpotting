@@ -417,6 +417,25 @@ func (i *instance) isAllowed(instanceType string, allowedList []string, disallow
 	return true
 }
 
+func (i *instance) handleInstanceStates() (bool, error) {
+	logger.Printf("%s Found instance %s in state %s",
+		i.region.name, *i.InstanceId, *i.State.Name)
+
+	if *i.State.Name != "running" {
+		logger.Printf("%s Instance %s is not in the running state",
+			i.region.name, *i.InstanceId)
+		return true, errors.New("instance not in running state")
+	}
+
+	unattached := i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
+	if !unattached {
+		logger.Printf("%s Instance %s is already attached to an ASG, skipping it",
+			i.region.name, *i.InstanceId)
+		return true, nil
+	}
+	return false, nil
+}
+
 func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allowedList []string,
 	disallowedList []string) ([]instanceTypeInformation, error) {
 	current := i.typeInfo
