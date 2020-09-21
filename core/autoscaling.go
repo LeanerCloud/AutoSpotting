@@ -466,11 +466,11 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 			if len(autoScalingInstances) > 0 && *autoScalingInstances[0].LifecycleState == status {
 				isInstanceInStatus = true
 				return nil
-			} else {
-				logger.Printf("Waiting for instance %v to be in status %v",
-					*instanceID, status)
-				time.Sleep(time.Duration(5*retry) * time.Second)
 			}
+			logger.Printf("Waiting for instance %v to be in status %v",
+				*instanceID, status)
+			time.Sleep(time.Duration(5*retry) * time.Second)
+
 		}
 	}
 
@@ -558,8 +558,8 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 	return nil
 }
 
-func (a *autoScalingGroup) getRandSeed(instanceId string) int64 {
-	runes := []rune(instanceId)
+func (a *autoScalingGroup) getRandSeed(instanceID string) int64 {
+	runes := []rune(instanceID)
 	result := ""
 	n := int64(0)
 
@@ -576,7 +576,7 @@ func (a *autoScalingGroup) getRandSeed(instanceId string) int64 {
 	return seed
 }
 
-func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceId string) error {
+func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceID string) error {
 	payload, _ := json.Marshal(map[string]interface{}{
 		"region":    a.region.name,
 		"asg":       a.name,
@@ -584,7 +584,7 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceId stri
 	})
 
 	changed := false
-	seed := a.getRandSeed(instanceId)
+	seed := a.getRandSeed(instanceID)
 	svc := a.region.services.lambda
 
 	logger.Printf("Changing AutoScalingGroup %s MaxSize of %v unit",
@@ -593,32 +593,31 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceId stri
 	for retry, maxRetry := 0, 5; changed == false; {
 		if retry > maxRetry {
 			return fmt.Errorf("Unable to update ASG %v MaxSize", a.name)
-		} else {
-			_, err := svc.Invoke(
-				&lambda.InvokeInput{
-					FunctionName: aws.String(a.region.conf.LambdaManageASG),
-					Payload:      payload,
-				})
-
-			if err != nil {
-				awsErr, _ := err.(awserr.Error)
-				if awsErr.Code() == "ErrCodeTooManyRequestsException" {
-					rand.Seed(seed)
-					sleepDuration := float64(retry) * float64(100) * rand.Float64()
-					sleepTime := time.Duration(sleepDuration) * time.Millisecond
-					time.Sleep(sleepTime)
-					logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
-					continue
-				} else {
-					logger.Printf("Error invoking LambdaManageASG retrying attempt %d on %d: %v",
-						retry, maxRetry, err.Error())
-					retry++
-				}
-
-			} else {
-				changed = true
-			}
 		}
+		_, err := svc.Invoke(
+			&lambda.InvokeInput{
+				FunctionName: aws.String(a.region.conf.LambdaManageASG),
+				Payload:      payload,
+			})
+
+		if err != nil {
+			awsErr, _ := err.(awserr.Error)
+			if awsErr.Code() == "ErrCodeTooManyRequestsException" {
+				rand.Seed(seed)
+				sleepDuration := float64(retry) * float64(100) * rand.Float64()
+				sleepTime := time.Duration(sleepDuration) * time.Millisecond
+				time.Sleep(sleepTime)
+				logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
+				continue
+			} else {
+				logger.Printf("Error invoking LambdaManageASG retrying attempt %d on %d: %v",
+					retry, maxRetry, err.Error())
+				retry++
+			}
+		} else {
+			changed = true
+		}
+
 	}
 
 	return nil
@@ -902,16 +901,16 @@ func (a *autoScalingGroup) isTerminationSuspended() bool {
 	return false
 }
 
-func (a *autoScalingGroup) suspendResumeProcess(instanceId string, action string) error {
+func (a *autoScalingGroup) suspendResumeProcess(instanceID string, action string) error {
 	payload, _ := json.Marshal(map[string]interface{}{
 		"region":     a.region.name,
 		"asg":        a.name,
-		"instanceid": instanceId,
+		"instanceid": instanceID,
 		"action":     action,
 	})
 
 	changed := false
-	seed := a.getRandSeed(instanceId)
+	seed := a.getRandSeed(instanceID)
 	svc := a.region.services.lambda
 
 	logger.Printf("Process %s for AutoScalingGroup %s",
@@ -920,33 +919,31 @@ func (a *autoScalingGroup) suspendResumeProcess(instanceId string, action string
 	for retry, maxRetry := 0, 5; changed == false; {
 		if retry > maxRetry {
 			return fmt.Errorf("Unable to %s process for ASG %s", action, a.name)
-		} else {
-			_, err := svc.Invoke(
-				&lambda.InvokeInput{
-					FunctionName: aws.String(a.region.conf.LambdaManageASG),
-					Payload:      payload,
-				})
+		}
+		_, err := svc.Invoke(
+			&lambda.InvokeInput{
+				FunctionName: aws.String(a.region.conf.LambdaManageASG),
+				Payload:      payload,
+			})
 
-			if err != nil {
-				awsErr, _ := err.(awserr.Error)
-				if awsErr.Code() == "ErrCodeTooManyRequestsException" {
-					rand.Seed(seed)
-					sleepDuration := float64(retry) * float64(100) * rand.Float64()
-					sleepTime := time.Duration(sleepDuration) * time.Millisecond
-					time.Sleep(sleepTime)
-					logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
-					continue
-				} else {
-					logger.Printf("Error invoking LambdaManageASG retrying attempt %d on %d: %v",
-						retry, maxRetry, err.Error())
-					retry++
-				}
-
+		if err != nil {
+			awsErr, _ := err.(awserr.Error)
+			if awsErr.Code() == "ErrCodeTooManyRequestsException" {
+				rand.Seed(seed)
+				sleepDuration := float64(retry) * float64(100) * rand.Float64()
+				sleepTime := time.Duration(sleepDuration) * time.Millisecond
+				time.Sleep(sleepTime)
+				logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
+				continue
 			} else {
-				changed = true
+				logger.Printf("Error invoking LambdaManageASG retrying attempt %d on %d: %v",
+					retry, maxRetry, err.Error())
+				retry++
 			}
+
+		} else {
+			changed = true
 		}
 	}
-
 	return nil
 }
