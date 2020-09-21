@@ -1003,6 +1003,11 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 				t.Errorf("loadLaunchConfiguration received: %+v expected %+v",
 					lc, tt.expectedLC)
 			}
+
+			if lc != a.launchConfiguration {
+				t.Errorf("loadLaunchConfiguration returned %+v but set member field launchConfiguration to %+v",
+					lc, a.launchConfiguration)
+			}
 		})
 	}
 }

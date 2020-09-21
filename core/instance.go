@@ -149,8 +149,8 @@ func (i *instance) isSpot() bool {
 }
 
 func (i *instance) isProtectedFromTermination() (bool, error) {
+  debug.Println("\tChecking termination protection for instance: ", *i.InstanceId)
 
-	debug.Println("\tCheching termination protection for instance: ", *i.InstanceId)
 	// determine and set the API termination protection field
 	diaRes, err := i.region.services.ec2.DescribeInstanceAttribute(
 		&ec2.DescribeInstanceAttributeInput{
@@ -160,7 +160,7 @@ func (i *instance) isProtectedFromTermination() (bool, error) {
 
 	if err != nil {
 		// better safe than sorry!
-		logger.Printf("Couldn't describe instance attritbutes, assuming instance %v is protected: %v\n",
+		logger.Printf("Couldn't describe instance attributes, assuming instance %v is protected: %v\n",
 			*i.InstanceId, err.Error())
 		return true, err
 	}

@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"os"
 

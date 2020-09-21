@@ -2,6 +2,9 @@
 # Licensed under the Open Software License version 3.0
 
 ---
+# Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+# Licensed under the Open Software License version 3.0
+
   AWSTemplateFormatVersion: "2010-09-09"
   Description: "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling"
   Parameters:

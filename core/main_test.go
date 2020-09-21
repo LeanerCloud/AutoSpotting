@@ -36,6 +36,7 @@ func TestMain(m *testing.M) {
 
 	os.Exit(m.Run())
 }
+
 func Test_getRegions(t *testing.T) {
 
 	tests := []struct {

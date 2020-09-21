@@ -69,7 +69,7 @@ your CloudFormation or Terraform stack to use those new binaries.
    running locally and your local environment is not linux/amd64, try running
    the following:
 
-   `GOOS=$(go env GOOS) GOARCH=$(go env GOARCH) make build` 
+   `GOOS=$(go env GOOS) GOARCH=$(go env GOARCH) make build`
 
 ## Running locally ##
 
