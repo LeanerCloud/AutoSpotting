@@ -1,5 +1,6 @@
 // Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
 // Licensed under the Open Software License version 3.0
+
 package autospotting
 
 import (
@@ -12,6 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
 )
 
 func CheckErrors(t *testing.T, err error, expected error) {
@@ -57,6 +60,9 @@ type mockEC2 struct {
 	// DescribeLaunchTemplateVersionsOutput
 	dltvo   *ec2.DescribeLaunchTemplateVersionsOutput
 	dltverr error
+
+	// WaitUntilInstanceRunning error
+	wuirerr error
 }
 
 func (m mockEC2) DescribeSpotPriceHistoryPages(in *ec2.DescribeSpotPriceHistoryInput, f func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool) error {
@@ -89,6 +95,10 @@ func (m mockEC2) DeleteTags(*ec2.DeleteTagsInput) (*ec2.DeleteTagsOutput, error)
 
 func (m mockEC2) DescribeLaunchTemplateVersions(*ec2.DescribeLaunchTemplateVersionsInput) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
 	return m.dltvo, m.dltverr
+}
+
+func (m mockEC2) WaitUntilInstanceRunning(*ec2.DescribeInstancesInput) error {
+	return m.wuirerr
 }
 
 // All fields are composed of the abbreviation of their method
@@ -124,6 +134,10 @@ type mockASG struct {
 	// DescribeLifecycleHooks
 	dlho   *autoscaling.DescribeLifecycleHooksOutput
 	dlherr error
+
+	// CreateOrUpdateTags
+	couto   *autoscaling.CreateOrUpdateTagsOutput
+	couterr error
 }
 
 func (m mockASG) DetachInstances(*autoscaling.DetachInstancesInput) (*autoscaling.DetachInstancesOutput, error) {
@@ -168,6 +182,10 @@ func (m mockASG) DescribeLifecycleHooks(*autoscaling.DescribeLifecycleHooksInput
 	return m.dlho, m.dlherr
 }
 
+func (m mockASG) CreateOrUpdateTags(*autoscaling.CreateOrUpdateTagsInput) (*autoscaling.CreateOrUpdateTagsOutput, error) {
+	return m.couto, m.couterr
+}
+
 // All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockCloudFormation struct {
@@ -179,4 +197,17 @@ type mockCloudFormation struct {
 
 func (m mockCloudFormation) DescribeStacks(*cloudformation.DescribeStacksInput) (*cloudformation.DescribeStacksOutput, error) {
 	return m.dso, m.dserr
+}
+
+// All fields are composed of the abbreviation of their method
+// This is useful when methods are doing multiple calls to AWS API
+type mockLambda struct {
+	lambdaiface.LambdaAPI
+	// Invoke
+	io   *lambda.InvokeOutput
+	ierr error
+}
+
+func (m mockLambda) Invoke(*lambda.InvokeInput) (*lambda.InvokeOutput, error) {
+	return m.io, m.ierr
 }

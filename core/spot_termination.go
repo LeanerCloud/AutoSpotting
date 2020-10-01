@@ -32,12 +32,12 @@ type SpotTermination struct {
 //InstanceData represents JSON structure of the Detail property of CloudWatch event when a spot instance is terminated
 //Reference = https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-interruptions.html#spot-instance-termination-notices
 type instanceData struct {
-	InstanceID     string `json:"instance-id"`
-	InstanceAction string `json:"instance-action"`
+	InstanceID     *string `json:"instance-id"`
+	InstanceAction *string `json:"instance-action"`
+	State          *string `json:"state"`
 }
 
-//NewSpotTermination is a constructor for creating an instance of spotTermination to call DetachInstance
-func NewSpotTermination(region string) SpotTermination {
+func newSpotTermination(region string) SpotTermination {
 
 	logger.Println("Connection to region ", region)
 
@@ -51,9 +51,9 @@ func NewSpotTermination(region string) SpotTermination {
 	}
 }
 
-//GetInstanceIDDueForTermination checks if the given CloudWatch event data is triggered from a spot termination
+//getInstanceIDDueForTermination checks if the given CloudWatch event data is triggered from a spot termination
 //If it is a termination event for a spot instance, it returns the instance id present in the event data
-func GetInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, error) {
+func getInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, error) {
 
 	var detailData instanceData
 	if err := json.Unmarshal(event.Detail, &detailData); err != nil {
@@ -61,8 +61,8 @@ func GetInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, erro
 		return nil, err
 	}
 
-	if detailData.InstanceAction != "" {
-		return &detailData.InstanceID, nil
+	if detailData.InstanceAction != nil && *detailData.InstanceAction != "" {
+		return detailData.InstanceID, nil
 	}
 
 	return nil, nil
@@ -133,7 +133,7 @@ func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
 
 // ExecuteAction execute the proper termination action (terminate|detach) based on the value of
 // terminationNotificationAction and the presence of a LifecycleHook on ASG.
-func (s *SpotTermination) ExecuteAction(instanceID *string, terminationNotificationAction string) error {
+func (s *SpotTermination) executeAction(instanceID *string, terminationNotificationAction string) error {
 	if s.asSvc == nil {
 		return errors.New("AutoScaling service not defined. Please use NewSpotTermination()")
 	}

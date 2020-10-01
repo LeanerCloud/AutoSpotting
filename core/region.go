@@ -14,7 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/davecgh/go-spew/spew"
 )
 
 // Tag represents an Asg Tag: Key, Value
@@ -89,11 +88,8 @@ func (r *region) processRegion() {
 	// only process further the region if there are any enabled autoscaling groups
 	// within it
 	if r.hasEnabledAutoScalingGroups() {
-
 		logger.Println("Scanning full instance information in", r.name)
 		r.determineInstanceTypeInformation(r.conf)
-
-		debug.Println(spew.Sdump(r.instanceTypeInformation))
 
 		logger.Println("Scanning instances in", r.name)
 		err := r.scanInstances()
@@ -143,7 +139,6 @@ func splitTagAndValue(value string) *Tag {
 
 func (r *region) processDescribeInstancesPage(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
 	debug.Println("Processing page of DescribeInstancesPages for", r.name)
-	debug.Println(page)
 
 	if len(page.Reservations) > 0 &&
 		page.Reservations[0].Instances != nil {
@@ -186,6 +181,30 @@ func (r *region) scanInstances() error {
 	return nil
 }
 
+func (r *region) scanInstance(instanceID *string) error {
+	svc := r.services.ec2
+	input := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("instance-id"),
+				Values: []*string{instanceID},
+			},
+		},
+	}
+
+	r.instances = makeInstances()
+
+	err := svc.DescribeInstancesPages(
+		input,
+		r.processDescribeInstancesPage)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *region) addInstance(inst *ec2.Instance) {
 	r.instances.add(&instance{
 		Instance: inst,
@@ -203,8 +222,6 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 	for _, it := range *cfg.InstanceData {
 
 		var price prices
-
-		debug.Println(it)
 
 		// populate on-demand information
 		price.onDemand = it.Pricing[r.name].Linux.OnDemand * cfg.OnDemandPriceMultiplier
@@ -236,7 +253,6 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 				info.instanceStoreDeviceCount = it.Storage.Devices
 				info.instanceStoreIsSSD = it.Storage.SSD
 			}
-			debug.Println(info)
 			r.instanceTypeInformation[it.InstanceType] = info
 		}
 	}
@@ -248,7 +264,6 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 		logger.Println(err.Error())
 	}
 
-	debug.Println(spew.Sdump(r.instanceTypeInformation))
 }
 
 func (r *region) requestSpotPrices() error {
@@ -442,9 +457,19 @@ func (r *region) processEnabledAutoScalingGroups() {
 
 		r.wg.Add(1)
 		go func(a autoScalingGroup) {
-			a.process()
+			action := a.cronEventAction()
+			action.run()
 			r.wg.Done()
 		}(asg)
 	}
 	r.wg.Wait()
+}
+
+func (r *region) findEnabledASGByName(name string) *autoScalingGroup {
+	for _, asg := range r.enabledASGs {
+		if asg.name == name {
+			return &asg
+		}
+	}
+	return nil
 }
