@@ -1,9 +1,15 @@
+# Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+# Licensed under the Open Software License version 3.0
+
 ---
 # Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
 # Licensed under the Open Software License version 3.0
 
   AWSTemplateFormatVersion: "2010-09-09"
-  Description: "Notification stack for spot termination event"
+  Description: >
+    "Implements support for triggering the main AutoSpotting Lambda function on
+    regional events such as instance launches or imminent spot terminations that
+    can only be detected from within a given region"
   Parameters:
     AutoSpottingLambdaARN:
       Description: "The ARN of the main AutoSpotting Lambda function"
@@ -12,10 +18,13 @@
       Description: "Execution Role ARN for Regional Lambda"
       Type: "String"
   Resources:
-    TerminationEventRuleFunction:
+    EventHandler:
       Type: AWS::Lambda::Function
       Properties:
-        Description: "Invokes the main AutoSpotting Lambda function on spot instance termination notification"
+        Description: >
+          "Regional Lambda function that invokes the main AutoSpotting Lambda
+          function on events such as instance launches or imminent spot instance
+          terminations"
         Handler: "index.handler"
         Runtime: "python3.6"
         Timeout: "300"
@@ -27,6 +36,7 @@
           Ref: "LambdaRegionalExecutionRoleARN"
         Code:
           ZipFile: |
+            from base64 import b64decode
             from boto3 import client
             from json import dumps
             from os import environ
@@ -39,6 +49,7 @@
                 return arn.split(':')[3]
 
             def handler(event, context):
+                print("Running Lambda function", lambda_arn)
                 snsEvent = {
                     'Records': [
                         {
@@ -59,25 +70,27 @@
                         LogType='Tail',
                         Payload=dumps(snsEvent),
                     )
-                    print(response)
+                    print("Invoked funcion log tail:\n", b64decode(response["LogResult"]).decode('utf-8'))
                 except:
                     print_exc()
                     print("Unexpected error:", exc_info()[0])
-    LambdaPermissionAutoSpotTeminationEventRule:
+    SpotTerminationLambdaPermission:
       Type: "AWS::Lambda::Permission"
       Properties:
         Action: "lambda:InvokeFunction"
         FunctionName:
-          Ref: "TerminationEventRuleFunction"
+          Ref: "EventHandler"
         Principal: "events.amazonaws.com"
         SourceArn:
           Fn::GetAtt:
-            - "AutoSpotTeminationEventRule"
+            - "SpotTerminationEventRule"
             - "Arn"
-    AutoSpotTeminationEventRule:
+    SpotTerminationEventRule:
       Type: "AWS::Events::Rule"
       Properties:
-        Description: "This rule is triggered 2 minutes before AWS terminates a spot instance"
+        Description: >
+          "This rule is triggered 2 minutes before AWS terminates a spot
+          instance"
         EventPattern:
           detail-type:
             - "EC2 Spot Instance Interruption Warning"
@@ -86,8 +99,77 @@
         State: "ENABLED"
         Targets:
           -
-            Id: "AutoSpottingTerminationEventGenerator"
+            Id: "SpotTerminationEventGenerator"
             Arn:
               Fn::GetAtt:
-                - "TerminationEventRuleFunction"
+                - "EventHandler"
+                - "Arn"
+    InstanceRunningLambdaPermission:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName:
+          Ref: "EventHandler"
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::GetAtt:
+            - "InstanceRunningEventRule"
+            - "Arn"
+    InstanceRunningEventRule:
+      Type: "AWS::Events::Rule"
+      Properties:
+        Description: >
+          "This rule is triggered after EC2 launched a new instance"
+        EventPattern:
+          detail-type:
+            - "EC2 Instance State-change Notification"
+          source:
+            - "aws.ec2"
+          detail:
+            state:
+              - "running"
+        State: "ENABLED"
+        Targets:
+          -
+            Id: "InstanceRunningEventGenerator"
+            Arn:
+              Fn::GetAtt:
+                - "EventHandler"
+                - "Arn"
+    LifecycleHookLambdaPermission:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName:
+          Ref: "EventHandler"
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::GetAtt:
+            - "LifecycleHookEventRule"
+            - "Arn"
+    LifecycleHookEventRule:
+      Type: "AWS::Events::Rule"
+      Properties:
+        Description: >
+          "This rule is triggered after we failed to complete a lifecycle hook"
+        EventPattern:
+          detail-type:
+            - "AWS API Call via CloudTrail"
+          source:
+            - "aws.autoscaling"
+          detail:
+            eventName:
+              - "CompleteLifecycleAction"
+            errorCode:
+              - "ValidationException"
+            requestParameters:
+              lifecycleActionResult:
+                - "CONTINUE"
+        State: "ENABLED"
+        Targets:
+          -
+            Id: "LifecycleHookEventGenerator"
+            Arn:
+              Fn::GetAtt:
+                - "EventHandler"
                 - "Arn"

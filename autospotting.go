@@ -6,89 +6,61 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"io/ioutil"
 	"log"
 	"os"
 
 	autospotting "github.com/AutoSpotting/AutoSpotting/core"
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
+var as *autospotting.AutoSpotting
 var conf autospotting.Config
 
 // Version represents the build version being used
 var Version = "number missing"
 
+var eventFile string
+
 func main() {
+	eventFile = conf.EventFile
+
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		lambda.Start(Handler)
+	} else if eventFile != "" {
+		parseEvent, err := ioutil.ReadFile(eventFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		Handler(context.TODO(), parseEvent)
 	} else {
-		run()
+		eventHandler(nil)
 	}
 }
 
-func run() {
+func eventHandler(event *json.RawMessage) {
 
 	log.Println("Starting autospotting agent, build", Version)
 	log.Printf("Configuration flags: %#v", conf)
 
-	autospotting.Run(&conf)
+	as.EventHandler(event)
 	log.Println("Execution completed, nothing left to do")
 }
 
 // this is the equivalent of a main for when running from Lambda, but on Lambda
-// the run() is executed within the handler function every time we have an event
+// the runFromCronEvent() is executed within the handler function every time we have an event
 func init() {
+	as = &autospotting.AutoSpotting{}
+
 	conf = autospotting.Config{
 		Version: Version,
 	}
+
 	autospotting.ParseConfig(&conf)
+	as.Init(&conf)
 }
 
-// Handler implements the AWS Lambda handler
+// Handler implements the AWS Lambda handler interface
 func Handler(ctx context.Context, rawEvent json.RawMessage) {
-
-	var snsEvent events.SNSEvent
-	var cloudwatchEvent events.CloudWatchEvent
-	parseEvent := rawEvent
-
-	// Try to parse event as an Sns Message
-	if err := json.Unmarshal(parseEvent, &snsEvent); err != nil {
-		log.Println(err.Error())
-		return
-	}
-
-	// If event is from Sns - extract Cloudwatch's one
-	if snsEvent.Records != nil {
-		snsRecord := snsEvent.Records[0]
-		parseEvent = []byte(snsRecord.SNS.Message)
-	}
-
-	// Try to parse event as Cloudwatch Event Rule
-	if err := json.Unmarshal(parseEvent, &cloudwatchEvent); err != nil {
-		log.Println(err.Error())
-		return
-	}
-
-	// If event is Instance Spot Interruption
-	if cloudwatchEvent.DetailType == "EC2 Spot Instance Interruption Warning" {
-		instanceID, err := autospotting.GetInstanceIDDueForTermination(cloudwatchEvent)
-		if err != nil || instanceID == nil {
-			return
-		}
-
-		spotTermination := autospotting.NewSpotTermination(cloudwatchEvent.Region)
-		if spotTermination.IsInAutoSpottingASG(instanceID, conf.TagFilteringMode, conf.FilterByTags) {
-			err := spotTermination.ExecuteAction(instanceID, conf.TerminationNotificationAction)
-			if err != nil {
-				log.Printf("Error executing spot termination action: %s\n", err.Error())
-			}
-		} else {
-			log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
-			return
-		}
-	} else {
-		// Event is Autospotting Cron Scheduling
-		run()
-	}
+	eventHandler(&rawEvent)
 }
