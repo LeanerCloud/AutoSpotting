@@ -722,7 +722,7 @@
 
                 logger.info(f'AutoScalingGroup {asg} MaxSize changed to {newSize}')
                 return True
-               
+
             def suspend_resume(svc, region, asg, action, instanceId):
                 tag = {
                     'ResourceId': asg,
@@ -818,6 +818,9 @@
                 - "autoscaling:CreateOrUpdateTags"
                 - "autoscaling:DeleteTags"
                 - "autoscaling:DescribeTags"
+                - "logs:CreateLogGroup"
+                - "logs:CreateLogStream"
+                - "logs:PutLogEvents"
               Effect: "Allow"
               Resource: "*"
         PolicyName: "LambdaManageASGPolicy"
