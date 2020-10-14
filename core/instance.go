@@ -549,7 +549,7 @@ func (i *instance) getPricetoBid(
 	debug.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
 
 	if i.region.conf.BiddingPolicy == DefaultBiddingPolicy {
-		logger.Println("Bidding base on demand price", baseOnDemandPrice, "to replace instance", i.InstanceId)
+		logger.Println("Bidding base on demand price", baseOnDemandPrice, "to replace instance", *i.InstanceId)
 		return baseOnDemandPrice
 	}
 
