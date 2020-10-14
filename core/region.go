@@ -350,6 +350,7 @@ func getTagValueFromASGWithMatchingTag(asg *autoscaling.Group, tagToMatch Tag) *
 
 func (r *region) isStackUpdating(stackName *string) (string, bool) {
 	stackCompleteStatuses := map[string]struct{}{
+		"CREATE_IN_PROGRESS":       {}, // allow replacing instances from brand new ASGs
 		"CREATE_COMPLETE":          {},
 		"UPDATE_COMPLETE":          {},
 		"UPDATE_ROLLBACK_COMPLETE": {},
