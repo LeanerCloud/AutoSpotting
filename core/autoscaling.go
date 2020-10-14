@@ -15,6 +15,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -585,8 +586,7 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceID stri
 
 	changed := false
 	seed := a.getRandSeed(instanceID)
-	svc := a.region.services.lambda
-
+	svc := lambda.New(session.New(), aws.NewConfig())
 	logger.Printf("Changing AutoScalingGroup %s MaxSize of %v unit",
 		a.name, value)
 
@@ -610,7 +610,7 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceID stri
 				logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
 				continue
 			} else {
-				logger.Printf("Error invoking LambdaManageASG retrying attempt %d on %d: %v",
+				logger.Printf("Error invoking LambdaManageASG retrying attempt %d of %d: %v",
 					retry, maxRetry, err.Error())
 				retry++
 			}
@@ -911,7 +911,8 @@ func (a *autoScalingGroup) suspendResumeProcess(instanceID string, action string
 
 	changed := false
 	seed := a.getRandSeed(instanceID)
-	svc := a.region.services.lambda
+
+	svc := lambda.New(session.New(), aws.NewConfig())
 
 	logger.Printf("Process %s for AutoScalingGroup %s",
 		action, a.name)
