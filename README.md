@@ -38,7 +38,7 @@ automatically places bids to instance types and prices chosen based on flexible
 configuration set globally or overridden at the group level using additional
 tags, but these overrides are often not needed.
 
-A single installation can handle all enabled groups fronm an AWS account in parallel across all
+A single installation can handle all enabled groups from an AWS account in parallel across all
 available AWS regions, but it can be restricted to fewer regions if desired.
 
 Your groups will then monitor and use these spot instances just like they would
@@ -125,7 +125,9 @@ authors and other users are likely to help you solve issues.
 Note: This is offered on a best effort basis and under certain conditions, such
 as using the latest version of the evaluation binaries.
 
-If you need more comprehensive support you will need to purchase a support plan.
+If you need help for a large scale rollout or migrating from alternative tools/solutions, 
+you can purchase a comprehensive support plan guaranteed to save you lots of time and money, 
+you can always get in touch on [gitter](https://gitter.im/cristim) if you need such help.
 
 ## Contributing ##
 
