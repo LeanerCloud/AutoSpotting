@@ -19,25 +19,27 @@ It takes over existing long-running ASGs with minimal configuration changes(usua
 ## How does it work? ##
 
 Once installed and enabled (usually by tagging) on existing on-demand AutoScaling groups,
-AutoSpotting gradually replaces their on-demand instances with spot instances
-that are usually much cheaper, at least as large and identically configured to
+AutoSpotting gradually replaces their on-demand instances with cheaper spot instances
+that are at least as large and identically configured to
 the group's members, without changing the group launch configuration in any way. For
 your peace of mind, you can also keep running a configurable number of on-demand
 instances given as percentage or absolute number and it automatically fails over to on-demand in case of spot instance terminations.
 
-This can be seen in action below, you can click to expand the animation:
+Going forward, as well as on any new ASGs that match the expected tags, any new on-demand instances above the amount configured to be keept will be immediately replaced with spot clones within seconds of being launched. If this fails due to insufficient spot capacity, the usual cron events will replace them later once spot capacity becomes available again. When launching Spot instances, the compatible instance types are attempted in increasing order of their price, until one is successfully launched.
+
+This process can partly be seen in action below, you can click to expand the animation:
 
 ![Workflow](https://autospotting.org/img/autospotting.gif)
 
-It implements some complex logic aware of spot and on demand prices, including
+Additionally, it implements some complex logic aware of spot and on demand prices, including
 for different spot products and configurable discounts for reserved instances or
 large volume customers. It also considers the specs of all instance types and
 automatically places bids to instance types and prices chosen based on flexible
 configuration set globally or overridden at the group level using additional
 tags, but these overrides are often not needed.
 
-A single installation can handle all enabled groups in parallel across all
-available AWS regions, but can be restricted to fewer regions if desired.
+A single installation can handle all enabled groups fronm an AWS account in parallel across all
+available AWS regions, but it can be restricted to fewer regions if desired.
 
 Your groups will then monitor and use these spot instances just like they would
 do with your on-demand instances. They will automatically join your load
@@ -53,30 +55,28 @@ The savings it generates are often in the 60-80% range, depending on region and 
 
 ## What's under the hood? ##
 
-The entire logic described above is implemented in a Lambda function deployed
+The entire logic described above is implemented in a set of Lambda functions deployed
 using CloudFormation or Terraform stacks that can be installed and configured in
 just a few minutes.
 
-The stack assigns the function the minimal set of IAM permissions required for
-it to work and requires no admin-like cross-account permissions. The entire code
+The stack assigns them the minimal set of IAM permissions required for
+them to work and requires no admin-like cross-account permissions. The entire code
 base can be audited to see how these permissions are being used and even locked
 down further if your audit discovers any issues. **This is not a SaaS**, there's
 no component that calls home and reveals any details about your infrastructure.
 
-The Lambda function is written in the Go programming language and the code is
+The main Lambda function is written in the Go programming language and the code is
 compiled as a static binary compressed and uploaded to S3. For evaluation or
 debugging purposes, the same binary can run out of the box locally on Linux
 machines or as a Docker container on Windows or macOS. Some people even run
 these containers on their existing Kubernetes clusters assuming the other
 resources provided by the stack are implemented in another way on Kubernetes.
 
-The stack also consists of a Cron-like CloudWatch event, that runs the Lambda
-function periodically to take action against the enabled groups. Between runs
-your group is entirely managed by AutoScaling (including any scaling policies
+The stack also consists of a few CloudWatch event triggers, that run the Lambda
+function periodically and whenever it needs to take action against the enabled groups.
+Between runs your group is entirely managed by AutoScaling (including any scaling policies
 you may have) and load balancer health checks, that can trigger instance
 launches or replacements using the original on-demand launch configuration.
-These instances will be replaced later by better priced spot instances when they
-are available on the spot market.
 
 Read [here](TECHNICAL_DETAILS.md) for more information and implementation
 details.
@@ -131,7 +131,7 @@ If you need more comprehensive support you will need to purchase a support plan.
 
 Unlike multiple commercial products in this space that cost a lot of money and
 attempt to lock you in, this project is fully open source and developed in the
-open by a vibrant community.
+open by a vibrant community of dozens of contributors.
 
 We urge you to support us on [Github Sponsors](https://github.com/sponsors/cristim)
 if this software helps you save any significant amount of money, this will greatly help
