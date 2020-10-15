@@ -208,18 +208,8 @@ More details are available [here](CUSTOM_BUILDS.md)
 ## Users ##
 
 Autospotting is already used by hundreds of individuals and organizations around
-the world, and we estimate to already save them in the millions of dollars monthly.
-Some of them we know of are mentioned in the [list](USERS.md) of notable users.
-
-The following deserve a special mention for contributing significantly to the
-development effort (listed in alphabetical order):
-
-- www.branch.io
-- www.cs.utexas.edu
-- www.cycloid.io
-- www.here.com
-- www.spscommerce.com
-- www.timber.io
+the world and as per internal AWS information a significant(but undisclosed) 
+percentage of all currently running spot instances were launched using it.
 
 ## License ##
 
