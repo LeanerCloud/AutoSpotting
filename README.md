@@ -12,54 +12,18 @@
 [![Open Source Helpers](https://www.codetriage.com/AutoSpotting/AutoSpotting/badges/users.svg)](https://www.codetriage.com/AutoSpotting/AutoSpotting)
 [![Patreon](https://img.shields.io/badge/patreon-donate-yellow.svg)](https://www.patreon.com/cristim/overview)
 
-A simple and easy to use tool designed to significantly lower your Amazon AWS
-costs by automating the use of [spot](https://aws.amazon.com/ec2/spot)
-instances.
+AutoSpotting is the leading open source spot market automation tool, optimized towards quick/easy/frictionless adoption of the EC2 spot market at any scale.
 
-## Why? ##
-
-We believe that AWS EC2 is often pricier than it should be, and that the pricing
-models that can significantly reduce costs are hard to be reliably used by
-humans and are better handled by automation.
-
-There are many way to automate the use of spot instances, some offered out of
-the box by AWS and some from third parties, each with its own characteristics
-and drawbacks.
-
-Unlike all those options, we developed a novel, simple but effective way to make
-it much easier to **convert existing infrastructure within minutes, with minimal
-configuration changes, negligible additional infrastructure and runtime costs,
-safely and securely and without any vendor lock-in**.
-
-Note: it's not necessarily the most cost-efficient for a given AutoScaling
-group, although it does perform pretty well in practice. The main focus is the
-**ease of adoption on large infrastructure** such as environments with hundreds
-of AutoScaling groups or even hundreds of AWS accounts where it can be rolled
-out and enabled in almost no-time compared to any other tool out there. Once you
-tested it and you are confident with it, it can even be enabled against all the
-groups from an AWS account without touching their configuration.
-
-It also tries to be as cheap as possible to run, with **negligible runtime
-costs** and being open source the software is **free of charge if you build it
-from source**. In addition we offer inexpensive enterprise-grade support plans
-that should barely be noticeable at scale, but just enough to support further
-development, unlike similar commercial tools that claim a very significant chunk
-of your savings.
-
-This approach allows a large number of companies and individuals to
-significantly reduce their infrastructure costs or get more bang for the same
-buck. They can now easily get access to cheap compute capacity so they can spend
-their scarce resources developing innovative products not paying for overpriced
-compute capacity.
+It takes over existing long-running ASGs with minimal configuration changes(usually just tagging them, but even that can be avoided), yielding the usual 70%-90% cost savings on compute but in a better integrated, more cost effective and easier to adopt way than the commercial SaaS alternatives in this space and for some mass adoption use cases it's even a better fit than the current native AWS offerings.
 
 ## How does it work? ##
 
-Once installed and enabled by tagging existing on-demand AutoScaling groups,
+Once installed and enabled (usually by tagging) on existing on-demand AutoScaling groups,
 AutoSpotting gradually replaces their on-demand instances with spot instances
 that are usually much cheaper, at least as large and identically configured to
-the group's members, without changing the group configuration in any way. For
+the group's members, without changing the group launch configuration in any way. For
 your peace of mind, you can also keep running a configurable number of on-demand
-instances given as percentage or absolute number.
+instances given as percentage or absolute number and it automatically fails over to on-demand in case of spot instance terminations.
 
 This can be seen in action below, you can click to expand the animation:
 
@@ -82,8 +46,8 @@ traffic would automatically be drained on termination.
 
 ## What savings can I expect? ##
 
-The savings it generates are often in the 60-80% range, but sometimes even up to
-90%, like you can see in the graph below.
+The savings it generates are often in the 60-80% range, depending on region and instance type, but sometimes even up to
+90% of on-demand prices, like you can see in the graph below.
 
 ![Savings](https://autospotting.org/img/savings.png)
 
