@@ -802,7 +802,6 @@
                 Service:
                   - "lambda.amazonaws.com"
         Path: "/lambda/"
-      Type: "AWS::IAM::Role"
     LambdaManageASGPolicy:
       Type: "AWS::IAM::Policy"
       Condition: "StackIsMain"
