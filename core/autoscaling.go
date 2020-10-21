@@ -204,7 +204,9 @@ func (a *autoScalingGroup) cronEventAction() runer {
 	logger.Println("Found unattached spot instance", spotInstanceID)
 
 	if need, total := a.needReplaceOnDemandInstances(); !need || !shouldRun {
-
+		// add to FinalRecap
+		recapText := fmt.Sprintf("%s %s Terminated not needed instance %s", a.region.name, a.name, spotInstanceID)
+		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
 		return terminateUnneededSpotInstance{
 			target{
 				asg:            a,
@@ -368,12 +370,21 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 		return nil
 	}
 
+	var isTerminated error
 	switch a.config.TerminationMethod {
 	case DetachTerminationMethod:
-		return a.detachAndTerminateOnDemandInstance(odInstanceID, true)
+		isTerminated = a.detachAndTerminateOnDemandInstance(odInstanceID, true)
 	default:
-		return a.terminateInstanceInAutoScalingGroup(odInstanceID, true, true)
+		isTerminated = a.terminateInstanceInAutoScalingGroup(odInstanceID, true, true)
 	}
+
+	if isTerminated == nil {
+		// add to FinalRecap
+		recapText := fmt.Sprintf("%s %s OnDemand instance %s replaced with spot instance %s", a.region.name, a.name, *odInstanceID, *spotInst.InstanceId)
+		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
+	}
+
+	return isTerminated
 }
 
 // Returns the information about the first running instance found in

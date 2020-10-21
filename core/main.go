@@ -68,6 +68,12 @@ func (a *AutoSpotting) ProcessCronEvent() {
 
 	a.processRegions(allRegions)
 
+	// Print Final Recap
+	for r, a := range a.config.FinalRecap {
+		for _, t := range a {
+			logger.Printf("%s %s\n", r, t)
+		}
+	}
 }
 
 func (cfg *Config) addDefaultFilteringMode() {
