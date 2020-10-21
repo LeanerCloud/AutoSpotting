@@ -535,7 +535,7 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 
 			debug.Println("RunInstances response:", spew.Sdump(resp))
 			// add to FinalRecap
-			recapText := fmt.Sprintf("%s %s Launched spot instance %s", i.region.name, i.asg.name, *spotInst.InstanceId)
+			recapText := fmt.Sprintf("%s %s Launched spot instance %s", i.asg.name, *spotInst.InstanceId)
 			i.region.conf.FinalRecap[i.region.name] = append(i.region.conf.FinalRecap[i.region.name], recapText)
 			return spotInst.InstanceId, nil
 		}
