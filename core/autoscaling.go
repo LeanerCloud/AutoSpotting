@@ -124,7 +124,7 @@ func (a *autoScalingGroup) terminateRandomSpotInstanceIfHavingEnough(totalRunnin
 
 	if isTerminated == nil {
 		// add to FinalRecap
-		recapText := fmt.Sprintf("%s %s Terminated random spot instance %s [too few onDemands]", a.name, *randomSpot.Instance.InstanceId)
+		recapText := fmt.Sprintf("%s Terminated random spot instance %s [too few onDemands]", a.name, *randomSpot.Instance.InstanceId)
 		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
 	}
 
@@ -214,7 +214,7 @@ func (a *autoScalingGroup) cronEventAction() runer {
 
 	if need, total := a.needReplaceOnDemandInstances(); !need || !shouldRun {
 		// add to FinalRecap
-		recapText := fmt.Sprintf("%s %s Terminated spot instance %s [not needed]", a.name, spotInstanceID)
+		recapText := fmt.Sprintf("%s Terminated spot instance %s [not needed]", a.name, spotInstanceID)
 		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
 		return terminateUnneededSpotInstance{
 			target{
@@ -389,7 +389,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 
 	if isTerminated == nil {
 		// add to FinalRecap
-		recapText := fmt.Sprintf("%s %s OnDemand instance %s replaced with spot instance %s", a.name, *odInstanceID, *spotInst.InstanceId)
+		recapText := fmt.Sprintf("%s OnDemand instance %s replaced with spot instance %s", a.name, *odInstanceID, *spotInst.InstanceId)
 		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
 	}
 
