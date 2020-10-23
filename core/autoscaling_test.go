@@ -2431,7 +2431,9 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 				}),
 				region: &region{
 					name: "test-region",
-					conf: &Config{},
+					conf: &Config{
+						FinalRecap: make(map[string][]string),
+					},
 					services: connections{
 						autoScaling: &mockASG{
 							uasgo:     nil,
@@ -3998,6 +4000,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 
 					MinOnDemandNumber: 1,
 				},
+				FinalRecap:  make(map[string][]string),
 				LicenseType: "custom",
 				Version:     "nightly",
 			},

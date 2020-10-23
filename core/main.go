@@ -55,6 +55,8 @@ func (a *AutoSpotting) Init(cfg *Config) {
 // enabled and taking action by replacing more pricy on-demand instances with
 // compatible and cheaper spot instances.
 func (a *AutoSpotting) ProcessCronEvent() {
+	// Clear FinalRecap map
+	a.config.FinalRecap = make(map[string][]string)
 
 	a.config.addDefaultFilteringMode()
 	a.config.addDefaultFilter()
@@ -68,6 +70,13 @@ func (a *AutoSpotting) ProcessCronEvent() {
 
 	a.processRegions(allRegions)
 
+	// Print Final Recap
+	logger.Println("####### BEGIN FINAL RECAP #######")
+	for r, a := range a.config.FinalRecap {
+		for _, t := range a {
+			logger.Printf("%s %s\n", r, t)
+		}
+	}
 }
 
 func (cfg *Config) addDefaultFilteringMode() {
