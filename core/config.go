@@ -98,6 +98,9 @@ type Config struct {
 
 	// JSON file containing event data used for locally simulating execution from Lambda.
 	EventFile string
+
+	// Final Recap String Array to show actions taken by ScheduleRun on ASGs
+	FinalRecap map[string][]string
 }
 
 // ParseConfig loads configuration from command line flags, environments variables, and config files.
@@ -232,4 +235,6 @@ func ParseConfig(conf *Config) {
 		log.Fatal(err.Error())
 	}
 	conf.InstanceData = data
+
+	conf.FinalRecap = make(map[string][]string)
 }

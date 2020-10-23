@@ -114,12 +114,21 @@ func (a *autoScalingGroup) terminateRandomSpotInstanceIfHavingEnough(totalRunnin
 	logger.Println("Terminating randomly-selected spot instance",
 		*randomSpot.Instance.InstanceId)
 
+	var isTerminated error
 	switch a.config.TerminationMethod {
 	case DetachTerminationMethod:
-		return randomSpot.terminate()
+		isTerminated = randomSpot.terminate()
 	default:
-		return a.terminateInstanceInAutoScalingGroup(randomSpot.Instance.InstanceId, wait, false)
+		isTerminated = a.terminateInstanceInAutoScalingGroup(randomSpot.Instance.InstanceId, wait, false)
 	}
+
+	if isTerminated == nil {
+		// add to FinalRecap
+		recapText := fmt.Sprintf("%s Terminated random spot instance %s [too few onDemands]", a.name, *randomSpot.Instance.InstanceId)
+		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
+	}
+
+	return isTerminated
 }
 
 func (a *autoScalingGroup) allInstancesRunning() (bool, int64) {
@@ -204,7 +213,9 @@ func (a *autoScalingGroup) cronEventAction() runer {
 	logger.Println("Found unattached spot instance", spotInstanceID)
 
 	if need, total := a.needReplaceOnDemandInstances(); !need || !shouldRun {
-
+		// add to FinalRecap
+		recapText := fmt.Sprintf("%s Terminated spot instance %s [not needed]", a.name, spotInstanceID)
+		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
 		return terminateUnneededSpotInstance{
 			target{
 				asg:            a,
@@ -368,12 +379,21 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 		return nil
 	}
 
+	var isTerminated error
 	switch a.config.TerminationMethod {
 	case DetachTerminationMethod:
-		return a.detachAndTerminateOnDemandInstance(odInstanceID, true)
+		isTerminated = a.detachAndTerminateOnDemandInstance(odInstanceID, true)
 	default:
-		return a.terminateInstanceInAutoScalingGroup(odInstanceID, true, true)
+		isTerminated = a.terminateInstanceInAutoScalingGroup(odInstanceID, true, true)
 	}
+
+	if isTerminated == nil {
+		// add to FinalRecap
+		recapText := fmt.Sprintf("%s OnDemand instance %s replaced with spot instance %s", a.name, *odInstanceID, *spotInst.InstanceId)
+		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
+	}
+
+	return isTerminated
 }
 
 // Returns the information about the first running instance found in

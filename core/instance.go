@@ -534,6 +534,9 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 				"current spot price", instanceType.pricing.spot[az])
 
 			debug.Println("RunInstances response:", spew.Sdump(resp))
+			// add to FinalRecap
+			recapText := fmt.Sprintf("%s Launched spot instance %s", i.asg.name, *spotInst.InstanceId)
+			i.region.conf.FinalRecap[i.region.name] = append(i.region.conf.FinalRecap[i.region.name], recapText)
 			return spotInst.InstanceId, nil
 		}
 	}
