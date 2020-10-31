@@ -69,8 +69,14 @@ func (a *autoScalingGroup) loadLaunchTemplate() (*launchTemplate, error) {
 		return a.launchTemplate, nil
 	}
 
-	ltID := a.LaunchTemplate.LaunchTemplateId
-	ltVer := a.LaunchTemplate.Version
+	lt := a.LaunchTemplate
+
+	if lt == nil {
+		return nil, errors.New("missing launch template")
+	}
+
+	ltID := lt.LaunchTemplateId
+	ltVer := lt.Version
 
 	if ltID == nil || ltVer == nil {
 		return nil, errors.New("missing launch template")

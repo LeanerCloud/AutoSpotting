@@ -45,6 +45,10 @@ type mockEC2 struct {
 	diao   *ec2.DescribeInstanceAttributeOutput
 	diaerr error
 
+	// DescribeImagesOutput
+	damio   *ec2.DescribeImagesOutput
+	damierr error
+
 	// Terminate Instance
 	tio   *ec2.TerminateInstancesOutput
 	tierr error
@@ -79,6 +83,10 @@ func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, f func(*
 
 func (m mockEC2) DescribeInstanceAttribute(in *ec2.DescribeInstanceAttributeInput) (*ec2.DescribeInstanceAttributeOutput, error) {
 	return m.diao, m.diaerr
+}
+
+func (m mockEC2) DescribeImages(in *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
+	return m.damio, m.damierr
 }
 
 func (m mockEC2) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
