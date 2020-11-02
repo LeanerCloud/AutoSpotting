@@ -655,6 +655,7 @@
                 - "cloudformation:Describe*"
                 - "ec2:CreateTags"
                 - "ec2:DeleteTags"
+                - "ec2:DescribeImages"
                 - "ec2:DescribeInstanceAttribute"
                 - "ec2:DescribeInstances"
                 - "ec2:DescribeLaunchTemplateVersions"
