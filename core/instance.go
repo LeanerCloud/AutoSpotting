@@ -246,6 +246,7 @@ func (i *instance) belongsToEnabledASG() bool {
 			asg.loadDefaultConfig()
 			asg.loadConfigFromTags()
 			asg.loadLaunchConfiguration()
+			asg.loadLaunchTemplate()
 			i.asg = &asg
 			i.price = i.typeInfo.pricing.onDemand / i.region.conf.OnDemandPriceMultiplier * i.asg.config.OnDemandPriceMultiplier
 			logger.Printf("%s instace %s belongs to enabled ASG %s", i.region.name,
@@ -445,7 +446,9 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 	// device mappings, this number is used later when comparing with each
 	// instance type.
 
-	usedMappings := i.asg.launchConfiguration.countLaunchConfigEphemeralVolumes()
+	lcMappings := i.asg.launchConfiguration.countLaunchConfigEphemeralVolumes()
+	ltMappings := i.asg.launchTemplate.countLaunchTemplateEphemeralVolumes()
+	usedMappings := max(lcMappings, ltMappings)
 	attachedVolumesNumber := min(usedMappings, current.instanceStoreDeviceCount)
 
 	// Iterate alphabetically by instance type
@@ -913,6 +916,12 @@ func (i *instance) isReadyToAttach(asg *autoScalingGroup) bool {
 }
 func min(x, y int) int {
 	if x < y {
+		return x
+	}
+	return y
+}
+func max(x, y int) int {
+	if x > y {
 		return x
 	}
 	return y

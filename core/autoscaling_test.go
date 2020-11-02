@@ -1012,6 +1012,139 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 	}
 }
 
+func TestLoadLaunchTemplate(t *testing.T) {
+	tests := []struct {
+		name        string
+		ltID        *string
+		ltVer       *int64
+		regionASG   *region
+		groupLT     *launchTemplate
+		expectedLT  *launchTemplate
+		expectedErr error
+	}{
+		{name: "launch template already exists",
+			groupLT: &launchTemplate{
+				LaunchTemplateVersion: &ec2.LaunchTemplateVersion{
+					LaunchTemplateId: aws.String("foo"),
+					VersionNumber:    aws.Int64(1),
+				},
+				Image: &ec2.Image{
+					ImageId: aws.String("bar"),
+				},
+			},
+			expectedErr: nil,
+			expectedLT: &launchTemplate{
+				LaunchTemplateVersion: &ec2.LaunchTemplateVersion{
+					LaunchTemplateId: aws.String("foo"),
+					VersionNumber:    aws.Int64(1),
+				},
+				Image: &ec2.Image{
+					ImageId: aws.String("bar"),
+				},
+			},
+		},
+		{name: "nil launch template name",
+			ltID:  nil,
+			ltVer: nil,
+			regionASG: &region{
+				services: connections{
+					ec2: mockEC2{
+						dltverr: nil},
+				},
+			},
+			expectedErr: errors.New("missing launch template"),
+			expectedLT:  nil,
+		},
+		{name: "no err during get launch template",
+			ltID:  aws.String("foo"),
+			ltVer: aws.Int64(1),
+			regionASG: &region{
+				services: connections{
+					ec2: mockEC2{
+						dltverr: nil,
+						dltvo: &ec2.DescribeLaunchTemplateVersionsOutput{
+							LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{
+								{
+									LaunchTemplateId: aws.String("foo"),
+									VersionNumber:    aws.Int64(1),
+									LaunchTemplateData: &ec2.ResponseLaunchTemplateData{
+										ImageId: aws.String("bar"),
+									},
+								},
+							},
+						},
+						damierr: nil,
+						damio: &ec2.DescribeImagesOutput{
+							Images: []*ec2.Image{
+								{
+									ImageId: aws.String("bar"),
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedErr: nil,
+			expectedLT: &launchTemplate{
+				LaunchTemplateVersion: &ec2.LaunchTemplateVersion{
+					LaunchTemplateId: aws.String("foo"),
+					VersionNumber:    aws.Int64(1),
+					LaunchTemplateData: &ec2.ResponseLaunchTemplateData{
+						ImageId: aws.String("bar"),
+					},
+				},
+				Image: &ec2.Image{
+					ImageId: aws.String("bar"),
+				},
+			},
+		},
+		{name: "err during get launch template",
+			ltID:  aws.String("foo"),
+			ltVer: aws.Int64(1),
+			regionASG: &region{
+				services: connections{
+					ec2: mockEC2{
+						dltverr: errors.New("describe"),
+						dltvo:   nil,
+					},
+				},
+			},
+			expectedErr: errors.New("describe"),
+			expectedLT:  nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := autoScalingGroup{
+				launchTemplate: tt.groupLT,
+				region:         tt.regionASG,
+				Group: &autoscaling.Group{
+					LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+						LaunchTemplateId: tt.ltID,
+						Version:          aws.String("1"),
+					},
+				},
+			}
+			lt, err := a.loadLaunchTemplate()
+
+			if !reflect.DeepEqual(tt.expectedErr, err) {
+				t.Errorf("loadLaunchConfiguration received error status: %+v expected %+v",
+					err, tt.expectedErr)
+			}
+
+			if !reflect.DeepEqual(tt.expectedLT, lt) {
+				t.Errorf("loadLaunchConfiguration received: %+v expected %+v",
+					lt, tt.expectedLT)
+			}
+
+			if lt != a.launchTemplate {
+				t.Errorf("loadLaunchConfiguration returned %+v but set member field launchConfiguration to %+v",
+					lt, a.launchConfiguration)
+			}
+		})
+	}
+}
+
 func TestSetAutoScalingMaxSize(t *testing.T) {
 	tests := []struct {
 		name      string
