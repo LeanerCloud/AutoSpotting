@@ -27,6 +27,7 @@ type autoScalingGroup struct {
 	name                string
 	region              *region
 	launchConfiguration *launchConfiguration
+	launchTemplate      *launchTemplate
 	instances           instances
 	minOnDemand         int64
 	config              AutoScalingConfig
@@ -60,6 +61,67 @@ func (a *autoScalingGroup) loadLaunchConfiguration() (*launchConfiguration, erro
 		LaunchConfiguration: resp.LaunchConfigurations[0],
 	}
 	return a.launchConfiguration, nil
+}
+
+func (a *autoScalingGroup) loadLaunchTemplate() (*launchTemplate, error) {
+	//already done
+	if a.launchTemplate != nil {
+		return a.launchTemplate, nil
+	}
+
+	lt := a.LaunchTemplate
+
+	if lt == nil {
+		return nil, errors.New("missing launch template")
+	}
+
+	ltID := lt.LaunchTemplateId
+	ltVer := lt.Version
+
+	if ltID == nil || ltVer == nil {
+		return nil, errors.New("missing launch template")
+	}
+
+	svc := a.region.services.ec2
+
+	params := &ec2.DescribeLaunchTemplateVersionsInput{
+		LaunchTemplateId: ltID,
+		Versions:         []*string{ltVer},
+	}
+
+	resp, err := svc.DescribeLaunchTemplateVersions(params)
+
+	if err != nil {
+		logger.Println(err.Error())
+		return nil, err
+	}
+
+	if len(resp.LaunchTemplateVersions) == 0 {
+		return nil, errors.New("missing launch template")
+	}
+
+	ltv := resp.LaunchTemplateVersions[0]
+
+	params2 := &ec2.DescribeImagesInput{
+		ImageIds: []*string{ltv.LaunchTemplateData.ImageId},
+	}
+
+	resp2, err2 := svc.DescribeImages(params2)
+
+	if err2 != nil {
+		logger.Println(err.Error())
+		return nil, err
+	}
+
+	if len(resp2.Images) == 0 {
+		return nil, errors.New("missing launch template image")
+	}
+
+	a.launchTemplate = &launchTemplate{
+		LaunchTemplateVersion: ltv,
+		Image:                 resp2.Images[0],
+	}
+	return a.launchTemplate, nil
 }
 
 func (a *autoScalingGroup) needReplaceOnDemandInstances() (bool, int64) {
@@ -205,6 +267,7 @@ func (a *autoScalingGroup) cronEventAction() runer {
 		}
 
 		a.loadLaunchConfiguration()
+		a.loadLaunchTemplate()
 		return launchSpotReplacement{target{
 			onDemandInstance: onDemandInstance}}
 	}
