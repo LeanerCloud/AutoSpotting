@@ -96,6 +96,10 @@ func (a *autoScalingGroup) loadLaunchTemplate() (*launchTemplate, error) {
 		return nil, err
 	}
 
+	if len(resp.LaunchTemplateVersions) == 0 {
+		return nil, errors.New("missing launch template")
+	}
+
 	ltv := resp.LaunchTemplateVersions[0]
 
 	params2 := &ec2.DescribeImagesInput{
@@ -107,6 +111,10 @@ func (a *autoScalingGroup) loadLaunchTemplate() (*launchTemplate, error) {
 	if err2 != nil {
 		logger.Println(err.Error())
 		return nil, err
+	}
+
+	if len(resp2.Images) == 0 {
+		return nil, errors.New("missing launch template image")
 	}
 
 	a.launchTemplate = &launchTemplate{
