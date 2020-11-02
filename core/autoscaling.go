@@ -109,8 +109,8 @@ func (a *autoScalingGroup) loadLaunchTemplate() (*launchTemplate, error) {
 	resp2, err2 := svc.DescribeImages(params2)
 
 	if err2 != nil {
-		logger.Println(err.Error())
-		return nil, err
+		logger.Println(err2.Error())
+		return nil, err2
 	}
 
 	if len(resp2.Images) == 0 {
