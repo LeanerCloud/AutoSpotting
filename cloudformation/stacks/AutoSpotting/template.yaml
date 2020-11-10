@@ -50,10 +50,10 @@
       Default: "UTC"
       Description: >
         "Sets the timezone in which to check the CronSchedule. Example: If the
-        timezone is set to 'UTC' and the CronSchedule is '9-18 1-5' it would start
-        the interval at 9am UTC, with the timezone set to 'Europe/London' it would
-        start the interval at 9am BST (10am UTC) or 9am GMT (9am UTC) depending on
-        daylight savings."
+        timezone is set to 'UTC' and the CronSchedule is '9-18 1-5' it would
+        start the interval at 9am UTC, with the timezone set to 'Europe/London'
+        it would start the interval at 9am BST (10am UTC) or 9am GMT (9am UTC)
+        depending on daylight savings."
       Type: "String"
     CronScheduleState:
       AllowedValues:
@@ -63,18 +63,9 @@
       Description: >
         "Controls whether or not to run AutoSpotting within a time interval
         given in the 'CronSchedule' parameter. Setting this to 'off' would make
-        it run only outside the defined interval. This is a global value thet
+        it run only outside the defined interval. This is a global value that
         can be overridden on a per-AutoScaling-group basis using the
         'autospotting_cron_schedule_state' tag set on the AutoScaling group".
-      Type: "String"
-    DeployUsingStackSets:
-      AllowedValues:
-        - "False"
-        - "True"
-      Default: "False"
-      Description: >
-        "Deploy using CF Stacksets -
-        https://github.com/AutoSpotting/AutoSpotting/STACKSETS.md"
       Type: "String"
     DisallowedInstanceTypes:
       Default: ""
@@ -145,7 +136,10 @@
       Description: >
         "Memory allocated to the Lambda function, setting this lower will slow
         down the execution a bit"
-      Type: "Number"
+      Type: Number
+      MinValue: 128
+      MaxValue: 3008
+
     LambdaS3Bucket:
       Default: "cloudprowess"
       Description: >
@@ -199,17 +193,22 @@
         "Multiplier for the on-demand price. This is useful for volume discounts
         or if you want to set your bid price to be lower than the on demand
         price to ensure you don't run spot instances instead of your existing
-        reserved instances. It is also a global default value that can be overridden on a
-        per-group basis using the 'autospotting_on_demand_price_multiplier' tag
-        that can be set on the AutoScaling group."
+        reserved instances. It is also a global default value that can be
+        overridden on a per-group basis using the
+        'autospotting_on_demand_price_multiplier' tag that can be set on the
+        AutoScaling group."
       Type: "Number"
     Regions:
-      Default: "*"
+      Default: "ap-northeast-1,ap-northeast-2,ap-south-1,ap-southeast-1,ap-southeast-2,ca-central-1,eu-central-1,eu-north-1,eu-west-1,eu-west-2,eu-west-3,sa-east-1,us-east-1,us-east-2,us-west-1,us-west-2"
       Description: >
-        "Space separated list of regions where it should run (supports globs),
-        in case you may want to limit it to a smaller set of regions.
-        Example: 'us-east-1 eu-*'"
-      Type: "String"
+        "Comma-separated list of regions where AutoSpotting should run and also
+        where it install the regional resources StackSet. It defaults to all
+        supported commercially available AWS regions as of Oct 2020. Because of
+        a Lambda limitation, the main AutoSpotting Lambda function can currently
+        only be installed in "us-east-1" unless you host it yourself in an S3
+        bucket stored on another region, but it can process AutoScaling groups
+        from any other regions. Example: 'us-east-1,eu-west-1'"
+      Type: CommaDelimitedList
     SpotPricePercentageBuffer:
       Default: "10.0"
       Description: >
@@ -247,12 +246,6 @@
         selection and savings calculations when using a premium instance type
         such as RHEL."
       Type: "Number"
-    StackSetsMainRegion:
-      Default: "us-east-1"
-      Description: >
-        "Region of the Main Stack - StackSetsOnly.
-        (Need to add this region as first when you specify in which regions deploy stack)"
-      Type: "String"
     TagFilteringMode:
       AllowedValues:
         - "opt-in"
@@ -291,258 +284,31 @@
         AutoSpotting's ElasticBeanstalk managed policy to your Beanstalk
         instance profile/role if you turn this option to On"
       Type: "String"
+    DeployRegionalResourcesStackSet:
+      AllowedValues:
+        - "false"
+        - "true"
+      Default: "true"
+      Description: >
+        "Controls whether to deploy the regional resources StackSet and the
+        required nested stacks that create StackSet enabler IAM roles.
+
+        You may need to disable this flag if these IAM roles already exist in
+        your account and you fail to launch the CloudFormation stack due to a
+        resource naming conflict.
+
+        The Stack Set resource is a required component of AutoSpotting's
+        event-based mode, so you'll then need to install it yourself if this
+        flag is disabled, otherwise AutoSpotting will fallback to the legacy
+        cron execution mode.
+      Type: "String"
   Conditions:
-    StackSetsFalse: !Equals
-        - !Ref DeployUsingStackSets
-        - "False"
-    StackSetsTrue: !Equals
-        - !Ref DeployUsingStackSets
-        - "True"
-    StackIsMain: !Or
-        - !Condition StackSetsIsMain
-        - !Condition StackSetsFalse
-    StackSetsIsMain: !And
-        - !Condition StackSetsTrue
-        - !Equals
-            - !Ref StackSetsMainRegion
-            - !Ref AWS::Region
-    StackSetsIsRegional: !And
-        - !Condition StackSetsTrue
-        - !Not
-            - !Equals
-                - !Ref StackSetsMainRegion
-                - !Ref AWS::Region
-  Outputs:
-    AutoSpottingLambdaARN:
-      Condition: "StackSetsIsMain"
-      Value:
-        Fn::GetAtt:
-          - "LambdaFunction"
-          - "Arn"
-    LambdaRegionalExecutionRoleARN:
-      Condition: "StackSetsIsMain"
-      Value:
-        Fn::GetAtt:
-          - "LambdaRegionalExecutionRole"
-          - "Arn"
-    LambdaExecutionRoleARN:
-      Condition: "StackSetsIsMain"
-      Value:
-        Fn::GetAtt:
-          - "LambdaExecutionRole"
-          - "Arn"
+    DeployRegionalResourcesStackSet:
+      Fn::Equals:
+        - Ref: DeployRegionalResourcesStackSet
+        - "true"
   Resources:
-    SpotTerminationLambdaPermission:
-      Condition: "StackSetsTrue"
-      Type: "AWS::Lambda::Permission"
-      Properties:
-        Action: "lambda:InvokeFunction"
-        FunctionName: !If
-          - "StackSetsIsRegional"
-          - Ref: "EventHandler"
-          - Ref: "LambdaFunction"
-        Principal: "events.amazonaws.com"
-        SourceArn:
-          Fn::GetAtt:
-            - "SpotTeminationEventRule"
-            - "Arn"
-    SpotTeminationEventRule:
-      Condition: "StackSetsTrue"
-      Type: "AWS::Events::Rule"
-      Properties:
-        Description: >
-          "This rule is triggered 2 minutes before AWS terminates a spot
-          instance or when AWS send a Rebalance Recommendation"
-        EventPattern:
-          detail-type:
-            - "EC2 Spot Instance Interruption Warning"
-            - "EC2 Instance Rebalance Recommendation"
-          source:
-            - "aws.ec2"
-        State: "ENABLED"
-        Targets:
-          -
-            Id: "SpotTerminationEventGenerator"
-            InputTransformer: !If
-              - "StackSetsIsRegional"
-              -
-                InputPathsMap: {
-                  "id": "$.id",
-                  "detail-type": "$.detail-type",
-                  "source": "$.source",
-                  "account": "$.account",
-                  "time": "$.time",
-                  "region": "$.region",
-                  "resources": "$.resources",
-                  "detail": "$.detail"
-                }
-                InputTemplate: !Join ["",
-                  [
-                    "{",
-                    "\"id\": <id>,",
-                    "\"detail-type\": <detail-type>,",
-                    "\"source\": <source>,",
-                    "\"account\": <account>,",
-                    "\"time\": <time>,",
-                    "\"region\": <region>,",
-                    "\"resources\": <resources>,",
-                    "\"detail\": <detail>,",
-                    "\"AutospottingLambdaArn\": \"", !GetAtt RegionalStackSetCustomResource.AutoSpottingLambdaARN, "\"",
-                    "}"
-                  ]
-                ]
-              - !Ref 'AWS::NoValue'
-            Arn: !If
-              - "StackSetsIsRegional"
-              - Fn::GetAtt:
-                  - "EventHandler"
-                  - "Arn"
-              - Fn::GetAtt:
-                  - "LambdaFunction"
-                  - "Arn"
-    InstanceRunningLambdaPermission:
-      Condition: "StackSetsTrue"
-      Type: "AWS::Lambda::Permission"
-      Properties:
-        Action: "lambda:InvokeFunction"
-        FunctionName: !If
-          - "StackSetsIsRegional"
-          - Ref: "EventHandler"
-          - Ref: "LambdaFunction"
-        Principal: "events.amazonaws.com"
-        SourceArn:
-          Fn::GetAtt:
-            - "InstanceRunningEventRule"
-            - "Arn"
-    InstanceRunningEventRule:
-      Condition: "StackSetsTrue"
-      Type: "AWS::Events::Rule"
-      Properties:
-        Description: "This rule is triggered after EC2 launched a new instance"
-        EventPattern:
-          detail-type:
-            - "EC2 Instance State-change Notification"
-          source:
-            - "aws.ec2"
-          detail:
-            state:
-              - "running"
-        State: "ENABLED"
-        Targets:
-          -
-            Id: "InstanceRunningEventGenerator"
-            InputTransformer: !If
-              - "StackSetsIsRegional"
-              -
-                InputPathsMap: {
-                  "id": "$.id",
-                  "detail-type": "$.detail-type",
-                  "source": "$.source",
-                  "account": "$.account",
-                  "time": "$.time",
-                  "region": "$.region",
-                  "resources": "$.resources",
-                  "detail": "$.detail"
-                }
-                InputTemplate: !Join ["",
-                  [
-                    "{",
-                    "\"id\": <id>,",
-                    "\"detail-type\": <detail-type>,",
-                    "\"source\": <source>,",
-                    "\"account\": <account>,",
-                    "\"time\": <time>,",
-                    "\"region\": <region>,",
-                    "\"resources\": <resources>,",
-                    "\"detail\": <detail>,",
-                    "\"AutospottingLambdaArn\": \"", !GetAtt RegionalStackSetCustomResource.AutoSpottingLambdaARN, "\"",
-                    "}"
-                  ]
-                ]
-              - !Ref 'AWS::NoValue'
-            Arn: !If
-              - "StackSetsIsRegional"
-              - Fn::GetAtt:
-                  - "EventHandler"
-                  - "Arn"
-              - Fn::GetAtt:
-                  - "LambdaFunction"
-                  - "Arn"
-    LifecycleHookLambdaPermission:
-      Condition: "StackSetsTrue"
-      Type: "AWS::Lambda::Permission"
-      Properties:
-        Action: "lambda:InvokeFunction"
-        FunctionName: !If
-          - "StackSetsIsRegional"
-          - Ref: "EventHandler"
-          - Ref: "LambdaFunction"
-        Principal: "events.amazonaws.com"
-        SourceArn:
-          Fn::GetAtt:
-            - "LifecycleHookEventRule"
-            - "Arn"
-    LifecycleHookEventRule:
-      Condition: "StackSetsTrue"
-      Type: "AWS::Events::Rule"
-      Properties:
-        Description: "This rule is triggered after we failed to complete a lifecycle hook"
-        EventPattern:
-          detail-type:
-            - "AWS API Call via CloudTrail"
-          source:
-            - "aws.autoscaling"
-          detail:
-            eventName:
-              - "CompleteLifecycleAction"
-            errorCode:
-              - "ValidationException"
-            requestParameters:
-              lifecycleActionResult:
-                - "CONTINUE"
-        State: "ENABLED"
-        Targets:
-          -
-            Id: "LifecycleHookEventGenerator"
-            InputTransformer: !If
-              - "StackSetsIsRegional"
-              -
-                InputPathsMap: {
-                  "id": "$.id",
-                  "detail-type": "$.detail-type",
-                  "source": "$.source",
-                  "account": "$.account",
-                  "time": "$.time",
-                  "region": "$.region",
-                  "resources": "$.resources",
-                  "detail": "$.detail"
-                }
-                InputTemplate: !Join ["",
-                  [
-                    "{",
-                    "\"id\": <id>,",
-                    "\"detail-type\": <detail-type>,",
-                    "\"source\": <source>,",
-                    "\"account\": <account>,",
-                    "\"time\": <time>,",
-                    "\"region\": <region>,",
-                    "\"resources\": <resources>,",
-                    "\"detail\": <detail>,",
-                    "\"AutospottingLambdaArn\": \"", !GetAtt RegionalStackSetCustomResource.AutoSpottingLambdaARN, "\"",
-                    "}"
-                  ]
-                ]
-              - !Ref 'AWS::NoValue'
-            Arn: !If
-              - "StackSetsIsRegional"
-              - Fn::GetAtt:
-                  - "EventHandler"
-                  - "Arn"
-              - Fn::GetAtt:
-                  - "LambdaFunction"
-                  - "Arn"
     LambdaExecutionRole:
-      Condition: "StackIsMain"
       Properties:
         AssumeRolePolicyDocument:
           Statement:
@@ -554,21 +320,8 @@
                   - "lambda.amazonaws.com"
         Path: "/lambda/"
       Type: "AWS::IAM::Role"
-    LambdaRegionalStackExecutionRole:
-      Condition: "StackSetsFalse"
-      Properties:
-        AssumeRolePolicyDocument:
-          Statement:
-            -
-              Action: "sts:AssumeRole"
-              Effect: "Allow"
-              Principal:
-                Service:
-                  - "lambda.amazonaws.com"
-        Path: "/lambda/"
-      Type: "AWS::IAM::Role"
+
     LambdaFunction:
-      Condition: "StackIsMain"
       Properties:
         Code:
           S3Bucket:
@@ -601,7 +354,9 @@
             ON_DEMAND_PRICE_MULTIPLIER:
               Ref: "OnDemandPriceMultiplier"
             REGIONS:
-              Ref: "Regions"
+              Fn::Join:
+              - ","
+              - Ref: "Regions"
             SPOT_PRICE_BUFFER_PERCENTAGE:
               Ref: "SpotPricePercentageBuffer"
             SPOT_PRODUCT_DESCRIPTION:
@@ -636,7 +391,6 @@
         Timeout: 900
       Type: "AWS::Lambda::Function"
     LambdaPolicy:
-      Condition: "StackIsMain"
       Properties:
         PolicyDocument:
           Statement:
@@ -682,11 +436,62 @@
           -
             Ref: "LambdaExecutionRole"
       Type: "AWS::IAM::Policy"
+
+    RegionalStackSet:
+      Condition: DeployRegionalResourcesStackSet
+      DependsOn:
+        - AWSCloudFormationStackSetAdministrationRole
+        - AWSCloudFormationStackSetExecutionRole
+      Type: AWS::CloudFormation::StackSet
+      Properties:
+        TemplateURL: https://s3.amazonaws.com/cloudprowess/nightly/regional_template.yaml
+        Capabilities:
+          - CAPABILITY_IAM
+        Description:  "StackSet that deploys regional resources required by AutoSpotting for capturing events."
+        OperationPreferences:
+          FailureToleranceCount: 0
+          MaxConcurrentPercentage: 100
+        PermissionModel: SELF_MANAGED
+        Parameters:
+          - ParameterKey: AutoSpottingLambdaARN
+            ParameterValue:
+              Fn::GetAtt:
+                - LambdaFunction
+                - Arn
+          - ParameterKey: LambdaRegionalExecutionRoleARN
+            ParameterValue:
+              Fn::GetAtt:
+                - LambdaRegionalStackExecutionRole
+                - Arn
+        StackSetName: AutoSpottingRegionalResources
+        StackInstancesGroup:
+          - DeploymentTargets:
+              Accounts:
+                - Ref: AWS::AccountId
+            Regions:
+              Ref: Regions
+    AWSCloudFormationStackSetAdministrationRole:
+      Condition: DeployRegionalResourcesStackSet
+      Type: AWS::CloudFormation::Stack
+      Properties:
+        TemplateURL: https://s3.amazonaws.com/cloudformation-stackset-sample-templates-us-east-1/AWSCloudFormationStackSetAdministrationRole.yml
+        TimeoutInMinutes: 10
+    AWSCloudFormationStackSetExecutionRole:
+      Condition: DeployRegionalResourcesStackSet
+      Type: AWS::CloudFormation::Stack
+      Properties:
+        TemplateURL: https://s3.amazonaws.com/cloudformation-stackset-sample-templates-us-east-1/AWSCloudFormationStackSetExecutionRole.yml
+        TimeoutInMinutes: 10
+        Parameters:
+            AdministratorAccountId:
+              Ref: AWS::AccountId
+
+
+# TODO: move this to the main Lambda function code at some point
     LambdaManageASG:
       Type: "AWS::Lambda::Function"
-      Condition: "StackIsMain"
       Properties:
-        Description: "Invoked synchronously by the main Lambda to change ASG MaxSize if attachinstances method fail"
+        Description: "Invoked synchronously by the main Lambda to change ASG MaxSize if the AttachInstances call fails"
         Handler: "index.handler"
         Runtime: "python3.7"
         Timeout: 120
@@ -795,7 +600,6 @@
     # and it used by the secondary Lambda function, backing the custom resource
     LambdaManageASGExecutionRole:
       Type: "AWS::IAM::Role"
-      Condition: "StackIsMain"
       Properties:
         AssumeRolePolicyDocument:
           Statement:
@@ -806,9 +610,9 @@
                 Service:
                   - "lambda.amazonaws.com"
         Path: "/lambda/"
+
     LambdaManageASGPolicy:
       Type: "AWS::IAM::Policy"
-      Condition: "StackIsMain"
       Properties:
         PolicyDocument:
           Statement:
@@ -830,56 +634,10 @@
         Roles:
           -
             Ref: "LambdaManageASGExecutionRole"
-    LambdaRegionalStackPolicy:
-      Condition: "StackSetsFalse"
-      Properties:
-        PolicyDocument:
-          Statement:
-            -
-              Action:
-                - "ec2:DescribeRegions"
-                - "cloudformation:CreateStack"
-                - "cloudformation:DeleteStack"
-                - "cloudformation:Describe*"
-                - "events:PutRule"
-                - "events:PutTargets"
-                - "events:DeleteRule"
-                - "events:DescribeRule"
-                - "events:RemoveTargets"
-                - "iam:PutRolePolicy"
-                - "iam:DeleteRolePolicy"
-                - "iam:CreateRole"
-                - "iam:DeleteRole"
-                - "iam:GetRole"
-                - "iam:PassRole"
-                - "logs:CreateLogGroup"
-                - "logs:CreateLogStream"
-                - "logs:PutLogEvents"
-                - "sns:CreateTopic"
-                - "sns:DeleteTopic"
-                - "sns:GetTopicAttributes"
-                - "sns:SetTopicAttributes"
-                - "sns:Subscribe"
-                - "lambda:AddPermission"
-                - "lambda:RemovePermission"
-                - "lambda:CreateFunction"
-                - "lambda:DeleteFunction"
-                - "lambda:GetFunctionConfiguration"
-              Effect: "Allow"
-              Resource: "*"
-            - 
-              Action:
-                - "s3:Get*"
-              Effect: "Allow"
-              Resource: 
-                - Fn::Sub: "arn:${AWS::Partition}:s3:::${LambdaS3Bucket}"
-                - Fn::Sub: "arn:${AWS::Partition}:s3:::${LambdaS3Bucket}/${LambdaS3BucketPrefix}/*"
-        PolicyName: "LambdaRegionalStackPolicy"
-        Roles:
-          -
-            Ref: "LambdaRegionalStackExecutionRole"
-      Type: "AWS::IAM::Policy"
-    LambdaRegionalExecutionRole:
+
+    # IAM role and inline policy to be used by the regional Lambdas, so we only
+    # create them once instead of once per region
+    LambdaRegionalStackExecutionRole:
       Properties:
         AssumeRolePolicyDocument:
           Statement:
@@ -908,10 +666,12 @@
         PolicyName: "LambdaPolicy"
         Roles:
           -
-            Ref: "LambdaRegionalExecutionRole"
+            Ref: "LambdaRegionalStackExecutionRole"
       Type: "AWS::IAM::Policy"
+
     LogGroup:
-      Condition: "StackIsMain"
+      UpdateReplacePolicy: Retain
+      DeletionPolicy: Retain
       Properties:
         LogGroupName:
           Fn::Join:
@@ -923,8 +683,8 @@
         RetentionInDays:
           Ref: "LogRetentionPeriod"
       Type: "AWS::Logs::LogGroup"
+
     PermissionForEventsToInvokeLambda:
-      Condition: "StackIsMain"
       Properties:
         Action: "lambda:InvokeFunction"
         FunctionName:
@@ -935,18 +695,17 @@
             - "ScheduledRule"
             - "Arn"
       Type: "AWS::Lambda::Permission"
+
     PermissionForInvokingTheLambdaFunctionFromOtherRegions:
-      Condition: "StackIsMain"
       Properties:
-        Action: "lambda:InvokeFunction"
+        Action: lambda:InvokeFunction
         FunctionName:
-          Ref: "LambdaFunction"
-        Principal: "lambda.amazonaws.com"
+          Ref: LambdaFunction
+        Principal: lambda.amazonaws.com
         SourceAccount:
-          Ref: "AWS::AccountId"
+          Ref: AWS::AccountId
       Type: "AWS::Lambda::Permission"
     ScheduledRule:
-      Condition: "StackIsMain"
       Properties:
         Description: "ScheduledRule for launching the AutoSpotting Lambda function"
         ScheduleExpression:
@@ -960,136 +719,9 @@
                 - "Arn"
             Id: "AutoSpottingEventGenerator"
       Type: "AWS::Events::Rule"
-    RegionalStackCreationLambdaFunction:
-      Condition: "StackSetsFalse"
-      Type: AWS::Lambda::Function
-      DependsOn: LambdaRegionalStackPolicy
-      Properties:
-        Description: "Creates regional CloudFormation stacks that trigger the main Lambda function on spot instance termination notification"
-        Handler: "regional_stack_lambda.handler"
-        Runtime: "python3.6"
-        Timeout: 900
-        Role:
-          Fn::GetAtt:
-            - "LambdaRegionalStackExecutionRole"
-            - "Arn"
-        Code:
-          S3Bucket:
-            Ref: "LambdaS3Bucket"
-          S3Key:
-            Fn::Sub: "${LambdaS3BucketPrefix}/regional_stack_lambda.zip"
-    RegionalStackCustomResource:
-      Condition: "StackSetsFalse"
-      Type: "Custom::LambdaCallout"
-      UpdateReplacePolicy: Retain
-      Properties:
-        ServiceToken:
-          Fn::GetAtt:
-            - "RegionalStackCreationLambdaFunction"
-            - "Arn"
-        LambdaARN:
-          Fn::GetAtt:
-            - "LambdaFunction"
-            - "Arn"
-        LambdaRegionalExecutionRoleARN:
-          Fn::GetAtt:
-            - "LambdaRegionalExecutionRole"
-            - "Arn"
-        S3Bucket:
-          Ref: "LambdaS3Bucket"
-        S3BucketPrefix:
-          Ref: "LambdaS3BucketPrefix"
-      DependsOn: LambdaRegionalStackPolicy
-    RegionalStackSetCustomResource:
-      Condition: "StackSetsIsRegional"
-      Type: "Custom::LambdaCallout"
-      Properties:
-        ServiceToken:
-          Fn::GetAtt:
-            - "EventHandler"
-            - "Arn"
-      DependsOn: LambdaRegionalPolicy
-    EventHandler:
-      Type: AWS::Lambda::Function
-      Condition: "StackSetsIsRegional"
-      Properties:
-        Description: "Invokes the main AutoSpotting Lambda function on spot instance termination notification"
-        Handler: "index.handler"
-        Runtime: "python3.6"
-        Timeout: 300
-        Environment:
-          Variables:
-            AUTOSPOTTING_MAIN_REGION:
-              Ref: "StackSetsMainRegion"
-            AUTOSPOTTING_MAIN_STACK_ARN:
-              Ref: "AWS::StackId"
-        Role:
-          Fn::GetAtt:
-            - "LambdaRegionalExecutionRole"
-            - "Arn"
-        Code:
-          ZipFile: |
-            from boto3 import client
-            from json import dumps
-            from os import environ
-            from sys import exc_info
-            from traceback import print_exc
-            import cfnresponse
 
-            def parse_region_from_arn(arn):
-                return arn.split(':')[3]
-
-            def get_stack_instance(svc):
-                stacksets = svc.list_stack_sets(Status='ACTIVE')['Summaries']
-                for sset in stacksets:
-                    stack_instances = svc.list_stack_instances(
-                        StackSetName=sset['StackSetName'],
-                    )['Summaries']
-                    for si in stack_instances:
-                        if si['StackId'] == environ['AUTOSPOTTING_MAIN_STACK_ARN']:
-                            for sti in stack_instances:
-                                if sti['Region'] == environ['AUTOSPOTTING_MAIN_REGION']:
-                                    return sti['StackId']
-
-            def get_stack_output(svc, stack_instance):
-                outputs = {}
-                stack_outputs = svc.describe_stacks(StackName=stack_instance)['Stacks'][0]['Outputs']
-                for output in stack_outputs:
-                    key = output['OutputKey']
-                    value = output['OutputValue'] if 'OutputValue' in output else None
-                    outputs[key] = value
-
-                return outputs
-
-            def handler(event, context):
-                if 'RequestType' in event:
-                    try:
-                        stack_output = {}
-                        svc = client('cloudformation', environ['AUTOSPOTTING_MAIN_REGION'])
-                        stack_instance = get_stack_instance(svc)
-                        if stack_instance:
-                            stack_output = get_stack_output(svc, stack_instance)
-                        cfnresponse.send(event, context, cfnresponse.SUCCESS, stack_output)
-                    except:
-                        print_exc()
-                        print("Unexpected error:", exc_info()[0])
-                        cfnresponse.send(event, context, cfnresponse.FAILED, {})
-                else:
-                    try:
-                        lambda_arn = event['AutospottingLambdaArn']
-                        svc = client('lambda', region_name=parse_region_from_arn(lambda_arn))
-                        response = svc.invoke(
-                            FunctionName=lambda_arn,
-                            LogType='Tail',
-                            Payload=dumps(event),
-                        )
-                        print(response)
-                    except:
-                        print_exc()
-                        print("Unexpected error:", exc_info()[0])
     ElasticBeanstalkPolicy:
       Type: AWS::IAM::ManagedPolicy
-      Condition: "StackIsMain"
       Properties:
         Description: "Allow instances to get initialization information from CloudFormation when they are a part of a Beanstalk cluster. Add this policy to your Elastic Beanstalk instance profile (role) when enabling patch_beanstalk_userdata in AutoSpotting. (Managed policy created by AutoSpotting)"
         PolicyDocument:
@@ -1104,3 +736,4 @@
                 - "cloudformation:GetListenerCredentials"
               Effect: "Allow"
               Resource: "*"
+
