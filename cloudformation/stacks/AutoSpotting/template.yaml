@@ -449,7 +449,7 @@
           - CAPABILITY_IAM
         Description:  "StackSet that deploys regional resources required by AutoSpotting for capturing events."
         OperationPreferences:
-          FailureToleranceCount: 0
+          FailureTolerancePercentage: 50
           MaxConcurrentPercentage: 100
         PermissionModel: SELF_MANAGED
         Parameters:
