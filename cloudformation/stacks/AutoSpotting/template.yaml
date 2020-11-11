@@ -864,6 +864,13 @@
                 - "lambda:GetFunctionConfiguration"
               Effect: "Allow"
               Resource: "*"
+            - 
+              Action:
+                - "s3:Get*"
+              Effect: "Allow"
+              Resource: 
+                - Fn::Sub: "arn:${AWS::Partition}:s3:::${LambdaS3Bucket}"
+                - Fn::Sub: "arn:${AWS::Partition}:s3:::${LambdaS3Bucket}/${LambdaS3BucketPrefix}/*"
         PolicyName: "LambdaRegionalStackPolicy"
         Roles:
           -
