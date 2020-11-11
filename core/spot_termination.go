@@ -68,6 +68,21 @@ func getInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, erro
 	return nil, nil
 }
 
+func getInstanceIDDueForRebalance(event events.CloudWatchEvent) (*string, error) {
+
+	var detailData instanceData
+	if err := json.Unmarshal(event.Detail, &detailData); err != nil {
+		logger.Println(err.Error())
+		return nil, err
+	}
+
+	if detailData.InstanceID != nil && *detailData.InstanceID != "" {
+		return detailData.InstanceID, nil
+	}
+
+	return nil, nil
+}
+
 //DetachInstance detaches the instance from autoscaling group without decrementing the desired capacity
 //This makes sure that the autoscaling group spawns a new instance as soon as this instance is detached
 func (s *SpotTermination) detachInstance(instanceID *string, asgName string) error {

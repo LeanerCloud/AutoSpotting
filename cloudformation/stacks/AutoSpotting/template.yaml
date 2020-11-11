@@ -141,7 +141,7 @@
         know what you're doing!"
       Type: "String"
     LambdaMemorySize:
-      Default: "1024"
+      Default: 1024
       Description: >
         "Memory allocated to the Lambda function, setting this lower will slow
         down the execution a bit"
@@ -465,6 +465,71 @@
               - Fn::GetAtt:
                   - "LambdaFunction"
                   - "Arn"
+    RebalanceRecommendationLambdaPermission:
+      Condition: "StackSetsTrue"
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName: !If
+          - "StackSetsIsRegional"
+          - Ref: "EventHandler"
+          - Ref: "LambdaFunction"
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::GetAtt:
+            - "RebalanceRecommendationEventRule"
+            - "Arn"
+    RebalanceRecommendationEventRule:
+      Condition: "StackSetsTrue"
+      Type: "AWS::Events::Rule"
+      Properties:
+        Description: "This rule is triggered when a Rebalance Recommendation is available"
+        EventPattern:
+          detail-type:
+            - "EC2 Instance Rebalance Recommendation"
+          source:
+            - "aws.ec2"
+        State: "ENABLED"
+        Targets:
+          -
+            Id: "RebalanceRecommendationEventGenerator"
+            InputTransformer: !If
+              - "StackSetsIsRegional"
+              -
+                InputPathsMap: {
+                  "id": "$.id",
+                  "detail-type": "$.detail-type",
+                  "source": "$.source",
+                  "account": "$.account",
+                  "time": "$.time",
+                  "region": "$.region",
+                  "resources": "$.resources",
+                  "detail": "$.detail"
+                }
+                InputTemplate: !Join ["",
+                  [
+                    "{",
+                    "\"id\": <id>,",
+                    "\"detail-type\": <detail-type>,",
+                    "\"source\": <source>,",
+                    "\"account\": <account>,",
+                    "\"time\": <time>,",
+                    "\"region\": <region>,",
+                    "\"resources\": <resources>,",
+                    "\"detail\": <detail>,",
+                    "\"AutospottingLambdaArn\": \"", !GetAtt RegionalStackSetCustomResource.AutoSpottingLambdaARN, "\"",
+                    "}"
+                  ]
+                ]
+              - !Ref 'AWS::NoValue'
+            Arn: !If
+              - "StackSetsIsRegional"
+              - Fn::GetAtt:
+                  - "EventHandler"
+                  - "Arn"
+              - Fn::GetAtt:
+                  - "LambdaFunction"
+                  - "Arn"
     LifecycleHookLambdaPermission:
       Condition: "StackSetsTrue"
       Type: "AWS::Lambda::Permission"
@@ -630,7 +695,7 @@
               Ref: "LambdaFunctionTagKey"
             Value:
               Ref: "LambdaFunctionTagValue"
-        Timeout: "900"
+        Timeout: 900
       Type: "AWS::Lambda::Function"
     LambdaPolicy:
       Condition: "StackIsMain"
@@ -686,7 +751,7 @@
         Description: "Invoked synchronously by the main Lambda to change ASG MaxSize if attachinstances method fail"
         Handler: "index.handler"
         Runtime: "python3.7"
-        Timeout: "120"
+        Timeout: 120
         ReservedConcurrentExecutions: 1
         Role: !GetAtt LambdaManageASGExecutionRole.Arn
         Code:
@@ -965,7 +1030,7 @@
         Description: "Creates regional CloudFormation stacks that trigger the main Lambda function on spot instance termination notification"
         Handler: "regional_stack_lambda.handler"
         Runtime: "python3.6"
-        Timeout: "900"
+        Timeout: 900
         Role:
           Fn::GetAtt:
             - "LambdaRegionalStackExecutionRole"
@@ -1013,7 +1078,7 @@
         Description: "Invokes the main AutoSpotting Lambda function on spot instance termination notification"
         Handler: "index.handler"
         Runtime: "python3.6"
-        Timeout: "300"
+        Timeout: 300
         Environment:
           Variables:
             AUTOSPOTTING_MAIN_REGION:

@@ -27,7 +27,7 @@
           terminations"
         Handler: "index.handler"
         Runtime: "python3.6"
-        Timeout: "300"
+        Timeout: 300
         Environment:
           Variables:
             AUTOSPOTTING_LAMBDA_ARN:
@@ -132,6 +132,38 @@
         Targets:
           -
             Id: "InstanceRunningEventGenerator"
+            Arn:
+              Fn::GetAtt:
+                - "EventHandler"
+                - "Arn"
+    RebalanceRecommendationLambdaPermission:
+      Type: "AWS::Lambda::Permission"
+      Properties:
+        Action: "lambda:InvokeFunction"
+        FunctionName:
+          Ref: "EventHandler"
+        Principal: "events.amazonaws.com"
+        SourceArn:
+          Fn::GetAtt:
+            - "RebalanceRecommendationEventRule"
+            - "Arn"
+    RebalanceRecommendationEventRule:
+      Type: "AWS::Events::Rule"
+      Properties:
+        Description: >
+          "This rule is triggered when a Rebalance Recommendation is available"
+        EventPattern:
+          detail-type:
+            - "EC2 Instance Rebalance Recommendation"
+          source:
+            - "aws.ec2"
+          detail:
+            state:
+              - "running"
+        State: "ENABLED"
+        Targets:
+          -
+            Id: "RebalanceRecommendationEventGenerator"
             Arn:
               Fn::GetAtt:
                 - "EventHandler"

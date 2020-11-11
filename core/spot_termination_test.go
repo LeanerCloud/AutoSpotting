@@ -80,6 +80,61 @@ func TestGetInstanceIDDueForTermination(t *testing.T) {
 	}
 }
 
+func TestGetInstanceIDDueForRebalance(t *testing.T) {
+
+	expectedInstanceID := "i-123456"
+	dummyInstanceData := instanceData{
+		InstanceID: aws.String(expectedInstanceID),
+	}
+
+	tests := []struct {
+		name            string
+		cloudWatchEvent events.CloudWatchEvent
+		expected        *string
+		expectedError   error
+	}{
+		{
+			name: "Invalid Detail in CloudWatch event",
+			cloudWatchEvent: events.CloudWatchEvent{
+				Detail: []byte(""),
+			},
+		},
+		{
+			name: "Detail in event is empty",
+			cloudWatchEvent: events.CloudWatchEvent{
+				Detail: []byte("{}"),
+			},
+			expected:      nil,
+			expectedError: nil,
+		},
+		{
+			name: "Detail has spot termination event data",
+			cloudWatchEvent: events.CloudWatchEvent{
+				Detail: func() json.RawMessage {
+					data, _ := json.Marshal(dummyInstanceData)
+					return data
+				}(),
+			},
+			expected:      &expectedInstanceID,
+			expectedError: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			instanceID, _ := getInstanceIDDueForRebalance(tc.cloudWatchEvent)
+
+			if tc.expected == nil && instanceID != nil {
+				t.Errorf("Expected nil instanceID, actual: %s", *instanceID)
+			}
+
+			if tc.expected != nil && *tc.expected != *instanceID {
+				t.Errorf("InstanceID expected: %v\nactual: %v", tc.expected, instanceID)
+			}
+		})
+	}
+}
+
 func TestDetachInstance(t *testing.T) {
 
 	asgName := "dummyASGName"
