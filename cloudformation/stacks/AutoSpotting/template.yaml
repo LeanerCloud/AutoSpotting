@@ -440,8 +440,8 @@
     RegionalStackSet:
       Condition: DeployRegionalResourcesStackSet
       DependsOn:
-        - AWSCloudFormationStackSetAdministrationRole
-        - AWSCloudFormationStackSetExecutionRole
+        - StackSetAdministrationRole
+        - StackSetExecutionRole
       Type: AWS::CloudFormation::StackSet
       Properties:
         TemplateURL: https://s3.amazonaws.com/cloudprowess/nightly/regional_template.yaml
@@ -470,22 +470,50 @@
                 - Ref: AWS::AccountId
             Regions:
               Ref: Regions
-    AWSCloudFormationStackSetAdministrationRole:
-      Condition: DeployRegionalResourcesStackSet
-      Type: AWS::CloudFormation::Stack
-      Properties:
-        TemplateURL: https://s3.amazonaws.com/cloudformation-stackset-sample-templates-us-east-1/AWSCloudFormationStackSetAdministrationRole.yml
-        TimeoutInMinutes: 10
-    AWSCloudFormationStackSetExecutionRole:
-      Condition: DeployRegionalResourcesStackSet
-      Type: AWS::CloudFormation::Stack
-      Properties:
-        TemplateURL: https://s3.amazonaws.com/cloudformation-stackset-sample-templates-us-east-1/AWSCloudFormationStackSetExecutionRole.yml
-        TimeoutInMinutes: 10
-        Parameters:
-            AdministratorAccountId:
-              Ref: AWS::AccountId
 
+    # Enablers of the regional StackSet
+    StackSetAdministrationRole:
+      Condition: DeployRegionalResourcesStackSet
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: AWSCloudFormationStackSetAdministrationRole
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: cloudformation.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Path: /
+        Policies:
+          - PolicyName: AssumeRole-AWSCloudFormationStackSetExecutionRole
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - sts:AssumeRole
+                  Resource:
+                    - "arn:*:iam::*:role/AWSCloudFormationStackSetExecutionRole"
+
+    StackSetExecutionRole:
+      Condition: DeployRegionalResourcesStackSet
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: AWSCloudFormationStackSetExecutionRole
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                AWS:
+                  - Ref: AWS::AccountId
+              Action:
+                - sts:AssumeRole
+        Path: /
+        ManagedPolicyArns:
+          - !Sub arn:${AWS::Partition}:iam::aws:policy/AdministratorAccess
 
 # TODO: move this to the main Lambda function code at some point
     LambdaManageASG:
