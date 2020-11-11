@@ -259,6 +259,26 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 			a.handleNewInstanceLaunch(cloudwatchEvent.Region, *instanceID, *state)
 		}
 
+	} else if eventType == "EC2 Instance Rebalance Recommendation" {
+		log.Println("Triggered by", eventType)
+		instanceID, err := getInstanceIDDueForRebalance(*cloudwatchEvent)
+		if err != nil {
+			log.Println("Couldn't get instance ID of a instance rebalance recommendation", err.Error())
+			return
+		} else if instanceID != nil {
+			logger.SetPrefix(fmt.Sprintf("RE:%s", *instanceID))
+			spotTermination := newSpotTermination(cloudwatchEvent.Region)
+			if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
+				err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
+				if err != nil {
+					log.Printf("Error executing spot termination action due rebalance recommendation: %s\n", err.Error())
+				}
+			} else {
+				log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
+				return
+			}
+		}
+
 	} else if eventType == "AWS API Call via CloudTrail" {
 		log.Println("Triggered by", eventType)
 		a.handleLifecycleHookEvent(*cloudwatchEvent)
