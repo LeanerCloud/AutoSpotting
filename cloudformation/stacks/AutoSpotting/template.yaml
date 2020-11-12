@@ -518,7 +518,7 @@
       Type: "AWS::Lambda::Function"
       Properties:
         Description: "Invoked synchronously by the main Lambda to change ASG MaxSize if the AttachInstances call fails, and temporarily pause AutoScaling processes."
-        Handler: "index.handler"
+        Handler: "manage_asg.handler"
         Runtime: "python3.8"
         Timeout: 120
         ReservedConcurrentExecutions: 1
