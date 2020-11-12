@@ -350,10 +350,13 @@
       Condition: "StackSetsTrue"
       Type: "AWS::Events::Rule"
       Properties:
-        Description: "This rule is triggered 2 minutes before AWS terminates a spot instance"
+        Description: >
+          "This rule is triggered 2 minutes before AWS terminates a spot
+          instance or when AWS send a Rebalance Recommendation"
         EventPattern:
           detail-type:
             - "EC2 Spot Instance Interruption Warning"
+            - "EC2 Instance Rebalance Recommendation"
           source:
             - "aws.ec2"
         State: "ENABLED"
@@ -428,71 +431,6 @@
         Targets:
           -
             Id: "InstanceRunningEventGenerator"
-            InputTransformer: !If
-              - "StackSetsIsRegional"
-              -
-                InputPathsMap: {
-                  "id": "$.id",
-                  "detail-type": "$.detail-type",
-                  "source": "$.source",
-                  "account": "$.account",
-                  "time": "$.time",
-                  "region": "$.region",
-                  "resources": "$.resources",
-                  "detail": "$.detail"
-                }
-                InputTemplate: !Join ["",
-                  [
-                    "{",
-                    "\"id\": <id>,",
-                    "\"detail-type\": <detail-type>,",
-                    "\"source\": <source>,",
-                    "\"account\": <account>,",
-                    "\"time\": <time>,",
-                    "\"region\": <region>,",
-                    "\"resources\": <resources>,",
-                    "\"detail\": <detail>,",
-                    "\"AutospottingLambdaArn\": \"", !GetAtt RegionalStackSetCustomResource.AutoSpottingLambdaARN, "\"",
-                    "}"
-                  ]
-                ]
-              - !Ref 'AWS::NoValue'
-            Arn: !If
-              - "StackSetsIsRegional"
-              - Fn::GetAtt:
-                  - "EventHandler"
-                  - "Arn"
-              - Fn::GetAtt:
-                  - "LambdaFunction"
-                  - "Arn"
-    RebalanceRecommendationLambdaPermission:
-      Condition: "StackSetsTrue"
-      Type: "AWS::Lambda::Permission"
-      Properties:
-        Action: "lambda:InvokeFunction"
-        FunctionName: !If
-          - "StackSetsIsRegional"
-          - Ref: "EventHandler"
-          - Ref: "LambdaFunction"
-        Principal: "events.amazonaws.com"
-        SourceArn:
-          Fn::GetAtt:
-            - "RebalanceRecommendationEventRule"
-            - "Arn"
-    RebalanceRecommendationEventRule:
-      Condition: "StackSetsTrue"
-      Type: "AWS::Events::Rule"
-      Properties:
-        Description: "This rule is triggered when a Rebalance Recommendation is available"
-        EventPattern:
-          detail-type:
-            - "EC2 Instance Rebalance Recommendation"
-          source:
-            - "aws.ec2"
-        State: "ENABLED"
-        Targets:
-          -
-            Id: "RebalanceRecommendationEventGenerator"
             InputTransformer: !If
               - "StackSetsIsRegional"
               -
