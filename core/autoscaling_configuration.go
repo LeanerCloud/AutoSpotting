@@ -83,10 +83,10 @@ const (
 	// can override the global value of the Timezone parameter
 	TimezoneTag = "autospotting_cron_timezone"
 
-	// CronScheduleState controls whether to run or not to run during the time interval
+	// CronScheduleStateOn controls whether to run or not to run during the time interval
 	// specified in the Schedule variable or its per-group tag overrides. It
 	// accepts "on|off" as valid values
-	CronScheduleState = "on"
+	CronScheduleStateOn = "on"
 
 	// CronScheduleStateTag is the name of the tag set on the AutoScaling Group that
 	// can override the global value of the CronScheduleState parameter

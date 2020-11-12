@@ -22,7 +22,7 @@ func Test_insideSchedule(t *testing.T) {
 	}{
 		{
 			name:     "All the time",
-			crontab:  "* *",
+			crontab:  DefaultCronSchedule,
 			t:        time.Date(2019, time.May, 9, 10, 0, 0, 0, time.UTC),
 			timezone: "UTC",
 			want:     true,

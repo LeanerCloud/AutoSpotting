@@ -49,7 +49,7 @@ const (
 	// also be reverted using the CronScheduleState parameter, so in order to run
 	// outside this interval set the CronScheduleStateq qto "off" either globally or
 	// on a per-group override.
-	DefaultSchedule = "* *"
+	DefaultCronSchedule = "* *"
 )
 
 // Config extends the AutoScalingConfig struct and in addition contains a
@@ -192,7 +192,7 @@ func ParseConfig(conf *Config) {
 		"\tIn case the tag_filtering_mode is set to opt-out, it defaults to 'spot-enabled=false'\n"+
 		"\tExample: ./AutoSpotting --tag_filters 'spot-enabled=true,Environment=dev,Team=vision'\n")
 
-	flagSet.StringVar(&conf.CronSchedule, "cron_schedule", "* *", "\n\tCron-like schedule in which to"+
+	flagSet.StringVar(&conf.CronSchedule, "cron_schedule", DefaultCronSchedule, "\n\tCron-like schedule in which to"+
 		"\tperform(or not) spot replacement actions. Format: hour day-of-week\n"+
 		"\tExample: ./AutoSpotting --cron_schedule '9-18 1-5' # workdays during the office hours \n")
 

@@ -3963,7 +3963,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 		region: &region{
 			conf: &Config{
 				AutoScalingConfig: AutoScalingConfig{
-					CronSchedule:      "* *",
+					CronSchedule:      DefaultCronSchedule,
 					CronScheduleState: "on",
 				},
 				LicenseType: "evaluation",
@@ -3988,7 +3988,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 		region: &region{
 			conf: &Config{
 				AutoScalingConfig: AutoScalingConfig{
-					CronSchedule:      "* *",
+					CronSchedule:      DefaultCronSchedule,
 					CronScheduleState: "on",
 					MinOnDemandNumber: 1,
 				},
@@ -4063,7 +4063,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 		region: &region{
 			conf: &Config{
 				AutoScalingConfig: AutoScalingConfig{
-					CronSchedule:      "* *",
+					CronSchedule:      DefaultCronSchedule,
 					CronScheduleState: "on",
 
 					MinOnDemandNumber: 0,
@@ -4128,7 +4128,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 		region: &region{
 			conf: &Config{
 				AutoScalingConfig: AutoScalingConfig{
-					CronSchedule:      "* *",
+					CronSchedule:      DefaultCronSchedule,
 					CronScheduleState: "on",
 
 					MinOnDemandNumber: 1,
@@ -4166,7 +4166,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 		region: &region{
 			conf: &Config{
 				AutoScalingConfig: AutoScalingConfig{
-					CronSchedule:      "* *",
+					CronSchedule:      DefaultCronSchedule,
 					CronScheduleState: "on",
 					MinOnDemandNumber: 0,
 				},
@@ -4202,7 +4202,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 		region: &region{
 			conf: &Config{
 				AutoScalingConfig: AutoScalingConfig{
-					CronSchedule:      "* *",
+					CronSchedule:      DefaultCronSchedule,
 					CronScheduleState: "on",
 					MinOnDemandNumber: 0,
 				},
@@ -4233,7 +4233,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 				region: &region{
 					conf: &Config{
 						AutoScalingConfig: AutoScalingConfig{
-							CronSchedule:      "* *",
+							CronSchedule:      DefaultCronSchedule,
 							CronScheduleState: "off",
 						},
 					},
@@ -4257,7 +4257,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 				region: &region{
 					conf: &Config{
 						AutoScalingConfig: AutoScalingConfig{
-							CronSchedule:      "* *",
+							CronSchedule:      DefaultCronSchedule,
 							CronScheduleState: "on",
 						},
 						LicenseType: "evaluation",
@@ -4350,8 +4350,6 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 }
 
 func Test_autoScalingGroup_enableForInstanceLaunchEventHandling(t *testing.T) {
-	type fields struct {
-	}
 	tests := []struct {
 		name                string
 		Group               *autoscaling.Group
