@@ -22,7 +22,7 @@
           function on events such as instance launches or imminent spot instance
           terminations"
         Handler: "index.handler"
-        Runtime: "python3.6"
+        Runtime: "python3.8"
         Timeout: 300
         Environment:
           Variables:
