@@ -90,10 +90,11 @@
       Properties:
         Description: >
           "This rule is triggered 2 minutes before AWS terminates a spot
-          instance"
+          instance or when AWS send a Rebalance Recommendation"
         EventPattern:
           detail-type:
             - "EC2 Spot Instance Interruption Warning"
+            - "EC2 Instance Rebalance Recommendation"
           source:
             - "aws.ec2"
         State: "ENABLED"

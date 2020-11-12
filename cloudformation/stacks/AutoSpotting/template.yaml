@@ -350,7 +350,9 @@
       Condition: "StackSetsTrue"
       Type: "AWS::Events::Rule"
       Properties:
-        Description: "This rule is triggered 2 minutes before AWS terminates a spot instance or when AWS send a Rebalance Recommendation"
+        Description: >
+          "This rule is triggered 2 minutes before AWS terminates a spot
+          instance or when AWS send a Rebalance Recommendation"
         EventPattern:
           detail-type:
             - "EC2 Spot Instance Interruption Warning"
