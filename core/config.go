@@ -42,12 +42,12 @@ const (
 	// terminate the spot instance (as TerminateTerminationNotificationAction), if not detach it.
 	AutoTerminationNotificationAction = "auto"
 
-	// DefaultSchedule is the default value for the execution schedule in
+	// DefaultCronSchedule is the default value for the execution schedule in
 	// simplified Cron-style definition the cron format only accepts the hour and
 	// day of week fields, for example "9-18 1-5" would define the working week
 	// hours. AutoSpotting will only run inside this time interval. The action can
 	// also be reverted using the CronScheduleState parameter, so in order to run
-	// outside this interval set the CronScheduleStateq qto "off" either globally or
+	// outside this interval set the CronScheduleState to "off" either globally or
 	// on a per-group override.
 	DefaultCronSchedule = "* *"
 )
