@@ -11,21 +11,24 @@ logger.setLevel(logging.INFO)
 def change_max_size(svc, asg, variation):
     try:
         response = svc.describe_auto_scaling_groups(
-            ASGNames=[asg],
+            AutoScalingGroupNames=[asg],
         )
 
-        if not response['ASGs']:
+        if not response['AutoScalingGroups']:
             raise Exception(f'ASG {asg} not found!')
     except Exception as e:
         logger.error(f'Failed to describe {asg}: {e}')
         return False
 
-    currentSize = response['ASGs'][0]['MaxSize']
+    currentSize = response['AutoScalingGroups'][0]['MaxSize']
     newSize = int(currentSize) + int(variation)
+
+    logger.info(
+        f'ASG {asg} Current size: {currentSize}, extending to {newSize}')
 
     try:
         response = svc.update_auto_scaling_group(
-            ASGName=asg,
+            AutoScalingGroupName=asg,
             MaxSize=newSize,
         )
     except Exception as e:
@@ -40,7 +43,7 @@ def change_max_size(svc, asg, variation):
 def suspend(svc, asg, tag):
     try:
         svc.suspend_processes(
-            ASGName=asg,
+            AutoScalingGroupName=asg,
             ScalingProcesses=['Terminate'],
         )
         return True
@@ -79,7 +82,7 @@ def resume(svc, asg, tag, instanceId):
         )
         if response['Tags']:
             svc.resume_processes(
-                ASGName=asg,
+                AutoScalingGroupName=asg,
                 ScalingProcesses=['Terminate'],
             )
             svc.delete_tags(Tags=[tag])
@@ -90,7 +93,7 @@ def resume(svc, asg, tag, instanceId):
         return False
 
 
-def suspend_resume(svc, region, asg, action, instanceId):
+def suspend_resume(svc, asg, action, instanceId):
     tag = {
         'ResourceId': asg,
         'Key': 'autospotting_suspend_processes_by',
@@ -111,8 +114,10 @@ def handler(event, context):
 
     if 'variation' in event:
         variation = event['variation']
+        logger.info(f'ASG {asg} Extending by to {variation}')
         return change_max_size(svc, asg, variation)
     else:
         instanceId = event['instanceid']
         action = event['action']
+        logger.info(f'ASG {asg} Taking action: {action} for {instanceId}')
         return suspend_resume(svc, asg, action, instanceId)
