@@ -115,4 +115,4 @@ def handler(event, context):
     else:
         instanceId = event['instanceid']
         action = event['action']
-        return suspend_resume(svc, asg, action, instance
+        return suspend_resume(svc, asg, action, instanceId)
