@@ -25,7 +25,8 @@ such environments.
 - These regional resources have been historically deployed using a second
   regional CloudFormation template, deployed by a custom Lambda-backed
   CloudFormation resource across all available AWS regions. This was error-prone
-  in particular when having multiple installations of AutoSpotting side by side, especially when some of them were uninstalled.
+  in particular when having multiple installations of AutoSpotting side by side,
+  especially when some of them were uninstalled.
 - There was also another installation mode in which the same main CloudFormation
   template could itself be deployed using a StackSet, deploying only the main
   resources in the main region and only the regional resources in the other
@@ -50,16 +51,16 @@ such environments.
 1. Grant permissions for using StackSets at AWS Organization level using these
    [instructions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/StackSets-orgs-enable-trusted-access.html).
    See Note 1 below for further information on this topic.
-2. Use the same CloudFormation
+1. Use the same CloudFormation
    [template](https://s3.amazonaws.com/cloudprowess/nightly/template.yaml) and
    parameters used for deploying AutoSpotting in stand-alone mode within a
    single AWS account.
-3. Create the StackSet only in the "Main" region. For the official binaries you
+1. Create the StackSet only in the "Main" region. For the official binaries you
    will need to use `us-east-1`, otherwise installation fails. See Note 2 below
    in case you run a custom build hosted in another region.
-4. Set the OrganizationUnit where you want to deploy AutoSpotting and complete
+1. Set the OrganizationUnit where you want to deploy AutoSpotting and complete
    the installation wizard. You can also use the Organization root to install AutoSpotting across an entire AWS Organization.
-5. For faster installation you can allow a 50% failure percentage, otherwise the
+1. For faster installation you can allow a 50% failure percentage, otherwise the
    StackSet will deploy AutoSpotting only one account at a time which can be
    slow on large organizations.
 
@@ -68,7 +69,7 @@ such environments.
 1. Self-managed StackSet permissions are not supported out of the box and will
    break the default installation of AutoSpotting if you have them configured in
    the account. See below the workaround for this issue if you run into it.
-2. If you run a custom build use the region where you created the S3 bucket
+1. If you run a custom build use the region where you created the S3 bucket
    hosting the code of the customized AutoSpotting Lambda functions.
 
 ## Workarounds
