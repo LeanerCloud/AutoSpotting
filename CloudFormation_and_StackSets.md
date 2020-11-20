@@ -59,7 +59,8 @@ such environments.
    will need to use `us-east-1`, otherwise installation fails. See Note 2 below
    in case you run a custom build hosted in another region.
 1. Set the OrganizationUnit where you want to deploy AutoSpotting and complete
-   the installation wizard. You can also use the Organization root to install AutoSpotting across an entire AWS Organization.
+   the installation wizard. You can also use the Organization root to install
+   AutoSpotting across an entire AWS Organization.
 1. For faster installation you can allow a 50% failure percentage, otherwise the
    StackSet will deploy AutoSpotting only one account at a time which can be
    slow on large organizations.
@@ -114,5 +115,4 @@ such environments.
 ## Support
 
 As always, if you need Enterprise support for more exotic or large
-configurations, you can always get in touch on
-[gitter](https://gitter.im/cristim).
+configurations, you can get in touch on [gitter](https://gitter.im/cristim).
