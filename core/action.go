@@ -55,7 +55,6 @@ func (lsr launchSpotReplacement) run() {
 		return
 	}
 	logger.Printf("Successfully launched spot instance %s, exiting...", *spotInstanceID)
-	return
 }
 
 type terminateUnneededSpotInstance struct {

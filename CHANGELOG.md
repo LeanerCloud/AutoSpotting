@@ -2,6 +2,15 @@
 
 <!-- markdownlint-disable MD024 -->
 
+Since 2019 the release notes, potential breaking changes and mitigation
+procedures have only been communicated via private channels to the Patreon
+subscribers when releasing a new stable version.
+
+Sign up on [Patreon](https://www.patreon.com/cristim) in order to receive these
+release notifications, as well as to get access to these supported stable
+versions. In the future certain premium features will only be available in the
+stable builds.
+
 ## 19 September 2018, build 942
 
 Yet another really beefy entry, but most of this was also captured in much more

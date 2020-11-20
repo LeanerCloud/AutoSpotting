@@ -100,11 +100,6 @@ func (cfg *Config) addDefaultFilter() {
 	}
 }
 
-func (cfg *Config) disableLogging() {
-	cfg.LogFile = ioutil.Discard
-	cfg.setupLogging()
-}
-
 func (cfg *Config) setupLogging() {
 	logger = log.New(cfg.LogFile, "", cfg.LogFlag)
 

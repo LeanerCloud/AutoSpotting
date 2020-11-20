@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -336,7 +335,7 @@ func (a *autoScalingGroup) enableForInstanceLaunchEventHandling() bool {
 }
 
 func (a *autoScalingGroup) isEnabledForEventBasedInstanceReplacement() bool {
-	if time.Now().Sub(*a.CreatedTime) < time.Hour {
+	if time.Since(*a.CreatedTime) < time.Hour {
 		logger.Println("ASG %s is newer than an hour, enabling it for event-based "+
 			"instance replacement", a.name)
 		return a.enableForInstanceLaunchEventHandling()
@@ -529,7 +528,7 @@ func (a *autoScalingGroup) hasMemberInstance(inst *instance) bool {
 
 func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status string, maxRetry int) error {
 	isInstanceInStatus := false
-	for retry := 1; isInstanceInStatus == false; retry++ {
+	for retry := 1; !isInstanceInStatus; retry++ {
 		if retry > maxRetry {
 			logger.Printf("Failed waiting instance %v in status %v",
 				*instanceID, status)
@@ -669,13 +668,19 @@ func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceID stri
 
 	changed := false
 	seed := a.getRandSeed(instanceID)
-	svc := lambda.New(session.New(), aws.NewConfig())
+	s, err := session.NewSession()
+	if err != nil {
+		logger.Println("Could create new session:", err.Error())
+		return err
+	}
+
+	svc := lambda.New(s, aws.NewConfig())
 	logger.Printf("Changing AutoScalingGroup %s MaxSize of %v unit",
 		a.name, value)
 
-	for retry, maxRetry := 0, 5; changed == false; {
+	for retry, maxRetry := 0, 5; !changed; {
 		if retry > maxRetry {
-			return fmt.Errorf("Unable to update ASG %v MaxSize", a.name)
+			return fmt.Errorf("unable to update ASG %v MaxSize", a.name)
 		}
 		_, err := svc.Invoke(
 			&lambda.InvokeInput{
@@ -722,7 +727,7 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 
 	increase := 0
 
-	for attaching := false; attaching == false; {
+	for attaching := false; !attaching; {
 		resp, err := a.region.services.autoScaling.AttachInstances(
 			&autoscaling.AttachInstancesInput{
 				AutoScalingGroupName: aws.String(a.name),
@@ -884,7 +889,7 @@ func (a *autoScalingGroup) hasLaunchLifecycleHooks() (bool, error) {
 	}
 
 	for _, hook := range resDLH.LifecycleHooks {
-		if "autoscaling:EC2_INSTANCE_LAUNCHING" == *hook.LifecycleTransition {
+		if *hook.LifecycleTransition == "autoscaling:EC2_INSTANCE_LAUNCHING" {
 			debug.Printf("Group %s has launch lifecycle hook(s): %s",
 				*a.AutoScalingGroupName, *hook.LifecycleHookName)
 			return true, nil
@@ -921,69 +926,6 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	return count, total
 }
 
-func (a *autoScalingGroup) suspendTerminationProcess() {
-	logger.Printf("Suspending termination processes on ASG %s", a.name)
-
-	for _, process := range a.SuspendedProcesses {
-		if *process.ProcessName == "Terminate" {
-			logger.Printf("ASG %s already has the termination process suspended", a.name)
-			return
-		}
-	}
-
-	_, err := a.region.services.autoScaling.SuspendProcesses(
-		&autoscaling.ScalingProcessQuery{
-			AutoScalingGroupName: a.AutoScalingGroupName,
-			ScalingProcesses:     []*string{aws.String("Terminate")},
-		})
-	if err != nil {
-		logger.Printf("couldn't suspend termination processes on ASG %s ", a.name)
-	}
-}
-
-func (a *autoScalingGroup) resumeTerminationProcess() {
-	logger.Printf("Resuming termination processes on ASG %s", a.name)
-
-	_, err := a.region.services.autoScaling.ResumeProcesses(
-		&autoscaling.ScalingProcessQuery{
-			AutoScalingGroupName: a.AutoScalingGroupName,
-			ScalingProcesses:     []*string{aws.String("Terminate")},
-		})
-	if err != nil {
-		logger.Printf("couldn't resume termination processes on ASG %s ", a.name)
-	}
-}
-func (a *autoScalingGroup) isEnabled() bool {
-	for _, asg := range a.region.enabledASGs {
-		if asg.name == a.name {
-			return true
-		}
-	}
-	return false
-}
-
-func (a *autoScalingGroup) temporarilySuspendTerminations(wg *sync.WaitGroup) {
-	wg.Add(1)
-	defer wg.Done()
-
-	if a.isTerminationSuspended() {
-		return
-	}
-
-	a.suspendTerminationProcess()
-	time.Sleep(300 * time.Second * a.region.conf.SleepMultiplier)
-	a.resumeTerminationProcess()
-}
-
-func (a *autoScalingGroup) isTerminationSuspended() bool {
-	for _, process := range a.SuspendedProcesses {
-		if *process.ProcessName == "Terminate" {
-			return true
-		}
-	}
-	return false
-}
-
 func (a *autoScalingGroup) suspendResumeProcess(instanceID string, action string) error {
 	payload, _ := json.Marshal(map[string]interface{}{
 		"region":     a.region.name,
@@ -995,14 +937,19 @@ func (a *autoScalingGroup) suspendResumeProcess(instanceID string, action string
 	changed := false
 	seed := a.getRandSeed(instanceID)
 
-	svc := lambda.New(session.New(), aws.NewConfig())
+	s, err := session.NewSession()
+	if err != nil {
+		logger.Println("Could create new session:", err.Error())
+		return err
+	}
+	svc := lambda.New(s, aws.NewConfig())
 
 	logger.Printf("Process %s for AutoScalingGroup %s",
 		action, a.name)
 
-	for retry, maxRetry := 0, 5; changed == false; {
+	for retry, maxRetry := 0, 5; !changed; {
 		if retry > maxRetry {
-			return fmt.Errorf("Unable to %s process for ASG %s", action, a.name)
+			return fmt.Errorf("unable to %s process for ASG %s", action, a.name)
 		}
 		_, err := svc.Invoke(
 			&lambda.InvokeInput{

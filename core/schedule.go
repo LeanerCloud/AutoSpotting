@@ -59,7 +59,7 @@ func cronRunAction(t time.Time, crontab string, timezone string, scheduleType st
 		return false
 	}
 
-	if (inside && scheduleType == "on") || (!inside && scheduleType == "off") {
+	if (inside && scheduleType == CronScheduleStateOn) || (!inside && scheduleType == "off") {
 		return true
 	}
 

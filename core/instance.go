@@ -497,7 +497,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 		return result, nil
 	}
 
-	return nil, fmt.Errorf("No cheaper spot instance types could be found")
+	return nil, fmt.Errorf("no cheaper spot instance types could be found")
 }
 
 func (i *instance) launchSpotReplacement() (*string, error) {
@@ -632,11 +632,9 @@ func (i *instance) launchTemplateHasNetworkInterfaces(id, ver *string) (bool, []
 }
 
 func (i *instance) createRunInstancesInput(instanceType string, price float64) *ec2.RunInstancesInput {
-	var retval ec2.RunInstancesInput
-
 	// information we must (or can safely) copy/convert from the currently running
 	// on-demand instance or we had to compute in order to place the spot bid
-	retval = ec2.RunInstancesInput{
+	retval := ec2.RunInstancesInput{
 
 		EbsOptimized: i.EbsOptimized,
 
