@@ -1,8 +1,4 @@
-# Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
-# Licensed under the Open Software License version 3.0
-
----
-# Copyright (c) 2016-2019 Cristian Măgherușan-Stanciu
+# Copyright (c) 2016-2020 Cristian Măgherușan-Stanciu
 # Licensed under the Open Software License version 3.0
 
   AWSTemplateFormatVersion: "2010-09-09"
@@ -26,7 +22,7 @@
           function on events such as instance launches or imminent spot instance
           terminations"
         Handler: "index.handler"
-        Runtime: "python3.6"
+        Runtime: "python3.8"
         Timeout: 300
         Environment:
           Variables:

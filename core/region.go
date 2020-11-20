@@ -365,7 +365,7 @@ func (r *region) isStackUpdating(stackName *string) (string, bool) {
 		logger.Println("Failed to describe stack", *stackName, "with error:", err.Error())
 	} else {
 		stackStatus := output.Stacks[0].StackStatus
-		if _, exists := stackCompleteStatuses[*stackStatus]; exists == false {
+		if _, exists := stackCompleteStatuses[*stackStatus]; !exists {
 			return *stackStatus, true
 		}
 	}

@@ -29,7 +29,7 @@ func TestGetInstanceIDDueForTermination(t *testing.T) {
 	expectedInstanceID := "i-123456"
 	dummyInstanceData := instanceData{
 		InstanceID:     aws.String(expectedInstanceID),
-		InstanceAction: aws.String("terminate"),
+		InstanceAction: aws.String(TerminateTerminationNotificationAction),
 	}
 
 	tests := []struct {
@@ -393,7 +393,7 @@ func TestExecuteAction(t *testing.T) {
 				},
 			},
 			expectedError:                 nil,
-			terminationNotificationAction: "terminate",
+			terminationNotificationAction: TerminateTerminationNotificationAction,
 		},
 		{
 			name: "When AutoScaling service returns asgName and action is detach",
@@ -412,7 +412,7 @@ func TestExecuteAction(t *testing.T) {
 				},
 			},
 			expectedError:                 nil,
-			terminationNotificationAction: "detach",
+			terminationNotificationAction: DetachTerminationNotificationAction,
 		},
 	}
 	for _, tc := range tests {

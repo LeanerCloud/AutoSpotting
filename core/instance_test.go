@@ -835,7 +835,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			},
 			disallowedList:        []string{"type*"},
 			expectedCandidateList: nil,
-			expectedError:         errors.New("No cheaper spot instance types could be found"),
+			expectedError:         errors.New("no cheaper spot instance types could be found"),
 		},
 		{name: "better/cheaper spot instance found but not marked as allowed",
 			spotInfos: map[string]instanceTypeInformation{
@@ -913,7 +913,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			},
 			allowedList:           []string{"asdf*"},
 			expectedCandidateList: nil,
-			expectedError:         errors.New("No cheaper spot instance types could be found"),
+			expectedError:         errors.New("no cheaper spot instance types could be found"),
 		},
 		{name: "better/cheaper spot instance found and marked as allowed",
 			spotInfos: map[string]instanceTypeInformation{
@@ -1069,7 +1069,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 				},
 			},
 			expectedCandidateList: nil,
-			expectedError:         errors.New("No cheaper spot instance types could be found"),
+			expectedError:         errors.New("no cheaper spot instance types could be found"),
 		},
 	}
 
