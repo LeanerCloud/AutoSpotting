@@ -303,6 +303,17 @@
       Fn::Equals:
         - Ref: DeployRegionalResourcesStackSet
         - "true"
+  Outputs:
+    AutoSpottingLambdaARN:
+      Value:
+        Fn::GetAtt:
+          - "LambdaFunction"
+          - "Arn"
+    LambdaRegionalStackExecutionRoleARN:
+      Value:
+        Fn::GetAtt:
+          - "LambdaRegionalStackExecutionRole"
+          - "Arn"
   Resources:
     LambdaExecutionRole:
       Properties:
