@@ -197,33 +197,6 @@ func (a *autoScalingGroup) allInstancesRunning() (bool, int64) {
 	return totalRunning == a.instances.count64(), onDemandRunning
 }
 
-func (a *autoScalingGroup) calculateHourlySavings() float64 {
-	var savings float64
-	for i := range a.instances.instances() {
-		savings += (i.typeInfo.pricing.onDemand + i.typeInfo.pricing.premium) - i.price
-	}
-	return savings
-}
-
-func (a *autoScalingGroup) licensedToRun() (bool, error) {
-	defer as.savingsMutex.Unlock()
-	as.savingsMutex.Lock()
-
-	savings := a.calculateHourlySavings()
-	as.hourlySavings += savings
-
-	monthlySavings := as.hourlySavings * 24 * 30
-
-	if (monthlySavings > 1000) &&
-		strings.Contains(a.region.conf.Version, "nightly") &&
-		a.region.conf.LicenseType == "evaluation" {
-		return false, fmt.Errorf(
-			"would reach estimated monthly savings of $%.2f when processing this group, above the $1000 evaluation limit",
-			monthlySavings)
-	}
-	return true, nil
-}
-
 func (a *autoScalingGroup) cronEventAction() runer {
 
 	a.scanInstances()
@@ -241,11 +214,6 @@ func (a *autoScalingGroup) cronEventAction() runer {
 		logger.Println(a.region.name, a.name,
 			"Skipping run, outside the enabled cron run schedule")
 		return skipRun{reason: "outside-cron-schedule"}
-	}
-
-	if licensed, err := a.licensedToRun(); !licensed {
-		logger.Println(a.region.name, a.name, "Skipping group, license limit reached:", err.Error())
-		return skipRun{reason: "over-license"}
 	}
 
 	if spotInstance == nil {
