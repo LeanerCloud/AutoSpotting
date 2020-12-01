@@ -263,9 +263,7 @@
         - "I_contributed_to_development_within_the_last_year"
         - "I_built_it_from_source_code"
       Description: >
-        "Chose the option that best describes your current situation. Evaluation
-        binaries are restricted to up to $1000 in monthly savings, the others
-        are not restricted"
+        "Obsolete, please ignore, only kept for compatibility with previous builds."
       Type: "String"
     PatchBeanstalkUserdata:
       Default: "false"

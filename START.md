@@ -1,29 +1,34 @@
 # Getting started #
 
-* [Getting started](#getting-started)
-  * [Requirements](#requirements)
-  * [Installation](#installation)
-    * [Installation options](#installation-options)
-    * [Install via cloudformation](#install-via-cloudformation)
-    * [Install via terraform](#install-via-terraform)
-  * [Enable autospotting](#enable-autospotting)
-    * [For an AutoScaling group](#for-an-autoscaling-group)
-    * [For Elastic Beanstalk](#for-elastic-beanstalk)
-  * [Configuration of autospotting](#configuration-of-autospotting)
-    * [Testing configuration](#testing-configuration)
-    * [Running configuration](#running-configuration)
-      * [Minimum on-demand configuration](#minimum-on-demand-configuration)
-    * [Debug autospotting](#debug-autospotting)
-  * [Updates and Downgrades](#updates-and-downgrades)
-    * [Compatibility notices](#compatibility-notices)
-  * [Uninstallation](#uninstallation)
-    * [Uninstall via cloudformation](#uninstall-via-cloudformation)
+- [Getting started](#getting-started)
+  - [Binary License Notice](#binary-license-notice)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+    - [Installation options](#installation-options)
+    - [Install via CloudFormation](#install-via-cloudformation)
+    - [Install via terraform](#install-via-terraform)
+    - [Install as Kubernetes cronjob](#install-as-kubernetes-cronjob)
+  - [Enable autospotting](#enable-autospotting)
+    - [For an AutoScaling group](#for-an-autoscaling-group)
+    - [For Elastic Beanstalk](#for-elastic-beanstalk)
+      - [1 - Add the `spot-enabled` tag](#1---add-the-spot-enabled-tag)
+      - [2 - Enable `patch_beanstalk_userdata` in AutoSpotting (optional)](#2---enable-patch_beanstalk_userdata-in-autospotting-optional)
+  - [Configuration of AutoSpotting](#configuration-of-autospotting)
+    - [Testing configuration](#testing-configuration)
+      - [Note](#note)
+    - [Running configuration](#running-configuration)
+      - [Minimum on-demand configuration](#minimum-on-demand-configuration)
+    - [Debugging](#debugging)
+  - [Updates and Downgrades](#updates-and-downgrades)
+    - [Compatibility notices](#compatibility-notices)
+  - [Uninstallation](#uninstallation)
+    - [Uninstall via CloudFormation](#uninstall-via-cloudformation)
 
 ## Binary License Notice ##
 
 All pre-build binaries mentioned in this page are distributed under a
 proprietary [license](BINARY_LICENSE), and can only be used for evaluation
-purposes as long as the generated savings are less than $1000 monthly.
+purposes. They expire automatically a month after they were built.
 
 Project patrons and code contributors can get access to stable builds, which
 have been thoroughly tested and come with enterprise-grade support.

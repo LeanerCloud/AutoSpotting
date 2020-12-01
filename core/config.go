@@ -85,7 +85,7 @@ type Config struct {
 	// The AutoSpotting version
 	Version string
 
-	// The license of this AutoSpotting build
+	// The license of this AutoSpotting build - obsolete
 	LicenseType string
 
 	// Controls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use
@@ -204,8 +204,7 @@ func ParseConfig(conf *Config) {
 		"inside or outside the schedule defined by cron_schedule. Allowed values: on|off\n"+
 		"\tExample: ./AutoSpotting --cron_schedule_state='off' --cron_schedule '9-18 1-5'  # would only take action outside the defined schedule\n")
 
-	flagSet.StringVar(&conf.LicenseType, "license", "evaluation", "\n\tControls the terms under which you use AutoSpotting"+
-		"Allowed values: evaluation|I_am_supporting_it_on_Patreon|I_contributed_to_development_within_the_last_year|I_built_it_from_source_code\n"+
+	flagSet.StringVar(&conf.LicenseType, "license", "evaluation", "\n\t - obsoleted, kept for compatibility only\n"+
 		"\tExample: ./AutoSpotting --license evaluation\n")
 
 	flagSet.StringVar(&conf.EventFile, "event_file", "", "\n\tJSON file containing event data, "+
