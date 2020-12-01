@@ -12,12 +12,13 @@ GOARCH ?= amd64
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
+EXPIRATION := $(shell go run ./scripts/expiration_date.go)
 
 ifneq ($(FLAVOR), custom)
     LICENSE_FILES += BINARY_LICENSE
 endif
 
-LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD) -s -w"
+LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD) -X main.ExpirationDate=$(EXPIRATION) -s -w"
 
 all: fmt-check vet-check build test                          ## Build the code
 .PHONY: all

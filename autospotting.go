@@ -20,6 +20,9 @@ var conf autospotting.Config
 // Version represents the build version being used
 var Version = "number missing"
 
+// ExpirationDate represents the date at which the version will expire
+var ExpirationDate = "01-Jan-2100"
+
 var eventFile string
 
 func main() {
@@ -40,7 +43,13 @@ func main() {
 
 func eventHandler(event *json.RawMessage) {
 
-	log.Println("Starting autospotting agent, build", Version)
+	log.Println("Starting autospotting agent, build ", Version, "expiring on", ExpirationDate)
+
+	if isExpired(ExpirationDate) {
+		log.Println("Autospotting expired, please install a newer nightly version, build it from source or get a stable build.")
+		return
+	}
+
 	log.Printf("Configuration flags: %#v", conf)
 
 	as.EventHandler(event)
