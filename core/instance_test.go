@@ -1103,7 +1103,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 	}
 }
 
-func TestGetPricetoBid(t *testing.T) {
+func TestGetPriceToBid(t *testing.T) {
 	tests := []struct {
 		spotPercentage       float64
 		currentSpotPrice     float64
@@ -1180,7 +1180,7 @@ func TestGetPricetoBid(t *testing.T) {
 		currentSpotPrice := tt.currentSpotPrice
 		currentOnDemandPrice := tt.currentOnDemandPrice
 		currentSpotPremium := tt.spotPremium
-		actualPrice := i.getPricetoBid(currentOnDemandPrice, currentSpotPrice, currentSpotPremium)
+		actualPrice := i.getPriceToBid(currentOnDemandPrice, currentSpotPrice, currentSpotPremium)
 		if math.Abs(actualPrice-tt.want) > 0.000001 {
 			t.Errorf("percentage = %.2f, policy = %s, expected price = %.5f, want %.5f, currentSpotPrice = %.5f",
 				tt.spotPercentage, tt.policy, actualPrice, tt.want, currentSpotPrice)
@@ -1390,45 +1390,36 @@ func TestGenerateTagList(t *testing.T) {
 	}
 }
 
-func Test_instance_convertBlockDeviceMappings(t *testing.T) {
+func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 
 	tests := []struct {
 		name string
-		lc   *launchConfiguration
+		BDMs []*autoscaling.BlockDeviceMapping
+		i    *instance
 		want []*ec2.BlockDeviceMapping
 	}{
 		{
-			name: "nil launch configuration",
-			lc:   nil,
-			want: []*ec2.BlockDeviceMapping{},
-		}, {
 			name: "nil block device mapping",
-			lc: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
-					BlockDeviceMappings: nil,
-				},
-			},
-			want: []*ec2.BlockDeviceMapping{},
+			BDMs: nil,
+			i:    &instance{},
+			want: nil,
 		},
 		{
 			name: "instance-store only, skipping one of the volumes from the BDMs",
-			lc: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
-					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
-						{
-							DeviceName:  aws.String("/dev/ephemeral0"),
-							Ebs:         nil,
-							NoDevice:    aws.Bool(true),
-							VirtualName: aws.String("foo"),
-						},
-						{
-							DeviceName:  aws.String("/dev/ephemeral1"),
-							Ebs:         nil,
-							VirtualName: aws.String("bar"),
-						},
-					},
+			BDMs: []*autoscaling.BlockDeviceMapping{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					NoDevice:    aws.Bool(true),
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName:  aws.String("/dev/ephemeral1"),
+					Ebs:         nil,
+					VirtualName: aws.String("bar"),
 				},
 			},
+			i: &instance{},
 			want: []*ec2.BlockDeviceMapping{
 				{
 					DeviceName:  aws.String("/dev/ephemeral1"),
@@ -1439,33 +1430,31 @@ func Test_instance_convertBlockDeviceMappings(t *testing.T) {
 		},
 
 		{
-			name: "instance-store and gp2 EBS",
-			lc: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
-					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
-						{
-							DeviceName:  aws.String("/dev/ephemeral0"),
-							Ebs:         nil,
-							VirtualName: aws.String("foo"),
-						},
-						{
-							DeviceName: aws.String("/dev/xvda"),
-							Ebs: &autoscaling.Ebs{
-								DeleteOnTermination: aws.Bool(false),
-								VolumeSize:          aws.Int64(10),
-								VolumeType:          aws.String("gp2"),
-							},
-							VirtualName: aws.String("bar"),
-						},
-						{
-							DeviceName: aws.String("/dev/xvdb"),
-							Ebs: &autoscaling.Ebs{
-								DeleteOnTermination: aws.Bool(true),
-								VolumeSize:          aws.Int64(20),
-								VolumeType:          aws.String("gp2"),
-							},
-							VirtualName: aws.String("baz"),
-						},
+			name: "GP2 EBS to be converted to GP3 when size it below the configured threshold",
+			BDMs: []*autoscaling.BlockDeviceMapping{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					Ebs: &autoscaling.Ebs{
+						DeleteOnTermination: aws.Bool(false),
+						VolumeSize:          aws.Int64(10),
+						VolumeType:          aws.String("gp2"),
+					},
+					VirtualName: aws.String("bar"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "not-blacklisted",
+					},
+					config: AutoScalingConfig{
+						GP2ConversionThreshold: 100,
 					},
 				},
 			},
@@ -1480,57 +1469,80 @@ func Test_instance_convertBlockDeviceMappings(t *testing.T) {
 					Ebs: &ec2.EbsBlockDevice{
 						DeleteOnTermination: aws.Bool(false),
 						VolumeSize:          aws.Int64(10),
-						VolumeType:          aws.String("gp2"),
+						VolumeType:          aws.String("gp3"),
 					},
 					VirtualName: aws.String("bar"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.EbsBlockDevice{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("gp2"),
-					},
-					VirtualName: aws.String("baz"),
 				},
 			},
 		},
 		{
-			name: "Provision io2 EBS volumes instead of io1",
-			lc: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
-					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
-						{
-							DeviceName: aws.String("/dev/xvda"),
-							Ebs: &autoscaling.Ebs{
-								DeleteOnTermination: aws.Bool(false),
-								VolumeSize:          aws.Int64(10),
-								VolumeType:          aws.String("gp2"),
-							},
-							VirtualName: aws.String("bar"),
-						},
-						{
-							DeviceName: aws.String("/dev/xvdb"),
-							Ebs: &autoscaling.Ebs{
-								DeleteOnTermination: aws.Bool(true),
-								VolumeSize:          aws.Int64(20),
-								VolumeType:          aws.String("io1"),
-							},
-							VirtualName: aws.String("baz"),
-						},
+			name: "GP2 EBS to be kept as it is when size it above the configured threshold",
+			BDMs: []*autoscaling.BlockDeviceMapping{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					Ebs: &autoscaling.Ebs{
+						DeleteOnTermination: aws.Bool(false),
+						VolumeSize:          aws.Int64(150),
+						VolumeType:          aws.String("gp2"),
+					},
+					VirtualName: aws.String("bar"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "not-blacklisted",
+					},
+					config: AutoScalingConfig{
+						GP2ConversionThreshold: 100,
 					},
 				},
 			},
 			want: []*ec2.BlockDeviceMapping{
 				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					VirtualName: aws.String("foo"),
+				},
+				{
 					DeviceName: aws.String("/dev/xvda"),
 					Ebs: &ec2.EbsBlockDevice{
 						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(10),
+						VolumeSize:          aws.Int64(150),
 						VolumeType:          aws.String("gp2"),
 					},
 					VirtualName: aws.String("bar"),
 				},
+			},
+		},
+		{
+			name: "Provision IO2 EBS volume instead of IO1 in a supported region",
+			BDMs: []*autoscaling.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &autoscaling.Ebs{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+						VolumeType:          aws.String("io1"),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "supported",
+					},
+				},
+			},
+			want: []*ec2.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvdb"),
 					Ebs: &ec2.EbsBlockDevice{
@@ -1542,12 +1554,46 @@ func Test_instance_convertBlockDeviceMappings(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Provision IO1 EBS volume instead of replacing to IO2 in an unsupported region",
+			BDMs: []*autoscaling.BlockDeviceMapping{
+
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &autoscaling.Ebs{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+						VolumeType:          aws.String("io1"),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "us-gov-west-1",
+					},
+				},
+			},
+			want: []*ec2.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &ec2.EbsBlockDevice{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+						VolumeType:          aws.String("io1"),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := &instance{}
-			if got := i.convertBlockDeviceMappings(tt.lc); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("instance.convertBlockDeviceMappings() = %v, want %v", got, tt.want)
+			i := tt.i
+			if got := i.convertLaunchConfigurationBlockDeviceMappings(tt.BDMs); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("instance.convertLaunchConfigurationBlockDeviceMappings() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1637,6 +1683,9 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					services: connections{
 						ec2: mockEC2{
 							dltverr: nil,
+							damio: &ec2.DescribeImagesOutput{
+								Images: []*ec2.Image{},
+							},
 							dltvo: &ec2.DescribeLaunchTemplateVersionsOutput{
 								LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{
 									{
@@ -1687,9 +1736,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				price:        1.5,
 			},
 			want: &ec2.RunInstancesInput{
-
 				EbsOptimized: aws.Bool(true),
-
 				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
 					MarketType: aws.String(Spot),
 					SpotOptions: &ec2.SpotMarketOptions{
@@ -1752,6 +1799,9 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
+							damio: &ec2.DescribeImagesOutput{
+								Images: []*ec2.Image{},
+							},
 							dltverr: nil,
 							dltvo: &ec2.DescribeLaunchTemplateVersionsOutput{
 								LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{
@@ -1810,7 +1860,6 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				price:        1.5,
 			},
 			want: &ec2.RunInstancesInput{
-
 				EbsOptimized: aws.Bool(true),
 
 				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
@@ -1872,6 +1921,15 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 		{
 			name: "create run instances input with simple LC",
 			inst: instance{
+				region: &region{
+					services: connections{
+						ec2: mockEC2{
+							damio: &ec2.DescribeImagesOutput{
+								Images: []*ec2.Image{},
+							},
+						},
+					},
+				},
 				asg: &autoScalingGroup{
 					name: "mygroup",
 					Group: &autoscaling.Group{
@@ -1981,6 +2039,15 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 		{
 			name: "create run instances input with full launch configuration",
 			inst: instance{
+				region: &region{
+					services: connections{
+						ec2: mockEC2{
+							damio: &ec2.DescribeImagesOutput{
+								Images: []*ec2.Image{},
+							},
+						},
+					},
+				},
 				asg: &autoScalingGroup{
 					name: "mygroup",
 					Group: &autoscaling.Group{
@@ -2112,6 +2179,15 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 		{
 			name: "create run instances input with customized UserData for Beanstalk",
 			inst: instance{
+				region: &region{
+					services: connections{
+						ec2: mockEC2{
+							damio: &ec2.DescribeImagesOutput{
+								Images: []*ec2.Image{},
+							},
+						},
+					},
+				},
 				asg: &autoScalingGroup{
 					name: "mygroup",
 					Group: &autoscaling.Group{
@@ -2245,7 +2321,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got := tt.inst.createRunInstancesInput(tt.args.instanceType, tt.args.price)
+			got, _ := tt.inst.createRunInstancesInput(tt.args.instanceType, tt.args.price)
 
 			// make sure the lists of tags are sorted, otherwise the comparison fails
 			sort.Slice(got.TagSpecifications[0].Tags, func(i, j int) bool {
