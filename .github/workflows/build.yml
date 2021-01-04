@@ -1,10 +1,6 @@
 name: Go
 
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: [push]
 
 jobs:
 
@@ -23,3 +19,10 @@ jobs:
 
     - name: Build
       run: make ci-docker
+
+    - name: Archive build artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: build
+          path: |
+            build/s3
