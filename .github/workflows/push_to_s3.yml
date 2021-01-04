@@ -29,3 +29,4 @@ jobs:
         aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
         aws_bucket: cloudprowess
         source_dir: build/s3
+        destination_dir: ''
