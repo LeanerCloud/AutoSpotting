@@ -21,8 +21,8 @@ jobs:
       run: make ci-docker
 
     - name: Archive build artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: build
-          path: |
-            build/s3
+      uses: actions/upload-artifact@v2
+      with:
+        name: build
+        path: |
+          build/s3
