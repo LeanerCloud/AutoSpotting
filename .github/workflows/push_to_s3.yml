@@ -1,4 +1,4 @@
-name: Go
+name: Push nightly to S3
 
 on:
   push:
