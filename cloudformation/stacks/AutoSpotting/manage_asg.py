@@ -15,7 +15,7 @@ from boto3 import client
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-suspended_processes = ['Terminate', 'AZRebalance', 'Launch']
+suspended_processes = ['Terminate', 'AZRebalance']
 
 
 def change_max_size(svc, asg, variation):
