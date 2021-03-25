@@ -4,7 +4,7 @@
 This code implements a Lambda function handler that implements the following
 functionality for a given AWA AutoScaling Group:
 - manage ASG maximum capacity
-- suspend/resume the Termination AutoScaling process
+- suspend/resume AutoScaling processes that might interfere with AutoSpotting
 '''
 import logging
 from time import sleep
@@ -14,6 +14,8 @@ from boto3 import client
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+suspended_processes = ['Terminate', 'AZRebalance', 'Launch']
 
 
 def change_max_size(svc, asg, variation):
@@ -51,11 +53,11 @@ def change_max_size(svc, asg, variation):
 
 
 def suspend(svc, asg, tag):
-    ''' Suspend the Termination process of a given AutoScaling group. '''
+    ''' Suspend processes of a given AutoScaling group. '''
     try:
         svc.suspend_processes(
             AutoScalingGroupName=asg,
-            ScalingProcesses=['Terminate'],
+            ScalingProcesses=suspended_processes,
         )
         return True
     except ClientError as client_error:
@@ -74,11 +76,11 @@ def suspend(svc, asg, tag):
 
 
 def resume(svc, asg, tag):
-    ''' Resume the Termination process of a given AutoScaling group. '''
+    ''' Resume the processes of a given AutoScaling group. '''
     try:
         svc.resume_processes(
             AutoScalingGroupName=asg,
-            ScalingProcesses=['Terminate']
+            ScalingProcesses=suspended_processes,
         )
         svc.delete_tags(Tags=[tag])
         return True
@@ -89,13 +91,13 @@ def resume(svc, asg, tag):
 
 
 def suspend_resume(svc, asg, action):
-    ''' Suspend or Resume the Termination process of a given AutoScaling group. '''
+    ''' Suspend or Resume the processes of a given AutoScaling group. '''
     tag = {
         'ResourceId': asg,
         'Key': 'autospotting_suspended_processes',
         'ResourceType': 'auto-scaling-group',
         'PropagateAtLaunch': False,
-        'Value': 'termination',
+        'Value': ','.join(suspended_processes),
     }
     if action == 'suspend':
         return suspend(svc, asg, tag)
