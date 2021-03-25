@@ -396,8 +396,8 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 	logger.Println(a.name, "found on-demand instance", *odInstanceID,
 		"replacing with new spot instance", *spotInst.InstanceId)
 
-	a.suspendResumeProcess(*spotInst.InstanceId+"S", "suspend")
-	defer a.suspendResumeProcess(*spotInst.InstanceId+"S", "resume")
+	a.suspendResumeProcess(*spotInst.InstanceId, "suspend")
+	defer a.suspendResumeProcess(*spotInst.InstanceId, "resume")
 
 	increase, attachErr := a.attachSpotInstance(*spotInst.InstanceId, true)
 	if increase > 0 {

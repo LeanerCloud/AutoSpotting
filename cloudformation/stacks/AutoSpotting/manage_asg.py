@@ -58,53 +58,36 @@ def suspend(svc, asg, tag):
         except Exception as e:
             logger.error(
                 f'Failed to tag ASG {asg} for suspend ' +
-                'process by {instanceId}: {e}')
+                'termination process: {e}')
             return False
 
 
-def resume(svc, asg, tag, instanceId):
+def resume(svc, asg, tag):
     try:
-        response = svc.describe_tags(
-            Filters=[
-                {
-                    'Name': 'auto-scaling-group',
-                    'Values': [asg],
-                },
-                {
-                    'Name': 'key',
-                    'Values': ['autospotting_suspend_processes_by'],
-                },
-                {
-                    'Name': 'value',
-                    'Values': [instanceId],
-                }
-            ]
+        svc.resume_processes(
+            AutoScalingGroupName=asg,
+            ScalingProcesses=['Terminate']
         )
-        if response['Tags']:
-            svc.resume_processes(
-                AutoScalingGroupName=asg,
-                ScalingProcesses=['Terminate'],
-            )
-            svc.delete_tags(Tags=[tag])
-            return True
+        svc.delete_tags(Tags=[tag])
+        return True
     except Exception as e:
         logger.error(
             f'Failed resume process on ASG {asg}: {e}')
         return False
 
 
-def suspend_resume(svc, asg, action, instanceId):
+def suspend_resume(svc, asg, action):
     tag = {
         'ResourceId': asg,
-        'Key': 'autospotting_suspend_processes_by',
+        'Key': 'autospotting_suspended_processes',
         'ResourceType': 'auto-scaling-group',
         'PropagateAtLaunch': False,
-        'Value': instanceId,
+        'Value': 'termination',
     }
     if action == 'suspend':
         return suspend(svc, asg, tag)
     elif action == 'resume':
-        return resume(svc, asg, tag, instanceId)
+        return resume(svc, asg, tag)
 
 
 def handler(event, context):
@@ -120,4 +103,4 @@ def handler(event, context):
         instanceId = event['instanceid']
         action = event['action']
         logger.info(f'ASG {asg} Taking action: {action} for {instanceId}')
-        return suspend_resume(svc, asg, action, instanceId)
+        return suspend_resume(svc, asg, action)
