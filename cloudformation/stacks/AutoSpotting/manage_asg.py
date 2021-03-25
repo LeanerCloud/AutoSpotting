@@ -1,7 +1,15 @@
 # Copyright (c) 2016-2020 Cristian Măgherușan-Stanciu
 # Licensed under the Open Software License version 3.0
-
+'''
+This code implements a Lambda function handler that implements the following
+functionality for a given AWA AutoScaling Group:
+- manage ASG maximum capacity
+- suspend/resume the Termination AutoScaling process
+'''
 import logging
+from time import sleep
+
+from botocore.exceptions import ClientError
 from boto3 import client
 
 logger = logging.getLogger()
@@ -9,60 +17,64 @@ logger.setLevel(logging.INFO)
 
 
 def change_max_size(svc, asg, variation):
+    ''' Update AutoScaling Group maximum capacity '''
+
     try:
         response = svc.describe_auto_scaling_groups(
             AutoScalingGroupNames=[asg],
         )
 
         if not response['AutoScalingGroups']:
-            raise Exception(f'ASG {asg} not found!')
-    except Exception as e:
-        logger.error(f'Failed to describe {asg}: {e}')
+            raise ClientError(f'ASG {asg} not found!')
+    except ClientError as client_error:
+        logger.error('Failed to describe %s: %s', asg, client_error)
         return False
 
-    currentSize = response['AutoScalingGroups'][0]['MaxSize']
-    newSize = int(currentSize) + int(variation)
+    current_size = response['AutoScalingGroups'][0]['MaxSize']
+    new_size = int(current_size) + int(variation)
 
-    logger.info(
-        f'ASG {asg} Current size: {currentSize}, extending to {newSize}')
+    logger.info('ASG %s Current size: %s, extending to %s',
+                asg, current_size, new_size)
 
     try:
         response = svc.update_auto_scaling_group(
             AutoScalingGroupName=asg,
-            MaxSize=newSize,
+            MaxSize=new_size,
         )
-    except Exception as e:
-        logger.error(
-            f'Failed to change ASG {asg} MaxSize to {newSize}: {e}')
+    except ClientError as client_error:
+        logger.error('Failed to change ASG %s MaxSize to %s: %s',
+                     asg, new_size, client_error)
         return False
 
-    logger.info(f'ASG {asg} MaxSize changed to {newSize}')
+    logger.info('ASG %s MaxSize changed to %s', asg, new_size)
     return True
 
 
 def suspend(svc, asg, tag):
+    ''' Suspend the Termination process of a given AutoScaling group. '''
     try:
         svc.suspend_processes(
             AutoScalingGroupName=asg,
             ScalingProcesses=['Terminate'],
         )
         return True
-    except Exception as e:
+    except ClientError as client_error:
         logger.error(
-            f'Failed suspend process on ASG {asg}: {e}')
+            'Failed suspend process on ASG %s: %s', asg, client_error)
         return False
     else:
         try:
             svc.create_or_update_tags(Tags=[tag])
             return True
-        except Exception as e:
+        except ClientError as client_error:
             logger.error(
-                f'Failed to tag ASG {asg} for suspend ' +
-                'termination process: {e}')
+                'Failed to tag ASG %s for suspend termination process: %s',
+                asg, client_error)
             return False
 
 
 def resume(svc, asg, tag):
+    ''' Resume the Termination process of a given AutoScaling group. '''
     try:
         svc.resume_processes(
             AutoScalingGroupName=asg,
@@ -70,13 +82,14 @@ def resume(svc, asg, tag):
         )
         svc.delete_tags(Tags=[tag])
         return True
-    except Exception as e:
+    except ClientError as client_error:
         logger.error(
-            f'Failed resume process on ASG {asg}: {e}')
+            'Failed resume process on ASG %s: %s', asg, client_error)
         return False
 
 
 def suspend_resume(svc, asg, action):
+    ''' Suspend or Resume the Termination process of a given AutoScaling group. '''
     tag = {
         'ResourceId': asg,
         'Key': 'autospotting_suspended_processes',
@@ -86,21 +99,25 @@ def suspend_resume(svc, asg, action):
     }
     if action == 'suspend':
         return suspend(svc, asg, tag)
-    elif action == 'resume':
+    if action == 'resume':
+        sleep(120)
         return resume(svc, asg, tag)
+    return False
 
 
-def handler(event, context):
+def handler(event, _):
+    ''' Lambda function handler '''
     region = event['region']
     svc = client('autoscaling', region_name=region)
     asg = event['asg']
 
     if 'variation' in event:
         variation = event['variation']
-        logger.info(f'ASG {asg} Extending by to {variation}')
+        logger.info('ASG %s Extending by to %s', asg, variation)
         return change_max_size(svc, asg, variation)
-    else:
-        instanceId = event['instanceid']
-        action = event['action']
-        logger.info(f'ASG {asg} Taking action: {action} for {instanceId}')
-        return suspend_resume(svc, asg, action)
+
+    instance_id = event['instanceid']
+    action = event['action']
+    logger.info('ASG %s Taking action: %s for %s',
+                asg, action, instance_id)
+    return suspend_resume(svc, asg, action)
