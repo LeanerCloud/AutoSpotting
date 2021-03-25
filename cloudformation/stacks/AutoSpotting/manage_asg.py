@@ -102,7 +102,6 @@ def suspend_resume(svc, asg, action):
     if action == 'suspend':
         return suspend(svc, asg, tag)
     if action == 'resume':
-        sleep(120)
         return resume(svc, asg, tag)
     return False
 
