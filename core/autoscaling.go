@@ -324,7 +324,6 @@ func (a *autoScalingGroup) scanInstances() instances {
 
 	logger.Println("Adding instances to", a.name)
 	a.instances = makeInstances()
-
 	for _, inst := range a.Instances {
 		i := a.region.instances.get(*inst.InstanceId)
 
@@ -895,6 +894,11 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 }
 
 func (a *autoScalingGroup) suspendResumeProcess(instanceID string, action string) error {
+
+	if action == "resume" {
+		time.Sleep(2 * time.Minute * a.region.conf.SleepMultiplier)
+	}
+
 	payload, _ := json.Marshal(map[string]interface{}{
 		"region":     a.region.name,
 		"asg":        a.name,
