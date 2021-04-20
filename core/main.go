@@ -177,23 +177,24 @@ func (a *AutoSpotting) getRegions() ([]string, error) {
 
 // convertRawEventToCloudwatchEvent parses a raw event into a CloudWatchEvent or
 // returns an error in case of failure
-func convertRawEventToCloudwatchEvent(event *json.RawMessage) (*events.CloudWatchEvent, error) {
-	var snsEvent events.SNSEvent
+func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) (*events.CloudWatchEvent, error) {
+	var sqsEvent events.SQSEvent
 	var cloudwatchEvent events.CloudWatchEvent
 
 	log.Println("Received event: \n", string(*event))
 	parseEvent := *event
 
-	// Try to parse event as an Sns Message
-	if err := json.Unmarshal(parseEvent, &snsEvent); err != nil {
+	// Try to parse event as an Sqs Message
+	if err := json.Unmarshal(parseEvent, &sqsEvent); err != nil {
 		log.Println(err.Error())
 		return nil, err
 	}
 
-	// If the event comes from Sns - extract the Cloudwatch event embedded in it
-	if snsEvent.Records != nil {
-		snsRecord := snsEvent.Records[0]
-		parseEvent = []byte(snsRecord.SNS.Message)
+	// If the event comes from Sqs - extract the Cloudwatch event embedded in it
+	if sqsEvent.Records != nil {
+		sqsRecord := sqsEvent.Records[0]
+		parseEvent = []byte(sqsRecord.Body)
+		a.config.sqsMessageId = sqsRecord.MessageId
 	}
 
 	// Try to parse the event as Cloudwatch Event Rule
@@ -201,6 +202,7 @@ func convertRawEventToCloudwatchEvent(event *json.RawMessage) (*events.CloudWatc
 		log.Println(err.Error())
 		return nil, err
 	}
+
 	return &cloudwatchEvent, nil
 }
 
@@ -215,7 +217,7 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 		return
 	}
 
-	cloudwatchEvent, err := convertRawEventToCloudwatchEvent(event)
+	cloudwatchEvent, err := a.convertRawEventToCloudwatchEvent(event)
 	if err != nil {
 		log.Println("Couldn't parse event", event, err.Error())
 		return
@@ -451,6 +453,11 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error
 	if asg == nil {
 		logger.Printf("Missing ASG data for region %s", i.region.name)
 		return fmt.Errorf("region %s is missing asg data", i.region.name)
+	}
+
+	if len(a.config.sqsMessageId) == 0 {
+		i.region.sqsSendMessageSpotInstanceLaunch(asgName, i.InstanceId, i.State.Name)
+		return nil
 	}
 
 	logger.Printf("%s Found instance %s is not yet attached to its ASG, "+

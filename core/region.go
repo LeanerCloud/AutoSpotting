@@ -9,11 +9,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
 // Tag represents an Asg Tag: Key, Value
@@ -472,5 +474,35 @@ func (r *region) findEnabledASGByName(name string) *autoScalingGroup {
 			return &asg
 		}
 	}
+	return nil
+}
+
+func (r *region) sqsSendMessageSpotInstanceLaunch(asgName *string, instanceId *string, instanceState *string) error {
+	inputJSON := "{\"version\":\"0\",\"id\":\"890abcde-f123-4567-890a-bcdef1234567\"," +
+		"\"detail-type\":\"EC2 Instance State-change Notification\",\"source\":\"aws.events\"," +
+		"\"account\":\"\",\"time\":\"" + time.Now().Format(time.RFC3339) + "\"," +
+		"\"region\":\"" + r.name + "\"," +
+		"\"resources\":[\"arn:aws:events:us-east-1:123456789012:rule/SampleRule\"]," +
+		"\"detail\":" +
+		"{\"instance-id\":\"" + *instanceId + "\",\"state\":\"" + *instanceState + "\"}" + "}"
+
+	svc := r.services.sqs
+
+	_, err := svc.SendMessage(
+		&sqs.SendMessageInput{
+			MessageBody:    &inputJSON,
+			MessageGroupId: asgName,
+			QueueUrl:       &r.conf.SQSQueueUrl,
+		})
+
+	if err != nil {
+		logger.Printf("%s Error sending spot instance %s launch event message"+
+			"to the SQS Queue %s", r.name, *instanceId, r.conf.SQSQueueUrl)
+		return err
+	}
+
+	logger.Printf("%s Successfully sent spot instance %s launch event message"+
+		"to the SQS Queue %s", r.name, *instanceId, r.conf.SQSQueueUrl)
+
 	return nil
 }
