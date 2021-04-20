@@ -507,6 +507,23 @@ func (r *region) sqsSendMessageSpotInstanceLaunch(asgName *string, instanceId *s
 	return nil
 }
 
-func (r *region) sqsDeleteMessage(messageId *string) error {
+func (r *region) sqsDeleteMessage(instanceId *string) error {
+	svc := r.services.sqs
+
+	_, err := svc.DeleteMessage(
+		&sqs.DeleteMessageInput{
+			QueueUrl:      &r.conf.SQSQueueUrl,
+			ReceiptHandle: &r.conf.sqsReceiptHandle,
+		})
+	if err != nil {
+		logger.Printf("%s Error deleting spot instance %s launch event message"+
+			"to the SQS Queue %s", r.name, *instanceId, r.conf.SQSQueueUrl)
+		return err
+	}
+
+	logger.Printf("%s Successfully deleted spot instance %s launch event message"+
+		"to the SQS Queue %s", r.name, *instanceId, r.conf.SQSQueueUrl)
+
+	return nil
 
 }
