@@ -194,7 +194,7 @@ func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) 
 	if sqsEvent.Records != nil {
 		sqsRecord := sqsEvent.Records[0]
 		parseEvent = []byte(sqsRecord.Body)
-		a.config.sqsMessageId = sqsRecord.MessageId
+		a.config.sqsReceiptHandle = sqsRecord.ReceiptHandle
 	}
 
 	// Try to parse the event as Cloudwatch Event Rule
@@ -455,7 +455,7 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error
 		return fmt.Errorf("region %s is missing asg data", i.region.name)
 	}
 
-	if len(a.config.sqsMessageId) == 0 {
+	if len(a.config.sqsReceiptHandle) == 0 {
 		i.region.sqsSendMessageSpotInstanceLaunch(asgName, i.InstanceId, i.State.Name)
 		return nil
 	}

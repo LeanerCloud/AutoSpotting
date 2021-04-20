@@ -506,3 +506,7 @@ func (r *region) sqsSendMessageSpotInstanceLaunch(asgName *string, instanceId *s
 
 	return nil
 }
+
+func (r *region) sqsDeleteMessage(messageId *string) error {
+
+}

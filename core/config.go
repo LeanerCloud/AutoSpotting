@@ -106,7 +106,7 @@ type Config struct {
 	SQSQueueUrl string
 
 	// SQS MessageID
-	sqsMessageId string
+	sqsReceiptHandle string
 }
 
 // ParseConfig loads configuration from command line flags, environments variables, and config files.
@@ -130,7 +130,7 @@ func ParseConfig(conf *Config) {
 	conf.LambdaManageASG = os.Getenv("LAMBDA_MANAGE_ASG")
 	//conf.SQSQueueUrl = os.Getenv("AUTOSPOTTING_SQSQUEUE_URL")
 	conf.SQSQueueUrl = "https://eu-west-1.queue.amazonaws.com/432915485918/test.fifo"
-	conf.sqsMessageId = ""
+	conf.sqsReceiptHandle = ""
 
 	flagSet.StringVar(&conf.AllowedInstanceTypes, "allowed_instance_types", "",
 		"\n\tIf specified, the spot instances will be searched only among these types.\n\tIf missing, any instance type is allowed.\n"+

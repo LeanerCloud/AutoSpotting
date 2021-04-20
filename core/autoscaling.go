@@ -810,7 +810,7 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 
 func (a *autoScalingGroup) suspendProcesses() {
 	AutoScalingProcessesToSuspend := []*string{aws.String("Terminate"), aws.String("AZRebalance")}
-	logger.Printf("Suspending processes %s on ASG %s", &AutoScalingProcessesToSuspend, a.name)
+	logger.Printf("Suspending processes on ASG %s", a.name)
 
 	_, err := a.region.services.autoScaling.SuspendProcesses(
 		&autoscaling.ScalingProcessQuery{
@@ -818,13 +818,13 @@ func (a *autoScalingGroup) suspendProcesses() {
 			ScalingProcesses:     AutoScalingProcessesToSuspend,
 		})
 	if err != nil {
-		logger.Printf("couldn't suspend processes %s on ASG %s ", &AutoScalingProcessesToSuspend, a.name)
+		logger.Printf("couldn't suspend processes on ASG %s ", a.name)
 	}
 }
 
 func (a *autoScalingGroup) resumeProcesses() {
 	AutoScalingProcessesToResume := []*string{aws.String("Terminate"), aws.String("AZRebalance")}
-	logger.Printf("Resuming processes %s on ASG %s", &AutoScalingProcessesToResume, a.name)
+	logger.Printf("Resuming processes on ASG %s", a.name)
 
 	_, err := a.region.services.autoScaling.ResumeProcesses(
 		&autoscaling.ScalingProcessQuery{
@@ -832,6 +832,6 @@ func (a *autoScalingGroup) resumeProcesses() {
 			ScalingProcesses:     AutoScalingProcessesToResume,
 		})
 	if err != nil {
-		logger.Printf("couldn't resume processes %s on ASG %s ", &AutoScalingProcessesToResume, a.name)
+		logger.Printf("couldn't resume processes on ASG %s ", a.name)
 	}
 }
