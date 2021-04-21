@@ -93,9 +93,6 @@ type Config struct {
 	// authentication method
 	PatchBeanstalkUserdata string
 
-	// Lambda to use for Managing ASG
-	LambdaManageASG string
-
 	// JSON file containing event data used for locally simulating execution from Lambda.
 	EventFile string
 
@@ -127,7 +124,6 @@ func ParseConfig(conf *Config) {
 	conf.LogFlag = log.Ldate | log.Ltime | log.Lshortfile
 	conf.MainRegion = region
 	conf.SleepMultiplier = 1
-	conf.LambdaManageASG = os.Getenv("LAMBDA_MANAGE_ASG")
 	//conf.SQSQueueUrl = os.Getenv("AUTOSPOTTING_SQSQUEUE_URL")
 	conf.SQSQueueUrl = "https://eu-west-1.queue.amazonaws.com/432915485918/test.fifo"
 	conf.sqsReceiptHandle = ""
@@ -223,9 +219,6 @@ func ParseConfig(conf *Config) {
 
 	flagSet.StringVar(&conf.PatchBeanstalkUserdata, "patch_beanstalk_userdata", "", "\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the instance role when calling CloudFormation helpers instead of the standard CloudFormation authentication method\n"+
 		"\tExample: ./AutoSpotting --patch_beanstalk_userdata true\n")
-
-	flagSet.StringVar(&conf.LambdaManageASG, "lambda_manage_asg", "", "\n\tThe name of the Lambda function used to manage the ASG maximum group capacity. This needs to exist in the same region as the main AutoSpotting Lambda function"+
-		"\tExample: ./AutoSpotting --lambda_manage_asg AutoSpotting-LambdaManageASG-01234567890ABC\n")
 
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 

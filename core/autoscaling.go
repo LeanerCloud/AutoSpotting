@@ -363,6 +363,11 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 		return errors.New("couldn't find spot instance to use")
 	}
 
+	if len(a.region.conf.sqsReceiptHandle) == 0 {
+		a.region.sqsSendMessageSpotInstanceLaunch(&a.name, &spotInstanceID, spotInst.State.Name)
+		return nil
+	}
+
 	az := spotInst.Placement.AvailabilityZone
 
 	logger.Println(a.name, spotInstanceID, "is in the availability zone",
@@ -644,6 +649,8 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 			spotInstanceID, a.name, err.Error())
 		return err
 	}
+
+	a.region.sqsDeleteMessage(&spotInstanceID)
 
 	return nil
 }
