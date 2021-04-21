@@ -124,7 +124,7 @@ func ParseConfig(conf *Config) {
 	conf.LogFlag = log.Ldate | log.Ltime | log.Lshortfile
 	conf.MainRegion = region
 	conf.SleepMultiplier = 1
-	//conf.SQSQueueUrl = os.Getenv("AUTOSPOTTING_SQSQUEUE_URL")
+	conf.SQSQueueUrl = os.Getenv("SQSQUEUE_URL")
 	conf.SQSQueueUrl = "https://eu-west-1.queue.amazonaws.com/432915485918/test.fifo"
 	conf.sqsReceiptHandle = ""
 

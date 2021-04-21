@@ -376,8 +376,8 @@
               Ref: "TerminationNotificationAction"
             PATCH_BEANSTALK_USERDATA:
               Ref: "PatchBeanstalkUserdata"
-            LAMBDA_MANAGE_ASG:
-              Ref: "LambdaManageASG"
+            SQSQUEUE_URL:
+              Ref: "SQSQueue"
         Handler:
           Ref: "LambdaHandlerFunction"
         MemorySize:
@@ -433,14 +433,39 @@
               Effect: "Allow"
               Resource: "*"
             -
-              Action: "lambda:InvokeFunction"
+              Action:
+                - "sqs:SendMessage"
+                - "sqs:DeleteMessage"
+                - "sqs:GetQueueAttributes"
               Effect: "Allow"
-              Resource: !GetAtt LambdaManageASG.Arn
+              Resource:
+                Fn::GetAtt:
+                  - SQSQueue
+                  - Arn
         PolicyName: "LambdaPolicy"
         Roles:
           -
             Ref: "LambdaExecutionRole"
       Type: "AWS::IAM::Policy"
+
+    LambdaEventSourceMapping:
+      DependsOn: LambdaPolicy
+      Type: AWS::Lambda::EventSourceMapping
+      Properties:
+        BatchSize: 1
+        EventSourceArn:
+          Fn::GetAtt:
+            - SQSQueue
+            - Arn
+        FunctionName:
+          Ref: LambdaFunction
+
+    SQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        FifoQueue: true
+        MessageRetentionPeriod: 600
+        VisibilityTimeout: 900
 
     RegionalStackSet:
       Condition: DeployRegionalResourcesStackSet
@@ -519,63 +544,6 @@
         Path: /
         ManagedPolicyArns:
           - !Sub arn:${AWS::Partition}:iam::aws:policy/AdministratorAccess
-
-# We may be able to move the logic in this Python Lambda to the main Lambda
-# function code at some point, but it will require regional FIFO SQS queues and
-# batch processing changes to the core logic
-    LambdaManageASG:
-      Type: "AWS::Lambda::Function"
-      Properties:
-        Description: "Invoked synchronously by the main Lambda to change ASG MaxSize if the AttachInstances call fails, and temporarily pause AutoScaling processes."
-        Handler: "manage_asg.handler"
-        Runtime: "python3.8"
-        Timeout: 120
-        ReservedConcurrentExecutions: 1
-        Role: !GetAtt LambdaManageASGExecutionRole.Arn
-        Code:
-          S3Bucket:
-            Ref: "LambdaS3Bucket"
-          S3Key:
-            Fn::Sub: "${LambdaS3BucketPrefix}/manage_asg.zip"
-
-    # This allows the creation and deletion of the regional CloudFormation templates
-    # and it used by the secondary Lambda function, backing the custom resource
-    LambdaManageASGExecutionRole:
-      Type: "AWS::IAM::Role"
-      Properties:
-        AssumeRolePolicyDocument:
-          Statement:
-            -
-              Action: "sts:AssumeRole"
-              Effect: "Allow"
-              Principal:
-                Service:
-                  - "lambda.amazonaws.com"
-        Path: "/lambda/"
-
-    LambdaManageASGPolicy:
-      Type: "AWS::IAM::Policy"
-      Properties:
-        PolicyDocument:
-          Statement:
-            -
-              Action:
-                - "autoscaling:DescribeAutoScalingGroups"
-                - "autoscaling:UpdateAutoScalingGroup"
-                - "autoscaling:ResumeProcesses"
-                - "autoscaling:SuspendProcesses"
-                - "autoscaling:CreateOrUpdateTags"
-                - "autoscaling:DeleteTags"
-                - "autoscaling:DescribeTags"
-                - "logs:CreateLogGroup"
-                - "logs:CreateLogStream"
-                - "logs:PutLogEvents"
-              Effect: "Allow"
-              Resource: "*"
-        PolicyName: "LambdaManageASGPolicy"
-        Roles:
-          -
-            Ref: "LambdaManageASGExecutionRole"
 
     # IAM role and inline policy to be used by the regional Lambdas, so we only
     # create them once instead of once per region
