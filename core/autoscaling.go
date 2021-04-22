@@ -622,7 +622,7 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 			})
 
 		if err != nil {
-			logger.Printf("Issue while waiting for instance %v to start: %v",
+			logger.Printf("Issue while waiting for instance %s to start: %v",
 				spotInstanceID, err.Error())
 		}
 
@@ -665,7 +665,7 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 			})
 
 		if err != nil {
-			logger.Printf("Issue while waiting for instance %v to start: %v",
+			logger.Printf("Issue while waiting for instance %s to start: %v",
 				instanceID, err.Error())
 		}
 	}
@@ -708,7 +708,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 			})
 
 		if err != nil {
-			logger.Printf("Issue while waiting for instance %v to start: %v",
+			logger.Printf("Issue while waiting for instance %s to start: %v",
 				instanceID, err.Error())
 		}
 
