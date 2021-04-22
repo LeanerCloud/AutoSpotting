@@ -468,6 +468,7 @@
     SQSQueue:
       Type: AWS::SQS::Queue
       Properties:
+        ContentBasedDeduplication: true
         FifoQueue: true
         MessageRetentionPeriod: 600
         QueueName: AutoSpotting.fifo
