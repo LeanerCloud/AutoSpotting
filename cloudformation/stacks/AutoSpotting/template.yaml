@@ -460,11 +460,16 @@
         FunctionName:
           Ref: LambdaFunction
 
+    # Need to specify QueueName, or CloudFormation for StackSets Stacks will generate a long name
+    # then it will append .fifo (because it's a FIFO queue), this will go over the 80 char limit.
+    # Using a name is not a problem for SQSQueue cause the only property that if changed replace
+    # the resource is FifoQueue itself.
     SQSQueue:
       Type: AWS::SQS::Queue
       Properties:
         FifoQueue: true
         MessageRetentionPeriod: 600
+        QueueName: AutoSpotting.fifo
         VisibilityTimeout: 900
 
     RegionalStackSet:
