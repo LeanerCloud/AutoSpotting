@@ -650,8 +650,6 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		return err
 	}
 
-	a.region.sqsDeleteMessage(&spotInstanceID)
-
 	return nil
 }
 

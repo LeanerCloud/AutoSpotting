@@ -252,7 +252,11 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 			log.Println("Couldn't get instance ID of newly launched instance", err.Error())
 			return
 		} else if instanceID != nil {
-			logger.SetPrefix(fmt.Sprintf("ST:%s ", *instanceID))
+			if len(a.config.sqsReceiptHandle) == 0 {
+				logger.SetPrefix(fmt.Sprintf("ST:%s ", *instanceID))
+			} else {
+				logger.SetPrefix(fmt.Sprintf("SQ:%s ", *instanceID))
+			}
 			a.handleNewInstanceLaunch(cloudwatchEvent.Region, *instanceID, *state)
 		}
 
@@ -459,6 +463,7 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error
 		i.region.sqsSendMessageSpotInstanceLaunch(asgName, i.InstanceId, i.State.Name)
 		return nil
 	}
+	defer i.region.sqsDeleteMessage(i.InstanceId)
 
 	logger.Printf("%s Found instance %s is not yet attached to its ASG, "+
 		"attempting to swap it against a running on-demand instance",
