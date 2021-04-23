@@ -455,9 +455,10 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error
 		return fmt.Errorf("region %s is missing asg data", i.region.name)
 	}
 
-	if len(a.config.sqsReceiptHandle) == 0 &&
-		asg.isEnabledForEventBasedInstanceReplacement() {
-		i.region.sqsSendMessageSpotInstanceLaunch(asgName, i.InstanceId, i.State.Name)
+	if len(a.config.sqsReceiptHandle) == 0 {
+		if asg.isEnabledForEventBasedInstanceReplacement() {
+			i.region.sqsSendMessageSpotInstanceLaunch(asgName, i.InstanceId, i.State.Name)
+		}
 		return nil
 	}
 	defer i.region.sqsDeleteMessage(i.InstanceId)
