@@ -420,7 +420,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 }
 
 func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) error {
-	if i.belongsToEnabledASG() && i.shouldBeReplacedWithSpot() {
+	if i.shouldBeReplacedWithSpot(false) {
 		logger.Printf("%s instance %s belongs to an enabled ASG and should be "+
 			"replaced with spot, attempting to launch spot replacement",
 			i.region.name, *i.InstanceId)
