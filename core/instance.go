@@ -811,7 +811,6 @@ func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {
 	asg := i.region.findEnabledASGByName(*asgName)
 
 	if asg != nil &&
-		asg.isEnabledForEventBasedInstanceReplacement() &&
 		!asg.hasMemberInstance(i) &&
 		i.isSpot() {
 		logger.Println("Found unattached spot instance", *i.InstanceId)

@@ -365,11 +365,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 		"attempting to swap it against a running on-demand instance",
 		i.region.name, *i.InstanceId)
 
-	if _, err := i.swapWithGroupMember(asg); err != nil {
-		logger.Printf("%s, couldn't perform spot replacement of %s ",
-			i.region.name, *i.InstanceId)
-		return err
-	}
+	i.region.sqsSendMessageSpotInstanceLaunch(asgName, i.InstanceId, i.State.Name)
 
 	return nil
 }
@@ -459,7 +455,8 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error
 		return fmt.Errorf("region %s is missing asg data", i.region.name)
 	}
 
-	if len(a.config.sqsReceiptHandle) == 0 {
+	if len(a.config.sqsReceiptHandle) == 0 &&
+		asg.isEnabledForEventBasedInstanceReplacement() {
 		i.region.sqsSendMessageSpotInstanceLaunch(asgName, i.InstanceId, i.State.Name)
 		return nil
 	}
@@ -468,21 +465,6 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error
 	logger.Printf("%s Found instance %s is not yet attached to its ASG, "+
 		"attempting to swap it against a running on-demand instance",
 		i.region.name, *i.InstanceId)
-
-	hasHooks, err := asg.hasLaunchLifecycleHooks()
-
-	if err != nil {
-		logger.Printf("%s ASG %s - couldn't describe Lifecycle Hooks",
-			i.region.name, *asgName)
-		return err
-	}
-
-	if hasHooks {
-		logger.Printf("%s ASG %s has instance launch lifecycle hooks, skipping "+
-			"instance %s until it attempts to continue the lifecycle hook itself",
-			i.region.name, *asgName, *i.InstanceId)
-		return nil
-	}
 
 	if _, err := i.swapWithGroupMember(asg); err != nil {
 		logger.Printf("%s, couldn't perform spot replacement of %s ",

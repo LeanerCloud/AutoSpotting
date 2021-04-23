@@ -363,72 +363,8 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 		return errors.New("couldn't find spot instance to use")
 	}
 
-	if len(a.region.conf.sqsReceiptHandle) == 0 {
-		a.region.sqsSendMessageSpotInstanceLaunch(&a.name, &spotInstanceID, spotInst.State.Name)
-		return nil
-	}
-
-	az := spotInst.Placement.AvailabilityZone
-
-	logger.Println(a.name, spotInstanceID, "is in the availability zone",
-		*az, "looking for an on-demand instance there")
-	if odInstanceID == nil {
-		if odInst := a.getUnprotectedOnDemandInstanceInAZ(az); odInst != nil {
-			odInstanceID = odInst.InstanceId
-		}
-	}
-
-	if odInstanceID == nil {
-		logger.Println(a.name, "found no on-demand instances that could be",
-			"replaced with the new spot instance", *spotInst.InstanceId,
-			"terminating the spot instance.")
-		spotInst.terminate()
-		return errors.New("couldn't find ondemand instance to replace")
-	}
-
-	if err := a.waitForInstanceStatus(odInstanceID, "InService", 5); err != nil {
-		logger.Printf("OnDemand instance %v not InService",
-			*odInstanceID)
-	}
-
-	logger.Println(a.name, "found on-demand instance", *odInstanceID,
-		"replacing with new spot instance", *spotInst.InstanceId)
-
-	a.suspendProcesses()
-	defer a.resumeProcesses()
-
-	desiredCapacity, maxSize := *a.DesiredCapacity, *a.MaxSize
-
-	// temporarily increase AutoScaling group in case the desired capacity reaches the max size,
-	// otherwise attachSpotInstance might fail
-	if desiredCapacity == maxSize {
-		logger.Println(a.name, "Temporarily increasing MaxSize")
-		a.setAutoScalingMaxSize(maxSize + 1)
-		defer a.setAutoScalingMaxSize(maxSize)
-	}
-
-	attachErr := a.attachSpotInstance(*spotInst.InstanceId, true)
-	if attachErr != nil {
-		logger.Println(a.name, "skipping detaching on-demand due to failure to",
-			"attach the new spot instance", *spotInst.InstanceId)
-		return nil
-	}
-
-	var isTerminated error
-	switch a.config.TerminationMethod {
-	case DetachTerminationMethod:
-		isTerminated = a.detachAndTerminateOnDemandInstance(odInstanceID, true)
-	default:
-		isTerminated = a.terminateInstanceInAutoScalingGroup(odInstanceID, true, true)
-	}
-
-	if isTerminated == nil {
-		// add to FinalRecap
-		recapText := fmt.Sprintf("%s OnDemand instance %s replaced with spot instance %s", a.name, *odInstanceID, *spotInst.InstanceId)
-		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
-	}
-
-	return isTerminated
+	a.region.sqsSendMessageSpotInstanceLaunch(&a.name, &spotInstanceID, spotInst.State.Name)
+	return nil
 }
 
 // Returns the information about the first running instance found in
