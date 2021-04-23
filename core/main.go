@@ -195,6 +195,8 @@ func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) 
 		sqsRecord := sqsEvent.Records[0]
 		parseEvent = []byte(sqsRecord.Body)
 		a.config.sqsReceiptHandle = sqsRecord.ReceiptHandle
+	} else {
+		a.config.sqsReceiptHandle = ""
 	}
 
 	// Try to parse the event as Cloudwatch Event Rule
