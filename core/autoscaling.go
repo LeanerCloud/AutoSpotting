@@ -442,7 +442,7 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 	isInstanceInStatus := false
 	for retry := 1; !isInstanceInStatus; retry++ {
 		if retry > maxRetry {
-			logger.Printf("Failed waiting instance %v in status %v",
+			logger.Printf("Failed waiting instance %s in status %s",
 				*instanceID, status)
 			break
 		} else {
@@ -458,14 +458,19 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 
 			autoScalingInstances := result.AutoScalingInstances
 
-			if len(autoScalingInstances) > 0 && *autoScalingInstances[0].LifecycleState == status {
-				isInstanceInStatus = true
-				return nil
+			if len(autoScalingInstances) > 0 {
+				if instanceStatus := *autoScalingInstances[0].LifecycleState; instanceStatus != status {
+					logger.Printf("Waiting for instance %s to be in status %s [%s]",
+						*instanceID, status, instanceStatus)
+				} else {
+					isInstanceInStatus = true
+					return nil
+				}
+			} else {
+				logger.Printf("Waiting for instance %s to be in AutoScalingGroup with status %s",
+					*instanceID, status)
 			}
-			logger.Printf("Waiting for instance %v to be in status %v",
-				*instanceID, status)
 			time.Sleep(time.Duration(5*retry) * time.Second)
-
 		}
 	}
 
