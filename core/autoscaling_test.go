@@ -893,7 +893,7 @@ func TestAttachSpotInstance(t *testing.T) {
 					DesiredCapacity: aws.Int64(3),
 				},
 			}
-			_, err := a.attachSpotInstance(tt.instanceID, false)
+			err := a.attachSpotInstance(tt.instanceID, false)
 			CheckErrors(t, err, tt.expected)
 		})
 	}

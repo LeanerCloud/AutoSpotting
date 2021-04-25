@@ -617,7 +617,7 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 			})
 
 		if err != nil {
-			logger.Printf("Issue while waiting for instance %s to start: %v",
+			logger.Printf("Issue while waiting for instance %v to start: %v",
 				instanceID, err.Error())
 		}
 	}
@@ -660,12 +660,12 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 			})
 
 		if err != nil {
-			logger.Printf("Issue while waiting for instance %s to start: %v",
+			logger.Printf("Issue while waiting for instance %v to start: %v",
 				instanceID, err.Error())
 		}
 
 		if err = a.waitForInstanceStatus(instanceID, "InService", 5); err != nil {
-			logger.Printf("Instance %v is still not InService, trying to terminate it anyway.",
+			logger.Printf("Instance %s is still not InService, trying to terminate it anyway.",
 				*instanceID)
 		}
 	}
