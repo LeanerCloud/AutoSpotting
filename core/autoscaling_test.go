@@ -2281,7 +2281,9 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 				),
 				region: &region{
 					name: "test-region",
-					conf: &Config{},
+					conf: &Config{
+						FinalRecap: make(map[string][]string),
+					},
 					services: connections{
 						autoScaling: &mockASG{
 							uasgo:     nil,
@@ -2294,6 +2296,10 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 						ec2: &mockEC2{
 							tio:   nil,
 							tierr: nil,
+						},
+						sqs: &mockSQS{
+							smo:   nil,
+							smerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(
@@ -2395,7 +2401,9 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 				),
 				region: &region{
 					name: "test-region",
-					conf: &Config{},
+					conf: &Config{
+						FinalRecap: make(map[string][]string),
+					},
 					services: connections{
 						autoScaling: &mockASG{
 							uasgo:     nil,
@@ -2408,6 +2416,10 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 						ec2: &mockEC2{
 							tio:   nil,
 							tierr: nil,
+						},
+						sqs: &mockSQS{
+							smo:   nil,
+							smerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(
@@ -2500,7 +2512,9 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 				instances: makeInstances(),
 				region: &region{
 					name: "test-region",
-					conf: &Config{},
+					conf: &Config{
+						FinalRecap: make(map[string][]string),
+					},
 					services: connections{
 						autoScaling: &mockASG{
 							uasgo:     nil,
@@ -2509,6 +2523,10 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							dierr:     nil,
 							tiiasgo:   nil,
 							tiiasgerr: nil,
+						},
+						sqs: &mockSQS{
+							smo:   nil,
+							smerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(
@@ -2587,8 +2605,9 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							},
 						},
 						ec2: &mockEC2{},
-						lambda: &mockLambda{
-							ierr: nil,
+						sqs: &mockSQS{
+							smo:   nil,
+							smerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(
