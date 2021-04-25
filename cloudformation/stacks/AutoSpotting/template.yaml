@@ -381,7 +381,7 @@
               Ref: "TerminationNotificationAction"
             PATCH_BEANSTALK_USERDATA:
               Ref: "PatchBeanstalkUserdata"
-            SQSQUEUE_URL:
+            SQS_QUEUE_URL:
               Ref: "SQSQueue"
         Handler:
           Ref: "LambdaHandlerFunction"

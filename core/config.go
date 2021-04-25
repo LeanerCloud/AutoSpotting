@@ -124,7 +124,7 @@ func ParseConfig(conf *Config) {
 	conf.LogFlag = log.Ldate | log.Ltime | log.Lshortfile
 	conf.MainRegion = region
 	conf.SleepMultiplier = 1
-	conf.SQSQueueUrl = os.Getenv("SQSQUEUE_URL")
+	conf.SQSQueueUrl = os.Getenv("SQS_QUEUE_URL")
 	conf.sqsReceiptHandle = ""
 
 	flagSet.StringVar(&conf.AllowedInstanceTypes, "allowed_instance_types", "",
