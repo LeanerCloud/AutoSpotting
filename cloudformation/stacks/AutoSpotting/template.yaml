@@ -242,6 +242,11 @@
         selection and savings calculations when using a premium instance type
         such as RHEL."
       Type: "Number"
+    SQSQueueName:
+      Default: AutoSpotting.fifo
+      Description: >
+        "The Name of the SQS fifo queue used to manage spot replacement actions."
+      Type: "String"
     TagFilteringMode:
       AllowedValues:
         - "opt-in"
@@ -471,7 +476,8 @@
         ContentBasedDeduplication: true
         FifoQueue: true
         MessageRetentionPeriod: 600
-        QueueName: AutoSpotting.fifo
+        QueueName:
+          Ref: SQSQueueName
         VisibilityTimeout: 900
 
     RegionalStackSet:

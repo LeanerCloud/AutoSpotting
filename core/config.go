@@ -219,6 +219,9 @@ func ParseConfig(conf *Config) {
 	flagSet.StringVar(&conf.PatchBeanstalkUserdata, "patch_beanstalk_userdata", "", "\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the instance role when calling CloudFormation helpers instead of the standard CloudFormation authentication method\n"+
 		"\tExample: ./AutoSpotting --patch_beanstalk_userdata true\n")
 
+	flagSet.StringVar(&conf.SQSQueueUrl, "sqs_queue_url", "", "\n\tThe Url of the SQS fifo queue used to manage spot replacement actions. This needs to exist in the same region as the main AutoSpotting Lambda function"+
+		"\tExample: ./AutoSpotting --sqs_queue_url https://sqs.{AwsRegion}.amazonaws.com/{AccountId}/AutoSpotting.fifo\n")
+
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
