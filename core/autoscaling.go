@@ -460,7 +460,7 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 
 			if len(autoScalingInstances) > 0 {
 				if instanceStatus := *autoScalingInstances[0].LifecycleState; instanceStatus != status {
-					if instanceStatus.Contains("Terminat") &&
+					if strings.Contains(instanceStatus, "Terminat") &&
 						status == "InService" {
 						logger.Printf("Instance %s status is %s, will never become %s, stop waiting.",
 							*instanceID, instanceStatus, status)
