@@ -15,7 +15,7 @@ const (
 	// the Amazon EC2 State Change Events
 	InstanceStateChangeNotificationMessage = "EC2 Instance State-change Notification"
 
-	// InstanceStateChangeNotificationCode store the 3 letter code used to idenify
+	// InstanceStateChangeNotificationCode store the 3 letter code used to identify
 	// the Amazon EC2 State Change Events
 	InstanceStateChangeNotificationCode = "ISC"
 
@@ -23,7 +23,7 @@ const (
 	// Amazon EC2 Spot Instance Interruption Events
 	SpotInstanceInterruptionWarningMessage = "EC2 Spot Instance Interruption Warning"
 
-	// SpotInstanceInterruptionWarningCode store the 3 letter code used to idenify
+	// SpotInstanceInterruptionWarningCode store the 3 letter code used to identify
 	// Amazon EC2 Spot Instance Interruption Events
 	SpotInstanceInterruptionWarningCode = "SII"
 
@@ -31,7 +31,7 @@ const (
 	// Amazon EC2 Instance Rebalance Recommendation Events
 	InstanceRebalanceRecommendationMessage = "EC2 Instance Rebalance Recommendation"
 
-	// InstanceRebalanceRecommendationCode store the 3 letter code used to idenify
+	// InstanceRebalanceRecommendationCode store the 3 letter code used to identify
 	// Amazon EC2 Instance Rebalance Recommendation Events
 	InstanceRebalanceRecommendationCode = "IRR"
 
@@ -39,7 +39,7 @@ const (
 	// Events Delivered Via CloudTrail
 	AWSAPICallCloudTrailMessage = "AWS API Call via CloudTrail"
 
-	// AWSAPICallCloudTrailCode store the 3 letter code used to idenify
+	// AWSAPICallCloudTrailCode store the 3 letter code used to identify
 	// Events Delivered Via CloudTrail
 	AWSAPICallCloudTrailCode = "ACC"
 
@@ -47,7 +47,7 @@ const (
 	// Amazon CloudWatch Events Scheduled Events
 	ScheduledEventMessage = "Scheduled Event"
 
-	// ScheduledEventCode store the 3 letter code used to idenify
+	// ScheduledEventCode store the 3 letter code used to identify
 	// Amazon CloudWatch Events Scheduled Events
 	ScheduledEventCode = "SCE"
 )

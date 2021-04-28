@@ -213,7 +213,7 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, ins
 	if eventType == InstanceStateChangeNotificationCode {
 		// If event is Instance state change
 		if len(a.config.sqsReceiptHandle) != 0 {
-			logger.SetPrefix(fmt.Sprintf("SQ:%s ", *instanceID))
+			logger.SetPrefix(fmt.Sprintf("SQS:%s ", *instanceID))
 		}
 		a.handleNewInstanceLaunch(region, *instanceID, *instanceState)
 	} else if eventType == SpotInstanceInterruptionWarningCode || eventType == InstanceRebalanceRecommendationCode {
