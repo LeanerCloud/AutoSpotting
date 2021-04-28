@@ -11,25 +11,45 @@ import (
 )
 
 const (
-	// Amazon EC2 State Change Events
+	// InstanceStateChangeNotificationMessage store detail-type of the CloudWatch Event for
+	// the Amazon EC2 State Change Events
 	InstanceStateChangeNotificationMessage = "EC2 Instance State-change Notification"
-	InstanceStateChangeNotificationCode    = "ISC"
 
+	// InstanceStateChangeNotificationCode store the 3 letter code used to idenify
+	// the Amazon EC2 State Change Events
+	InstanceStateChangeNotificationCode = "ISC"
+
+	// SpotInstanceInterruptionWarningMessage store detail-type of the CloudWatch Event for
 	// Amazon EC2 Spot Instance Interruption Events
 	SpotInstanceInterruptionWarningMessage = "EC2 Spot Instance Interruption Warning"
-	SpotInstanceInterruptionWarningCode    = "SII"
 
+	// SpotInstanceInterruptionWarningCode store the 3 letter code used to idenify
+	// Amazon EC2 Spot Instance Interruption Events
+	SpotInstanceInterruptionWarningCode = "SII"
+
+	// InstanceRebalanceRecommendationMessage store detail-type of the CloudWatch Event for
 	// Amazon EC2 Instance Rebalance Recommendation Events
 	InstanceRebalanceRecommendationMessage = "EC2 Instance Rebalance Recommendation"
-	InstanceRebalanceRecommendationCode    = "IRR"
 
+	// InstanceRebalanceRecommendationCode store the 3 letter code used to idenify
+	// Amazon EC2 Instance Rebalance Recommendation Events
+	InstanceRebalanceRecommendationCode = "IRR"
+
+	// AWSAPICallCloudTrailMessage store detail-type of the CloudWatch Event for
 	// Events Delivered Via CloudTrail
 	AWSAPICallCloudTrailMessage = "AWS API Call via CloudTrail"
-	AWSAPICallCloudTrailCode    = "ACC"
 
+	// AWSAPICallCloudTrailCode store the 3 letter code used to idenify
+	// Events Delivered Via CloudTrail
+	AWSAPICallCloudTrailCode = "ACC"
+
+	// ScheduledEventMessage store detail-type of the CloudWatch Event for
 	// Amazon CloudWatch Events Scheduled Events
 	ScheduledEventMessage = "Scheduled Event"
-	ScheduledEventCode    = "SCE"
+
+	// ScheduledEventCode store the 3 letter code used to idenify
+	// Amazon CloudWatch Events Scheduled Events
+	ScheduledEventCode = "SCE"
 )
 
 //InstanceData represents JSON structure of the Detail property of CloudWatch event when a spot instance is terminated
