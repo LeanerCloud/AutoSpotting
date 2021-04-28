@@ -11,18 +11,23 @@ import (
 )
 
 const (
+	// Amazon EC2 State Change Events
 	InstanceStateChangeNotificationMessage = "EC2 Instance State-change Notification"
 	InstanceStateChangeNotificationCode    = "ISC"
 
+	// Amazon EC2 Spot Instance Interruption Events
 	SpotInstanceInterruptionWarningMessage = "EC2 Spot Instance Interruption Warning"
 	SpotInstanceInterruptionWarningCode    = "SII"
 
+	// Amazon EC2 Instance Rebalance Recommendation Events
 	InstanceRebalanceRecommendationMessage = "EC2 Instance Rebalance Recommendation"
 	InstanceRebalanceRecommendationCode    = "IRR"
 
+	// Events Delivered Via CloudTrail
 	AWSAPICallCloudTrailMessage = "AWS API Call via CloudTrail"
 	AWSAPICallCloudTrailCode    = "ACC"
 
+	// Amazon CloudWatch Events Scheduled Events
 	ScheduledEventMessage = "Scheduled Event"
 	ScheduledEventCode    = "SCE"
 )
