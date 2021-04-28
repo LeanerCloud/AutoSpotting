@@ -63,10 +63,10 @@ type instanceData struct {
 // returns the InstanceID, State or an error
 func parseEventData(event events.CloudWatchEvent) (string, *string, *string, error) {
 	var detailData instanceData
-	var eventTypeCode string = ""
-	var instanceID *string = nil
-	var instanceState *string = nil
-	var result error = nil
+	var eventTypeCode string
+	var instanceID *string
+	var instanceState *string
+	var result error
 
 	if err := json.Unmarshal(event.Detail, &detailData); err != nil {
 		logger.Println(err.Error())
@@ -74,34 +74,46 @@ func parseEventData(event events.CloudWatchEvent) (string, *string, *string, err
 	}
 	eventType := event.DetailType
 
+	// Amazon EC2 State Change Events
 	if eventType == InstanceStateChangeNotificationMessage &&
 		detailData.InstanceID != nil &&
 		detailData.State != nil {
-		// Amazon EC2 State Change Events
 		eventTypeCode = InstanceStateChangeNotificationCode
 		instanceID = detailData.InstanceID
 		instanceState = detailData.State
-	} else if eventType == SpotInstanceInterruptionWarningMessage &&
+	}
+
+	// Amazon EC2 Spot Instance Interruption Events
+	if eventType == SpotInstanceInterruptionWarningMessage &&
 		detailData.InstanceAction != nil &&
 		*detailData.InstanceAction != "" {
-		// Amazon EC2 Spot Instance Interruption Events
 		eventTypeCode = SpotInstanceInterruptionWarningCode
 		instanceID = detailData.InstanceID
-	} else if eventType == InstanceRebalanceRecommendationMessage &&
+	}
+
+	// Amazon EC2 Instance Rebalance Recommendation Events
+	if eventType == InstanceRebalanceRecommendationMessage &&
 		detailData.InstanceID != nil &&
 		*detailData.InstanceID != "" {
-		// Amazon EC2 Instance Rebalance Recommendation Events
 		eventTypeCode = InstanceRebalanceRecommendationCode
 		instanceID = detailData.InstanceID
-	} else if eventType == AWSAPICallCloudTrailMessage {
-		// Events Delivered Via CloudTrail
+	}
+
+	// Events Delivered Via CloudTrail
+	if eventType == AWSAPICallCloudTrailMessage {
 		eventTypeCode = AWSAPICallCloudTrailCode
-	} else if eventType == ScheduledEventMessage {
-		// Amazon CloudWatch Events Scheduled Events
+	}
+
+	// Amazon CloudWatch Events Scheduled Events
+	if eventType == ScheduledEventMessage {
 		eventTypeCode = ScheduledEventCode
-	} else {
+	}
+
+	// This code shouldn't be reachable
+	if len(eventTypeCode) == 0 {
 		logger.Println("This code shouldn't be reachable")
 		result = errors.New("this code shoudn't be reached")
 	}
+
 	return eventTypeCode, instanceID, instanceState, result
 }
