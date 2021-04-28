@@ -210,13 +210,13 @@ func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) 
 
 // parse instance events and execute the relative methods
 func (a *AutoSpotting) processEventInstance(eventType string, region string, instanceID *string, instanceState *string) error {
-	if eventType == "IS" {
+	if eventType == InstanceStateChangeNotificationCode {
 		// If event is Instance state change
 		if len(a.config.sqsReceiptHandle) != 0 {
 			logger.SetPrefix(fmt.Sprintf("SQ:%s ", *instanceID))
 		}
 		a.handleNewInstanceLaunch(region, *instanceID, *instanceState)
-	} else if eventType == "II" || eventType == "IR" {
+	} else if eventType == SpotInstanceInterruptionWarningCode || InstanceRebalanceRecommendationCode == "IR" {
 		// If the event is for an Instance Spot Interruption/Rebalance
 		spotTermination := newSpotTermination(region)
 		if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
@@ -252,16 +252,16 @@ func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
 	t := time.Now()
 	logger.SetPrefix(fmt.Sprintf("%s:%s ", eventType, t.Format("2006-01-02T15:04:00")))
 
-	if (eventType == "IS" ||
-		eventType == "II" ||
-		eventType == "IR") && instanceID != nil {
+	if (eventType == InstanceStateChangeNotificationCode ||
+		eventType == SpotInstanceInterruptionWarningCode ||
+		eventType == InstanceRebalanceRecommendationCode) && instanceID != nil {
 		// Hanlde Instance Events
 		logger.SetPrefix(fmt.Sprintf("%s:%s ", eventType, *instanceID))
 		a.processEventInstance(eventType, cloudwatchEvent.Region, instanceID, instanceState)
-	} else if eventType == "CT" {
+	} else if eventType == AWSAPICallCloudTrailCode {
 		// CloudTrail
 		a.handleLifecycleHookEvent(*cloudwatchEvent)
-	} else if eventType == "SC" {
+	} else if eventType == ScheduledEventCode {
 		// Cron Scheduling
 		a.ProcessCronEvent()
 	}

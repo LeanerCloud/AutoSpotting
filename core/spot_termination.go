@@ -27,14 +27,6 @@ type SpotTermination struct {
 	ec2Svc ec2iface.EC2API
 }
 
-//InstanceData represents JSON structure of the Detail property of CloudWatch event when a spot instance is terminated
-//Reference = https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-interruptions.html#spot-instance-termination-notices
-type instanceData struct {
-	InstanceID     *string `json:"instance-id"`
-	InstanceAction *string `json:"instance-action"`
-	State          *string `json:"state"`
-}
-
 func newSpotTermination(region string) SpotTermination {
 
 	logger.Println("Connection to region ", region)
