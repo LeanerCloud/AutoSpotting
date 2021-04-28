@@ -216,7 +216,7 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, ins
 			logger.SetPrefix(fmt.Sprintf("SQ:%s ", *instanceID))
 		}
 		a.handleNewInstanceLaunch(region, *instanceID, *instanceState)
-	} else if eventType == SpotInstanceInterruptionWarningCode || InstanceRebalanceRecommendationCode == "IR" {
+	} else if eventType == SpotInstanceInterruptionWarningCode || eventType == InstanceRebalanceRecommendationCode {
 		// If the event is for an Instance Spot Interruption/Rebalance
 		spotTermination := newSpotTermination(region)
 		if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
