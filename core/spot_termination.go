@@ -4,11 +4,9 @@
 package autospotting
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -49,38 +47,6 @@ func newSpotTermination(region string) SpotTermination {
 		asSvc:  autoscaling.New(session),
 		ec2Svc: ec2.New(session),
 	}
-}
-
-//getInstanceIDDueForTermination checks if the given CloudWatch event data is triggered from a spot termination
-//If it is a termination event for a spot instance, it returns the instance id present in the event data
-func getInstanceIDDueForTermination(event events.CloudWatchEvent) (*string, error) {
-
-	var detailData instanceData
-	if err := json.Unmarshal(event.Detail, &detailData); err != nil {
-		logger.Println(err.Error())
-		return nil, err
-	}
-
-	if detailData.InstanceAction != nil && *detailData.InstanceAction != "" {
-		return detailData.InstanceID, nil
-	}
-
-	return nil, nil
-}
-
-func getInstanceIDDueForRebalance(event events.CloudWatchEvent) (*string, error) {
-
-	var detailData instanceData
-	if err := json.Unmarshal(event.Detail, &detailData); err != nil {
-		logger.Println(err.Error())
-		return nil, err
-	}
-
-	if detailData.InstanceID != nil && *detailData.InstanceID != "" {
-		return detailData.InstanceID, nil
-	}
-
-	return nil, nil
 }
 
 //DetachInstance detaches the instance from autoscaling group without decrementing the desired capacity
@@ -237,7 +203,7 @@ func (s *SpotTermination) IsInAutoSpottingASG(instanceID *string, tagFilteringMo
 		logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
 		return false
 	} else if asgName == "" {
-		logger.Println("Instance", instanceID, "is not in an autoscaling group")
+		logger.Println("Instance", *instanceID, "is not in an autoscaling group")
 		return false
 	}
 
