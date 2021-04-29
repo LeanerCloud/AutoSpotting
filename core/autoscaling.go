@@ -363,8 +363,22 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 		return errors.New("couldn't find spot instance to use")
 	}
 
-	sent := a.region.sqsSendMessageSpotInstanceLaunch(&a.name, &spotInstanceID, spotInst.State.Name)
-	if sent == nil {
+	if len(a.region.conf.SQSQueueURL) == 0 {
+		if _, err := spotInst.swapWithGroupMember(a); err != nil {
+			logger.Printf("%s, couldn't perform spot replacement of %s ",
+				a.region.name, *spotInst.InstanceId)
+			return err
+		}
+		// add to FinalRecap
+		recapText := fmt.Sprintf("%s OnDemand instance %s replaced with spot instance %s",
+			a.name, *odInstanceID, *spotInst.InstanceId)
+		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
+
+	} else {
+
+		if err := a.region.sqsSendMessageSpotInstanceLaunch(&a.name, &spotInstanceID, spotInst.State.Name); err != nil {
+			return err
+		}
 		// add to FinalRecap
 		recapText := fmt.Sprintf("%s Sent spot instance %s event message to SQSQueue", a.name, *spotInst.InstanceId)
 		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
