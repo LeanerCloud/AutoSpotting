@@ -222,16 +222,16 @@ func (i *instance) terminate() error {
 	return err
 }
 
-func (i *instance) shouldBeReplacedWithSpot() bool {
+func (i *instance) shouldBeReplacedWithSpot(doNotCheckEventEnabled bool) bool {
 	protT, _ := i.isProtectedFromTermination()
-	return i.belongsToEnabledASG() &&
+	return i.belongsToEnabledASG(doNotCheckEventEnabled) &&
 		i.asgNeedsReplacement() &&
 		!i.isSpot() &&
 		!i.isProtectedFromScaleIn() &&
 		!protT
 }
 
-func (i *instance) belongsToEnabledASG() bool {
+func (i *instance) belongsToEnabledASG(doNotCheckEventEnabled bool) bool {
 	belongs, asgName := i.belongsToAnASG()
 	if !belongs {
 		logger.Printf("%s instane %s doesn't belong to any ASG",
@@ -240,7 +240,7 @@ func (i *instance) belongsToEnabledASG() bool {
 	}
 
 	for _, asg := range i.region.enabledASGs {
-		if asg.name == *asgName && asg.isEnabledForEventBasedInstanceReplacement() {
+		if asg.name == *asgName && (doNotCheckEventEnabled || asg.isEnabledForEventBasedInstanceReplacement()) {
 			asg.config = i.region.conf.AutoScalingConfig
 			asg.scanInstances()
 			asg.loadDefaultConfig()
@@ -811,7 +811,6 @@ func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {
 	asg := i.region.findEnabledASGByName(*asgName)
 
 	if asg != nil &&
-		asg.isEnabledForEventBasedInstanceReplacement() &&
 		!asg.hasMemberInstance(i) &&
 		i.isSpot() {
 		logger.Println("Found unattached spot instance", *i.InstanceId)
@@ -838,7 +837,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 		return nil, fmt.Errorf("target instance %s is missing", *odInstanceID)
 	}
 
-	if !odInstance.shouldBeReplacedWithSpot() {
+	if !odInstance.shouldBeReplacedWithSpot(true) {
 		logger.Printf("Target on-demand instance %s shouldn't be replaced", *odInstanceID)
 		i.terminate()
 		return nil, fmt.Errorf("target instance %s should not be replaced with spot",
@@ -848,15 +847,22 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 	// var waiter sync.WaitGroup
 	// defer waiter.Wait()
 	// go asg.temporarilySuspendTerminations(&waiter)
-	asg.suspendResumeProcess(*i.InstanceId, "suspend")
-	defer asg.suspendResumeProcess(*i.InstanceId, "resume")
+	asg.suspendProcesses()
+	defer asg.resumeProcesses()
+
+	desiredCapacity, maxSize := *asg.DesiredCapacity, *asg.MaxSize
+
+	// temporarily increase AutoScaling group in case the desired capacity reaches the max size,
+	// otherwise attachSpotInstance might fail
+	if desiredCapacity == maxSize {
+		logger.Println(asg.name, "Temporarily increasing MaxSize")
+		asg.setAutoScalingMaxSize(maxSize + 1)
+		defer asg.setAutoScalingMaxSize(maxSize)
+	}
 
 	logger.Printf("Attaching spot instance %s to the group %s",
 		*i.InstanceId, asg.name)
-	increase, err := asg.attachSpotInstance(*i.InstanceId, true)
-	if increase > 0 {
-		defer asg.changeAutoScalingMaxSize(int64(-1*increase), *i.InstanceId)
-	}
+	err := asg.attachSpotInstance(*i.InstanceId, true)
 
 	if err != nil {
 		logger.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",

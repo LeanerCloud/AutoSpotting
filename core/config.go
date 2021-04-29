@@ -93,14 +93,17 @@ type Config struct {
 	// authentication method
 	PatchBeanstalkUserdata string
 
-	// Lambda to use for Managing ASG
-	LambdaManageASG string
-
 	// JSON file containing event data used for locally simulating execution from Lambda.
 	EventFile string
 
 	// Final Recap String Array to show actions taken by ScheduleRun on ASGs
 	FinalRecap map[string][]string
+
+	// SQS Queue URl
+	SQSQueueURL string
+
+	// SQS MessageID
+	sqsReceiptHandle string
 }
 
 // ParseConfig loads configuration from command line flags, environments variables, and config files.
@@ -121,7 +124,7 @@ func ParseConfig(conf *Config) {
 	conf.LogFlag = log.Ldate | log.Ltime | log.Lshortfile
 	conf.MainRegion = region
 	conf.SleepMultiplier = 1
-	conf.LambdaManageASG = os.Getenv("LAMBDA_MANAGE_ASG")
+	conf.sqsReceiptHandle = ""
 
 	flagSet.StringVar(&conf.AllowedInstanceTypes, "allowed_instance_types", "",
 		"\n\tIf specified, the spot instances will be searched only among these types.\n\tIf missing, any instance type is allowed.\n"+
@@ -215,8 +218,8 @@ func ParseConfig(conf *Config) {
 	flagSet.StringVar(&conf.PatchBeanstalkUserdata, "patch_beanstalk_userdata", "", "\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the instance role when calling CloudFormation helpers instead of the standard CloudFormation authentication method\n"+
 		"\tExample: ./AutoSpotting --patch_beanstalk_userdata true\n")
 
-	flagSet.StringVar(&conf.LambdaManageASG, "lambda_manage_asg", "", "\n\tThe name of the Lambda function used to manage the ASG maximum group capacity. This needs to exist in the same region as the main AutoSpotting Lambda function"+
-		"\tExample: ./AutoSpotting --lambda_manage_asg AutoSpotting-LambdaManageASG-01234567890ABC\n")
+	flagSet.StringVar(&conf.SQSQueueURL, "sqs_queue_url", "", "\n\tThe Url of the SQS fifo queue used to manage spot replacement actions. This needs to exist in the same region as the main AutoSpotting Lambda function"+
+		"\tExample: ./AutoSpotting --sqs_queue_url https://sqs.{AwsRegion}.amazonaws.com/{AccountId}/AutoSpotting.fifo\n")
 
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 

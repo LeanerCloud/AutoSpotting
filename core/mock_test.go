@@ -15,6 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
+	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 )
 
 func CheckErrors(t *testing.T, err error, expected error) {
@@ -218,4 +220,25 @@ type mockLambda struct {
 
 func (m mockLambda) Invoke(*lambda.InvokeInput) (*lambda.InvokeOutput, error) {
 	return m.io, m.ierr
+}
+
+// All fields are composed of the abbreviation of their method
+// This is useful when methods are doing multiple calls to AWS API
+type mockSQS struct {
+	sqsiface.SQSAPI
+	// SendMessage
+	smo   *sqs.SendMessageOutput
+	smerr error
+
+	//DeleteMessage
+	dmo   *sqs.DeleteMessageOutput
+	dmerr error
+}
+
+func (m mockSQS) SendMessage(*sqs.SendMessageInput) (*sqs.SendMessageOutput, error) {
+	return m.smo, m.smerr
+}
+
+func (m mockSQS) DeleteMessage(*sqs.DeleteMessageInput) (*sqs.DeleteMessageOutput, error) {
+	return m.dmo, m.dmerr
 }
