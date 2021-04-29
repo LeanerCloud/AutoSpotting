@@ -245,7 +245,10 @@
     SQSQueueName:
       Default: AutoSpotting.fifo
       Description: >
-        "The Name of the SQS fifo queue used to manage spot replacement actions."
+        "The Name of the SQS fifo queue used to manage spot replacement actions.
+        Must end with '.fifo' and can have up to 80 characters, including the fifo suffix;
+        valid values: alphanumeric characters, hyphens (- ), and underscores (_ )."
+      AllowedPattern: "^[a-zA-Z0-9-_]{1,75}\.fifo$"
       Type: "String"
     TagFilteringMode:
       AllowedValues:
