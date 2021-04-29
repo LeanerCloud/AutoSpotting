@@ -4,20 +4,14 @@
 package autospotting
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/lambda"
 )
 
 type autoScalingGroup struct {
@@ -369,60 +363,27 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 		return errors.New("couldn't find spot instance to use")
 	}
 
-	az := spotInst.Placement.AvailabilityZone
-
-	logger.Println(a.name, spotInstanceID, "is in the availability zone",
-		*az, "looking for an on-demand instance there")
-	if odInstanceID == nil {
-		if odInst := a.getUnprotectedOnDemandInstanceInAZ(az); odInst != nil {
-			odInstanceID = odInst.InstanceId
+	if len(a.region.conf.SQSQueueURL) == 0 {
+		if _, err := spotInst.swapWithGroupMember(a); err != nil {
+			logger.Printf("%s, couldn't perform spot replacement of %s ",
+				a.region.name, *spotInst.InstanceId)
+			return err
 		}
-	}
-
-	if odInstanceID == nil {
-		logger.Println(a.name, "found no on-demand instances that could be",
-			"replaced with the new spot instance", *spotInst.InstanceId,
-			"terminating the spot instance.")
-		spotInst.terminate()
-		return errors.New("couldn't find ondemand instance to replace")
-	}
-
-	if err := a.waitForInstanceStatus(odInstanceID, "InService", 5); err != nil {
-		logger.Printf("OnDemand instance %v not InService",
-			*odInstanceID)
-	}
-
-	logger.Println(a.name, "found on-demand instance", *odInstanceID,
-		"replacing with new spot instance", *spotInst.InstanceId)
-
-	a.suspendResumeProcess(*spotInst.InstanceId, "suspend")
-	defer a.suspendResumeProcess(*spotInst.InstanceId, "resume")
-
-	increase, attachErr := a.attachSpotInstance(*spotInst.InstanceId, true)
-	if increase > 0 {
-		defer a.changeAutoScalingMaxSize(int64(-1*increase), *spotInst.InstanceId)
-	}
-	if attachErr != nil {
-		logger.Println(a.name, "skipping detaching on-demand due to failure to",
-			"attach the new spot instance", *spotInst.InstanceId)
-		return nil
-	}
-
-	var isTerminated error
-	switch a.config.TerminationMethod {
-	case DetachTerminationMethod:
-		isTerminated = a.detachAndTerminateOnDemandInstance(odInstanceID, true)
-	default:
-		isTerminated = a.terminateInstanceInAutoScalingGroup(odInstanceID, true, true)
-	}
-
-	if isTerminated == nil {
 		// add to FinalRecap
-		recapText := fmt.Sprintf("%s OnDemand instance %s replaced with spot instance %s", a.name, *odInstanceID, *spotInst.InstanceId)
+		recapText := fmt.Sprintf("%s OnDemand instance %s replaced with spot instance %s",
+			a.name, *odInstanceID, *spotInst.InstanceId)
+		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
+
+	} else {
+
+		if err := a.region.sqsSendMessageSpotInstanceLaunch(&a.name, &spotInstanceID, spotInst.State.Name); err != nil {
+			return err
+		}
+		// add to FinalRecap
+		recapText := fmt.Sprintf("%s Sent spot instance %s event message to SQSQueue", a.name, *spotInst.InstanceId)
 		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
 	}
-
-	return isTerminated
+	return nil
 }
 
 // Returns the information about the first running instance found in
@@ -497,7 +458,7 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 	isInstanceInStatus := false
 	for retry := 1; !isInstanceInStatus; retry++ {
 		if retry > maxRetry {
-			logger.Printf("Failed waiting instance %v in status %v",
+			logger.Printf("Failed waiting instance %s in status %s",
 				*instanceID, status)
 			break
 		} else {
@@ -513,14 +474,19 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 
 			autoScalingInstances := result.AutoScalingInstances
 
-			if len(autoScalingInstances) > 0 && *autoScalingInstances[0].LifecycleState == status {
-				isInstanceInStatus = true
-				return nil
+			if len(autoScalingInstances) > 0 {
+				if instanceStatus := *autoScalingInstances[0].LifecycleState; instanceStatus != status {
+					logger.Printf("Waiting for instance %s to be in status %s [%s]",
+						*instanceID, status, instanceStatus)
+				} else {
+					isInstanceInStatus = true
+					return nil
+				}
+			} else {
+				logger.Printf("Waiting for instance %s to be in AutoScalingGroup with status %s",
+					*instanceID, status)
 			}
-			logger.Printf("Waiting for instance %v to be in status %v",
-				*instanceID, status)
 			time.Sleep(time.Duration(5*retry) * time.Second)
-
 		}
 	}
 
@@ -608,77 +574,7 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 	return nil
 }
 
-func (a *autoScalingGroup) getRandSeed(instanceID string) int64 {
-	runes := []rune(instanceID)
-	result := ""
-	n := int64(0)
-
-	// Aws instance Id are like "i-0b2183ffced338d58" so we start from third char
-	for i := 2; i < len(runes); i++ {
-		n += int64(runes[i])
-		rand.Seed(n)
-		randN := rand.Intn(10)
-		result += fmt.Sprintf("%v", randN)
-	}
-
-	seed, _ := strconv.ParseInt(result, 10, 64)
-
-	return seed
-}
-
-func (a *autoScalingGroup) changeAutoScalingMaxSize(value int64, instanceID string) error {
-	payload, _ := json.Marshal(map[string]interface{}{
-		"region":    a.region.name,
-		"asg":       a.name,
-		"variation": value,
-	})
-
-	changed := false
-	seed := a.getRandSeed(instanceID)
-	s, err := session.NewSession()
-	if err != nil {
-		logger.Println("Could create new session:", err.Error())
-		return err
-	}
-
-	svc := lambda.New(s, aws.NewConfig())
-	logger.Printf("Changing AutoScalingGroup %s MaxSize of %v unit",
-		a.name, value)
-
-	for retry, maxRetry := 0, 5; !changed; {
-		if retry > maxRetry {
-			return fmt.Errorf("unable to update ASG %v MaxSize", a.name)
-		}
-		_, err := svc.Invoke(
-			&lambda.InvokeInput{
-				FunctionName: aws.String(a.region.conf.LambdaManageASG),
-				Payload:      payload,
-			})
-
-		if err != nil {
-			awsErr, _ := err.(awserr.Error)
-			if awsErr.Code() == "ErrCodeTooManyRequestsException" {
-				rand.Seed(seed)
-				sleepDuration := float64(retry) * float64(100) * rand.Float64()
-				sleepTime := time.Duration(sleepDuration) * time.Millisecond
-				time.Sleep(sleepTime)
-				logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
-				continue
-			} else {
-				logger.Printf("Error invoking LambdaManageASG retrying attempt %d of %d: %v",
-					retry, maxRetry, err.Error())
-				retry++
-			}
-		} else {
-			changed = true
-		}
-
-	}
-
-	return nil
-}
-
-func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) (int, error) {
+func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) error {
 	if wait {
 		err := a.region.services.ec2.WaitUntilInstanceRunning(
 			&ec2.DescribeInstancesInput{
@@ -686,51 +582,35 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 			})
 
 		if err != nil {
-			logger.Printf("Issue while waiting for instance %v to start: %v",
+			logger.Printf("Issue while waiting for instance %s to start: %v",
 				spotInstanceID, err.Error())
 		}
 
 	}
 
-	increase := 0
-
-	for attaching := false; !attaching; {
-		resp, err := a.region.services.autoScaling.AttachInstances(
-			&autoscaling.AttachInstancesInput{
-				AutoScalingGroupName: aws.String(a.name),
-				InstanceIds: []*string{
-					&spotInstanceID,
-				},
+	resp, err := a.region.services.autoScaling.AttachInstances(
+		&autoscaling.AttachInstancesInput{
+			AutoScalingGroupName: aws.String(a.name),
+			InstanceIds: []*string{
+				&spotInstanceID,
 			},
-		)
+		},
+	)
 
-		awsErr, _ := err.(awserr.Error)
-
-		if err != nil {
-			if awsErr.Code() == "ValidationError" &&
-				strings.Contains(awsErr.Message(), "update the AutoScalingGroup sizes") {
-				if err := a.changeAutoScalingMaxSize(1, spotInstanceID); err != nil {
-					return increase, err
-				}
-				increase++
-			} else {
-				logger.Println(err.Error())
-				logger.Println(awsErr.Message())
-				logger.Println(resp)
-				return increase, err
-			}
-		} else {
-			attaching = true
-		}
+	if err != nil {
+		logger.Println(err.Error())
+		// Pretty-print the response data.
+		logger.Println(resp)
+		return err
 	}
 
 	if err := a.waitForInstanceStatus(&spotInstanceID, "InService", 5); err != nil {
 		logger.Printf("Spot instance %s couldn't be attached to the group %s: %v",
 			spotInstanceID, a.name, err.Error())
-		return increase, err
+		return err
 	}
 
-	return increase, nil
+	return nil
 }
 
 // Terminates an on-demand instance from the group,
@@ -793,7 +673,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 		}
 
 		if err = a.waitForInstanceStatus(instanceID, "InService", 5); err != nil {
-			logger.Printf("Instance %v is still not InService, trying to terminate it anyway.",
+			logger.Printf("Instance %s is still not InService, trying to terminate it anyway.",
 				*instanceID)
 		}
 	}
@@ -893,60 +773,30 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	return count, total
 }
 
-func (a *autoScalingGroup) suspendResumeProcess(instanceID string, action string) error {
+func (a *autoScalingGroup) suspendProcesses() {
+	AutoScalingProcessesToSuspend := []*string{aws.String("Terminate"), aws.String("AZRebalance")}
+	logger.Printf("Suspending processes on ASG %s", a.name)
 
-	if action == "resume" {
-		time.Sleep(2 * time.Minute * a.region.conf.SleepMultiplier)
-	}
-
-	payload, _ := json.Marshal(map[string]interface{}{
-		"region":     a.region.name,
-		"asg":        a.name,
-		"instanceid": instanceID,
-		"action":     action,
-	})
-
-	changed := false
-	seed := a.getRandSeed(instanceID)
-
-	s, err := session.NewSession()
+	_, err := a.region.services.autoScaling.SuspendProcesses(
+		&autoscaling.ScalingProcessQuery{
+			AutoScalingGroupName: a.AutoScalingGroupName,
+			ScalingProcesses:     AutoScalingProcessesToSuspend,
+		})
 	if err != nil {
-		logger.Println("Could create new session:", err.Error())
-		return err
+		logger.Printf("couldn't suspend processes on ASG %s ", a.name)
 	}
-	svc := lambda.New(s, aws.NewConfig())
+}
 
-	logger.Printf("Process %s for AutoScalingGroup %s",
-		action, a.name)
+func (a *autoScalingGroup) resumeProcesses() {
+	AutoScalingProcessesToResume := []*string{aws.String("Terminate"), aws.String("AZRebalance")}
+	logger.Printf("Resuming processes on ASG %s", a.name)
 
-	for retry, maxRetry := 0, 5; !changed; {
-		if retry > maxRetry {
-			return fmt.Errorf("unable to %s process for ASG %s", action, a.name)
-		}
-		_, err := svc.Invoke(
-			&lambda.InvokeInput{
-				FunctionName: aws.String(a.region.conf.LambdaManageASG),
-				Payload:      payload,
-			})
-
-		if err != nil {
-			awsErr, _ := err.(awserr.Error)
-			if awsErr.Code() == "ErrCodeTooManyRequestsException" {
-				rand.Seed(seed)
-				sleepDuration := float64(retry) * float64(100) * rand.Float64()
-				sleepTime := time.Duration(sleepDuration) * time.Millisecond
-				time.Sleep(sleepTime)
-				logger.Printf("LambdaManageASG concurrent execution, sleeping for %v", sleepTime)
-				continue
-			} else {
-				logger.Printf("Error invoking LambdaManageASG retrying attempt %d on %d: %v",
-					retry, maxRetry, err.Error())
-				retry++
-			}
-
-		} else {
-			changed = true
-		}
+	_, err := a.region.services.autoScaling.ResumeProcesses(
+		&autoscaling.ScalingProcessQuery{
+			AutoScalingGroupName: a.AutoScalingGroupName,
+			ScalingProcesses:     AutoScalingProcessesToResume,
+		})
+	if err != nil {
+		logger.Printf("couldn't resume processes on ASG %s ", a.name)
 	}
-	return nil
 }

@@ -893,7 +893,7 @@ func TestAttachSpotInstance(t *testing.T) {
 					DesiredCapacity: aws.Int64(3),
 				},
 			}
-			_, err := a.attachSpotInstance(tt.instanceID, false)
+			err := a.attachSpotInstance(tt.instanceID, false)
 			CheckErrors(t, err, tt.expected)
 		})
 	}
@@ -2281,7 +2281,9 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 				),
 				region: &region{
 					name: "test-region",
-					conf: &Config{},
+					conf: &Config{
+						FinalRecap: make(map[string][]string),
+					},
 					services: connections{
 						autoScaling: &mockASG{
 							uasgo:     nil,
@@ -2294,6 +2296,10 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 						ec2: &mockEC2{
 							tio:   nil,
 							tierr: nil,
+						},
+						sqs: &mockSQS{
+							smo:   nil,
+							smerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(
@@ -2395,7 +2401,9 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 				),
 				region: &region{
 					name: "test-region",
-					conf: &Config{},
+					conf: &Config{
+						FinalRecap: make(map[string][]string),
+					},
 					services: connections{
 						autoScaling: &mockASG{
 							uasgo:     nil,
@@ -2408,6 +2416,10 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 						ec2: &mockEC2{
 							tio:   nil,
 							tierr: nil,
+						},
+						sqs: &mockSQS{
+							smo:   nil,
+							smerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(
@@ -2489,7 +2501,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 		},
 		{name: "no OnDemand instances found in asg",
 			spotID:   "spot-running",
-			expected: errors.New("couldn't find ondemand instance to replace"),
+			expected: errors.New("couldn't find target instance for spot-running"),
 			asg: &autoScalingGroup{
 				name: "test-asg",
 				Group: &autoscaling.Group{
@@ -2500,7 +2512,9 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 				instances: makeInstances(),
 				region: &region{
 					name: "test-region",
-					conf: &Config{},
+					conf: &Config{
+						FinalRecap: make(map[string][]string),
+					},
 					services: connections{
 						autoScaling: &mockASG{
 							uasgo:     nil,
@@ -2509,6 +2523,10 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							dierr:     nil,
 							tiiasgo:   nil,
 							tiiasgerr: nil,
+						},
+						sqs: &mockSQS{
+							smo:   nil,
+							smerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(
@@ -2537,7 +2555,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 
 		{name: "found OnDemand instance in asg, without lifecycle hooks",
 			spotID:   "spot-running",
-			expected: errors.New(""),
+			expected: errors.New("couldn't find target instance for spot-running"),
 			asg: &autoScalingGroup{
 				name: "test-asg",
 				Group: &autoscaling.Group{
@@ -2587,8 +2605,9 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 							},
 						},
 						ec2: &mockEC2{},
-						lambda: &mockLambda{
-							ierr: nil,
+						sqs: &mockSQS{
+							smo:   nil,
+							smerr: nil,
 						},
 					},
 					instances: makeInstancesWithCatalog(

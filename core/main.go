@@ -177,23 +177,26 @@ func (a *AutoSpotting) getRegions() ([]string, error) {
 
 // convertRawEventToCloudwatchEvent parses a raw event into a CloudWatchEvent or
 // returns an error in case of failure
-func convertRawEventToCloudwatchEvent(event *json.RawMessage) (*events.CloudWatchEvent, error) {
-	var snsEvent events.SNSEvent
+func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) (*events.CloudWatchEvent, error) {
+	var sqsEvent events.SQSEvent
 	var cloudwatchEvent events.CloudWatchEvent
 
 	log.Println("Received event: \n", string(*event))
 	parseEvent := *event
 
-	// Try to parse event as an Sns Message
-	if err := json.Unmarshal(parseEvent, &snsEvent); err != nil {
+	// Try to parse event as an Sqs Message
+	if err := json.Unmarshal(parseEvent, &sqsEvent); err != nil {
 		log.Println(err.Error())
 		return nil, err
 	}
 
-	// If the event comes from Sns - extract the Cloudwatch event embedded in it
-	if snsEvent.Records != nil {
-		snsRecord := snsEvent.Records[0]
-		parseEvent = []byte(snsRecord.SNS.Message)
+	// If the event comes from Sqs - extract the Cloudwatch event embedded in it
+	if sqsEvent.Records != nil {
+		sqsRecord := sqsEvent.Records[0]
+		parseEvent = []byte(sqsRecord.Body)
+		a.config.sqsReceiptHandle = sqsRecord.ReceiptHandle
+	} else {
+		a.config.sqsReceiptHandle = ""
 	}
 
 	// Try to parse the event as Cloudwatch Event Rule
@@ -201,7 +204,69 @@ func convertRawEventToCloudwatchEvent(event *json.RawMessage) (*events.CloudWatc
 		log.Println(err.Error())
 		return nil, err
 	}
+
 	return &cloudwatchEvent, nil
+}
+
+// parse instance events and execute the relative methods
+func (a *AutoSpotting) processEventInstance(eventType string, region string, instanceID *string, instanceState *string) error {
+	if eventType == InstanceStateChangeNotificationCode {
+		// If event is Instance state change
+		if len(a.config.sqsReceiptHandle) != 0 {
+			logger.SetPrefix(fmt.Sprintf("SQS:%s ", *instanceID))
+		}
+		a.handleNewInstanceLaunch(region, *instanceID, *instanceState)
+	} else if eventType == SpotInstanceInterruptionWarningCode || eventType == InstanceRebalanceRecommendationCode {
+		// If the event is for an Instance Spot Interruption/Rebalance
+		spotTermination := newSpotTermination(region)
+		if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
+			err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
+			if err != nil {
+				log.Printf("Error executing spot termination/rebalance action: %s\n", err.Error())
+				return err
+			}
+		} else {
+			log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
+		}
+	}
+
+	return nil
+}
+
+// parse event and execute the relative methods
+func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
+	cloudwatchEvent, err := a.convertRawEventToCloudwatchEvent(event)
+	if err != nil {
+		log.Println("Couldn't parse event", event, err.Error())
+		return err
+	}
+
+	// for eventType mapping look in core/instance_events.go
+	eventType, instanceID, instanceState, err := parseEventData(*cloudwatchEvent)
+	if err != nil {
+		log.Println("Couldn't get event details: ", err.Error())
+		return err
+	}
+
+	log.Println("Triggered by", cloudwatchEvent.DetailType)
+	t := time.Now()
+	logger.SetPrefix(fmt.Sprintf("%s:%s ", eventType, t.Format("2006-01-02T15:04:00")))
+
+	if (eventType == InstanceStateChangeNotificationCode ||
+		eventType == SpotInstanceInterruptionWarningCode ||
+		eventType == InstanceRebalanceRecommendationCode) && instanceID != nil {
+		// Hanlde Instance Events
+		logger.SetPrefix(fmt.Sprintf("%s:%s ", eventType, *instanceID))
+		a.processEventInstance(eventType, cloudwatchEvent.Region, instanceID, instanceState)
+	} else if eventType == AWSAPICallCloudTrailCode {
+		// CloudTrail
+		a.handleLifecycleHookEvent(*cloudwatchEvent)
+	} else if eventType == ScheduledEventCode {
+		// Cron Scheduling
+		a.ProcessCronEvent()
+	}
+
+	return nil
 }
 
 // EventHandler implements the event handling logic and is the main entrypoint of
@@ -215,75 +280,7 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 		return
 	}
 
-	cloudwatchEvent, err := convertRawEventToCloudwatchEvent(event)
-	if err != nil {
-		log.Println("Couldn't parse event", event, err.Error())
-		return
-	}
-
-	eventType := cloudwatchEvent.DetailType
-	// If the event is for an Instance Spot Interruption
-	if eventType == "EC2 Spot Instance Interruption Warning" {
-		log.Println("Triggered by", eventType)
-		if instanceID, err := getInstanceIDDueForTermination(*cloudwatchEvent); err != nil {
-			log.Println("Couldn't get instance ID of terminating spot instance", err.Error())
-			return
-		} else if instanceID != nil {
-			logger.SetPrefix(fmt.Sprintf("TE:%s ", *instanceID))
-			spotTermination := newSpotTermination(cloudwatchEvent.Region)
-			if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
-				err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
-				if err != nil {
-					log.Printf("Error executing spot termination action: %s\n", err.Error())
-				}
-			} else {
-				log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
-				return
-			}
-		}
-
-		// If event is Instance state change
-	} else if eventType == "EC2 Instance State-change Notification" {
-		log.Println("Triggered by", eventType)
-		instanceID, state, err := parseEventData(*cloudwatchEvent)
-		if err != nil {
-			log.Println("Couldn't get instance ID of newly launched instance", err.Error())
-			return
-		} else if instanceID != nil {
-			logger.SetPrefix(fmt.Sprintf("ST:%s ", *instanceID))
-			a.handleNewInstanceLaunch(cloudwatchEvent.Region, *instanceID, *state)
-		}
-
-	} else if eventType == "EC2 Instance Rebalance Recommendation" {
-		log.Println("Triggered by", eventType)
-		instanceID, err := getInstanceIDDueForRebalance(*cloudwatchEvent)
-		if err != nil {
-			log.Println("Couldn't get instance ID of a instance rebalance recommendation", err.Error())
-			return
-		} else if instanceID != nil {
-			logger.SetPrefix(fmt.Sprintf("RE:%s", *instanceID))
-			spotTermination := newSpotTermination(cloudwatchEvent.Region)
-			if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
-				err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
-				if err != nil {
-					log.Printf("Error executing spot termination action due rebalance recommendation: %s\n", err.Error())
-				}
-			} else {
-				log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
-				return
-			}
-		}
-
-	} else if eventType == "AWS API Call via CloudTrail" {
-		log.Println("Triggered by", eventType)
-		a.handleLifecycleHookEvent(*cloudwatchEvent)
-	} else {
-		// Cron Scheduling
-		t := time.Now()
-		logger.SetPrefix(fmt.Sprintf("SC:%s ", t.Format("2006-01-02T15:04:00")))
-		a.ProcessCronEvent()
-	}
-
+	a.processEvent(event)
 	logger.SetPrefix("")
 }
 
@@ -359,11 +356,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 		"attempting to swap it against a running on-demand instance",
 		i.region.name, *i.InstanceId)
 
-	if _, err := i.swapWithGroupMember(asg); err != nil {
-		logger.Printf("%s, couldn't perform spot replacement of %s ",
-			i.region.name, *i.InstanceId)
-		return err
-	}
+	i.region.sqsSendMessageSpotInstanceLaunch(asgName, i.InstanceId, i.State.Name)
 
 	return nil
 }
@@ -416,7 +409,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 }
 
 func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) error {
-	if i.belongsToEnabledASG() && i.shouldBeReplacedWithSpot() {
+	if i.shouldBeReplacedWithSpot(false) {
 		logger.Printf("%s instance %s belongs to an enabled ASG and should be "+
 			"replaced with spot, attempting to launch spot replacement",
 			i.region.name, *i.InstanceId)
@@ -453,24 +446,17 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error
 		return fmt.Errorf("region %s is missing asg data", i.region.name)
 	}
 
+	if len(a.config.sqsReceiptHandle) == 0 {
+		if asg.isEnabledForEventBasedInstanceReplacement() {
+			i.region.sqsSendMessageSpotInstanceLaunch(asgName, i.InstanceId, i.State.Name)
+		}
+		return nil
+	}
+	defer i.region.sqsDeleteMessage(i.InstanceId)
+
 	logger.Printf("%s Found instance %s is not yet attached to its ASG, "+
 		"attempting to swap it against a running on-demand instance",
 		i.region.name, *i.InstanceId)
-
-	hasHooks, err := asg.hasLaunchLifecycleHooks()
-
-	if err != nil {
-		logger.Printf("%s ASG %s - couldn't describe Lifecycle Hooks",
-			i.region.name, *asgName)
-		return err
-	}
-
-	if hasHooks {
-		logger.Printf("%s ASG %s has instance launch lifecycle hooks, skipping "+
-			"instance %s until it attempts to continue the lifecycle hook itself",
-			i.region.name, *asgName, *i.InstanceId)
-		return nil
-	}
 
 	if _, err := i.swapWithGroupMember(asg); err != nil {
 		logger.Printf("%s, couldn't perform spot replacement of %s ",
