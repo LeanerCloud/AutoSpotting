@@ -2501,7 +2501,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 		},
 		{name: "no OnDemand instances found in asg",
 			spotID:   "spot-running",
-			expected: errors.New("couldn't find ondemand instance to replace"),
+			expected: errors.New("couldn't find target instance for spot-running"),
 			asg: &autoScalingGroup{
 				name: "test-asg",
 				Group: &autoscaling.Group{
@@ -2555,7 +2555,7 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 
 		{name: "found OnDemand instance in asg, without lifecycle hooks",
 			spotID:   "spot-running",
-			expected: errors.New(""),
+			expected: errors.New("couldn't find target instance for spot-running"),
 			asg: &autoScalingGroup{
 				name: "test-asg",
 				Group: &autoscaling.Group{
