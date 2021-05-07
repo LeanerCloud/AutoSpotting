@@ -237,7 +237,7 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, ins
 func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
 	cloudwatchEvent, err := a.convertRawEventToCloudwatchEvent(event)
 	if err != nil {
-		log.Println("Couldn't parse event", event, err.Error())
+		log.Println("Couldn't parse event", string(*event), err.Error())
 		return err
 	}
 
@@ -314,7 +314,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 	if !r.enabled() {
 		return fmt.Errorf("region %s is not enabled", r.name)
 	}
-	r.services.connect(regionName)
+	r.services.connect(regionName, r.conf.MainRegion)
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 
@@ -368,7 +368,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 		return fmt.Errorf("region %s is not enabled", regionName)
 	}
 
-	r.services.connect(regionName)
+	r.services.connect(regionName, a.config.MainRegion)
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 

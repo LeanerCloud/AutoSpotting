@@ -78,7 +78,7 @@ func (r *region) enabled() bool {
 func (r *region) processRegion() {
 
 	logger.Println("Creating connections to the required AWS services in", r.name)
-	r.services.connect(r.name)
+	r.services.connect(r.name, r.conf.MainRegion)
 	// only process the regions where we have AutoScaling groups set to be handled
 
 	// setup the filters for asg matching
