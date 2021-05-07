@@ -80,5 +80,5 @@ type swapSpotInstance struct {
 func (ssi swapSpotInstance) run() {
 	asg := ssi.target.asg
 	spotInstanceID := *ssi.target.spotInstance.InstanceId
-	asg.replaceOnDemandInstanceWithSpot(nil, spotInstanceID)
+	asg.replaceOnDemandInstanceWithSpot(spotInstanceID)
 }
