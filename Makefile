@@ -54,15 +54,11 @@ archive: build                                               ## Create archive t
 	@zip $(LOCAL_PATH)/lambda.zip $(BINARY) $(LICENSE_FILES)
 	@cp -f cloudformation/stacks/AutoSpotting/template.yaml $(LOCAL_PATH)/
 	@cp -f cloudformation/stacks/AutoSpotting/template.yaml $(LOCAL_PATH)/template_build_$(BUILD).yaml
-	@zip -j $(LOCAL_PATH)/manage_asg.zip cloudformation/stacks/AutoSpotting/manage_asg.py
 	@cp -f cloudformation/stacks/AutoSpotting/regional_template.yaml $(LOCAL_PATH)/
 	@sed -e "s#lambda\.zip#lambda_build_$(BUILD).zip#" $(LOCAL_PATH)/template_build_$(BUILD).yaml > $(LOCAL_PATH)/template_build_$(BUILD).yaml.new
-	@sed -e "s#manage_asg\.zip#manage_asg_build_$(BUILD).zip#" $(LOCAL_PATH)/template_build_$(BUILD).yaml > $(LOCAL_PATH)/template_build_$(BUILD).yaml.new
 	@mv -- $(LOCAL_PATH)/template_build_$(BUILD).yaml.new $(LOCAL_PATH)/template_build_$(BUILD).yaml
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(BUILD).zip
 	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(SHA).zip
-	@cp -f $(LOCAL_PATH)/manage_asg.zip $(LOCAL_PATH)/manage_asg_build_$(BUILD).zip
-	@cp -f $(LOCAL_PATH)/manage_asg.zip $(LOCAL_PATH)/manage_asg_build_$(SHA).zip
 
 .PHONY: archive
 
