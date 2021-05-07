@@ -354,8 +354,9 @@ func (a *autoScalingGroup) scanInstances() instances {
 	return a.instances
 }
 
-func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
-	spotInstanceID string) error {
+func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(spotInstanceID string) error {
+	var odInstance *instance
+	var err error
 
 	// get the details of our spot instance so we can see its AZ
 	log.Println(a.name, "Retrieving instance details for ", spotInstanceID)
@@ -365,14 +366,14 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(odInstanceID *string,
 	}
 
 	if len(a.region.conf.SQSQueueURL) == 0 {
-		if _, err := spotInst.swapWithGroupMember(a); err != nil {
+		if odInstance, err = spotInst.swapWithGroupMember(a); err != nil {
 			log.Printf("%s, couldn't perform spot replacement of %s ",
 				a.region.name, *spotInst.InstanceId)
 			return err
 		}
 		// add to FinalRecap
 		recapText := fmt.Sprintf("%s OnDemand instance %s replaced with spot instance %s",
-			a.name, *odInstanceID, *spotInst.InstanceId)
+			a.name, *odInstance.InstanceId, *spotInst.InstanceId)
 		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
 
 	} else {
