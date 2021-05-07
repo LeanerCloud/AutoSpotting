@@ -4,6 +4,7 @@
 package autospotting
 
 import (
+	"log"
 	"math"
 	"strconv"
 )
@@ -137,18 +138,18 @@ type AutoScalingConfig struct {
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
 	percentage, err := strconv.ParseFloat(*tagValue, 64)
 	if err != nil {
-		logger.Printf("Error with ParseFloat: %s\n", err.Error())
+		log.Printf("Error with ParseFloat: %s\n", err.Error())
 	} else if percentage == 0 {
-		logger.Printf("Loaded MinOnDemand value to %f from tag %s\n", percentage, OnDemandPercentageTag)
+		log.Printf("Loaded MinOnDemand value to %f from tag %s\n", percentage, OnDemandPercentageTag)
 		return int64(percentage), true
 	} else if percentage > 0 && percentage <= 100 {
 		instanceNumber := float64(a.instances.count())
 		onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
-		logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandPercentageTag)
+		log.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandPercentageTag)
 		return onDemand, true
 	}
 
-	logger.Printf("Ignoring value out of range %f\n", percentage)
+	log.Printf("Ignoring value out of range %f\n", percentage)
 
 	return DefaultMinOnDemandValue, false
 }
@@ -157,26 +158,26 @@ func (a *autoScalingGroup) loadSpotPriceBufferPercentage(tagValue *string) (floa
 	spotPriceBufferPercentage, err := strconv.ParseFloat(*tagValue, 64)
 
 	if err != nil {
-		logger.Printf("Error with ParseFloat: %s\n", err.Error())
+		log.Printf("Error with ParseFloat: %s\n", err.Error())
 		return DefaultSpotPriceBufferPercentage, false
 	} else if spotPriceBufferPercentage < 0 {
-		logger.Printf("Ignoring out of range value : %f\n", spotPriceBufferPercentage)
+		log.Printf("Ignoring out of range value : %f\n", spotPriceBufferPercentage)
 		return DefaultSpotPriceBufferPercentage, false
 	}
 
-	logger.Printf("Loaded SpotPriceBufferPercentage value to %f from tag %s\n", spotPriceBufferPercentage, SpotPriceBufferPercentageTag)
+	log.Printf("Loaded SpotPriceBufferPercentage value to %f from tag %s\n", spotPriceBufferPercentage, SpotPriceBufferPercentageTag)
 	return spotPriceBufferPercentage, true
 }
 
 func (a *autoScalingGroup) loadNumberOnDemand(tagValue *string) (int64, bool) {
 	onDemand, err := strconv.Atoi(*tagValue)
 	if err != nil {
-		logger.Printf("Error with Atoi: %s\n", err.Error())
+		log.Printf("Error with Atoi: %s\n", err.Error())
 	} else if onDemand >= 0 && int64(onDemand) <= *a.MaxSize {
-		logger.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandNumberLong)
+		log.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandNumberLong)
 		return int64(onDemand), true
 	} else {
-		logger.Printf("Ignoring value out of range %d\n", onDemand)
+		log.Printf("Ignoring value out of range %d\n", onDemand)
 	}
 	return DefaultMinOnDemandValue, false
 }
@@ -185,14 +186,14 @@ func (a *autoScalingGroup) loadOnDemandPriceMultiplier(tagValue *string) (float6
 	onDemandPriceMultiplier, err := strconv.ParseFloat(*tagValue, 64)
 
 	if err != nil {
-		logger.Printf("Error with ParseFloat: %s\n", err.Error())
+		log.Printf("Error with ParseFloat: %s\n", err.Error())
 		return DefaultOnDemandPriceMultiplier, false
 	} else if onDemandPriceMultiplier <= 0 {
-		logger.Printf("Ignoring out of range value : %f\n", onDemandPriceMultiplier)
+		log.Printf("Ignoring out of range value : %f\n", onDemandPriceMultiplier)
 		return DefaultOnDemandPriceMultiplier, false
 	}
 
-	logger.Printf("Loaded OnDemandPriceMultiplier value to %f from tag %s\n", onDemandPriceMultiplier, OnDemandPriceMultiplierTag)
+	log.Printf("Loaded OnDemandPriceMultiplier value to %f from tag %s\n", onDemandPriceMultiplier, OnDemandPriceMultiplierTag)
 	return onDemandPriceMultiplier, true
 }
 
@@ -237,7 +238,7 @@ func (a *autoScalingGroup) loadPatchBeanstalkUserdata() {
 	tagValue := a.getTagValue(PatchBeanstalkUserdataTag)
 
 	if tagValue != nil {
-		logger.Printf("Loaded PatchBeanstalkUserdata value %v from tag %v\n", *tagValue, PatchBeanstalkUserdataTag)
+		log.Printf("Loaded PatchBeanstalkUserdata value %v from tag %v\n", *tagValue, PatchBeanstalkUserdataTag)
 		a.config.PatchBeanstalkUserdata = *tagValue
 		return
 	}
@@ -252,7 +253,7 @@ func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
 		return DefaultBiddingPolicy, false
 	}
 
-	logger.Printf("Loaded BiddingPolicy value with %s from tag %s\n", biddingPolicy, BiddingPolicyTag)
+	log.Printf("Loaded BiddingPolicy value with %s from tag %s\n", biddingPolicy, BiddingPolicyTag)
 	return biddingPolicy, true
 }
 
@@ -260,7 +261,7 @@ func (a *autoScalingGroup) LoadCronSchedule() {
 	tagValue := a.getTagValue(ScheduleTag)
 
 	if tagValue != nil {
-		logger.Printf("Loaded CronSchedule value %v from tag %v\n", *tagValue, ScheduleTag)
+		log.Printf("Loaded CronSchedule value %v from tag %v\n", *tagValue, ScheduleTag)
 		a.config.CronSchedule = *tagValue
 		return
 	}
@@ -273,7 +274,7 @@ func (a *autoScalingGroup) LoadCronTimezone() {
 	tagValue := a.getTagValue(TimezoneTag)
 
 	if tagValue != nil {
-		logger.Printf("Loaded CronTimezone value %v from tag %v\n", *tagValue, TimezoneTag)
+		log.Printf("Loaded CronTimezone value %v from tag %v\n", *tagValue, TimezoneTag)
 		a.config.CronTimezone = *tagValue
 		return
 	}
@@ -285,7 +286,7 @@ func (a *autoScalingGroup) LoadCronTimezone() {
 func (a *autoScalingGroup) LoadCronScheduleState() {
 	tagValue := a.getTagValue(CronScheduleStateTag)
 	if tagValue != nil {
-		logger.Printf("Loaded CronScheduleState value %v from tag %v\n", *tagValue, CronScheduleStateTag)
+		log.Printf("Loaded CronScheduleState value %v from tag %v\n", *tagValue, CronScheduleStateTag)
 		a.config.CronScheduleState = *tagValue
 		return
 	}
@@ -359,16 +360,16 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 	a.loadPatchBeanstalkUserdata()
 
 	if resOnDemandConf {
-		logger.Println("Found and applied configuration for OnDemand value")
+		log.Println("Found and applied configuration for OnDemand value")
 	}
 	if resOnDemandPriceMultiplierConf {
-		logger.Println("Found and applied configuration for OnDemand Price Multiplier")
+		log.Println("Found and applied configuration for OnDemand Price Multiplier")
 	}
 	if resSpotConf {
-		logger.Println("Found and applied configuration for Spot Bid")
+		log.Println("Found and applied configuration for Spot Bid")
 	}
 	if resSpotPriceConf {
-		logger.Println("Found and applied configuration for Spot Price")
+		log.Println("Found and applied configuration for Spot Price")
 	}
 	if resOnDemandConf || resOnDemandPriceMultiplierConf || resSpotConf || resSpotPriceConf {
 		return true
@@ -379,22 +380,22 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 func (a *autoScalingGroup) loadDefaultConfigNumber() (int64, bool) {
 	onDemand := a.region.conf.MinOnDemandNumber
 	if onDemand >= 0 && onDemand <= int64(a.instances.count()) {
-		logger.Printf("Loaded default value %d from conf number.", onDemand)
+		log.Printf("Loaded default value %d from conf number.", onDemand)
 		return onDemand, true
 	}
-	logger.Println("Ignoring default value out of range:", onDemand)
+	log.Println("Ignoring default value out of range:", onDemand)
 	return DefaultMinOnDemandValue, false
 }
 
 func (a *autoScalingGroup) loadDefaultConfigPercentage() (int64, bool) {
 	percentage := a.region.conf.MinOnDemandPercentage
 	if percentage < 0 || percentage > 100 {
-		logger.Printf("Ignoring default value out of range: %f", percentage)
+		log.Printf("Ignoring default value out of range: %f", percentage)
 		return DefaultMinOnDemandValue, false
 	}
 	instanceNumber := a.instances.count()
 	onDemand := int64(math.Floor((float64(instanceNumber) * percentage / 100.0) + .5))
-	logger.Printf("Loaded default value %d from conf percentage.", onDemand)
+	log.Printf("Loaded default value %d from conf percentage.", onDemand)
 	return onDemand, true
 }
 
@@ -412,7 +413,7 @@ func (a *autoScalingGroup) loadDefaultConfig() bool {
 	if !done && a.region.conf.MinOnDemandPercentage != 0 {
 		a.minOnDemand, done = a.loadDefaultConfigPercentage()
 	} else {
-		logger.Println("No default value for on-demand instances specified, skipping.")
+		log.Println("No default value for on-demand instances specified, skipping.")
 	}
 	return done
 }

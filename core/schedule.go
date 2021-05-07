@@ -4,6 +4,7 @@
 package autospotting
 
 import (
+	"log"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -20,7 +21,7 @@ func insideSchedule(t time.Time, crontab string, timezone string) (bool, error) 
 	tz, err := time.LoadLocation(timezone)
 
 	if err != nil {
-		logger.Println(err)
+		log.Println(err)
 		return false, err
 	}
 
@@ -30,7 +31,7 @@ func insideSchedule(t time.Time, crontab string, timezone string) (bool, error) 
 	entry, err := c.AddFunc(crontab, nil)
 
 	if err != nil {
-		logger.Println(err)
+		log.Println(err)
 		return false, err
 	}
 

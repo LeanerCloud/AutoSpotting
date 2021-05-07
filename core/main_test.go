@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 		logOutput = ioutil.Discard
 	}
 
-	logger = log.New(logOutput, "", 0)
+	log.SetOutput(logOutput)
 	debug = log.New(logOutput, "", 0)
 
 	os.Exit(m.Run())

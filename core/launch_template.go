@@ -4,6 +4,7 @@
 package autospotting
 
 import (
+	"log"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -29,7 +30,7 @@ func (lt *launchTemplate) countLaunchTemplateEphemeralVolumes() int {
 		}
 	}
 
-	logger.Printf("Launch template version would attach %d ephemeral volumes if available", count)
+	log.Printf("Launch template version would attach %d ephemeral volumes if available", count)
 
 	return count
 }

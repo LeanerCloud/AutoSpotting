@@ -6,6 +6,7 @@ package autospotting
 import (
 	"encoding/json"
 	"errors"
+	"log"
 
 	"github.com/aws/aws-lambda-go/events"
 )
@@ -69,7 +70,7 @@ func parseEventData(event events.CloudWatchEvent) (string, *string, *string, err
 	var result error
 
 	if err := json.Unmarshal(event.Detail, &detailData); err != nil {
-		logger.Println(err.Error())
+		log.Println(err.Error())
 		return "", nil, nil, err
 	}
 	eventType := event.DetailType
@@ -111,7 +112,7 @@ func parseEventData(event events.CloudWatchEvent) (string, *string, *string, err
 
 	// This code shouldn't be reachable
 	if len(eventTypeCode) == 0 {
-		logger.Println("This code shouldn't be reachable")
+		log.Println("This code shouldn't be reachable")
 		result = errors.New("this code shoudn't be reached")
 	}
 
