@@ -36,7 +36,7 @@ func (c *connections) setSession(region string) {
 		session.NewSession(&aws.Config{Region: aws.String(region)}))
 }
 
-func (c *connections) connect(region string) {
+func (c *connections) connect(region, mainRegion string) {
 
 	debug.Println("Creating service connections in", region)
 
@@ -54,7 +54,7 @@ func (c *connections) connect(region string) {
 	go func() { ec2Conn <- ec2.New(c.session) }()
 	go func() { lambdaConn <- lambda.New(c.session) }()
 	go func() { cloudformationConn <- cloudformation.New(c.session) }()
-	go func() { sqsConn <- sqs.New(c.session) }()
+	go func() { sqsConn <- sqs.New(c.session, aws.NewConfig().WithRegion(mainRegion)) }()
 
 	c.autoScaling, c.ec2, c.cloudFormation, c.lambda, c.sqs, c.region = <-asConn, <-ec2Conn, <-cloudformationConn, <-lambdaConn, <-sqsConn, region
 
