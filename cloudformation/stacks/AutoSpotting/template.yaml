@@ -497,6 +497,7 @@
         OperationPreferences:
           FailureTolerancePercentage: 50
           MaxConcurrentPercentage: 100
+          RegionConcurrencyType: PARALLEL
         PermissionModel: SELF_MANAGED
         Parameters:
           - ParameterKey: AutoSpottingLambdaARN
