@@ -22,7 +22,7 @@ import (
 	ec2instancesinfo "github.com/cristim/ec2-instances-info"
 )
 
-var logger, debug *log.Logger
+var debug *log.Logger
 
 // AutoSpotting hosts global configuration and has as methods all the public
 // entrypoints of this library
@@ -64,17 +64,17 @@ func (a *AutoSpotting) ProcessCronEvent() {
 	allRegions, err := a.getRegions()
 
 	if err != nil {
-		logger.Println(err.Error())
+		log.Println(err.Error())
 		return
 	}
 
 	a.processRegions(allRegions)
 
 	// Print Final Recap
-	logger.Println("####### BEGIN FINAL RECAP #######")
+	log.Println("####### BEGIN FINAL RECAP #######")
 	for r, a := range a.config.FinalRecap {
 		for _, t := range a {
-			logger.Printf("%s %s\n", r, t)
+			log.Printf("%s %s\n", r, t)
 		}
 	}
 }
@@ -101,7 +101,8 @@ func (cfg *Config) addDefaultFilter() {
 }
 
 func (cfg *Config) setupLogging() {
-	logger = log.New(cfg.LogFile, "", cfg.LogFlag)
+	log.SetOutput(cfg.LogFile)
+	log.SetFlags(cfg.LogFlag)
 
 	if os.Getenv("AUTOSPOTTING_DEBUG") == "true" {
 		debug = log.New(cfg.LogFile, "", cfg.LogFlag)
@@ -126,7 +127,7 @@ func (a *AutoSpotting) processRegions(regions []string) {
 		go func() {
 
 			if r.enabled() {
-				logger.Printf("Enabled to run in %s, processing region.\n", r.name)
+				log.Printf("Enabled to run in %s, processing region.\n", r.name)
 				r.processRegion()
 			} else {
 				debug.Println("Not enabled to run in", r.name)
@@ -154,12 +155,12 @@ func connectEC2(region string) *ec2.EC2 {
 func (a *AutoSpotting) getRegions() ([]string, error) {
 	var output []string
 
-	logger.Println("Scanning for available AWS regions")
+	log.Println("Scanning for available AWS regions")
 
 	resp, err := a.mainEC2Conn.DescribeRegions(&ec2.DescribeRegionsInput{})
 
 	if err != nil {
-		logger.Println(err.Error())
+		log.Println(err.Error())
 		return nil, err
 	}
 
@@ -213,7 +214,7 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, ins
 	if eventType == InstanceStateChangeNotificationCode {
 		// If event is Instance state change
 		if len(a.config.sqsReceiptHandle) != 0 {
-			logger.SetPrefix(fmt.Sprintf("SQS:%s ", *instanceID))
+			log.SetPrefix(fmt.Sprintf("SQS:%s ", *instanceID))
 		}
 		a.handleNewInstanceLaunch(region, *instanceID, *instanceState)
 	} else if eventType == SpotInstanceInterruptionWarningCode || eventType == InstanceRebalanceRecommendationCode {
@@ -250,13 +251,13 @@ func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
 
 	log.Println("Triggered by", cloudwatchEvent.DetailType)
 	t := time.Now()
-	logger.SetPrefix(fmt.Sprintf("%s:%s ", eventType, t.Format("2006-01-02T15:04:00")))
+	log.SetPrefix(fmt.Sprintf("%s:%s ", eventType, t.Format("2006-01-02T15:04:00")))
 
 	if (eventType == InstanceStateChangeNotificationCode ||
 		eventType == SpotInstanceInterruptionWarningCode ||
 		eventType == InstanceRebalanceRecommendationCode) && instanceID != nil {
 		// Hanlde Instance Events
-		logger.SetPrefix(fmt.Sprintf("%s:%s ", eventType, *instanceID))
+		log.SetPrefix(fmt.Sprintf("%s:%s ", eventType, *instanceID))
 		a.processEventInstance(eventType, cloudwatchEvent.Region, instanceID, instanceState)
 	} else if eventType == AWSAPICallCloudTrailCode {
 		// CloudTrail
@@ -274,14 +275,14 @@ func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
 func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 
 	if event == nil {
-		logger.Println("Missing event data, running as if triggered from a cron event...")
+		log.Println("Missing event data, running as if triggered from a cron event...")
 		// Event is Autospotting Cron Scheduling
 		a.ProcessCronEvent()
 		return
 	}
 
 	a.processEvent(event)
-	logger.SetPrefix("")
+	log.SetPrefix("")
 }
 
 func isValidLifecycleHookEvent(ctEvent CloudTrailEvent) bool {
@@ -299,7 +300,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 		log.Println(err.Error())
 		return err
 	}
-	logger.Printf("CloudTrail Event data: %#v", ctEvent)
+	log.Printf("CloudTrail Event data: %#v", ctEvent)
 
 	regionName := ctEvent.AwsRegion
 	instanceID := ctEvent.RequestParameters.InstanceID
@@ -319,7 +320,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 	r.scanForEnabledAutoScalingGroups()
 
 	if err := r.scanInstance(aws.String(instanceID)); err != nil {
-		logger.Printf("%s Couldn't scan instance %s: %s", regionName,
+		log.Printf("%s Couldn't scan instance %s: %s", regionName,
 			instanceID, err.Error())
 		return err
 	}
@@ -327,7 +328,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 	i := r.instances.get(instanceID)
 
 	if i == nil {
-		logger.Printf("%s Instance %s is missing, skipping...",
+		log.Printf("%s Instance %s is missing, skipping...",
 			regionName, instanceID)
 		return errors.New("instance missing")
 	}
@@ -339,7 +340,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 	asgName := i.getReplacementTargetASGName()
 
 	if asgName == nil || *asgName != eventASGName {
-		logger.Printf("event ASG name doesn't match the ASG name set on the tags " +
+		log.Printf("event ASG name doesn't match the ASG name set on the tags " +
 			"of the unattached spot instance")
 		return fmt.Errorf("ASG name mismatch: event ASG name %s doesn't match the "+
 			"ASG name set on the unattached spot instance %s", eventASGName, *asgName)
@@ -348,11 +349,11 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 	asg := i.region.findEnabledASGByName(*asgName)
 
 	if asg == nil {
-		logger.Printf("Missing ASG data for region %s", i.region.name)
+		log.Printf("Missing ASG data for region %s", i.region.name)
 		return fmt.Errorf("region %s is missing asg data", i.region.name)
 	}
 
-	logger.Printf("%s Found instance %s is not yet attached to its ASG, "+
+	log.Printf("%s Found instance %s is not yet attached to its ASG, "+
 		"attempting to swap it against a running on-demand instance",
 		i.region.name, *i.InstanceId)
 
@@ -372,26 +373,26 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 
-	logger.Println("Scanning full instance information in", r.name)
+	log.Println("Scanning full instance information in", r.name)
 	r.determineInstanceTypeInformation(r.conf)
 
 	if err := r.scanInstance(aws.String(instanceID)); err != nil {
-		logger.Printf("%s Couldn't scan instance %s: %s", regionName,
+		log.Printf("%s Couldn't scan instance %s: %s", regionName,
 			instanceID, err.Error())
 		return err
 	}
 
 	i := r.instances.get(instanceID)
 	if i == nil {
-		logger.Printf("%s Instance %s is missing, skipping...",
+		log.Printf("%s Instance %s is missing, skipping...",
 			regionName, instanceID)
 		return errors.New("instance missing")
 	}
-	logger.Printf("%s Found instance %s in state %s",
+	log.Printf("%s Found instance %s in state %s",
 		i.region.name, *i.InstanceId, *i.State.Name)
 
 	if state != "running" {
-		logger.Printf("%s Instance %s is not in the running state",
+		log.Printf("%s Instance %s is not in the running state",
 			i.region.name, *i.InstanceId)
 		return errors.New("instance not in running state")
 	}
@@ -410,16 +411,16 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 
 func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) error {
 	if i.shouldBeReplacedWithSpot(false) {
-		logger.Printf("%s instance %s belongs to an enabled ASG and should be "+
+		log.Printf("%s instance %s belongs to an enabled ASG and should be "+
 			"replaced with spot, attempting to launch spot replacement",
 			i.region.name, *i.InstanceId)
 		if _, err := i.launchSpotReplacement(); err != nil {
-			logger.Printf("%s Couldn't launch spot replacement for %s",
+			log.Printf("%s Couldn't launch spot replacement for %s",
 				i.region.name, *i.InstanceId)
 			return err
 		}
 	} else {
-		logger.Printf("%s skipping instance %s: either doesn't belong to an "+
+		log.Printf("%s skipping instance %s: either doesn't belong to an "+
 			"enabled ASG or should not be replaced with spot, ",
 			i.region.name, *i.InstanceId)
 		debug.Printf("%#v", i)
@@ -428,11 +429,11 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 }
 
 func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error {
-	logger.Printf("%s Checking if %s is a spot instance that should be "+
+	log.Printf("%s Checking if %s is a spot instance that should be "+
 		"attached to any ASG", i.region.name, *i.InstanceId)
 	unattached := i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
 	if !unattached {
-		logger.Printf("%s Instance %s is already attached to an ASG, skipping it",
+		log.Printf("%s Instance %s is already attached to an ASG, skipping it",
 			i.region.name, *i.InstanceId)
 		return nil
 	}
@@ -442,7 +443,7 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error
 	asg := i.region.findEnabledASGByName(*asgName)
 
 	if asg == nil {
-		logger.Printf("Missing ASG data for region %s", i.region.name)
+		log.Printf("Missing ASG data for region %s", i.region.name)
 		return fmt.Errorf("region %s is missing asg data", i.region.name)
 	}
 
@@ -454,12 +455,12 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error
 	}
 	defer i.region.sqsDeleteMessage(i.InstanceId)
 
-	logger.Printf("%s Found instance %s is not yet attached to its ASG, "+
+	log.Printf("%s Found instance %s is not yet attached to its ASG, "+
 		"attempting to swap it against a running on-demand instance",
 		i.region.name, *i.InstanceId)
 
 	if _, err := i.swapWithGroupMember(asg); err != nil {
-		logger.Printf("%s, couldn't perform spot replacement of %s ",
+		log.Printf("%s, couldn't perform spot replacement of %s ",
 			i.region.name, *i.InstanceId)
 		return err
 	}

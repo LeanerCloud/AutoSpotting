@@ -3,6 +3,8 @@
 
 package autospotting
 
+import "log"
+
 type target struct {
 	asg              *autoScalingGroup
 	totalInstances   int64
@@ -51,10 +53,10 @@ type launchSpotReplacement struct {
 func (lsr launchSpotReplacement) run() {
 	spotInstanceID, err := lsr.target.onDemandInstance.launchSpotReplacement()
 	if err != nil {
-		logger.Printf("Could not launch cheapest spot instance: %s", err)
+		log.Printf("Could not launch cheapest spot instance: %s", err)
 		return
 	}
-	logger.Printf("Successfully launched spot instance %s, exiting...", *spotInstanceID)
+	log.Printf("Successfully launched spot instance %s, exiting...", *spotInstanceID)
 }
 
 type terminateUnneededSpotInstance struct {
@@ -66,7 +68,7 @@ func (tusi terminateUnneededSpotInstance) run() {
 	spotInstance := tusi.target.spotInstance
 	spotInstanceID := *spotInstance.InstanceId
 
-	logger.Println("Spot instance", spotInstanceID, "is not need anymore by ASG",
+	log.Println("Spot instance", spotInstanceID, "is not need anymore by ASG",
 		asg.name, "terminating the spot instance.")
 	spotInstance.terminate()
 }

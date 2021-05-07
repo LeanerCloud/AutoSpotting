@@ -5,6 +5,7 @@ package autospotting
 
 import (
 	"errors"
+	"log"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -29,7 +30,7 @@ type SpotTermination struct {
 
 func newSpotTermination(region string) SpotTermination {
 
-	logger.Println("Connection to region ", region)
+	log.Println("Connection to region ", region)
 
 	session := session.Must(
 		session.NewSession(&aws.Config{Region: aws.String(region)}))
@@ -45,7 +46,7 @@ func newSpotTermination(region string) SpotTermination {
 //This makes sure that the autoscaling group spawns a new instance as soon as this instance is detached
 func (s *SpotTermination) detachInstance(instanceID *string, asgName string) error {
 
-	logger.Println(asgName,
+	log.Println(asgName,
 		"Detaching instance:",
 		*instanceID)
 
@@ -57,11 +58,11 @@ func (s *SpotTermination) detachInstance(instanceID *string, asgName string) err
 		ShouldDecrementDesiredCapacity: aws.Bool(false),
 	}
 	if _, detachErr := s.asSvc.DetachInstances(&detachParams); detachErr != nil {
-		logger.Println(detachErr.Error())
+		log.Println(detachErr.Error())
 		return detachErr
 	}
 
-	logger.Printf("Detached instance %s successfully", *instanceID)
+	log.Printf("Detached instance %s successfully", *instanceID)
 
 	s.deleteTagInstanceLaunchedForAsg(instanceID)
 
@@ -73,7 +74,7 @@ func (s *SpotTermination) detachInstance(instanceID *string, asgName string) err
 // as soon as this instance begin terminating.
 func (s *SpotTermination) terminateInstance(instanceID *string, asgName string) error {
 
-	logger.Println(asgName,
+	log.Println(asgName,
 		"Terminating instance:",
 		*instanceID)
 	// terminate the spot instance
@@ -83,7 +84,7 @@ func (s *SpotTermination) terminateInstance(instanceID *string, asgName string) 
 	}
 
 	if _, err := s.asSvc.TerminateInstanceInAutoScalingGroup(&terminateParams); err != nil {
-		logger.Println(err.Error())
+		log.Println(err.Error())
 		return err
 	}
 	return nil
@@ -114,10 +115,10 @@ func (s *SpotTermination) executeAction(instanceID *string, terminationNotificat
 	asgName, err := s.getAsgName(instanceID)
 
 	if err != nil {
-		logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
+		log.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
 		return err
 	} else if asgName == "" {
-		logger.Println("Instance", instanceID, "does not belong to an autoscaling group")
+		log.Println("Instance", instanceID, "does not belong to an autoscaling group")
 		return nil
 	}
 
@@ -151,11 +152,11 @@ func (s *SpotTermination) deleteTagInstanceLaunchedForAsg(instanceID *string) er
 	_, err := s.ec2Svc.DeleteTags(&ec2Params)
 
 	if err != nil {
-		logger.Printf("Failed to delete Tag 'launched-for-asg' from spot instance %s with err: %s\n", *instanceID, err.Error())
+		log.Printf("Failed to delete Tag 'launched-for-asg' from spot instance %s with err: %s\n", *instanceID, err.Error())
 		return err
 	}
 
-	logger.Printf("Tag 'launched-for-asg' deleted from spot instance %s", *instanceID)
+	log.Printf("Tag 'launched-for-asg' deleted from spot instance %s", *instanceID)
 
 	return nil
 }
@@ -168,7 +169,7 @@ func (s *SpotTermination) asgHasTerminationLifecycleHook(autoScalingGroupName *s
 	result, err := s.asSvc.DescribeLifecycleHooks(&asParams)
 
 	if err != nil {
-		logger.Println(err.Error())
+		log.Println(err.Error())
 		return false
 	}
 
@@ -176,7 +177,7 @@ func (s *SpotTermination) asgHasTerminationLifecycleHook(autoScalingGroupName *s
 	for _, lfh := range result.LifecycleHooks {
 		if *lfh.LifecycleTransition == "autoscaling:EC2_INSTANCE_TERMINATING" {
 			hasHook = true
-			logger.Println("Found Hook", *lfh.LifecycleHookName)
+			log.Println("Found Hook", *lfh.LifecycleHookName)
 			break
 		}
 	}
@@ -192,10 +193,10 @@ func (s *SpotTermination) IsInAutoSpottingASG(instanceID *string, tagFilteringMo
 	asgName, err := s.getAsgName(instanceID)
 
 	if err != nil {
-		logger.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
+		log.Printf("Failed get ASG name for %s with err: %s\n", *instanceID, err.Error())
 		return false
 	} else if asgName == "" {
-		logger.Println("Instance", *instanceID, "is not in an autoscaling group")
+		log.Println("Instance", *instanceID, "is not in an autoscaling group")
 		return false
 	}
 
@@ -206,7 +207,7 @@ func (s *SpotTermination) IsInAutoSpottingASG(instanceID *string, tagFilteringMo
 	})
 
 	if err != nil {
-		logger.Printf("Failed to get ASG using ASG name %s with err: %s\n", asgName, err.Error())
+		log.Printf("Failed to get ASG using ASG name %s with err: %s\n", asgName, err.Error())
 		return false
 	}
 
@@ -224,7 +225,7 @@ func (s *SpotTermination) IsInAutoSpottingASG(instanceID *string, tagFilteringMo
 	isInASG := optInFilterMode == isASGWithMatchingTags(asgGroupsOutput.AutoScalingGroups[0], tagsToMatch)
 
 	if !isInASG {
-		logger.Printf("Skipping group %s because its tags, the currently "+
+		log.Printf("Skipping group %s because its tags, the currently "+
 			"configured filtering mode (%s) and tag filters do not align\n",
 			asgName, tagFilteringMode)
 	}

@@ -4,6 +4,7 @@
 package autospotting
 
 import (
+	"log"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -21,7 +22,7 @@ func (s *spotPrices) fetch(product string,
 	availabilityZone *string,
 	instanceTypes []*string) error {
 
-	logger.Println(s.conn.region, "Requesting spot prices")
+	log.Println(s.conn.region, "Requesting spot prices")
 
 	ec2Conn := s.conn.ec2
 	params := &ec2.DescribeSpotPriceHistoryInput{
@@ -41,7 +42,7 @@ func (s *spotPrices) fetch(product string,
 	})
 
 	if err != nil {
-		logger.Println(s.conn.region, "Failed requesting spot prices:", err.Error())
+		log.Println(s.conn.region, "Failed requesting spot prices:", err.Error())
 		return err
 	}
 

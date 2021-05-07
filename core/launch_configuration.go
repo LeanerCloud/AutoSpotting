@@ -4,6 +4,7 @@
 package autospotting
 
 import (
+	"log"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -28,7 +29,7 @@ func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() int {
 		}
 	}
 
-	logger.Printf("Launch configuration would attach %d ephemeral volumes if available", count)
+	log.Printf("Launch configuration would attach %d ephemeral volumes if available", count)
 
 	return count
 }

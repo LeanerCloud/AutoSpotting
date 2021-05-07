@@ -122,6 +122,10 @@ func ParseConfig(conf *Config) {
 
 	conf.LogFile = os.Stdout
 	conf.LogFlag = log.Ldate | log.Ltime | log.Lshortfile
+
+	log.SetOutput(conf.LogFile)
+	log.SetFlags(conf.LogFlag)
+
 	conf.MainRegion = region
 	conf.SleepMultiplier = 1
 	conf.sqsReceiptHandle = ""

@@ -5,6 +5,7 @@ package autospotting
 
 import (
 	"errors"
+	"log"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -77,32 +78,32 @@ func (r *region) enabled() bool {
 
 func (r *region) processRegion() {
 
-	logger.Println("Creating connections to the required AWS services in", r.name)
+	log.Println("Creating connections to the required AWS services in", r.name)
 	r.services.connect(r.name, r.conf.MainRegion)
 	// only process the regions where we have AutoScaling groups set to be handled
 
 	// setup the filters for asg matching
 	r.setupAsgFilters()
 
-	logger.Println("Scanning for enabled AutoScaling groups in ", r.name)
+	log.Println("Scanning for enabled AutoScaling groups in ", r.name)
 	r.scanForEnabledAutoScalingGroups()
 
 	// only process further the region if there are any enabled autoscaling groups
 	// within it
 	if r.hasEnabledAutoScalingGroups() {
-		logger.Println("Scanning full instance information in", r.name)
+		log.Println("Scanning full instance information in", r.name)
 		r.determineInstanceTypeInformation(r.conf)
 
-		logger.Println("Scanning instances in", r.name)
+		log.Println("Scanning instances in", r.name)
 		err := r.scanInstances()
 		if err != nil {
-			logger.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
+			log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
 		}
 
-		logger.Println("Processing enabled AutoScaling groups in", r.name)
+		log.Println("Processing enabled AutoScaling groups in", r.name)
 		r.processEnabledAutoScalingGroups()
 	} else {
-		logger.Println(r.name, "has no enabled AutoScaling groups")
+		log.Println(r.name, "has no enabled AutoScaling groups")
 	}
 }
 
@@ -263,7 +264,7 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 	// types would be returned
 
 	if err := r.requestSpotPrices(); err != nil {
-		logger.Println(err.Error())
+		log.Println(err.Error())
 	}
 
 }
@@ -280,7 +281,7 @@ func (r *region) requestSpotPrices() error {
 		return errors.New("Couldn't fetch spot prices in " + r.name)
 	}
 
-	// logger.Println("Spot Price list in ", r.name, ":\n", s.data)
+	// log.Println("Spot Price list in ", r.name, ":\n", s.data)
 
 	for _, priceInfo := range s.data {
 
@@ -312,7 +313,7 @@ func tagsMatch(asgTag *autoscaling.TagDescription, filteringTag Tag) bool {
 	if asgTag != nil && *asgTag.Key == filteringTag.Key {
 		matched, err := filepath.Match(filteringTag.Value, *asgTag.Value)
 		if err != nil {
-			logger.Printf("%s Invalid glob expression or text input in filter %s, the instance list may be smaller than expected", filteringTag.Key, filteringTag.Value)
+			log.Printf("%s Invalid glob expression or text input in filter %s, the instance list may be smaller than expected", filteringTag.Key, filteringTag.Value)
 			return false
 		}
 		return matched
@@ -364,7 +365,7 @@ func (r *region) isStackUpdating(stackName *string) (string, bool) {
 	}
 
 	if output, err := svc.DescribeStacks(&input); err != nil {
-		logger.Println("Failed to describe stack", *stackName, "with error:", err.Error())
+		log.Println("Failed to describe stack", *stackName, "with error:", err.Error())
 	} else {
 		stackStatus := output.Stacks[0].StackStatus
 		if _, exists := stackCompleteStatuses[*stackStatus]; !exists {
@@ -406,13 +407,13 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
 		if stackName := getTagValueFromASGWithMatchingTag(group, tagCloudFormationStackName); stackName != nil {
 			debug.Println("Stack: ", *stackName)
 			if status, updating := r.isStackUpdating(stackName); updating {
-				logger.Printf("Skipping group %s because stack %s is in state %s\n",
+				log.Printf("Skipping group %s because stack %s is in state %s\n",
 					asgName, *stackName, status)
 				continue
 			}
 		}
 
-		logger.Printf("Enabling group %s for processing because its tags, the "+
+		log.Printf("Enabling group %s for processing because its tags, the "+
 			"currently configured  filtering mode (%s) and tag filters are aligned\n",
 			asgName, r.conf.TagFilteringMode)
 		asgs = append(asgs, autoScalingGroup{
@@ -441,7 +442,7 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 	)
 
 	if err != nil {
-		logger.Println("Failed to describe AutoScalingGroups in", r.name, err.Error())
+		log.Println("Failed to describe AutoScalingGroups in", r.name, err.Error())
 	}
 
 }
@@ -496,12 +497,12 @@ func (r *region) sqsSendMessageSpotInstanceLaunch(asgName *string, instanceID *s
 		})
 
 	if err != nil {
-		logger.Printf("%s Error sending spot instance %s launch event message "+
+		log.Printf("%s Error sending spot instance %s launch event message "+
 			"to the SQS Queue %s: %s", r.name, *instanceID, r.conf.SQSQueueURL, err)
 		return err
 	}
 
-	logger.Printf("%s Successfully sent spot instance %s launch event message"+
+	log.Printf("%s Successfully sent spot instance %s launch event message"+
 		"to the SQS Queue %s", r.name, *instanceID, r.conf.SQSQueueURL)
 
 	return nil
@@ -516,12 +517,12 @@ func (r *region) sqsDeleteMessage(instanceID *string) error {
 			ReceiptHandle: &r.conf.sqsReceiptHandle,
 		})
 	if err != nil {
-		logger.Printf("%s Error deleting spot instance %s launch event message "+
+		log.Printf("%s Error deleting spot instance %s launch event message "+
 			"from the SQS Queue %s: %s", r.name, *instanceID, r.conf.SQSQueueURL, err)
 		return err
 	}
 
-	logger.Printf("%s Successfully deleted spot instance %s launch event message "+
+	log.Printf("%s Successfully deleted spot instance %s launch event message "+
 		"from the SQS Queue %s", r.name, *instanceID, r.conf.SQSQueueURL)
 
 	return nil
