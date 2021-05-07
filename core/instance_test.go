@@ -718,6 +718,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			},
 			instanceInfo: &instance{
 				Instance: &ec2.Instance{
+					InstanceId:         aws.String("i-dummy"),
 					VirtualizationType: aws.String("paravirtual"),
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
@@ -795,6 +796,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			},
 			instanceInfo: &instance{
 				Instance: &ec2.Instance{
+					InstanceId:         aws.String("i-dummy"),
 					VirtualizationType: aws.String("paravirtual"),
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
@@ -876,6 +878,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			},
 			instanceInfo: &instance{
 				Instance: &ec2.Instance{
+					InstanceId:         aws.String("i-dummy"),
 					VirtualizationType: aws.String("paravirtual"),
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
@@ -954,6 +957,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			},
 			instanceInfo: &instance{
 				Instance: &ec2.Instance{
+					InstanceId:         aws.String("i-dummy"),
 					VirtualizationType: aws.String("paravirtual"),
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
@@ -1033,6 +1037,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			},
 			instanceInfo: &instance{
 				Instance: &ec2.Instance{
+					InstanceId:         aws.String("i-dummy"),
 					VirtualizationType: aws.String("paravirtual"),
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
