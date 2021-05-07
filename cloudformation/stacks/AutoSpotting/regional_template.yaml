@@ -46,25 +46,12 @@
 
             def handler(event, context):
                 print("Running Lambda function", lambda_arn)
-                snsEvent = {
-                    'Records': [
-                        {
-                            'Event': 'aws:sns',
-                            'EventSource': '1.0',
-                            'EventSubscriptionArn': 'arn:aws:sns:' + event['region'] + ':FakeAccountId:FakeTopic',
-                            'Sns': {
-                                'Type': 'Notification',
-                                'Message': dumps(event),
-                            }
-                        }
-                    ]
-                }
                 try:
                     svc = client('lambda', region_name=parse_region_from_arn(lambda_arn))
                     response = svc.invoke(
                         FunctionName=lambda_arn,
                         LogType='Tail',
-                        Payload=dumps(snsEvent),
+                        Payload=dumps(event),
                     )
                     print("Invoked funcion log tail:\n", b64decode(response["LogResult"]).decode('utf-8'))
                 except:
