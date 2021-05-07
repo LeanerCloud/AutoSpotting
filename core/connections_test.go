@@ -23,7 +23,7 @@ func Test_connections_connect(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &connections{}
-			c.connect(tt.region)
+			c.connect(tt.region, "bar")
 			if (c.region == tt.region) != tt.match {
 				t.Errorf("connections.connect() c.region = %v, expected %v",
 					c.region, tt.region)
