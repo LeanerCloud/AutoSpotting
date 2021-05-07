@@ -2660,13 +2660,13 @@ func TestReplaceOnDemandInstanceWithSpot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fmt.Println(tt.name)
-			returned := tt.asg.replaceOnDemandInstanceWithSpot(nil, tt.spotID)
+			returned := tt.asg.replaceOnDemandInstanceWithSpot(tt.spotID)
 			CheckErrors(t, returned, tt.expected)
 		})
 		t.Run(tt.name+"-detach-method", func(t *testing.T) {
 			fmt.Println(tt.name)
 			tt.asg.config.TerminationMethod = "detach"
-			returned := tt.asg.replaceOnDemandInstanceWithSpot(nil, tt.spotID)
+			returned := tt.asg.replaceOnDemandInstanceWithSpot(tt.spotID)
 			CheckErrors(t, returned, tt.expected)
 		})
 	}
