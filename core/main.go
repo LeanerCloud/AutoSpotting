@@ -195,6 +195,7 @@ func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) 
 	if sqsEvent.Records != nil {
 		sqsRecord := sqsEvent.Records[0]
 		parseEvent = []byte(sqsRecord.Body)
+		// this will tell us later if the current run was triggered from SQS events
 		a.config.sqsReceiptHandle = sqsRecord.ReceiptHandle
 	} else {
 		a.config.sqsReceiptHandle = ""
@@ -256,7 +257,7 @@ func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
 	if (eventType == InstanceStateChangeNotificationCode ||
 		eventType == SpotInstanceInterruptionWarningCode ||
 		eventType == InstanceRebalanceRecommendationCode) && instanceID != nil {
-		// Hanlde Instance Events
+		// Handle Instance Events
 		log.SetPrefix(fmt.Sprintf("%s:%s ", eventType, *instanceID))
 		a.processEventInstance(eventType, cloudwatchEvent.Region, instanceID, instanceState)
 	} else if eventType == AWSAPICallCloudTrailCode {
@@ -357,7 +358,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 		"attempting to swap it against a running on-demand instance",
 		i.region.name, *i.InstanceId)
 
-	i.region.sqsSendMessageSpotInstanceLaunch(asgName, i.InstanceId, i.State.Name)
+	i.region.sqsSendMessageOnInstanceLaunch(asgName, i.InstanceId, i.State.Name, Spot, "lifecycle-hook-handling")
 
 	return nil
 }
@@ -411,6 +412,19 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 
 func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) error {
 	if i.shouldBeReplacedWithSpot(false) {
+
+		// In case we're not triggered by SQS event we generate such an event and send it to the queue.
+		// We want to delay the further below code for until we're processing it through the SQS queue,
+		// in order to avoid launching Spot instances too early and having them run outside their ASG
+		// for too long.
+		if len(a.config.sqsReceiptHandle) == 0 {
+			if i.asg.isEnabledForEventBasedInstanceReplacement() {
+				return i.region.sqsSendMessageOnInstanceLaunch(&i.asg.name, i.InstanceId, i.State.Name, OnDemand, "on-demand-instance-launch")
+			}
+			return nil
+		}
+		defer i.region.sqsDeleteMessage(i.InstanceId, OnDemand)
+
 		log.Printf("%s instance %s belongs to an enabled ASG and should be "+
 			"replaced with spot, attempting to launch spot replacement",
 			i.region.name, *i.InstanceId)
@@ -447,13 +461,14 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error
 		return fmt.Errorf("region %s is missing asg data", i.region.name)
 	}
 
+	// in case we're not triggered by SQS event we send it to the queue to do replacements sequentially
 	if len(a.config.sqsReceiptHandle) == 0 {
 		if asg.isEnabledForEventBasedInstanceReplacement() {
-			i.region.sqsSendMessageSpotInstanceLaunch(asgName, i.InstanceId, i.State.Name)
+			return i.region.sqsSendMessageOnInstanceLaunch(asgName, i.InstanceId, i.State.Name, Spot, "spot-instance-launch")
 		}
 		return nil
 	}
-	defer i.region.sqsDeleteMessage(i.InstanceId)
+	defer i.region.sqsDeleteMessage(i.InstanceId, Spot)
 
 	log.Printf("%s Found instance %s is not yet attached to its ASG, "+
 		"attempting to swap it against a running on-demand instance",

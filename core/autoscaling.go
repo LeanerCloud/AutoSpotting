@@ -378,7 +378,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(spotInstanceID string
 
 	} else {
 
-		if err := a.region.sqsSendMessageSpotInstanceLaunch(&a.name, &spotInstanceID, spotInst.State.Name); err != nil {
+		if err := a.region.sqsSendMessageOnInstanceLaunch(&a.name, &spotInstanceID, spotInst.State.Name, Spot, "swap-with-on-demand"); err != nil {
 			return err
 		}
 		// add to FinalRecap
@@ -753,10 +753,10 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	spot bool, availabilityZone *string) (int64, int64) {
 
 	var total, count int64
-	instanceCategory := "spot"
+	instanceCategory := Spot
 
 	if !spot {
-		instanceCategory = "on-demand"
+		instanceCategory = OnDemand
 	}
 	log.Println(a.name, "Counting already running", instanceCategory, "instances")
 	for inst := range a.instances.instances() {
