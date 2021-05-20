@@ -230,8 +230,16 @@ func (a *autoScalingGroup) cronEventAction() runer {
 
 		a.loadLaunchConfiguration()
 		a.loadLaunchTemplate()
-		return launchSpotReplacement{target{
-			onDemandInstance: onDemandInstance}}
+
+		if len(a.region.conf.SQSQueueURL) == 0 {
+			return launchSpotReplacement{target{
+				onDemandInstance: onDemandInstance}}
+		} else {
+			return sqsSendMessageOnInstanceLaunch{
+				target{
+					asg:              a,
+					onDemandInstance: onDemandInstance}}
+		}
 	}
 
 	spotInstanceID := *spotInstance.InstanceId
@@ -378,7 +386,7 @@ func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(spotInstanceID string
 
 	} else {
 
-		if err := a.region.sqsSendMessageOnInstanceLaunch(&a.name, &spotInstanceID, spotInst.State.Name, Spot, "swap-with-on-demand"); err != nil {
+		if err := a.region.sqsSendMessageOnInstanceLaunch(&a.name, &spotInstanceID, spotInst.State.Name, "swap-with-on-demand"); err != nil {
 			return err
 		}
 		// add to FinalRecap
@@ -458,7 +466,7 @@ func (a *autoScalingGroup) hasMemberInstance(inst *instance) bool {
 
 func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status string, maxRetry int) error {
 	isInstanceInStatus := false
-	for retry := 1; !isInstanceInStatus; retry++ {
+	for retry := 0; !isInstanceInStatus; retry++ {
 		if retry > maxRetry {
 			log.Printf("Failed waiting instance %s in status %s",
 				*instanceID, status)
@@ -488,7 +496,12 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 				log.Printf("Waiting for instance %s to be in AutoScalingGroup with status %s",
 					*instanceID, status)
 			}
-			time.Sleep(time.Duration(5*retry) * time.Second)
+
+			sleepTime := 10 - (2 * retry)
+			if sleepTime <= 0 {
+				sleepTime = 1
+			}
+			time.Sleep(time.Duration(sleepTime) * time.Second)
 		}
 	}
 

@@ -82,3 +82,15 @@ func (ssi swapSpotInstance) run() {
 	spotInstanceID := *ssi.target.spotInstance.InstanceId
 	asg.replaceOnDemandInstanceWithSpot(spotInstanceID)
 }
+
+type sqsSendMessageOnInstanceLaunch struct {
+  target target
+}
+
+func (ssmoil sqsSendMessageOnInstanceLaunch) run() {
+        asg := ssmoil.target.asg
+	onDemandInstanceID := ssmoil.target.onDemandInstance.InstanceId
+	region := ssmoil.target.onDemandInstance.region
+	state := ssmoil.target.onDemandInstance.State.Name
+	region.sqsSendMessageOnInstanceLaunch(&asg.name, onDemandInstanceID, state, "cron-spot-instance-launch")
+}
