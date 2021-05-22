@@ -479,7 +479,7 @@ func (r *region) findEnabledASGByName(name string) *autoScalingGroup {
 	return nil
 }
 
-func (r *region) sqsSendMessageOnInstanceLaunch(asgName, instanceID, instanceState *string, instanceLifecycle, action string) error {
+func (r *region) sqsSendMessageOnInstanceLaunch(asgName, instanceID, instanceState *string, instanceLifecycle string) error {
 	inputJSON := "{\"version\":\"0\",\"id\":\"890abcde-f123-4567-890a-bcdef1234567\"," +
 		"\"detail-type\":\"EC2 Instance State-change Notification\",\"source\":\"aws.events\"," +
 		"\"account\":\"\",\"time\":\"" + time.Now().Format(time.RFC3339) + "\"," +
@@ -493,7 +493,7 @@ func (r *region) sqsSendMessageOnInstanceLaunch(asgName, instanceID, instanceSta
 	_, err := svc.SendMessage(
 		&sqs.SendMessageInput{
 			MessageBody:    &inputJSON,
-			MessageGroupId: aws.String(fmt.Sprintf("%s-%s-%s-%s", r.name, *asgName, instanceLifecycle, action)),
+			MessageGroupId: aws.String(fmt.Sprintf("%s-%s", r.name, *asgName)),
 			QueueUrl:       &r.conf.SQSQueueURL,
 		})
 
@@ -503,7 +503,7 @@ func (r *region) sqsSendMessageOnInstanceLaunch(asgName, instanceID, instanceSta
 		return err
 	}
 
-	log.Printf("%s Successfully sent %s instance %s launch event message"+
+	log.Printf("%s Successfully sent %s instance %s launch event message "+
 		"to the SQS Queue %s", r.name, instanceLifecycle, *instanceID, r.conf.SQSQueueURL)
 
 	return nil

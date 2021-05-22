@@ -44,7 +44,7 @@ func newSpotTermination(region string) SpotTermination {
 
 //DetachInstance detaches the instance from autoscaling group without decrementing the desired capacity
 //This makes sure that the autoscaling group spawns a new instance as soon as this instance is detached
-func (s *SpotTermination) detachInstance(instanceID *string, asgName string) error {
+func (s *SpotTermination) detachInstance(instanceID *string, asgName string, eventType string) error {
 
 	log.Println(asgName,
 		"Detaching instance:",
@@ -64,7 +64,9 @@ func (s *SpotTermination) detachInstance(instanceID *string, asgName string) err
 
 	log.Printf("Detached instance %s successfully", *instanceID)
 
-	s.deleteTagInstanceLaunchedForAsg(instanceID)
+	if eventType != "IRR" {
+		s.deleteTagInstanceLaunchedForAsg(instanceID)
+	}
 
 	return nil
 }
@@ -107,7 +109,7 @@ func (s *SpotTermination) getAsgName(instanceID *string) (string, error) {
 
 // ExecuteAction execute the proper termination action (terminate|detach) based on the value of
 // terminationNotificationAction and the presence of a LifecycleHook on ASG.
-func (s *SpotTermination) executeAction(instanceID *string, terminationNotificationAction string) error {
+func (s *SpotTermination) executeAction(instanceID *string, terminationNotificationAction string, eventType string) error {
 	if s.asSvc == nil {
 		return errors.New("AutoScaling service not defined. Please use NewSpotTermination()")
 	}
@@ -124,14 +126,14 @@ func (s *SpotTermination) executeAction(instanceID *string, terminationNotificat
 
 	switch terminationNotificationAction {
 	case "detach":
-		s.detachInstance(instanceID, asgName)
+		s.detachInstance(instanceID, asgName, eventType)
 	case "terminate":
 		s.terminateInstance(instanceID, asgName)
 	default:
 		if s.asgHasTerminationLifecycleHook(&asgName) {
 			s.terminateInstance(instanceID, asgName)
 		} else {
-			s.detachInstance(instanceID, asgName)
+			s.detachInstance(instanceID, asgName, eventType)
 		}
 	}
 

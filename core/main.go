@@ -222,7 +222,7 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, ins
 		// If the event is for an Instance Spot Interruption/Rebalance
 		spotTermination := newSpotTermination(region)
 		if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
-			err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction)
+			err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction, eventType)
 			if err != nil {
 				log.Printf("Error executing spot termination/rebalance action: %s\n", err.Error())
 				return err
@@ -358,7 +358,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 		"attempting to swap it against a running on-demand instance",
 		i.region.name, *i.InstanceId)
 
-	i.region.sqsSendMessageOnInstanceLaunch(asgName, i.InstanceId, i.State.Name, Spot, "lifecycle-hook-handling")
+	i.region.sqsSendMessageOnInstanceLaunch(asgName, i.InstanceId, i.State.Name, "lifecycle-hook-handling")
 
 	return nil
 }
@@ -404,14 +404,17 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 	}
 
 	// Try Spot
-	if err := a.handleNewSpotInstanceLaunch(r, i); err != nil {
-		return err
+	// in case we're not triggered by SQS event we do nothing, onDemand event already manage launched spot instance
+	if len(a.config.sqsReceiptHandle) > 0 {
+		if err := a.handleNewSpotInstanceLaunch(r, i); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) error {
-	if i.shouldBeReplacedWithSpot(false) {
+	if i.shouldBeReplacedWithSpot(true) {
 
 		// In case we're not triggered by SQS event we generate such an event and send it to the queue.
 		// We want to delay the further below code for until we're processing it through the SQS queue,
@@ -419,7 +422,7 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 		// for too long.
 		if len(a.config.sqsReceiptHandle) == 0 {
 			if i.asg.isEnabledForEventBasedInstanceReplacement() {
-				return i.region.sqsSendMessageOnInstanceLaunch(&i.asg.name, i.InstanceId, i.State.Name, OnDemand, "on-demand-instance-launch")
+				return i.region.sqsSendMessageOnInstanceLaunch(&i.asg.name, i.InstanceId, i.State.Name, "on-demand-instance-launch")
 			}
 			return nil
 		}
@@ -428,10 +431,32 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 		log.Printf("%s instance %s belongs to an enabled ASG and should be "+
 			"replaced with spot, attempting to launch spot replacement",
 			i.region.name, *i.InstanceId)
-		if _, err := i.launchSpotReplacement(); err != nil {
+		if spotInstanceID, err := i.launchSpotReplacement(); err != nil {
 			log.Printf("%s Couldn't launch spot replacement for %s",
 				i.region.name, *i.InstanceId)
 			return err
+		} else {
+			log.Printf("Waiting for spot instance %s to be in status running", *spotInstanceID)
+			err := r.services.ec2.WaitUntilInstanceRunning(
+				&ec2.DescribeInstancesInput{
+					InstanceIds: []*string{spotInstanceID},
+				})
+			if err != nil {
+				log.Printf("Issue while waiting for spot instance %v to start: %v",
+					spotInstanceID, err.Error())
+				return err
+			}
+			if err := r.scanInstance(spotInstanceID); err != nil {
+				log.Printf("%s Couldn't scan instance %s: %s", i.region.name,
+					*spotInstanceID, err.Error())
+				return err
+			}
+			spotInstance := r.instances.get(*spotInstanceID)
+			if _, err := spotInstance.swapWithGroupMember(i.asg); err != nil {
+				log.Printf("%s, couldn't perform spot replacement of %s ",
+					i.region.name, *i.InstanceId)
+				return err
+			}
 		}
 	} else {
 		log.Printf("%s skipping instance %s: either doesn't belong to an "+
@@ -461,13 +486,6 @@ func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error
 		return fmt.Errorf("region %s is missing asg data", i.region.name)
 	}
 
-	// in case we're not triggered by SQS event we send it to the queue to do replacements sequentially
-	if len(a.config.sqsReceiptHandle) == 0 {
-		if asg.isEnabledForEventBasedInstanceReplacement() {
-			return i.region.sqsSendMessageOnInstanceLaunch(asgName, i.InstanceId, i.State.Name, Spot, "spot-instance-launch")
-		}
-		return nil
-	}
 	defer i.region.sqsDeleteMessage(i.InstanceId, Spot)
 
 	log.Printf("%s Found instance %s is not yet attached to its ASG, "+
