@@ -1,4 +1,4 @@
-FROM golang:1.13-alpine as golang
+FROM golang:1.16-alpine as golang
 RUN apk add -U --no-cache ca-certificates git make
 COPY . /src
 WORKDIR /src
