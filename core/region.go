@@ -5,6 +5,7 @@ package autospotting
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"path/filepath"
 	"strconv"
@@ -478,7 +479,7 @@ func (r *region) findEnabledASGByName(name string) *autoScalingGroup {
 	return nil
 }
 
-func (r *region) sqsSendMessageSpotInstanceLaunch(asgName *string, instanceID *string, instanceState *string) error {
+func (r *region) sqsSendMessageOnInstanceLaunch(asgName, instanceID, instanceState *string, instanceLifecycle string) error {
 	inputJSON := "{\"version\":\"0\",\"id\":\"890abcde-f123-4567-890a-bcdef1234567\"," +
 		"\"detail-type\":\"EC2 Instance State-change Notification\",\"source\":\"aws.events\"," +
 		"\"account\":\"\",\"time\":\"" + time.Now().Format(time.RFC3339) + "\"," +
@@ -492,23 +493,23 @@ func (r *region) sqsSendMessageSpotInstanceLaunch(asgName *string, instanceID *s
 	_, err := svc.SendMessage(
 		&sqs.SendMessageInput{
 			MessageBody:    &inputJSON,
-			MessageGroupId: asgName,
+			MessageGroupId: aws.String(fmt.Sprintf("%s-%s", r.name, *asgName)),
 			QueueUrl:       &r.conf.SQSQueueURL,
 		})
 
 	if err != nil {
-		log.Printf("%s Error sending spot instance %s launch event message "+
-			"to the SQS Queue %s: %s", r.name, *instanceID, r.conf.SQSQueueURL, err)
+		log.Printf("%s Error sending %s instance %s launch event message "+
+			"to the SQS Queue %s: %s", r.name, instanceLifecycle, *instanceID, r.conf.SQSQueueURL, err)
 		return err
 	}
 
-	log.Printf("%s Successfully sent spot instance %s launch event message"+
-		"to the SQS Queue %s", r.name, *instanceID, r.conf.SQSQueueURL)
+	log.Printf("%s Successfully sent %s instance %s launch event message "+
+		"to the SQS Queue %s", r.name, instanceLifecycle, *instanceID, r.conf.SQSQueueURL)
 
 	return nil
 }
 
-func (r *region) sqsDeleteMessage(instanceID *string) error {
+func (r *region) sqsDeleteMessage(instanceID *string, instanceLifecycle string) error {
 	svc := r.services.sqs
 
 	_, err := svc.DeleteMessage(
@@ -517,8 +518,8 @@ func (r *region) sqsDeleteMessage(instanceID *string) error {
 			ReceiptHandle: &r.conf.sqsReceiptHandle,
 		})
 	if err != nil {
-		log.Printf("%s Error deleting spot instance %s launch event message "+
-			"from the SQS Queue %s: %s", r.name, *instanceID, r.conf.SQSQueueURL, err)
+		log.Printf("%s Error deleting %s instance %s launch event message "+
+			"from the SQS Queue %s: %s", r.name, instanceLifecycle, *instanceID, r.conf.SQSQueueURL, err)
 		return err
 	}
 

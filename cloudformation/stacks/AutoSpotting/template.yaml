@@ -478,7 +478,7 @@
       Properties:
         ContentBasedDeduplication: true
         FifoQueue: true
-        MessageRetentionPeriod: 600
+        MessageRetentionPeriod: 86400
         QueueName:
           Ref: SQSQueueName
         VisibilityTimeout: 900

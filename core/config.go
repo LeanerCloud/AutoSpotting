@@ -50,6 +50,11 @@ const (
 	// outside this interval set the CronScheduleState to "off" either globally or
 	// on a per-group override.
 	DefaultCronSchedule = "* *"
+
+	// Spot stores the string "spot"  to avoid typos as it's used in various places
+	Spot = "spot"
+	// OnDemand  stores the string "on-demand" to avoid typos as it's used in various places
+	OnDemand = "on-demand"
 )
 
 // Config extends the AutoScalingConfig struct and in addition contains a

@@ -176,7 +176,7 @@ func TestDetachInstance(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.spotTermination.detachInstance(&instanceID, asgName)
+			err := tc.spotTermination.detachInstance(&instanceID, asgName, InstanceRebalanceRecommendationCode)
 			if err != nil && err.Error() != tc.expectedError.Error() {
 				t.Errorf("Error in DetachInstance: expected %s actual %s", tc.expectedError.Error(), err.Error())
 			}
@@ -420,7 +420,7 @@ func TestExecuteAction(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 
-			err := tc.spotTermination.executeAction(&instanceID, tc.terminationNotificationAction)
+			err := tc.spotTermination.executeAction(&instanceID, tc.terminationNotificationAction, InstanceRebalanceRecommendationCode)
 
 			if err != nil && err.Error() != tc.expectedError.Error() {
 				t.Errorf("Error in ExecuteAction: expected %s actual %s", tc.expectedError.Error(), err.Error())
