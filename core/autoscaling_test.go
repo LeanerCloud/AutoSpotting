@@ -1209,7 +1209,7 @@ func TestScanInstances(t *testing.T) {
 								Placement: &ec2.Placement{
 									AvailabilityZone: aws.String("az-1"),
 								},
-								InstanceLifecycle: aws.String(Spot
+								InstanceLifecycle: aws.String(Spot),
 							},
 							typeInfo: instanceTypeInformation{
 								pricing: prices{

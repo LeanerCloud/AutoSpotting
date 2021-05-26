@@ -234,11 +234,12 @@ func (a *autoScalingGroup) cronEventAction() runer {
 		if len(a.region.conf.SQSQueueURL) == 0 {
 			return launchSpotReplacement{target{
 				onDemandInstance: onDemandInstance}}
-		} else {
-			return sqsSendMessageOnInstanceLaunch{
-				target{
-					asg:              a,
-					onDemandInstance: onDemandInstance}}
+		}
+		return sqsSendMessageOnInstanceLaunch{
+			target{
+				asg:              a,
+				onDemandInstance: onDemandInstance,
+			},
 		}
 	}
 

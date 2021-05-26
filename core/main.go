@@ -414,6 +414,9 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 }
 
 func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) error {
+	var spotInstanceID *string
+	var err error
+
 	if i.shouldBeReplacedWithSpot(true) {
 
 		// In case we're not triggered by SQS event we generate such an event and send it to the queue.
@@ -431,33 +434,33 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 		log.Printf("%s instance %s belongs to an enabled ASG and should be "+
 			"replaced with spot, attempting to launch spot replacement",
 			i.region.name, *i.InstanceId)
-		if spotInstanceID, err := i.launchSpotReplacement(); err != nil {
+		if spotInstanceID, err = i.launchSpotReplacement(); err != nil {
 			log.Printf("%s Couldn't launch spot replacement for %s",
 				i.region.name, *i.InstanceId)
 			return err
-		} else {
-			log.Printf("Waiting for spot instance %s to be in status running", *spotInstanceID)
-			err := r.services.ec2.WaitUntilInstanceRunning(
-				&ec2.DescribeInstancesInput{
-					InstanceIds: []*string{spotInstanceID},
-				})
-			if err != nil {
-				log.Printf("Issue while waiting for spot instance %v to start: %v",
-					spotInstanceID, err.Error())
-				return err
-			}
-			if err := r.scanInstance(spotInstanceID); err != nil {
-				log.Printf("%s Couldn't scan instance %s: %s", i.region.name,
-					*spotInstanceID, err.Error())
-				return err
-			}
-			spotInstance := r.instances.get(*spotInstanceID)
-			if _, err := spotInstance.swapWithGroupMember(i.asg); err != nil {
-				log.Printf("%s, couldn't perform spot replacement of %s ",
-					i.region.name, *i.InstanceId)
-				return err
-			}
 		}
+		log.Printf("Waiting for spot instance %s to be in status running", *spotInstanceID)
+		err := r.services.ec2.WaitUntilInstanceRunning(
+			&ec2.DescribeInstancesInput{
+				InstanceIds: []*string{spotInstanceID},
+			})
+		if err != nil {
+			log.Printf("Issue while waiting for spot instance %v to start: %v",
+				spotInstanceID, err.Error())
+			return err
+		}
+		if err := r.scanInstance(spotInstanceID); err != nil {
+			log.Printf("%s Couldn't scan instance %s: %s", i.region.name,
+				*spotInstanceID, err.Error())
+			return err
+		}
+		spotInstance := r.instances.get(*spotInstanceID)
+		if _, err := spotInstance.swapWithGroupMember(i.asg); err != nil {
+			log.Printf("%s, couldn't perform spot replacement of %s ",
+				i.region.name, *i.InstanceId)
+			return err
+		}
+
 	} else {
 		log.Printf("%s skipping instance %s: either doesn't belong to an "+
 			"enabled ASG or should not be replaced with spot, ",

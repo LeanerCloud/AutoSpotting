@@ -84,11 +84,11 @@ func (ssi swapSpotInstance) run() {
 }
 
 type sqsSendMessageOnInstanceLaunch struct {
-  target target
+	target target
 }
 
 func (ssmoil sqsSendMessageOnInstanceLaunch) run() {
-        asg := ssmoil.target.asg
+	asg := ssmoil.target.asg
 	onDemandInstanceID := ssmoil.target.onDemandInstance.InstanceId
 	region := ssmoil.target.onDemandInstance.region
 	state := ssmoil.target.onDemandInstance.State.Name

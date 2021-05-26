@@ -51,8 +51,9 @@ const (
 	// on a per-group override.
 	DefaultCronSchedule = "* *"
 
-	// Defining these as constants to avoid typos as they're used in various places
-	Spot     = "spot"
+	// Spot stores the string "spot"  to avoid typos as it's used in various places
+	Spot = "spot"
+	// OnDemand  stores the string "on-demand" to avoid typos as it's used in various places
 	OnDemand = "on-demand"
 )
 

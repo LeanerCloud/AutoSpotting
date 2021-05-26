@@ -64,7 +64,7 @@ func (s *SpotTermination) detachInstance(instanceID *string, asgName string, eve
 
 	log.Printf("Detached instance %s successfully", *instanceID)
 
-	if eventType != "IRR" {
+	if eventType != InstanceRebalanceRecommendationCode {
 		s.deleteTagInstanceLaunchedForAsg(instanceID)
 	}
 
