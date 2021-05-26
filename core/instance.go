@@ -146,7 +146,7 @@ func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64
 
 func (i *instance) isSpot() bool {
 	return i.InstanceLifecycle != nil &&
-		*i.InstanceLifecycle == "spot"
+		*i.InstanceLifecycle == Spot
 }
 
 func (i *instance) isProtectedFromTermination() (bool, error) {
@@ -640,7 +640,7 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		EbsOptimized: i.EbsOptimized,
 
 		InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
-			MarketType: aws.String("spot"),
+			MarketType: aws.String(Spot),
 			SpotOptions: &ec2.SpotMarketOptions{
 				MaxPrice: aws.String(strconv.FormatFloat(price, 'g', 10, 64)),
 			},

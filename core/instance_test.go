@@ -221,7 +221,7 @@ func TestIsSpot(t *testing.T) {
 			expected:  false,
 		},
 		{name: "LifeCycle is not nil and is spot",
-			lifeCycle: aws.String("spot"),
+			lifeCycle: aws.String(Spot),
 			expected:  true,
 		},
 	}
@@ -745,7 +745,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 								InstanceId:        aws.String("id-1"),
 								InstanceType:      aws.String("typeX"),
 								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
-								InstanceLifecycle: aws.String("spot"),
+								InstanceLifecycle: aws.String(Spot),
 							},
 						},
 					},
@@ -826,7 +826,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 								InstanceId:        aws.String("id-1"),
 								InstanceType:      aws.String("typeX"),
 								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
-								InstanceLifecycle: aws.String("spot"),
+								InstanceLifecycle: aws.String(Spot),
 							},
 						},
 					},
@@ -905,7 +905,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 								InstanceId:        aws.String("id-1"),
 								InstanceType:      aws.String("typeX"),
 								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
-								InstanceLifecycle: aws.String("spot"),
+								InstanceLifecycle: aws.String(Spot),
 							},
 						},
 					},
@@ -984,7 +984,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 								InstanceId:        aws.String("id-1"),
 								InstanceType:      aws.String("typeX"),
 								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
-								InstanceLifecycle: aws.String("spot"),
+								InstanceLifecycle: aws.String(Spot),
 							},
 						},
 					},
@@ -1064,7 +1064,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 								InstanceId:        aws.String("id-1"),
 								InstanceType:      aws.String("typeX"),
 								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
-								InstanceLifecycle: aws.String("spot"),
+								InstanceLifecycle: aws.String(Spot),
 							},
 						},
 					},
@@ -1640,7 +1640,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				EbsOptimized: aws.Bool(true),
 
 				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
-					MarketType: aws.String("spot"),
+					MarketType: aws.String(Spot),
 					SpotOptions: &ec2.SpotMarketOptions{
 						MaxPrice: aws.String("1.5"),
 					},
@@ -1763,7 +1763,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				EbsOptimized: aws.Bool(true),
 
 				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
-					MarketType: aws.String("spot"),
+					MarketType: aws.String(Spot),
 					SpotOptions: &ec2.SpotMarketOptions{
 						MaxPrice: aws.String("1.5"),
 					},
@@ -1879,7 +1879,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				ImageId: aws.String("ami-123"),
 
 				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
-					MarketType: aws.String("spot"),
+					MarketType: aws.String(Spot),
 					SpotOptions: &ec2.SpotMarketOptions{
 						MaxPrice: aws.String("1.5"),
 					},
@@ -2001,7 +2001,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				ImageId: aws.String("ami-123"),
 
 				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
-					MarketType: aws.String("spot"),
+					MarketType: aws.String(Spot),
 					SpotOptions: &ec2.SpotMarketOptions{
 						MaxPrice: aws.String("1.5"),
 					},
@@ -2134,7 +2134,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				ImageId: aws.String("ami-123"),
 
 				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
-					MarketType: aws.String("spot"),
+					MarketType: aws.String(Spot),
 					SpotOptions: &ec2.SpotMarketOptions{
 						MaxPrice: aws.String("1.5"),
 					},
