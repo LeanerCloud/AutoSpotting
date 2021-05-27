@@ -587,7 +587,7 @@ func (i *instance) getPriceToBid(
 func (i *instance) convertLaunchConfigurationBlockDeviceMappings(BDMs []*autoscaling.BlockDeviceMapping) []*ec2.BlockDeviceMapping {
 
 	bds := []*ec2.BlockDeviceMapping{}
-	if BDMs == nil || len(BDMs) == 0 {
+	if len(BDMs) == 0 {
 		debug.Println("Missing LC block device mappings")
 	}
 
@@ -625,7 +625,7 @@ func (i *instance) convertLaunchConfigurationBlockDeviceMappings(BDMs []*autosca
 func (i *instance) convertLaunchTemplateBlockDeviceMappings(BDMs []*ec2.LaunchTemplateBlockDeviceMapping) []*ec2.BlockDeviceMapping {
 
 	bds := []*ec2.BlockDeviceMapping{}
-	if BDMs == nil || len(BDMs) == 0 {
+	if len(BDMs) == 0 {
 		log.Println("Missing LT block device mappings")
 	}
 
@@ -663,7 +663,7 @@ func (i *instance) convertLaunchTemplateBlockDeviceMappings(BDMs []*ec2.LaunchTe
 func (i *instance) convertImageBlockDeviceMappings(BDMs []*ec2.BlockDeviceMapping) []*ec2.BlockDeviceMapping {
 
 	bds := []*ec2.BlockDeviceMapping{}
-	if BDMs == nil || len(BDMs) == 0 {
+	if len(BDMs) == 0 {
 		log.Println("Missing Image block device mappings")
 	}
 
