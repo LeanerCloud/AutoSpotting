@@ -101,7 +101,11 @@ const (
 
 	// PatchBeanstalkUserdataTag is the name of the tag set on the AutoScaling Group that
 	// can override the global value of the PatchBeanstalkUserdata parameter
-	PatchBeanstalkUserdataTag = "patch_beanstalk_userdata"
+	PatchBeanstalkUserdataTag = "autospotting_patch_beanstalk_userdata"
+
+	// GP2ConversionThresholdTag is the name of the tag set on the AutoScaling Group that
+	// can override the global value of the GP2ConversionThreshold parameter
+	GP2ConversionThresholdTag = "autospotting_gp2_conversion_threshold"
 )
 
 // AutoScalingConfig stores some group-specific configurations that can override
@@ -133,6 +137,9 @@ type AutoScalingConfig struct {
 	CronScheduleState string // "on" or "off", dictate whether to run inside the CronSchedule or not
 
 	PatchBeanstalkUserdata string
+
+	// Threshold for converting EBS volumes from GP2 to GP3, since after a certain size GP2 may be more performant than GP3.
+	GP2ConversionThreshold int64
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -247,6 +254,29 @@ func (a *autoScalingGroup) loadPatchBeanstalkUserdata() {
 	a.config.PatchBeanstalkUserdata = a.region.conf.PatchBeanstalkUserdata
 }
 
+func (a *autoScalingGroup) loadGP2ConversionThreshold() {
+	// setting the default value
+	a.config.GP2ConversionThreshold = a.region.conf.GP2ConversionThreshold
+
+	tagValue := a.getTagValue(GP2ConversionThresholdTag)
+	if tagValue == nil {
+		log.Printf("Couldn't load the GP2ConversionThreshold from tag %v, using the default value of %v\n", GP2ConversionThresholdTag, a.config.GP2ConversionThreshold)
+		return
+	}
+
+	log.Printf("Loaded GP2ConversionThreshold value %v from tag %v\n", *tagValue, GP2ConversionThresholdTag)
+
+	threshold, err := strconv.Atoi(*tagValue)
+	if err != nil {
+		log.Printf("Error parsing %v qs integer: %s\n", *tagValue, err.Error())
+		return
+	}
+
+	debug.Println("Successfully parsed", GP2ConversionThresholdTag, "on the group", a.name, "overriding the default configuration")
+	a.config.GP2ConversionThreshold = int64(threshold)
+
+}
+
 func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
 	biddingPolicy := *tagValue
 	if biddingPolicy != "aggressive" {
@@ -358,6 +388,7 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 	a.LoadCronTimezone()
 	a.LoadCronScheduleState()
 	a.loadPatchBeanstalkUserdata()
+	a.loadGP2ConversionThreshold()
 
 	if resOnDemandConf {
 		log.Println("Found and applied configuration for OnDemand value")

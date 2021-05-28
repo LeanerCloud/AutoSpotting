@@ -16,9 +16,22 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/davecgh/go-spew/spew"
 )
+
+var unsupportedIO2Regions = [...]string{
+	"us-gov-west-1",
+	"us-gov-east-1",
+	"sa-east-1",
+	"cn-north-1",
+	"cn-northwest-1",
+	"eu-south-1",
+	"af-south-1",
+	"eu-west-3",
+	"ap-northeast-3",
+}
 
 // The key in this map is the instance ID, useful for quick retrieval of
 // instance attributes.
@@ -515,10 +528,15 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 	//Go through all compatible instances until one type launches or we are out of options.
 	for _, instanceType := range instanceTypes {
 		az := *i.Placement.AvailabilityZone
-		bidPrice := i.getPricetoBid(i.price,
+		bidPrice := i.getPriceToBid(i.price,
 			instanceType.pricing.spot[az], instanceType.pricing.premium)
 
-		runInstancesInput := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
+		runInstancesInput, err := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
+		if err != nil {
+			log.Println(az, i.asg.name, "Failed to generate run instances input, ", err.Error(), "skipping instance type ", instanceType.instanceType)
+			continue
+		}
+
 		log.Println(az, i.asg.name, "Launching spot instance of type", instanceType.instanceType, "with bid price", bidPrice)
 		log.Println(az, i.asg.name)
 		resp, err := i.region.services.ec2.RunInstances(runInstancesInput)
@@ -550,7 +568,7 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 
 }
 
-func (i *instance) getPricetoBid(
+func (i *instance) getPriceToBid(
 	baseOnDemandPrice float64, currentSpotPrice float64, spotPremium float64) float64 {
 
 	debug.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
@@ -566,39 +584,182 @@ func (i *instance) getPricetoBid(
 	return bufferPrice
 }
 
-func (i *instance) convertBlockDeviceMappings(lc *launchConfiguration) []*ec2.BlockDeviceMapping {
+func (i *instance) convertLaunchConfigurationBlockDeviceMappings(BDMs []*autoscaling.BlockDeviceMapping) []*ec2.BlockDeviceMapping {
+
 	bds := []*ec2.BlockDeviceMapping{}
-	if lc == nil || len(lc.BlockDeviceMappings) == 0 {
-		debug.Println("Missing block device mappings")
-		return bds
+	if len(BDMs) == 0 {
+		debug.Println("Missing LC block device mappings")
 	}
 
-	for _, lcBDM := range lc.BlockDeviceMappings {
+	for _, BDM := range BDMs {
 
 		ec2BDM := &ec2.BlockDeviceMapping{
-			DeviceName:  lcBDM.DeviceName,
-			VirtualName: lcBDM.VirtualName,
+			DeviceName:  BDM.DeviceName,
+			VirtualName: BDM.VirtualName,
 		}
 
-		if lcBDM.Ebs != nil {
+		if BDM.Ebs != nil {
 			ec2BDM.Ebs = &ec2.EbsBlockDevice{
-				DeleteOnTermination: lcBDM.Ebs.DeleteOnTermination,
-				Encrypted:           lcBDM.Ebs.Encrypted,
-				Iops:                lcBDM.Ebs.Iops,
-				SnapshotId:          lcBDM.Ebs.SnapshotId,
-				VolumeSize:          lcBDM.Ebs.VolumeSize,
-				VolumeType:          lcBDM.Ebs.VolumeType,
+				DeleteOnTermination: BDM.Ebs.DeleteOnTermination,
+				Encrypted:           BDM.Ebs.Encrypted,
+				Iops:                BDM.Ebs.Iops,
+				SnapshotId:          BDM.Ebs.SnapshotId,
+				VolumeSize:          BDM.Ebs.VolumeSize,
+				VolumeType:          convertLaunchConfigurationEBSVolumeType(BDM.Ebs, i.asg),
 			}
 		}
 
 		// handle the noDevice field directly by skipping the device if set to true
-		if lcBDM.NoDevice != nil && *lcBDM.NoDevice {
+		if BDM.NoDevice != nil && *BDM.NoDevice {
 			continue
 		}
 		bds = append(bds, ec2BDM)
+	}
 
+	if len(bds) == 0 {
+		return nil
 	}
 	return bds
+}
+
+func (i *instance) convertLaunchTemplateBlockDeviceMappings(BDMs []*ec2.LaunchTemplateBlockDeviceMapping) []*ec2.BlockDeviceMapping {
+
+	bds := []*ec2.BlockDeviceMapping{}
+	if len(BDMs) == 0 {
+		log.Println("Missing LT block device mappings")
+	}
+
+	for _, BDM := range BDMs {
+
+		ec2BDM := &ec2.BlockDeviceMapping{
+			DeviceName:  BDM.DeviceName,
+			VirtualName: BDM.VirtualName,
+		}
+
+		if BDM.Ebs != nil {
+			ec2BDM.Ebs = &ec2.EbsBlockDevice{
+				DeleteOnTermination: BDM.Ebs.DeleteOnTermination,
+				Encrypted:           BDM.Ebs.Encrypted,
+				Iops:                BDM.Ebs.Iops,
+				SnapshotId:          BDM.Ebs.SnapshotId,
+				VolumeSize:          BDM.Ebs.VolumeSize,
+				VolumeType:          convertLaunchTemplateEBSVolumeType(BDM.Ebs, i.asg),
+			}
+		}
+
+		// handle the noDevice field directly by skipping the device if set to true, apparently NoDevice is here a string instead of a bool.
+		if BDM.NoDevice != nil && *BDM.NoDevice == "true" {
+			continue
+		}
+		bds = append(bds, ec2BDM)
+	}
+
+	if len(bds) == 0 {
+		return nil
+	}
+	return bds
+}
+
+func (i *instance) convertImageBlockDeviceMappings(BDMs []*ec2.BlockDeviceMapping) []*ec2.BlockDeviceMapping {
+
+	bds := []*ec2.BlockDeviceMapping{}
+	if len(BDMs) == 0 {
+		log.Println("Missing Image block device mappings")
+	}
+
+	for _, BDM := range BDMs {
+
+		ec2BDM := &ec2.BlockDeviceMapping{
+			DeviceName:  BDM.DeviceName,
+			VirtualName: BDM.VirtualName,
+		}
+
+		if BDM.Ebs != nil {
+			ec2BDM.Ebs = &ec2.EbsBlockDevice{
+				DeleteOnTermination: BDM.Ebs.DeleteOnTermination,
+				Encrypted:           BDM.Ebs.Encrypted,
+				Iops:                BDM.Ebs.Iops,
+				SnapshotId:          BDM.Ebs.SnapshotId,
+				VolumeSize:          BDM.Ebs.VolumeSize,
+				VolumeType:          convertImageEBSVolumeType(BDM.Ebs, i.asg),
+			}
+		}
+
+		// handle the noDevice field directly by skipping the device if set to true, apparently NoDevice is here a string instead of a bool.
+		if BDM.NoDevice != nil && *BDM.NoDevice == "true" {
+			continue
+		}
+		bds = append(bds, ec2BDM)
+	}
+
+	if len(bds) == 0 {
+		return nil
+	}
+	return bds
+}
+
+func convertLaunchConfigurationEBSVolumeType(ebs *autoscaling.Ebs, a *autoScalingGroup) *string {
+	// convert IO1 to IO2 in supported regions
+	r := a.region.name
+	asg := a.name
+	if *ebs.VolumeType == "io1" && supportedIO2region(r) {
+		log.Println(r, ": Converting IO1 volume to IO2 for new instance launched for", asg)
+		return aws.String("io2")
+	}
+
+	// convert GP2 to GP3 below the threshold where GP2 becomes more performant. The Threshold is configurable
+	if *ebs.VolumeType == "gp2" && *ebs.VolumeSize <= a.config.GP2ConversionThreshold {
+		log.Println(r, ": Converting GP2 EBS volume to GP3 for new instance launched for", asg)
+		return aws.String("gp3")
+	}
+	log.Println(r, ": No EBS volume conversion could be done for", asg)
+	return ebs.VolumeType
+}
+
+func convertLaunchTemplateEBSVolumeType(ebs *ec2.LaunchTemplateEbsBlockDevice, a *autoScalingGroup) *string {
+	// convert IO1 to IO2 in supported regions
+	r := a.region.name
+	asg := a.name
+	if *ebs.VolumeType == "io1" && supportedIO2region(r) {
+		log.Println(r, ": Converting IO1 volume to IO2 for new instance launched for", asg)
+		return aws.String("io2")
+	}
+
+	// convert GP2 to GP3 below the threshold where GP2 becomes more performant. The Threshold is configurable
+	if *ebs.VolumeType == "gp2" && *ebs.VolumeSize <= a.config.GP2ConversionThreshold {
+		log.Println(r, ": Converting GP2 EBS volume to GP3 for new instance launched for", asg)
+		return aws.String("gp3")
+	}
+	log.Println(r, ": No EBS volume conversion could be done for", asg)
+	return ebs.VolumeType
+}
+
+func convertImageEBSVolumeType(ebs *ec2.EbsBlockDevice, a *autoScalingGroup) *string {
+	// convert IO1 to IO2 in supported regions
+	r := a.region.name
+	asg := a.name
+	if *ebs.VolumeType == "io1" && supportedIO2region(r) {
+		log.Println(r, ": Converting IO1 volume to IO2 for new instance launched for", asg)
+		return aws.String("io2")
+	}
+
+	// convert GP2 to GP3 below the threshold where GP2 becomes more performant. The Threshold is configurable
+	if *ebs.VolumeType == "gp2" && *ebs.VolumeSize <= a.config.GP2ConversionThreshold {
+		log.Println(r, ": Converting GP2 EBS volume to GP3 for new instance launched for", asg)
+		return aws.String("gp3")
+	}
+	log.Println(r, ": No EBS volume conversion could be done for", asg)
+	return ebs.VolumeType
+}
+
+func supportedIO2region(region string) bool {
+	for _, r := range unsupportedIO2Regions {
+		if region == r {
+			log.Println("IO2 EBS volumes are not available in", region)
+			return false
+		}
+	}
+	return true
 }
 
 func (i *instance) convertSecurityGroups() []*string {
@@ -609,7 +770,7 @@ func (i *instance) convertSecurityGroups() []*string {
 	return groupIDs
 }
 
-func (i *instance) launchTemplateHasNetworkInterfaces(id, ver *string) (bool, []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecification) {
+func (i *instance) getlaunchTemplate(id, ver *string) (*ec2.ResponseLaunchTemplateData, error) {
 	res, err := i.region.services.ec2.DescribeLaunchTemplateVersions(
 		&ec2.DescribeLaunchTemplateVersionsInput{
 			Versions:         []*string{ver},
@@ -620,19 +781,131 @@ func (i *instance) launchTemplateHasNetworkInterfaces(id, ver *string) (bool, []
 	if err != nil {
 		log.Println("Failed to describe launch template", *id, "version", *ver,
 			"encountered error:", err.Error())
+		return nil, err
+	}
+	if len(res.LaunchTemplateVersions) == 1 {
+		return res.LaunchTemplateVersions[0].LaunchTemplateData, nil
+	}
+	return nil, fmt.Errorf("missing launch template version information")
+}
+
+func (i *instance) launchTemplateHasNetworkInterfaces(ltData *ec2.ResponseLaunchTemplateData) (bool, []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecification) {
+	if ltData == nil {
+		log.Println("Missing launch template data for ", *i.InstanceId)
+		return false, nil
 	}
 
-	if err == nil && len(res.LaunchTemplateVersions) == 1 {
-		lt := res.LaunchTemplateVersions[0]
-		nis := lt.LaunchTemplateData.NetworkInterfaces
-		if len(nis) > 0 {
-			return true, nis
-		}
+	nis := ltData.NetworkInterfaces
+	if len(nis) > 0 {
+		return true, nis
 	}
 	return false, nil
 }
 
-func (i *instance) createRunInstancesInput(instanceType string, price float64) *ec2.RunInstancesInput {
+func (i *instance) processLaunchTemplate(retval *ec2.RunInstancesInput) error {
+	ver := i.asg.LaunchTemplate.Version
+	id := i.asg.LaunchTemplate.LaunchTemplateId
+
+	retval.LaunchTemplate = &ec2.LaunchTemplateSpecification{
+		LaunchTemplateId: id,
+		Version:          ver,
+	}
+
+	ltData, err := i.getlaunchTemplate(id, ver)
+	if err != nil {
+		return err
+	}
+
+	retval.BlockDeviceMappings = i.convertLaunchTemplateBlockDeviceMappings(ltData.BlockDeviceMappings)
+
+	if having, nis := i.launchTemplateHasNetworkInterfaces(ltData); having {
+		for _, ni := range nis {
+			retval.NetworkInterfaces = append(retval.NetworkInterfaces,
+				&ec2.InstanceNetworkInterfaceSpecification{
+					AssociatePublicIpAddress: ni.AssociatePublicIpAddress,
+					SubnetId:                 i.SubnetId,
+					DeviceIndex:              ni.DeviceIndex,
+					Groups:                   i.convertSecurityGroups(),
+				},
+			)
+		}
+		retval.SubnetId, retval.SecurityGroupIds = nil, nil
+	}
+	return nil
+}
+
+func (i *instance) processLaunchConfiguration(retval *ec2.RunInstancesInput) {
+	lc := i.asg.launchConfiguration
+
+	if lc.KeyName != nil && *lc.KeyName != "" {
+		retval.KeyName = lc.KeyName
+	}
+
+	if lc.IamInstanceProfile != nil {
+		if strings.HasPrefix(*lc.IamInstanceProfile, "arn:aws:iam:") {
+			retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
+				Arn: lc.IamInstanceProfile,
+			}
+		} else {
+			retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
+				Name: lc.IamInstanceProfile,
+			}
+		}
+	}
+	retval.ImageId = lc.ImageId
+
+	if strings.ToLower(i.asg.config.PatchBeanstalkUserdata) == "true" {
+		retval.UserData = getPatchedUserDataForBeanstalk(lc.UserData)
+	} else {
+		retval.UserData = lc.UserData
+	}
+
+	BDMs := i.convertLaunchConfigurationBlockDeviceMappings(lc.BlockDeviceMappings)
+
+	if len(BDMs) > 0 {
+		retval.BlockDeviceMappings = BDMs
+	}
+
+	if lc.InstanceMonitoring != nil {
+		retval.Monitoring = &ec2.RunInstancesMonitoringEnabled{
+			Enabled: lc.InstanceMonitoring.Enabled}
+	}
+
+	if lc.AssociatePublicIpAddress != nil || i.SubnetId != nil {
+		// Instances are running in a VPC.
+		retval.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
+			{
+				AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
+				DeviceIndex:              aws.Int64(0),
+				SubnetId:                 i.SubnetId,
+				Groups:                   i.convertSecurityGroups(),
+			},
+		}
+		retval.SubnetId, retval.SecurityGroupIds = nil, nil
+	}
+}
+
+func (i *instance) processImageBlockDevices(rii *ec2.RunInstancesInput) {
+	svc := i.region.services.ec2
+
+	resp, err := svc.DescribeImages(
+		&ec2.DescribeImagesInput{
+			ImageIds: []*string{i.ImageId},
+		})
+
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+	if len(resp.Images) == 0 {
+		log.Println("missing image data")
+		return
+	}
+
+	rii.BlockDeviceMappings = i.convertImageBlockDeviceMappings(resp.Images[0].BlockDeviceMappings)
+}
+
+func (i *instance) createRunInstancesInput(instanceType string, price float64) (*ec2.RunInstancesInput, error) {
 	// information we must (or can safely) copy/convert from the currently running
 	// on-demand instance or we had to compute in order to place the spot bid
 	retval := ec2.RunInstancesInput{
@@ -658,82 +931,20 @@ func (i *instance) createRunInstancesInput(instanceType string, price float64) *
 		TagSpecifications: i.generateTagsList(),
 	}
 
+	i.processImageBlockDevices(&retval)
+
+	//populate the rest of the retval fields from launch Template and launch Configuration
 	if i.asg.LaunchTemplate != nil {
-		ver := i.asg.LaunchTemplate.Version
-		id := i.asg.LaunchTemplate.LaunchTemplateId
-
-		retval.LaunchTemplate = &ec2.LaunchTemplateSpecification{
-			LaunchTemplateId: id,
-			Version:          ver,
-		}
-
-		if having, nis := i.launchTemplateHasNetworkInterfaces(id, ver); having {
-			for _, ni := range nis {
-				retval.NetworkInterfaces = append(retval.NetworkInterfaces,
-					&ec2.InstanceNetworkInterfaceSpecification{
-						AssociatePublicIpAddress: ni.AssociatePublicIpAddress,
-						SubnetId:                 i.SubnetId,
-						DeviceIndex:              ni.DeviceIndex,
-						Groups:                   i.convertSecurityGroups(),
-					},
-				)
-			}
-			retval.SubnetId, retval.SecurityGroupIds = nil, nil
+		err := i.processLaunchTemplate(&retval)
+		if err != nil {
+			log.Println("failed to process launch template, the resulting instance configuration may be incomplete", err.Error())
+			return nil, err
 		}
 	}
-
 	if i.asg.launchConfiguration != nil {
-		lc := i.asg.launchConfiguration
-
-		if lc.KeyName != nil && *lc.KeyName != "" {
-			retval.KeyName = lc.KeyName
-		}
-
-		if lc.IamInstanceProfile != nil {
-			if strings.HasPrefix(*lc.IamInstanceProfile, "arn:aws:iam:") {
-				retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
-					Arn: lc.IamInstanceProfile,
-				}
-			} else {
-				retval.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
-					Name: lc.IamInstanceProfile,
-				}
-			}
-		}
-		retval.ImageId = lc.ImageId
-
-		if strings.ToLower(i.asg.config.PatchBeanstalkUserdata) == "true" {
-			retval.UserData = getPatchedUserDataForBeanstalk(lc.UserData)
-		} else {
-			retval.UserData = lc.UserData
-		}
-
-		BDMs := i.convertBlockDeviceMappings(lc)
-
-		if len(BDMs) > 0 {
-			retval.BlockDeviceMappings = BDMs
-		}
-
-		if lc.InstanceMonitoring != nil {
-			retval.Monitoring = &ec2.RunInstancesMonitoringEnabled{
-				Enabled: lc.InstanceMonitoring.Enabled}
-		}
-
-		if lc.AssociatePublicIpAddress != nil || i.SubnetId != nil {
-			// Instances are running in a VPC.
-			retval.NetworkInterfaces = []*ec2.InstanceNetworkInterfaceSpecification{
-				{
-					AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
-					DeviceIndex:              aws.Int64(0),
-					SubnetId:                 i.SubnetId,
-					Groups:                   i.convertSecurityGroups(),
-				},
-			}
-			retval.SubnetId, retval.SecurityGroupIds = nil, nil
-		}
+		i.processLaunchConfiguration(&retval)
 	}
-
-	return &retval
+	return &retval, nil
 }
 
 func (i *instance) generateTagsList() []*ec2.TagSpecification {

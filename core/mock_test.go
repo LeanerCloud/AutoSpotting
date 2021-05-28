@@ -13,8 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 )
@@ -207,19 +205,6 @@ type mockCloudFormation struct {
 
 func (m mockCloudFormation) DescribeStacks(*cloudformation.DescribeStacksInput) (*cloudformation.DescribeStacksOutput, error) {
 	return m.dso, m.dserr
-}
-
-// All fields are composed of the abbreviation of their method
-// This is useful when methods are doing multiple calls to AWS API
-type mockLambda struct {
-	lambdaiface.LambdaAPI
-	// Invoke
-	io   *lambda.InvokeOutput
-	ierr error
-}
-
-func (m mockLambda) Invoke(*lambda.InvokeInput) (*lambda.InvokeOutput, error) {
-	return m.io, m.ierr
 }
 
 // All fields are composed of the abbreviation of their method
