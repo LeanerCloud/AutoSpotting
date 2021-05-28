@@ -55,6 +55,8 @@ const (
 	Spot = "spot"
 	// OnDemand  stores the string "on-demand" to avoid typos as it's used in various places
 	OnDemand = "on-demand"
+	// DefaultGP2ConversionThreshold is the size under which GP3 is more performant than GP2 for both throughput and IOPS
+	DefaultGP2ConversionThreshold = 170
 )
 
 // Config extends the AutoScalingConfig struct and in addition contains a
@@ -224,11 +226,22 @@ func ParseConfig(conf *Config) {
 		"triggered by events and won't do anything if no event is passed either as result of "+
 		"AWS instance state notifications or simulated manually using this flag.\n")
 
-	flagSet.StringVar(&conf.PatchBeanstalkUserdata, "patch_beanstalk_userdata", "", "\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the instance role when calling CloudFormation helpers instead of the standard CloudFormation authentication method\n"+
-		"\tExample: ./AutoSpotting --patch_beanstalk_userdata true\n")
-
-	flagSet.StringVar(&conf.SQSQueueURL, "sqs_queue_url", "", "\n\tThe Url of the SQS fifo queue used to manage spot replacement actions. This needs to exist in the same region as the main AutoSpotting Lambda function"+
+	flagSet.StringVar(&conf.SQSQueueURL, "sqs_queue_url", "", "\n\tThe Url of the SQS fifo queue used to manage spot replacement actions. "+
+		"This needs to exist in the same region as the main AutoSpotting Lambda function"+
 		"\tExample: ./AutoSpotting --sqs_queue_url https://sqs.{AwsRegion}.amazonaws.com/{AccountId}/AutoSpotting.fifo\n")
+
+	flagSet.StringVar(&conf.PatchBeanstalkUserdata, "patch_beanstalk_userdata", "",
+		"\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the "+
+			"instance role when calling CloudFormation helpers instead of the standard CloudFormation "+
+			"authentication method\n"+
+			"\tExample: ./AutoSpotting --patch_beanstalk_userdata true\n")
+
+	flagSet.Int64Var(&conf.GP2ConversionThreshold, "ebs_gp2_conversion_threshold", DefaultGP2ConversionThreshold,
+		"\n\tThe EBS volume size below which to automatically replace GP2 EBS volumes to the newer GP3 "+
+			"volume type, that's 20% cheaper and more performant than GP2 for smaller sizes, but it's not "+
+			"getting more performant wth size as GP2 does. Over 170 GB GP2 gets better throughput, and at "+
+			"1TB GP2 also has better IOPS than a baseline GP3 volume.\n"+
+			"\tExample: ./AutoSpotting --ebs_gp2_conversion_threshold 170\n")
 
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 

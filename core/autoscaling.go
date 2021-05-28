@@ -739,29 +739,6 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	return nil
 }
 
-func (a *autoScalingGroup) hasLaunchLifecycleHooks() (bool, error) {
-
-	resDLH, err := a.region.services.autoScaling.DescribeLifecycleHooks(
-		&autoscaling.DescribeLifecycleHooksInput{
-			AutoScalingGroupName: a.AutoScalingGroupName,
-		})
-
-	if err != nil {
-		log.Println(err.Error())
-		return false, err
-	}
-
-	for _, hook := range resDLH.LifecycleHooks {
-		if *hook.LifecycleTransition == "autoscaling:EC2_INSTANCE_LAUNCHING" {
-			debug.Printf("Group %s has launch lifecycle hook(s): %s",
-				*a.AutoScalingGroupName, *hook.LifecycleHookName)
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.
 func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	spot bool, availabilityZone *string) (int64, int64) {
