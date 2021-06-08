@@ -702,6 +702,12 @@ func convertLaunchConfigurationEBSVolumeType(ebs *autoscaling.Ebs, a *autoScalin
 	// convert IO1 to IO2 in supported regions
 	r := a.region.name
 	asg := a.name
+
+	if ebs.VolumeType == nil {
+		log.Println(r, ": Empty EBS VolumeType while converting LC volume for ASG", asg)
+		return nil
+	}
+
 	if *ebs.VolumeType == "io1" && supportedIO2region(r) {
 		log.Println(r, ": Converting IO1 volume to IO2 for new instance launched for", asg)
 		return aws.String("io2")
