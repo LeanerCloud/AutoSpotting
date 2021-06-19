@@ -96,7 +96,7 @@ const (
 	// EnableInstanceLaunchEventHandlingTag is the name of the tag set on the
 	// AutoScaling Group that enables the event-based instance replacement logic
 	// for this group. It is set automatically once the legacy cron-based
-	// replacement logic is done replacing in stances in any given group.
+	// replacement logic is done replacing instances in any given group.
 	EnableInstanceLaunchEventHandlingTag = "autospotting_enable_instance_launch_event_handling"
 
 	// PatchBeanstalkUserdataTag is the name of the tag set on the AutoScaling Group that
@@ -260,7 +260,7 @@ func (a *autoScalingGroup) loadGP2ConversionThreshold() {
 
 	tagValue := a.getTagValue(GP2ConversionThresholdTag)
 	if tagValue == nil {
-		log.Printf("Couldn't load the GP2ConversionThreshold from tag %v, using the default value of %v\n", GP2ConversionThresholdTag, a.config.GP2ConversionThreshold)
+		log.Printf("Couldn't load the GP2ConversionThreshold from tag %v, using the globally configured value of %v\n", GP2ConversionThresholdTag, a.config.GP2ConversionThreshold)
 		return
 	}
 

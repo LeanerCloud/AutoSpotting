@@ -111,6 +111,9 @@ type Config struct {
 
 	// SQS MessageID
 	sqsReceiptHandle string
+
+	// DisableEventBasedInstanceReplacement forces execution in cron mode only
+	DisableEventBasedInstanceReplacement bool
 }
 
 // ParseConfig loads configuration from command line flags, environments variables, and config files.
@@ -242,6 +245,10 @@ func ParseConfig(conf *Config) {
 			"getting more performant wth size as GP2 does. Over 170 GB GP2 gets better throughput, and at "+
 			"1TB GP2 also has better IOPS than a baseline GP3 volume.\n"+
 			"\tExample: ./AutoSpotting --ebs_gp2_conversion_threshold 170\n")
+
+	flagSet.BoolVar(&conf.DisableEventBasedInstanceReplacement, "disable_event_based_instance_replacement", false,
+		"\n\tDisables the event based instance replacement, forcing the legacy cron mode.\n"+
+			"\tExample: ./AutoSpotting --disable_event_based_instance_replacement=true\n")
 
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 

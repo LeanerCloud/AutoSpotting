@@ -181,7 +181,7 @@ func TestOnDemandPriceMultiplier(t *testing.T) {
 					InstanceType: "m1.small",
 					Pricing: map[string]ec2instancesinfo.RegionPrices{
 						"us-east-1": {
-							Linux: ec2instancesinfo.LinuxPricing{
+							Linux: ec2instancesinfo.Pricing{
 								OnDemand: 0.044,
 							},
 						},

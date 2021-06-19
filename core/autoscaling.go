@@ -225,7 +225,7 @@ func (a *autoScalingGroup) cronEventAction() runer {
 			log.Println(a.region.name, a.name,
 				"No running unprotected on-demand instances were found, nothing to do here...")
 
-			return enableEventHandling{target{asg: a}}
+			return skipRun{reason: "no-instances-to-replace"}
 		}
 
 		a.loadLaunchConfiguration()
@@ -271,57 +271,6 @@ func (a *autoScalingGroup) cronEventAction() runer {
 	return swapSpotInstance{target{
 		asg:          a,
 		spotInstance: spotInstance}}
-}
-
-func (a *autoScalingGroup) enableForInstanceLaunchEventHandling() bool {
-	log.Printf("Enabling group %s for the event-based instance replacement logic",
-		a.name)
-
-	for _, tag := range a.Tags {
-		if *tag.Key == EnableInstanceLaunchEventHandlingTag {
-			log.Printf("Tag %s is already set on the group %s, current value is %s",
-				EnableInstanceLaunchEventHandlingTag, a.name, *tag.Value)
-			return true
-		}
-	}
-
-	svc := a.region.services.autoScaling
-	fmt.Printf("%#v", svc)
-
-	_, err := svc.CreateOrUpdateTags(&autoscaling.CreateOrUpdateTagsInput{
-		Tags: []*autoscaling.Tag{
-			{
-				ResourceType:      aws.String("auto-scaling-group"),
-				ResourceId:        a.AutoScalingGroupName,
-				Key:               aws.String(EnableInstanceLaunchEventHandlingTag),
-				Value:             aws.String("true"),
-				PropagateAtLaunch: aws.Bool(false),
-			},
-		},
-	})
-	if err != nil {
-		log.Println("Failed to enable ASG for event-based instance replacement:", err.Error())
-		return false
-	}
-	return true
-}
-
-func (a *autoScalingGroup) isEnabledForEventBasedInstanceReplacement() bool {
-	if time.Since(*a.CreatedTime) < time.Hour {
-		log.Println("ASG %s is newer than an hour, enabling it for event-based "+
-			"instance replacement", a.name)
-		return a.enableForInstanceLaunchEventHandling()
-	}
-
-	for _, tag := range a.Tags {
-		if *tag.Key == EnableInstanceLaunchEventHandlingTag &&
-			*tag.Value == "true" {
-			log.Printf("ASG %s tags enable it for event-based instance replacement", a.name)
-			return true
-		}
-	}
-	log.Printf("ASG %s is not enabled for event-based instance replacement", a.name)
-	return false
 }
 
 func (a *autoScalingGroup) scanInstances() instances {
@@ -441,15 +390,8 @@ func (a *autoScalingGroup) getInstance(
 	return nil
 }
 
-func (a *autoScalingGroup) getUnprotectedOnDemandInstanceInAZ(az *string) *instance {
-	return a.getInstance(az, true, true)
-}
 func (a *autoScalingGroup) getAnyUnprotectedOnDemandInstance() *instance {
 	return a.getInstance(nil, true, true)
-}
-
-func (a *autoScalingGroup) getAnyOnDemandInstance() *instance {
-	return a.getInstance(nil, true, false)
 }
 
 func (a *autoScalingGroup) getAnySpotInstance() *instance {
