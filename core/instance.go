@@ -236,16 +236,16 @@ func (i *instance) terminate() error {
 	return err
 }
 
-func (i *instance) shouldBeReplacedWithSpot(doNotCheckEventEnabled bool) bool {
+func (i *instance) shouldBeReplacedWithSpot() bool {
 	protT, _ := i.isProtectedFromTermination()
-	return i.belongsToEnabledASG(doNotCheckEventEnabled) &&
+	return i.belongsToEnabledASG() &&
 		i.asgNeedsReplacement() &&
 		!i.isSpot() &&
 		!i.isProtectedFromScaleIn() &&
 		!protT
 }
 
-func (i *instance) belongsToEnabledASG(doNotCheckEventEnabled bool) bool {
+func (i *instance) belongsToEnabledASG() bool {
 	belongs, asgName := i.belongsToAnASG()
 	if !belongs {
 		log.Printf("%s instane %s doesn't belong to any ASG",
@@ -254,7 +254,7 @@ func (i *instance) belongsToEnabledASG(doNotCheckEventEnabled bool) bool {
 	}
 
 	for _, asg := range i.region.enabledASGs {
-		if asg.name == *asgName && (doNotCheckEventEnabled || asg.isEnabledForEventBasedInstanceReplacement()) {
+		if asg.name == *asgName {
 			asg.config = i.region.conf.AutoScalingConfig
 			asg.scanInstances()
 			asg.loadDefaultConfig()
@@ -1055,7 +1055,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 		return nil, fmt.Errorf("target instance %s is missing", *odInstanceID)
 	}
 
-	if !odInstance.shouldBeReplacedWithSpot(true) {
+	if !odInstance.shouldBeReplacedWithSpot() {
 		log.Printf("Target on-demand instance %s shouldn't be replaced", *odInstanceID)
 		i.terminate()
 		return nil, fmt.Errorf("target instance %s should not be replaced with spot",

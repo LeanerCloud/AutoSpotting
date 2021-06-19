@@ -23,15 +23,6 @@ type skipRun struct {
 
 func (s skipRun) run() {}
 
-// enables the ASG for the new event-based logic
-type enableEventHandling struct {
-	target target
-}
-
-func (eeh enableEventHandling) run() {
-	eeh.target.asg.enableForInstanceLaunchEventHandling()
-}
-
 // terminates a random spot instance after enabling the event-based logic
 type terminateSpotInstance struct {
 	target target
@@ -39,8 +30,6 @@ type terminateSpotInstance struct {
 
 func (tsi terminateSpotInstance) run() {
 	asg := tsi.target.asg
-
-	asg.enableForInstanceLaunchEventHandling()
 	asg.terminateRandomSpotInstanceIfHavingEnough(
 		tsi.target.totalInstances, true)
 }

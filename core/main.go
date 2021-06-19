@@ -27,10 +27,9 @@ var debug *log.Logger
 // AutoSpotting hosts global configuration and has as methods all the public
 // entrypoints of this library
 type AutoSpotting struct {
-	config        *Config
-	hourlySavings float64
-	savingsMutex  *sync.RWMutex
-	mainEC2Conn   ec2iface.EC2API
+	config       *Config
+	savingsMutex *sync.RWMutex
+	mainEC2Conn  ec2iface.EC2API
 }
 
 var as *AutoSpotting
@@ -213,6 +212,10 @@ func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) 
 // parse instance events and execute the relative methods
 func (a *AutoSpotting) processEventInstance(eventType string, region string, instanceID *string, instanceState *string) error {
 	if eventType == InstanceStateChangeNotificationCode {
+		if a.config.DisableEventBasedInstanceReplacement {
+			log.Println("Event-based instance replacement is disabled, exiting...")
+			return nil
+		}
 		// If event is Instance state change
 		if len(a.config.sqsReceiptHandle) != 0 {
 			log.SetPrefix(fmt.Sprintf("SQS:%s ", *instanceID))
@@ -256,7 +259,8 @@ func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
 
 	if (eventType == InstanceStateChangeNotificationCode ||
 		eventType == SpotInstanceInterruptionWarningCode ||
-		eventType == InstanceRebalanceRecommendationCode) && instanceID != nil {
+		eventType == InstanceRebalanceRecommendationCode) &&
+		instanceID != nil {
 		// Handle Instance Events
 		log.SetPrefix(fmt.Sprintf("%s:%s ", eventType, *instanceID))
 		a.processEventInstance(eventType, cloudwatchEvent.Region, instanceID, instanceState)
@@ -417,17 +421,14 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 	var spotInstanceID *string
 	var err error
 
-	if i.shouldBeReplacedWithSpot(true) {
+	if i.shouldBeReplacedWithSpot() {
 
 		// In case we're not triggered by SQS event we generate such an event and send it to the queue.
 		// We want to delay the further below code for until we're processing it through the SQS queue,
 		// in order to avoid launching Spot instances too early and having them run outside their ASG
 		// for too long.
 		if len(a.config.sqsReceiptHandle) == 0 {
-			if i.asg.isEnabledForEventBasedInstanceReplacement() {
-				return i.region.sqsSendMessageOnInstanceLaunch(&i.asg.name, i.InstanceId, i.State.Name, "on-demand-instance-launch")
-			}
-			return nil
+			return i.region.sqsSendMessageOnInstanceLaunch(&i.asg.name, i.InstanceId, i.State.Name, "on-demand-instance-launch")
 		}
 		defer i.region.sqsDeleteMessage(i.InstanceId, OnDemand)
 
