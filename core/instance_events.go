@@ -112,8 +112,8 @@ func parseEventData(event events.CloudWatchEvent) (string, *string, *string, err
 
 	// This code shouldn't be reachable
 	if len(eventTypeCode) == 0 {
-		log.Println("This code shouldn't be reachable")
-		result = errors.New("this code shoudn't be reached")
+		log.Printf("This code shouldn't be reachable, received event: %+v \n", event)
+		result = errors.New("this code shouldn't be reached")
 	}
 
 	return eventTypeCode, instanceID, instanceState, result
