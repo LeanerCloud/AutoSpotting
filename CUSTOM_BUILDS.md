@@ -165,6 +165,6 @@ This also accepts all the AutoSpotting command-line arguments, including `-help`
 which explains all the available options.
 
 Pre-built Docker images for the latest builds are also available on Dockerhub at
-[AutoSpotting/AutoSpotting](https://hub.docker.com/r/autospotting/autospotting)
+[AutoSpotting/AutoSpotting](https://hub.docker.com/r/autospotting/autospotting/)
 
 [Back to the main Readme](./README.md)
