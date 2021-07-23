@@ -23,13 +23,13 @@ import (
 )
 
 var debug *log.Logger
+var totalSavings float64
 
 // AutoSpotting hosts global configuration and has as methods all the public
 // entrypoints of this library
 type AutoSpotting struct {
-	config       *Config
-	savingsMutex *sync.RWMutex
-	mainEC2Conn  ec2iface.EC2API
+	config      *Config
+	mainEC2Conn ec2iface.EC2API
 }
 
 var as *AutoSpotting
@@ -43,7 +43,6 @@ func (a *AutoSpotting) Init(cfg *Config) {
 
 	cfg.InstanceData = data
 	a.config = cfg
-	a.savingsMutex = &sync.RWMutex{}
 	a.config.setupLogging()
 	// use this only to list all the other regions
 	a.mainEC2Conn = connectEC2(a.config.MainRegion)
@@ -116,15 +115,34 @@ func (cfg *Config) setupLogging() {
 // by default this is all asg with the tag 'spot-enabled=true'.
 func (a *AutoSpotting) processRegions(regions []string) {
 	var wg sync.WaitGroup
+	var savingsMutex sync.RWMutex
 
 	for _, r := range regions {
-
 		wg.Add(1)
+		r := region{name: r, conf: a.config}
+		go func() {
+			s := r.calculateSavings()
+			savingsMutex.Lock()
+			totalSavings += s
+			savingsMutex.Unlock()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 
+	log.Println("Total hourly savings:", totalSavings)
+	if strings.HasPrefix(as.config.Version, "stable") {
+		if err := meterMarketplaceUsage(totalSavings); err != nil {
+			log.Println("Failed marketplace metering, exiting...")
+			return
+		}
+	}
+
+	for _, r := range regions {
+		wg.Add(1)
 		r := region{name: r, conf: a.config}
 
 		go func() {
-
 			if r.enabled() {
 				log.Printf("Enabled to run in %s, processing region.\n", r.name)
 				r.processRegion()
