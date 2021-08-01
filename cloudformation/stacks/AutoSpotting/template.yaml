@@ -136,14 +136,6 @@
       Description: "Value of the tag to be applied to the Lambda function"
       Default: "AutoSpotting"
       Type: "String"
-    LambdaHandlerFunction:
-      Default: "AutoSpotting"
-      AllowedValues:
-        - "AutoSpotting"
-      Description: >
-        "Handler function for the Lambda function, don't change this unless you
-        know what you're doing!"
-      Type: "String"
     LambdaMemorySize:
       Default: 1024
       Description: >
@@ -152,28 +144,25 @@
       Type: Number
       MinValue: 128
       MaxValue: 3008
-
-    LambdaS3Bucket:
-      Default: "cloudprowess"
+    SourceECR:
+      Default: "709825985650.dkr.ecr.us-east-1.amazonaws.com"
       Description: >
-        "S3 bucket that contains the
-        precompiled binaries, you can change this to your own if you build and
-        host your own binaries."
+        "ECR repository that stores the AutoSpotting Docker image used by
+        Lambda. The default value is using the AWS Marketplace ECR repository
+        and only works if you purchased AutoSpotting through the AWS
+        Marketplace. If you built it yourself, you need to override this value
+        with the URL of your own ECR repository that contains the AutoSpotting
+        Docker image."
       Type: "String"
-    LambdaS3BucketPrefix:
-      Default: "nightly"
+    SourceImage:
+      Default: "cloudutil/autospotting"
       Description: >
-        "S3 bucket prefix to use as source of lambdas and template, you may need
-        to change this if you build and host your own binaries."
+        "The Docker image used for the Lambda function"
       Type: "String"
-    LambdaZipName:
-      Default: "lambda.zip"
+    SourceImageTag:
+      Default: "1.0.1"
       Description: >
-        "Name of Lambda function zip file inside the S3 bucket. Can be used to
-        update to a more recent version, such as 'lambda_build_57.zip'.
-        Precompiled binaries easy to get started with can be taken from the
-        'cloudprowess' S3 public bucket, see
-        https://cloudprowess.s3.amazonaws.com/index.html"
+        "The version of the Docker image used for the Lambda function"
       Type: "String"
     LogRetentionPeriod:
       Default: "7"
@@ -280,16 +269,6 @@
         groups except for those tagged with 'spot-enabled=false' or other values
         configured in the same 'FilterByTags' option"
       Type: "String"
-    License:
-      Default: "evaluation"
-      AllowedValues:
-        - "evaluation"
-        - "I_am_supporting_it_on_Patreon"
-        - "I_contributed_to_development_within_the_last_year"
-        - "I_built_it_from_source_code"
-      Description: >
-        "Obsolete, please ignore, only kept for compatibility with previous builds."
-      Type: "String"
     PatchBeanstalkUserdata:
       Default: "false"
       AllowedValues:
@@ -352,13 +331,16 @@
       Type: "AWS::IAM::Role"
 
     LambdaFunction:
+      DependsOn: CopyDockerImage
       Properties:
+        PackageType: Image
         Code:
-          S3Bucket:
-            Ref: "LambdaS3Bucket"
-          S3Key:
-            Fn::Sub: "${LambdaS3BucketPrefix}/${LambdaZipName}"
-        Description: "Implements SPOT instance automation"
+          ImageUri:
+            Fn::Join:
+              - ':'
+              - - Fn::GetAtt: ECRRepository.RepositoryUri
+                - Ref: SourceImageTag
+        Description: "Implements Spot instance automation"
         Environment:
           Variables:
             ALLOWED_INSTANCE_TYPES:
@@ -379,8 +361,6 @@
               Ref: "GP2ConversionThreshold"
             INSTANCE_TERMINATION_METHOD:
               Ref: "InstanceTerminationMethod"
-            LICENSE:
-              Ref: "License"
             MIN_ON_DEMAND_NUMBER:
               Ref: "MinOnDemandNumber"
             MIN_ON_DEMAND_PERCENTAGE:
@@ -407,15 +387,12 @@
               Ref: "PatchBeanstalkUserdata"
             SQS_QUEUE_URL:
               Ref: "SQSQueue"
-        Handler:
-          Ref: "LambdaHandlerFunction"
         MemorySize:
           Ref: "LambdaMemorySize"
         Role:
           Fn::GetAtt:
             - "LambdaExecutionRole"
             - "Arn"
-        Runtime: "go1.x"
         Tags:
           -
             Key:
@@ -443,6 +420,8 @@
                 - "autoscaling:SuspendProcesses"
                 - "autoscaling:TerminateInstanceInAutoScalingGroup"
                 - "autoscaling:UpdateAutoScalingGroup"
+                - "aws-marketplace:MeterUsage"
+                - "aws-marketplace:RegisterUsage"
                 - "cloudformation:Describe*"
                 - "ec2:CreateTags"
                 - "ec2:DeleteTags"
@@ -685,3 +664,164 @@
               Effect: "Allow"
               Resource: "*"
 
+    ECRRepository:
+      Type: AWS::ECR::Repository
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        ImageScanningConfiguration:
+          ScanOnPush: true
+
+# Below we create a Custom CloudFormation resource backed by a Lambda function,
+# which copies the AutoSpotting Docker image from the source ECR repository to
+# the ECR repository belonging to the current CloudFormation stack.
+
+    CopyDockerImage:
+      Type: Custom::CopyDockerImage
+      Properties:
+        ServiceToken:
+          Fn::GetAtt:
+          - CopyDockerImageLambda
+          - Arn
+        Region:
+          Ref: AWS::Region
+
+    # IAM role and inline policy to be used by the Custom resource Lambda
+    CopyDockerImageLambdaExecutionRole:
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            -
+              Action: "sts:AssumeRole"
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - "lambda.amazonaws.com"
+        Path: "/lambda/"
+      Type: "AWS::IAM::Role"
+
+    CopyDockerImageLambdaPolicy:
+      Properties:
+        PolicyDocument:
+          Statement:
+            -
+              Action:
+                - "ecr:BatchGetImage"
+                - "ecr:GetAuthorizationToken"
+                - "ecr:GetDownloadUrlForLayer"
+                - "lambda:InvokeFunction"
+                - "logs:CreateLogGroup"
+                - "logs:CreateLogStream"
+                - "logs:PutLogEvents"
+              Effect: "Allow"
+              Resource: "*"
+            -
+              Action:
+                - "ecr:BatchCheckLayerAvailability"
+                - "ecr:CompleteLayerUpload"
+                - "ecr:InitiateLayerUpload"
+                - "ecr:PutImage"
+                - "ecr:UploadLayerPart"
+              Effect: "Allow"
+              Resource:
+                Fn::GetAtt:
+                  - ECRRepository
+                  - Arn
+
+        PolicyName: "LambdaPolicy"
+        Roles:
+          -
+            Ref: "CopyDockerImageLambdaExecutionRole"
+      Type: "AWS::IAM::Policy"
+
+    CopyDockerImageLambda:
+      Type: AWS::Lambda::Function
+      Properties:
+        Description: >
+          "Lambda function that copies the Docker image from the Marketplace ECR to our local ECR"
+        Handler: "index.handler"
+        Runtime: "python3.8"
+        Timeout: 300
+        Environment:
+          Variables:
+            SOURCE_ECR:
+              Ref: SourceECR
+            SOURCE_IMAGE:
+              Ref: SourceImage
+            SOURCE_IMAGE_TAG:
+              Ref: SourceImageTag
+            DESTINATION_ECR:
+              Fn::GetAtt: ECRRepository.RepositoryUri
+        Role:
+          Fn::GetAtt:
+            - CopyDockerImageLambdaExecutionRole
+            - Arn
+        Code:
+          ZipFile: |
+            import base64
+            import boto3
+            import os
+            import stat
+            import shutil
+
+            import cfnresponse
+            from urllib import request
+
+
+            CRANE_URL='https://github.com/google/go-containerregistry/releases/download/v0.5.1/go-containerregistry_Linux_x86_64.tar.gz'
+            CRANE_PATH='./crane'
+
+            def download_crane():
+              request.urlretrieve(CRANE_URL, "crane.tar.gz")
+              shutil.unpack_archive('crane.tar.gz')
+              os.chmod('crane', stat.S_IRWXU)
+
+            def get_docker_auth(ecr_url):
+              client = boto3.client('ecr')
+              response = client.get_authorization_token(
+                registryIds=[
+                    ecr_url.split('.')[0]
+                ]
+              )
+              result = base64.b64decode(response['authorizationData'][0]['authorizationToken'])
+              return result.decode().split(':')
+
+            def crane_login(ecr, user, passwd):
+              os.system('./crane auth login %s -u %s -p %s' % (ecr, user, passwd))
+
+            def crane_copy(src, dst):
+              os.system('./crane copy %s %s' % (src, dst))
+
+            def clone_image():
+              os.chdir('/tmp')
+              os.environ['HOME'] = '/tmp'
+
+              src_ecr = os.getenv('SOURCE_ECR')
+              src_img = os.getenv('SOURCE_IMAGE')
+              src_image_tag = os.getenv('SOURCE_IMAGE_TAG')
+              src_image_uri = src_ecr+'/'+src_img+':'+src_image_tag
+
+              dst_image_uri = os.getenv('DESTINATION_ECR')
+              dst_ecr = dst_image_uri.split('/')[0]
+              dst_img = dst_image_uri.split('/')[1]+':'+src_image_tag
+
+              download_crane()
+
+              src_user, src_pass = get_docker_auth(src_ecr)
+              dst_user, dst_pass = get_docker_auth(dst_ecr)
+
+              crane_login(src_ecr, src_user, src_pass)
+              crane_login(dst_ecr, dst_user, dst_pass)
+
+              crane_copy(src_image_uri, dst_image_uri+':'+src_image_tag)
+
+            def handler(event, context):
+              print('## EVENT')
+              print(event)
+              print('## CONTEXT')
+              print(context)
+
+              if event['RequestType'] == 'Create':
+                clone_image()
+
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {})

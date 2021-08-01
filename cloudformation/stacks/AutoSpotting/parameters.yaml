@@ -13,20 +13,9 @@ ExecutionFrequency: rate(1 minute)
 LambdaFunctionTagKey: Name
 LambdaFunctionTagValue: autospotting
 
-# This only needs to be changed if you update from an old build that was using
-# the Python shim for Go before AWS released official Go support for Lambda.
-# Because Lambda caches the code based on the path, you likely also need to
-# update the LambdaZipPath to explicitly pick up a more recent build.
-LambdaHandlerFunction: AutoSpotting
-
 # You may need to change this on large installations if you run into out of
 # memory situations.
 LambdaMemorySize: '1024'
-
-# Change this section if you run it from your own bucket. This bucket should be
-# created in advance. Because of Lambda restrictions, the stack and the S3
-# bucket have to be located in the same region.
-LambdaS3Bucket: cloudprowess
 
 # Default value: 0
 MinOnDemandNumber: '0'

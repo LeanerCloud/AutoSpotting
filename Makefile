@@ -10,6 +10,11 @@ LICENSE_FILES := LICENSE THIRDPARTY
 GOOS ?= linux
 GOARCH ?= amd64
 
+DOCKER_IMAGE ?= autospotting
+
+MARKETPLACE_IMAGE ?= 709825985650.dkr.ecr.us-east-1.amazonaws.com/cloudutil/autospotting
+MARKETPLACE_VERSION ?= 1.0
+
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
 EXPIRATION := $(shell go run ./scripts/expiration_date.go)
@@ -48,21 +53,30 @@ build:                                                       ## Build the AutoSp
 	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags=$(LDFLAGS) -o $(BINARY)
 .PHONY: build
 
-archive: build                                               ## Create archive to be uploaded
+marketplace-artifacts:                                       ## Create marketplace artifacts to be uploaded to S3
 	@rm -rf $(LOCAL_PATH)
 	@mkdir -p $(LOCAL_PATH)
-	@zip $(LOCAL_PATH)/lambda.zip $(BINARY) $(LICENSE_FILES)
 	@cp -f cloudformation/stacks/AutoSpotting/template.yaml $(LOCAL_PATH)/
 	@cp -f cloudformation/stacks/AutoSpotting/template.yaml $(LOCAL_PATH)/template_build_$(BUILD).yaml
 	@cp -f cloudformation/stacks/AutoSpotting/regional_template.yaml $(LOCAL_PATH)/
-	@sed -e "s#lambda\.zip#lambda_build_$(BUILD).zip#" $(LOCAL_PATH)/template_build_$(BUILD).yaml > $(LOCAL_PATH)/template_build_$(BUILD).yaml.new
+	@sed -e "s#latest#$(MARKETPLACE_VERSION)#" $(LOCAL_PATH)/template_build_$(BUILD).yaml > $(LOCAL_PATH)/template_build_$(BUILD).yaml.new
 	@mv -- $(LOCAL_PATH)/template_build_$(BUILD).yaml.new $(LOCAL_PATH)/template_build_$(BUILD).yaml
-	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(BUILD).zip
-	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(SHA).zip
 
-.PHONY: archive
+.PHONY: artifacts
 
-upload: archive                                              ## Upload binary
+docker:
+	docker build -t $(DOCKER_IMAGE) .
+.PHONY: docker
+
+docker-marketplace:
+	docker build -f Dockerfile.marketplace -t $(MARKETPLACE_IMAGE):$(MARKETPLACE_VERSION) .
+.PHONY: docker-marketplace
+
+docker-marketplace-push: docker-marketplace
+	docker push $(MARKETPLACE_IMAGE):$(MARKETPLACE_VERSION)
+.PHONY: docker-marketplace-push
+
+upload: marketplace-artifacts                                ## Upload data to S3
 	aws s3 sync build/s3/ s3://$(BUCKET_NAME)/
 .PHONY: upload
 
@@ -103,7 +117,7 @@ endif
 ci-checks: fmt-check vet-check module-check lint             ## Pass fmt / vet & lint format
 .PHONY: ci-checks
 
-ci: archive ci-checks ci-cover                               ## Executes inside the CI Docker builder
+ci: artifacts ci-checks ci-cover                               ## Executes inside the CI Docker builder
 .PHONY: ci
 
 ci-docker:                                                   ## Executed by CI
