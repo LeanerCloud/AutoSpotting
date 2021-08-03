@@ -6,6 +6,9 @@
 # installed using pip, or from https://github.com/elias5000/clouds-aws. The same
 # values can be passed manually when you run the stack from the AWS console.
 
+# DeployRegionalResourcesStackSet: 'true'
+# SQSQueueName: AutoSpotting.fifo
+
 # Default value: rate(5 minutes)
 ExecutionFrequency: rate(1 minute)
 

@@ -455,6 +455,8 @@
         Roles:
           -
             Ref: "LambdaExecutionRole"
+          -
+            Ref: ECSTaskExecutionRole
       Type: "AWS::IAM::Policy"
 
     LambdaEventSourceMapping:
@@ -664,9 +666,27 @@
               Effect: "Allow"
               Resource: "*"
 
+    # As per https://docs.aws.amazon.com/lambda/latest/dg/images-create.html
+    # Lambda functions using Docker images currently require an ECR repository
+    # located in the same AWS account(probably also the same region). So the ECR
+    # of the AWS marketplace belonging to an AWS-managed account can't be used
+    # directly for the Lambda function. In order to reduce user friction, we
+    # create a local ECR repository and we use a custom Cloudformation resource
+    # that clones the Docker image from the Marketplace ECR into our local ECR
+    # using the crane tool available at
+    # https://github.com/google/go-containerregistry/tree/main/cmd/crane
+
+    # The custom resource is backed by a Lambda function that downloads a crane
+    # binary and runs it for cloning the Docker image from the source ECR to our
+    # local ECR.
     ECRRepository:
       Type: AWS::ECR::Repository
       DeletionPolicy: Retain
+      # We have to use Retain here because otherwise stack deletion fails when
+      # the ECR contains images. This means the ECR would need to be cleaned up
+      # manually when uninstalling AutoSpotting. We could probably later on
+      # delete the images from our local ECR when deleting the CloudFormation
+      # custom resource but for now this manual cleanup should be fine.
       UpdateReplacePolicy: Retain
       Properties:
         ImageScanningConfiguration:
@@ -824,4 +844,276 @@
               if event['RequestType'] == 'Create':
                 clone_image()
 
+              # TODO: clean up the ECR on deletion to avoid the Retain deletion
+              # policy on the ECR repo and the manual cleanups of the ECR
+              # repository currently required after uninstalling AutoSpotting.
+
               cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+
+    # The Marketplace Metering API needs to be invoked hourly to charge a
+    # percentage of the savings. Currently it can't be called from Lambda, so we
+    # use the same Docker image we use on Lambda from ECS Fargate. We have a
+    # Fargate cron schedule that runs hourly and successfully calls the
+    # Marketplace Metering API.
+
+    # For Fargate we then need a VPC, so in order to avoid relying on the
+    # Default VPC or requiring active CIDR allocation we just hardcoded a CIDR
+    # which we use for all AutoSpotting VPCs. The conflicting values when
+    # installing the CloudFormation template multiple times are okay since we
+    # don't expect to connect these VPCs to each other.
+
+    VPC:
+      Type: AWS::EC2::VPC
+      Properties:
+        EnableDnsSupport: true
+        EnableDnsHostnames: true
+        CidrBlock: "192.168.0.0/24"
+        Tags:
+          - Key: Name
+            Value: AutoSpotting Fargate VPC
+
+    # We create two public subnets, one per AZ, where to run our Fargate tasks.
+    PublicSubnetOne:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone:
+          Fn::Select:
+          - 0
+          - Fn::GetAZs:
+              Ref: 'AWS::Region'
+        VpcId:
+          Ref: 'VPC'
+        CidrBlock:
+          Fn::Select:
+          - 0
+          - Fn::Cidr:
+              - Fn::GetAtt:
+                - VPC
+                - CidrBlock
+              - 2
+              - 7
+        MapPublicIpOnLaunch: true # this is apparently required for Fargate
+    PublicSubnetTwo:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone:
+          Fn::Select:
+          - 1
+          - Fn::GetAZs:
+              Ref: 'AWS::Region'
+        VpcId:
+          Ref: VPC
+        CidrBlock:
+          Fn::Select:
+          - 1
+          - Fn::Cidr:
+              - Fn::GetAtt:
+                - VPC
+                - CidrBlock
+              - 2
+              - 7
+        MapPublicIpOnLaunch: true
+
+    # Setup networking resources for the public subnets. Containers in the
+    # public subnets have public IP addresses and the routing table sends
+    # network traffic via the internet gateway.
+    InternetGateway:
+      Type: AWS::EC2::InternetGateway
+    GatewayAttachement:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        VpcId:
+          Ref: VPC
+        InternetGatewayId:
+          Ref: InternetGateway
+    PublicRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId:
+          Ref: VPC
+    PublicRoute:
+      Type: AWS::EC2::Route
+      DependsOn: GatewayAttachement
+      Properties:
+        RouteTableId: !Ref 'PublicRouteTable'
+        DestinationCidrBlock: '0.0.0.0/0'
+        GatewayId: !Ref 'InternetGateway'
+    PublicSubnetOneRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref PublicSubnetOne
+        RouteTableId: !Ref PublicRouteTable
+    PublicSubnetTwoRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref PublicSubnetTwo
+        RouteTableId: !Ref PublicRouteTable
+
+    ECSCluster:
+      Type: AWS::ECS::Cluster
+      Properties:
+        CapacityProviders:
+          - FARGATE
+        DefaultCapacityProviderStrategy:
+          -
+            CapacityProvider: FARGATE
+
+    # We need to create this SG even if it has no rules, otherwise it's created
+    # automatically and will then block the deletion of the VPC when deleting
+    # the CloudFormation stack.
+    FargateContainerSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Dummy SG used for the AutoSpotting billing Fargate cron task.
+        VpcId:
+          Ref: VPC
+        Tags:
+          - Key: Name
+            Value: AutoSpotting Fargate dummy SG
+
+    # This is a role which is used by the ECS tasks themselves.
+    ECSTaskExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ecs-tasks.amazonaws.com
+            Action:
+            - 'sts:AssumeRole'
+        Path: /
+        Policies:
+          - PolicyName: AmazonECSTaskExecutionRolePolicy
+            PolicyDocument:
+              Statement:
+              - Effect: Allow
+                Action:
+                  # Allow the ECS Tasks to download images from ECR
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:BatchGetImage'
+
+                  # Allow the ECS tasks to upload logs to CloudWatch
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+
+    TaskDefinition:
+      Type: AWS::ECS::TaskDefinition
+      Properties:
+        # awsvpc is required for Fargate
+        NetworkMode: awsvpc
+        RequiresCompatibilities:
+          - FARGATE
+        # 256 (.25 vCPU) - Available memory values: 0.5GB, 1GB, 2GB
+        # 512 (.5 vCPU) - Available memory values: 1GB, 2GB, 3GB, 4GB
+        # 1024 (1 vCPU) - Available memory values: 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB
+        # 2048 (2 vCPU) - Available memory values: Between 4GB and 16GB in 1GB increments
+        # 4096 (4 vCPU) - Available memory values: Between 8GB and 30GB in 1GB increments
+        Cpu: 256
+        # 0.5GB, 1GB, 2GB - Available cpu values: 256 (.25 vCPU)
+        # 1GB, 2GB, 3GB, 4GB - Available cpu values: 512 (.5 vCPU)
+        # 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB - Available cpu values: 1024 (1 vCPU)
+        # Between 4GB and 16GB in 1GB increments - Available cpu values: 2048 (2 vCPU)
+        # Between 8GB and 30GB in 1GB increments - Available cpu values: 4096 (4 vCPU)
+        Memory: 0.5GB
+        ExecutionRoleArn:
+          Ref: ECSTaskExecutionRole
+        TaskRoleArn:
+          Ref: ECSTaskExecutionRole
+        ContainerDefinitions:
+          - Name: AutoSpottingBilling
+            Image:
+              Fn::Join:
+              - ':'
+              - - Fn::GetAtt: ECRRepository.RepositoryUri
+                - Ref: SourceImageTag
+            LogConfiguration:
+              LogDriver: awslogs
+              Options:
+                awslogs-region: !Ref AWS::Region
+                awslogs-group: !Ref FargateLogGroup
+                awslogs-stream-prefix: AutoSpottingBilling
+
+    AutoSpottingBillingTaskSchedule:
+      Type: AWS::Events::Rule
+      Properties:
+        Description: "Hourly billing for AutoSpotting"
+        ScheduleExpression: "rate(1 hour)"
+        State: ENABLED
+        Targets:
+          - Id: AutoSpottingBilling-fargate-task
+            RoleArn:
+              Fn::GetAtt:
+                - TaskSchedulerRole
+                - Arn
+            Arn:
+              Fn::GetAtt:
+                - ECSCluster
+                - Arn
+            EcsParameters:
+              TaskCount: 1
+              TaskDefinitionArn:
+                Ref:
+                  TaskDefinition
+              NetworkConfiguration:
+                AwsVpcConfiguration:
+                  AssignPublicIp: ENABLED
+                  Subnets:
+                  - Ref: PublicSubnetOne
+                  - Ref: PublicSubnetTwo
+
+    FargateLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName:
+          Fn::Join:
+              - '/'
+              - - /ecs/fargate
+                - Ref: AWS::StackName
+                - Billing
+        RetentionInDays:
+          Ref: "LogRetentionPeriod"
+
+    TaskSchedulerRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            -
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - "events.amazonaws.com"
+              Action:
+                - "sts:AssumeRole"
+        Path: /
+        Policies:
+          - PolicyDocument:
+              Statement:
+                - Effect: "Allow"
+                  Condition:
+                    ArnEquals:
+                      ecs:cluster:
+                        Fn::GetAtt:
+                          - ECSCluster
+                          - Arn
+                  Action: "ecs:RunTask"
+                  Resource: "*"
+                - Effect: "Allow"
+                  Condition:
+                    ArnEquals:
+                      ecs:cluster:
+                        Fn::GetAtt:
+                          - ECSCluster
+                          - Arn
+                  Action:
+                    - "iam:ListInstanceProfiles"
+                    - "iam:ListRoles"
+                    - "iam:PassRole"
+                  Resource: "*"
+            PolicyName: "TaskSchedulerPolicy"
