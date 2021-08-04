@@ -49,6 +49,14 @@ func (a *AutoSpotting) Init(cfg *Config) {
 	as = a
 }
 
+func RunningFromLambda() bool {
+	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
+		log.Println("Running from Lambda")
+		return true
+	}
+	return false
+}
+
 // ProcessCronEvent starts processing all AWS regions looking for AutoScaling groups
 // enabled and taking action by replacing more pricy on-demand instances with
 // compatible and cheaper spot instances.
@@ -132,8 +140,9 @@ func (a *AutoSpotting) processRegions(regions []string) {
 
 	log.Println("Total hourly savings:", totalSavings)
 	if strings.HasPrefix(as.config.Version, "stable") {
+		log.Println("Running a stable build, submitting AWS marketplace metering data")
 		if err := meterMarketplaceUsage(totalSavings); err != nil {
-			log.Println("Failed marketplace metering, exiting...")
+			log.Println("Failed marketplace metering, exiting... Encountered error:", err.Error())
 			return
 		}
 	}
@@ -242,6 +251,7 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, ins
 	} else if eventType == SpotInstanceInterruptionWarningCode || eventType == InstanceRebalanceRecommendationCode {
 		// If the event is for an Instance Spot Interruption/Rebalance
 		spotTermination := newSpotTermination(region)
+
 		if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
 			err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction, eventType)
 			if err != nil {

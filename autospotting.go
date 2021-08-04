@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"os"
 
 	autospotting "github.com/AutoSpotting/AutoSpotting/core"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -28,7 +27,7 @@ var eventFile string
 func main() {
 	eventFile = conf.EventFile
 
-	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
+	if autospotting.RunningFromLambda() {
 		lambda.Start(Handler)
 	} else if eventFile != "" {
 		parseEvent, err := ioutil.ReadFile(eventFile)
