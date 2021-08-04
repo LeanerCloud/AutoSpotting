@@ -331,7 +331,8 @@
       Type: "AWS::IAM::Role"
 
     LambdaFunction:
-      DependsOn: CopyDockerImage
+      DependsOn:
+        - CopyDockerImage
       Properties:
         PackageType: Image
         Code:
@@ -451,6 +452,20 @@
                 Fn::GetAtt:
                   - SQSQueue
                   - Arn
+            -
+              Action:
+                - "ssm:GetParameter"
+                - "ssm:PutParameter"
+              Effect: "Allow"
+              Resource:
+                Fn::Join:
+                  - ":"
+                  -
+                    - arn:aws:ssm:us-east-1
+                    -
+                      Ref: AWS::AccountId
+                    - parameter/autospotting-billing
+
         PolicyName: "LambdaPolicy"
         Roles:
           -
@@ -698,6 +713,7 @@
 
     CopyDockerImage:
       Type: Custom::CopyDockerImage
+      DependsOn: CopyDockerImageLambda
       Properties:
         ServiceToken:
           Fn::GetAtt:
@@ -705,6 +721,8 @@
           - Arn
         Region:
           Ref: AWS::Region
+        ImageTag:
+          Ref: SourceImageTag
 
     # IAM role and inline policy to be used by the Custom resource Lambda
     CopyDockerImageLambdaExecutionRole:
@@ -841,8 +859,7 @@
               print('## CONTEXT')
               print(context)
 
-              if event['RequestType'] == 'Create':
-                clone_image()
+              clone_image()
 
               # TODO: clean up the ECR on deletion to avoid the Retain deletion
               # policy on the ECR repo and the manual cleanups of the ECR

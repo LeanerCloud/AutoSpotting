@@ -31,3 +31,5 @@ SpotProductDescription: Linux/UNIX (Amazon VPC)
 
 # Valid choices: opt-in (default), opt-out
 TagFilteringMode: opt-out
+
+SourceImageTag: 1.0.1.1
