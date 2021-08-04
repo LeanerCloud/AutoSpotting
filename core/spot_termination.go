@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -24,8 +25,9 @@ const (
 
 //SpotTermination is used to detach an instance, used when a spot instance is due for termination
 type SpotTermination struct {
-	asSvc  autoscalingiface.AutoScalingAPI
-	ec2Svc ec2iface.EC2API
+	asSvc           autoscalingiface.AutoScalingAPI
+	ec2Svc          ec2iface.EC2API
+	SleepMultiplier time.Duration
 }
 
 func newSpotTermination(region string) SpotTermination {
@@ -37,8 +39,9 @@ func newSpotTermination(region string) SpotTermination {
 
 	return SpotTermination{
 
-		asSvc:  autoscaling.New(session),
-		ec2Svc: ec2.New(session),
+		asSvc:           autoscaling.New(session),
+		ec2Svc:          ec2.New(session),
+		SleepMultiplier: 1,
 	}
 }
 
@@ -66,8 +69,30 @@ func (s *SpotTermination) detachInstance(instanceID *string, asgName string, eve
 
 	if eventType != InstanceRebalanceRecommendationCode {
 		s.deleteTagInstanceLaunchedForAsg(instanceID)
+		s.delayedTermination(instanceID, 14)
 	}
 
+	return nil
+}
+
+// delayedTermination is used to terminate instances that were marked as being in danger of being terminated.
+func (s *SpotTermination) delayedTermination(instanceID *string, minutes time.Duration) error {
+
+	log.Printf("Terminating instance %s with %d minutes delay, sleeping...\n",
+		*instanceID, minutes)
+
+	time.Sleep(minutes * time.Minute * s.SleepMultiplier)
+
+	log.Println("Terminating instance", *instanceID)
+	// terminate the spot instance
+	terminateParams := ec2.TerminateInstancesInput{
+		InstanceIds: []*string{instanceID},
+	}
+
+	if _, err := s.ec2Svc.TerminateInstances(&terminateParams); err != nil {
+		log.Println(err.Error())
+		return err
+	}
 	return nil
 }
 
