@@ -464,7 +464,7 @@
                     - arn:aws:ssm:us-east-1
                     -
                       Ref: AWS::AccountId
-                    - parameter/autospotting-billing
+                    - parameter/autospotting-metering
 
         PolicyName: "LambdaPolicy"
         Roles:
