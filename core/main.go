@@ -49,6 +49,7 @@ func (a *AutoSpotting) Init(cfg *Config) {
 	as = a
 }
 
+// RunningFromLambda quite obviously returns true when running from Lambda.
 func RunningFromLambda() bool {
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		log.Println("Running from Lambda")
