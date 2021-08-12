@@ -1,8 +1,10 @@
 FROM golang:1.16-alpine
-RUN apk add -U --no-cache ca-certificates git make zip
+
+ARG flavor
+
+RUN apk add -U --no-cache ca-certificates git make
 
 COPY . /src
 WORKDIR /src
 
-# fetch deps and cache them in a Docker storage layer
-RUN go mod download
+RUN CGO_ENABLED=0 FLAVOR="$flavor" make ci

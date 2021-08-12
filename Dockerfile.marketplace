@@ -4,7 +4,7 @@ COPY . /src
 WORKDIR /src
 RUN FLAVOR=stable CGO_ENABLED=0 GOPROXY=direct make
 
-FROM alpine
+FROM alpine:3.14.1
 COPY LICENSE BINARY_LICENSE THIRDPARTY /
 COPY --from=golang /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=golang /src/AutoSpotting .
