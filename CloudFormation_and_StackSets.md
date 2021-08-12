@@ -5,7 +5,7 @@ AWS accounts and also to multiple regions within a single account.
 
 AutoSpotting supports being deployed using StackSets across multiple accounts,
 and also leverages them internally to deploy some of its components across
-multiple regions.
+multiple regions within each account.
 
 This document explains the way the current CloudFormation deployment method of
 AutoSpotting uses CloudFormation StackSets internally, what consequences it has
