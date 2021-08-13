@@ -140,12 +140,14 @@ func (a *AutoSpotting) processRegions(regions []string) {
 	wg.Wait()
 
 	log.Println("Total hourly savings:", totalSavings)
-	if strings.HasPrefix(as.config.Version, "stable") {
+	if strings.Contains(as.config.Version, "stable") {
 		log.Println("Running a stable build, submitting AWS marketplace metering data")
 		if err := meterMarketplaceUsage(totalSavings); err != nil {
 			log.Println("Failed marketplace metering, exiting... Encountered error:", err.Error())
 			return
 		}
+	} else {
+		log.Println("Not running a stable build, skipped AWS marketplace metering")
 	}
 
 	for _, r := range regions {
