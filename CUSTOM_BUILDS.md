@@ -18,9 +18,9 @@ They might be useful for quick tests, otherwise you might need to build your own
 docker images.
 
 The repository contains a `Dockerfile` and `docker-compose` configuration that
-allows you to build AutoSpotting Docker container images and run them conveniently on
-your local machine without installing the Go build environment usually required
-for local development(which is also documented below).
+allows you to build AutoSpotting Docker container images and run them
+conveniently on your local machine without installing the Go build environment
+usually required for local development(which is also documented below).
 
 This can be useful for trying it out locally or even for running it on a
 container hosting solution such as Kubernetes. They won't support the full
@@ -59,48 +59,45 @@ some complexity but has the nice side effect of being able to push the image to
 any arbitrary ECR in another account/region, offering more flexibility for
 customers who may want to manage custom deployments at scale.
 
-You'll therefore need to build an x86_64 Docker image, upload it to an ECR repository
-in your AWS account and configure your CloudFormation or Terraform stack to use
-this new image as a source image.
-
-
+You'll therefore need to build an x86_64 Docker image, upload it to an ECR
+repository in your AWS account and configure your CloudFormation or Terraform
+stack to use this new image as a source image.
 
 1. Set up an ECR repository in your AWS account that will host your custom
    Docker images.
 
-2. The build system can use a `DOCKER_IMAGE` variable that tells it where to
+1. The build system can use a `DOCKER_IMAGE` variable that tells it where to
    upload the image. Set it into your environment to the name of your ECR
    repository. When unset you'll attempt to push to the Marketplace ECR and
    you'll receive permission errors.
 
    ``` shell
    export DOCKER_IMAGE=1234567890123.dkr.ecr.<region>.amazonaws.com/<my-ecr-name>
-   export DOCKER_IMAGE_VERSION=1.0.2 # it's strongly recommended to version your images
+   export DOCKER_IMAGE_VERSION=1.0.2 # it's strongly recommended versioning images
    ```
 
-3. Define some AWS credentials or profile information into your
+1. Define some AWS credentials or profile information into your
    [environment](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-environment).
 
-4. Authenticate to your ECR repository
+1. Authenticate to your ECR repository
 
    ```shell
    make docker-login
    ```
 
-5. Build and upload your Docker image to your ECR and configure a CloudFormation
+1. Build and upload your Docker image to your ECR and configure a CloudFormation
    template to use your ECR
 
    ``` shell
    make docker-push-artifacts
    ```
 
-6. Use the CloudFormation template from the `build` directory to create the
+1. Use the CloudFormation template from the `build` directory to create the
    resources. Make sure you set the parameters `SourceECR` and `SourceImage` to
    point to your ECR repository (`SourceECR` should be set to contain the
    hostname part of your ECR repository, before the first `/` character and
    `SourceImage` should contain the rest). The version number will be set
    automatically based on the value you defined earlier.
-
 
    AutoSpotting should now be running against the binaries you built locally and
    uploaded to your own ECR repository.
@@ -130,6 +127,7 @@ AutoSpotting is written in Go so for local development you need a Go toolchain.
 You can probably also use docker-compose for this to avoid it as mentioned above
 but I prefer the native Go tooling which offers faster feedback for local
 development.
+
 ### Dependencies ##
 
 1. Install [Go](https://golang.org/dl/), [git](https://git-scm.com/downloads),
@@ -183,7 +181,7 @@ development.
 
    `make test`
 
-2. Build the code again:
+1. Build the code again:
 
    `make build`
 
@@ -199,6 +197,5 @@ development.
 
    When you are happy with how your custom build behaves, you can generate a
    build for AWS Lambda using the Docker method documented above.
-
 
 [Back to the main Readme](./README.md)

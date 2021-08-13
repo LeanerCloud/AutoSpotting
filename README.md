@@ -214,6 +214,7 @@ that you maintain on your own, just keep in mind that those won't be supported
 in any way.
 
 More details are available [here](CUSTOM_BUILDS.md)
+
 ## License ##
 
 This software is distributed under the terms of the OSL-3.0 [license](LICENSE).
