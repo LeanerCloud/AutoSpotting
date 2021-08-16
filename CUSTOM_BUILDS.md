@@ -199,15 +199,4 @@ development.
 
    build for AWS Lambda using the Docker method documented above.
 
-### Maintaining your own fork ##
-
-It is recommended to contribute your changes into the mainline version of the
-project whenever possible, so that others can benefit from your enhancements and
-bug fixes, but for some reasons you may still want to run your own fork.
-
-Unfortunately the golang import paths can make it tricky, but there is a nice
-[article](http://code.openark.org/blog/development/forking-golang-repositories-on-github-and-managing-the-import-path)
-which documents the problem in detail and gives a couple of possible
-workarounds.
-
 [Back to the main Readme](./README.md)
