@@ -13,7 +13,7 @@
         leaving it unset, instances will be chosen by AutoSpotting's instance
         compatibility algorithm based on CPU, memory, disk, etc., basically
         getting you the cheapest available instances that are at least as big as
-        your existing ones. Using the 'current' keyword for this paremeter will
+        your existing ones. Using the 'current' keyword for this parameter will
         use the instance type configured in the group's launch configuration.
         This is a global value that can be overridden on a per-group basis using
         the 'autospotting_allowed_instance_types' tag set on the AutoScaling
@@ -713,7 +713,7 @@
 
     CopyDockerImage:
       Type: Custom::CopyDockerImage
-      DependsOn: CopyDockerImageLambda
+      DependsOn: CopyDockerImageLambdaPolicy
       Properties:
         ServiceToken:
           Fn::GetAtt:
@@ -1030,7 +1030,7 @@
         # 1024 (1 vCPU) - Available memory values: 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB
         # 2048 (2 vCPU) - Available memory values: Between 4GB and 16GB in 1GB increments
         # 4096 (4 vCPU) - Available memory values: Between 8GB and 30GB in 1GB increments
-        Cpu: 256
+        Cpu: "256"
         # 0.5GB, 1GB, 2GB - Available cpu values: 256 (.25 vCPU)
         # 1GB, 2GB, 3GB, 4GB - Available cpu values: 512 (.5 vCPU)
         # 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB - Available cpu values: 1024 (1 vCPU)
