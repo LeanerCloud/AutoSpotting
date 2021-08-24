@@ -1,15 +1,19 @@
 // Copyright (c) 2016-2021 Cristian Măgherușan-Stanciu
 // Licensed under the Open Software License version 3.0
 
+// instance_queries.go contains read-only functions that return various information about instances.
+
 package autospotting
 
 import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -368,4 +372,112 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 	}
 
 	return nil, fmt.Errorf("no cheaper spot instance types could be found")
+}
+
+func (i *instance) getPriceToBid(
+	baseOnDemandPrice float64, currentSpotPrice float64, spotPremium float64) float64 {
+
+	debug.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
+
+	if i.region.conf.BiddingPolicy == DefaultBiddingPolicy {
+		log.Println("Bidding base on demand price", baseOnDemandPrice, "to replace instance", *i.InstanceId)
+		return baseOnDemandPrice
+	}
+
+	bufferPrice := math.Min(baseOnDemandPrice, ((currentSpotPrice-spotPremium)*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))+spotPremium)
+	log.Println("Bidding buffer-based price of", bufferPrice, "based on current spot price of", currentSpotPrice,
+		"and buffer percentage of", i.region.conf.SpotPriceBufferPercentage, "to replace instance", i.InstanceId)
+	return bufferPrice
+}
+
+func (i *instance) getReplacementTargetASGName() *string {
+	for _, tag := range i.Tags {
+		if *tag.Key == "launched-for-asg" {
+			return tag.Value
+		}
+	}
+	return nil
+}
+
+func (i *instance) getReplacementTargetInstanceID() *string {
+	for _, tag := range i.Tags {
+		if *tag.Key == "launched-for-replacing-instance" {
+			return tag.Value
+		}
+	}
+	return nil
+}
+
+func (i *instance) isLaunchedByAutoSpotting() bool {
+	for _, tag := range i.Tags {
+		if *tag.Key == "launched-by-autospotting" {
+			return true
+		}
+	}
+	return false
+}
+
+func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {
+	asgName := i.getReplacementTargetASGName()
+	if asgName == nil {
+		log.Printf("%s is missing the tag value for 'launched-for-asg'", *i.InstanceId)
+		return false
+	}
+	asg := i.region.findEnabledASGByName(*asgName)
+
+	if asg != nil &&
+		!asg.hasMemberInstance(i) &&
+		i.isSpot() {
+		log.Println("Found unattached spot instance", *i.InstanceId)
+		return true
+	}
+	return false
+}
+
+// returns an instance ID as *string, set to nil if we need to wait for the next
+// run in case there are no spot instances
+func (i *instance) isReadyToAttach(asg *autoScalingGroup) bool {
+
+	log.Println("Considering ", *i.InstanceId, "for attaching to", asg.name)
+
+	gracePeriod := *asg.HealthCheckGracePeriod
+
+	instanceUpTime := time.Now().Unix() - i.LaunchTime.Unix()
+
+	log.Println("Instance uptime:", time.Duration(instanceUpTime)*time.Second)
+
+	// Check if the spot instance is out of the grace period, so in that case we
+	// can replace an on-demand instance with it
+	if *i.State.Name == ec2.InstanceStateNameRunning &&
+		instanceUpTime > gracePeriod {
+		log.Println("The spot instance", *i.InstanceId,
+			" has passed grace period and is ready to attach to the group.")
+		return true
+	} else if *i.State.Name == ec2.InstanceStateNameRunning &&
+		instanceUpTime < gracePeriod {
+		log.Println("The spot instance", *i.InstanceId,
+			"is still in the grace period,",
+			"waiting for it to be ready before we can attach it to the group...")
+		return false
+	} else if *i.State.Name == ec2.InstanceStateNamePending {
+		log.Println("The spot instance", *i.InstanceId,
+			"is still pending,",
+			"waiting for it to be running before we can attach it to the group...")
+		return false
+	}
+	return false
+}
+
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}
+
+func max(x, y int) int {
+	if x > y {
+		return x
+	}
+	return y
 }
