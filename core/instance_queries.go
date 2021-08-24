@@ -6,10 +6,8 @@
 package autospotting
 
 import (
-	"errors"
 	"fmt"
 	"log"
-	"math"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -138,6 +136,15 @@ func (i *instance) belongsToAnASG() (bool, *string) {
 		}
 	}
 	return false, nil
+}
+
+func (i *instance) getReplacementTargetASGName() *string {
+	for _, tag := range i.Tags {
+		if *tag.Key == "launched-for-asg" {
+			return tag.Value
+		}
+	}
+	return nil
 }
 
 func (i *instance) asgNeedsReplacement() bool {
@@ -292,25 +299,6 @@ func (i *instance) isAllowed(instanceType string, allowedList []string, disallow
 	return true
 }
 
-func (i *instance) handleInstanceStates() (bool, error) {
-	log.Printf("%s Found instance %s in state %s",
-		i.region.name, *i.InstanceId, *i.State.Name)
-
-	if *i.State.Name != "running" {
-		log.Printf("%s Instance %s is not in the running state",
-			i.region.name, *i.InstanceId)
-		return true, errors.New("instance not in running state")
-	}
-
-	unattached := i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
-	if !unattached {
-		log.Printf("%s Instance %s is already attached to an ASG, skipping it",
-			i.region.name, *i.InstanceId)
-		return true, nil
-	}
-	return false, nil
-}
-
 func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allowedList []string,
 	disallowedList []string) ([]instanceTypeInformation, error) {
 	current := i.typeInfo
@@ -374,31 +362,6 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 	return nil, fmt.Errorf("no cheaper spot instance types could be found")
 }
 
-func (i *instance) getPriceToBid(
-	baseOnDemandPrice float64, currentSpotPrice float64, spotPremium float64) float64 {
-
-	debug.Println("BiddingPolicy: ", i.region.conf.BiddingPolicy)
-
-	if i.region.conf.BiddingPolicy == DefaultBiddingPolicy {
-		log.Println("Bidding base on demand price", baseOnDemandPrice, "to replace instance", *i.InstanceId)
-		return baseOnDemandPrice
-	}
-
-	bufferPrice := math.Min(baseOnDemandPrice, ((currentSpotPrice-spotPremium)*(1.0+i.region.conf.SpotPriceBufferPercentage/100.0))+spotPremium)
-	log.Println("Bidding buffer-based price of", bufferPrice, "based on current spot price of", currentSpotPrice,
-		"and buffer percentage of", i.region.conf.SpotPriceBufferPercentage, "to replace instance", i.InstanceId)
-	return bufferPrice
-}
-
-func (i *instance) getReplacementTargetASGName() *string {
-	for _, tag := range i.Tags {
-		if *tag.Key == "launched-for-asg" {
-			return tag.Value
-		}
-	}
-	return nil
-}
-
 func (i *instance) getReplacementTargetInstanceID() *string {
 	for _, tag := range i.Tags {
 		if *tag.Key == "launched-for-replacing-instance" {
@@ -415,6 +378,19 @@ func (i *instance) isLaunchedByAutoSpotting() bool {
 		}
 	}
 	return false
+}
+
+func (i *instance) launchTemplateHasNetworkInterfaces(ltData *ec2.ResponseLaunchTemplateData) (bool, []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecification) {
+	if ltData == nil {
+		log.Println("Missing launch template data for ", *i.InstanceId)
+		return false, nil
+	}
+
+	nis := ltData.NetworkInterfaces
+	if len(nis) > 0 {
+		return true, nis
+	}
+	return false, nil
 }
 
 func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {
