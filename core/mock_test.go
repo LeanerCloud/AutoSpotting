@@ -4,7 +4,7 @@
 package autospotting
 
 import (
-	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -18,7 +18,7 @@ import (
 )
 
 func CheckErrors(t *testing.T, err error, expected error) {
-	if err != nil && expected != nil && !reflect.DeepEqual(err, expected) {
+	if err != nil && expected != nil && !strings.Contains(err.Error(), expected.Error()) {
 		t.Errorf("Error received: '%v' expected '%v'",
 			err.Error(), expected.Error())
 	}
@@ -182,7 +182,7 @@ func (m mockASG) DescribeAutoScalingGroupsPages(input *autoscaling.DescribeAutoS
 	return nil
 }
 
-func (m mockASG) DescribeAutoScalingInstances(inout *autoscaling.DescribeAutoScalingInstancesInput) (*autoscaling.DescribeAutoScalingInstancesOutput, error) {
+func (m mockASG) DescribeAutoScalingInstances(input *autoscaling.DescribeAutoScalingInstancesInput) (*autoscaling.DescribeAutoScalingInstancesOutput, error) {
 	return m.dasio, m.dasierr
 }
 
