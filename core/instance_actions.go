@@ -7,10 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/davecgh/go-spew/spew"
 )
 
 // instance_actions.go contains functions that act on instances, altering their state.
@@ -34,57 +32,40 @@ func (i *instance) handleInstanceStates() (bool, error) {
 	return false, nil
 }
 
+// returns an instance ID or error
 func (i *instance) launchSpotReplacement() (*string, error) {
-	i.price = i.typeInfo.pricing.onDemand / i.region.conf.OnDemandPriceMultiplier * i.asg.config.OnDemandPriceMultiplier
-	instanceTypes, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(
-		i.asg.getAllowedInstanceTypes(i),
-		i.asg.getDisallowedInstanceTypes(i))
+
+	ltData, err := i.createLaunchTemplateData()
 
 	if err != nil {
-		log.Println("Couldn't determine the cheapest compatible spot instance type")
+		log.Println("failed to create LaunchTemplate data,", err.Error())
 		return nil, err
 	}
 
-	//Go through all compatible instances until one type launches or we are out of options.
-	for _, instanceType := range instanceTypes {
-		az := *i.Placement.AvailabilityZone
-		bidPrice := i.getPriceToBid(i.price,
-			instanceType.pricing.spot[az], instanceType.pricing.premium)
+	lt, err := i.createFleetLaunchTemplate(ltData)
 
-		runInstancesInput, err := i.createRunInstancesInput(instanceType.instanceType, bidPrice)
-		if err != nil {
-			log.Println(az, i.asg.name, "Failed to generate run instances input, ", err.Error(), "skipping instance type ", instanceType.instanceType)
-			continue
-		}
-
-		log.Println(az, i.asg.name, "Launching spot instance of type", instanceType.instanceType, "with bid price", bidPrice)
-		log.Println(az, i.asg.name)
-		resp, err := i.region.services.ec2.RunInstances(runInstancesInput)
-
-		if err != nil {
-			if strings.Contains(err.Error(), "InsufficientInstanceCapacity") {
-				log.Println("Couldn't launch spot instance due to lack of capacity, trying next instance type:", err.Error())
-			} else {
-				log.Println("Couldn't launch spot instance:", err.Error(), "trying next instance type")
-				debug.Println(runInstancesInput)
-			}
-		} else {
-			spotInst := resp.Instances[0]
-			log.Println(i.asg.name, "Successfully launched spot instance", *spotInst.InstanceId,
-				"of type", *spotInst.InstanceType,
-				"with bid price", bidPrice,
-				"current spot price", instanceType.pricing.spot[az])
-
-			debug.Println("RunInstances response:", spew.Sdump(resp))
-			// add to FinalRecap
-			recapText := fmt.Sprintf("%s Launched spot instance %s", i.asg.name, *spotInst.InstanceId)
-			i.region.conf.FinalRecap[i.region.name] = append(i.region.conf.FinalRecap[i.region.name], recapText)
-			return spotInst.InstanceId, nil
-		}
+	if err != nil {
+		log.Println(i.region, i.asg.name, "createFleetLaunchTemplate() failure:", err.Error())
+		return nil, err
 	}
 
-	log.Println(i.asg.name, "Exhausted all compatible instance types without launch success. Aborting.")
-	return nil, errors.New("exhausted all compatible instance types")
+	defer i.deleteLaunchTemplate(lt)
+
+	cfi, err := i.createFleetInput(lt)
+
+	if err != nil {
+		log.Println(i.region, i.asg.name, "createFleetInput() failure:", err.Error())
+		return nil, err
+	}
+
+	resp, err := i.region.services.ec2.CreateFleet(cfi)
+
+	if err != nil {
+		log.Println(i.region, i.asg.name, "CreateFleet() failure:", err.Error())
+		return nil, err
+	}
+
+	return resp.Instances[0].InstanceIds[0], nil
 
 }
 
@@ -171,4 +152,14 @@ func (i *instance) terminate() error {
 	}
 
 	return err
+}
+
+func (i *instance) deleteLaunchTemplate(ltName *string) {
+	_, err := i.region.services.ec2.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{
+		LaunchTemplateName: ltName,
+	})
+
+	if err != nil {
+		log.Printf("Issue while deleting launch template %v, error: %v", *ltName, err.Error())
+	}
 }
