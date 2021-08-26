@@ -140,7 +140,7 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 		name string
 		BDMs []*autoscaling.BlockDeviceMapping
 		i    *instance
-		want []*ec2.BlockDeviceMapping
+		want []*ec2.LaunchTemplateBlockDeviceMappingRequest
 	}{
 		{
 			name: "nil block device mapping",
@@ -164,7 +164,7 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 				},
 			},
 			i: &instance{},
-			want: []*ec2.BlockDeviceMapping{
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
 				{
 					DeviceName:  aws.String("/dev/ephemeral1"),
 					Ebs:         nil,
@@ -202,7 +202,7 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 					},
 				},
 			},
-			want: []*ec2.BlockDeviceMapping{
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
 				{
 					DeviceName:  aws.String("/dev/ephemeral0"),
 					Ebs:         nil,
@@ -210,7 +210,7 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 				},
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.EbsBlockDevice{
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
 						DeleteOnTermination: aws.Bool(false),
 						VolumeSize:          aws.Int64(10),
 						VolumeType:          aws.String("gp3"),
@@ -248,7 +248,7 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 					},
 				},
 			},
-			want: []*ec2.BlockDeviceMapping{
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
 				{
 					DeviceName:  aws.String("/dev/ephemeral0"),
 					Ebs:         nil,
@@ -256,7 +256,7 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 				},
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.EbsBlockDevice{
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
 						DeleteOnTermination: aws.Bool(false),
 						VolumeSize:          aws.Int64(150),
 						VolumeType:          aws.String("gp2"),
@@ -286,10 +286,10 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 					},
 				},
 			},
-			want: []*ec2.BlockDeviceMapping{
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
 				{
 					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.EbsBlockDevice{
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
 						DeleteOnTermination: aws.Bool(true),
 						VolumeSize:          aws.Int64(20),
 						VolumeType:          aws.String("io2"),
@@ -320,10 +320,10 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 					},
 				},
 			},
-			want: []*ec2.BlockDeviceMapping{
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
 				{
 					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.EbsBlockDevice{
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
 						DeleteOnTermination: aws.Bool(true),
 						VolumeSize:          aws.Int64(20),
 						VolumeType:          aws.String("io1"),
@@ -337,7 +337,7 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			i := tt.i
 			if got := i.convertLaunchConfigurationBlockDeviceMappings(tt.BDMs); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("instance.convertLaunchConfigurationBlockDeviceMappings() = %v, want %v", got, tt.want)
+				t.Errorf("instance.convertLaunchConfigurationBlockDeviceMappings() = %#v, want %#v", got, tt.want)
 			}
 		})
 	}
@@ -399,7 +399,7 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 	}
 }
 
-func Test_instance_createRunInstancesInput(t *testing.T) {
+func Test_instance_createLaunchTemplateData(t *testing.T) {
 	beanstalkUserDataExample, err := ioutil.ReadFile("../test_data/beanstalk_userdata_example.txt")
 	if err != nil {
 		t.Errorf("Unable to read Beanstalk UserData example")
@@ -410,19 +410,19 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 		t.Errorf("Unable to read Beanstalk UserData wrapped example")
 	}
 
-	type args struct {
-		instanceType string
-		price        float64
-	}
 	tests := []struct {
 		name string
 		inst instance
-		args args
-		want *ec2.RunInstancesInput
+		want *ec2.RequestLaunchTemplateData
 	}{
 		{
-			name: "create run instances input with basic launch template",
+			name: "createLaunchTemplateData() with basic launch template",
 			inst: instance{
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						onDemand: 1.5,
+					},
+				},
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -447,6 +447,9 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 							LaunchTemplateId: aws.String("lt-id"),
 							Version:          aws.String("v1"),
 						},
+					},
+					config: AutoScalingConfig{
+						OnDemandPriceMultiplier: 1,
 					},
 				},
 				Instance: &ec2.Instance{
@@ -475,30 +478,17 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 
 					SubnetId: aws.String("subnet-123"),
 				},
-			}, args: args{
-				instanceType: "t2.small",
-				price:        1.5,
 			},
-			want: &ec2.RunInstancesInput{
+			want: &ec2.RequestLaunchTemplateData{
 				EbsOptimized: aws.Bool(true),
-				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
+				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
 					MarketType: aws.String(Spot),
-					SpotOptions: &ec2.SpotMarketOptions{
+					SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
 						MaxPrice: aws.String("1.5"),
 					},
 				},
 
-				InstanceType: aws.String("t2.small"),
-
-				LaunchTemplate: &ec2.LaunchTemplateSpecification{
-					LaunchTemplateId: aws.String("lt-id"),
-					Version:          aws.String("v1"),
-				},
-
-				MaxCount: aws.Int64(1),
-				MinCount: aws.Int64(1),
-
-				Placement: &ec2.Placement{
+				Placement: &ec2.LaunchTemplatePlacementRequest{
 					Affinity: aws.String("foo"),
 				},
 
@@ -507,9 +497,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					aws.String("sg-456"),
 				},
 
-				SubnetId: aws.String("subnet-123"),
-
-				TagSpecifications: []*ec2.TagSpecification{{
+				TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
@@ -538,8 +526,13 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 			},
 		},
 		{
-			name: "create run instances input with launch template containing advanced network configuration",
+			name: "createLaunchTemplateData() with launch template containing advanced network configuration",
 			inst: instance{
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						onDemand: 1.5,
+					},
+				},
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -565,6 +558,9 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				},
 				asg: &autoScalingGroup{
 					name: "mygroup",
+					config: AutoScalingConfig{
+						OnDemandPriceMultiplier: 1,
+					},
 					Group: &autoscaling.Group{
 						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
 							LaunchTemplateId: aws.String("lt-id"),
@@ -599,42 +595,29 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 
 					SubnetId: aws.String("subnet-123"),
 				},
-			}, args: args{
-				instanceType: "t2.small",
-				price:        1.5,
 			},
-			want: &ec2.RunInstancesInput{
+			want: &ec2.RequestLaunchTemplateData{
 				EbsOptimized: aws.Bool(true),
 
-				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
+				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
 					MarketType: aws.String(Spot),
-					SpotOptions: &ec2.SpotMarketOptions{
+					SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
 						MaxPrice: aws.String("1.5"),
 					},
 				},
 
-				InstanceType: aws.String("t2.small"),
-
-				LaunchTemplate: &ec2.LaunchTemplateSpecification{
-					LaunchTemplateId: aws.String("lt-id"),
-					Version:          aws.String("v1"),
-				},
-
-				MaxCount: aws.Int64(1),
-				MinCount: aws.Int64(1),
-
-				NetworkInterfaces: []*ec2.InstanceNetworkInterfaceSpecification{
+				NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 					{
 						Groups:   []*string{aws.String("sg-123"), aws.String("sg-456")},
 						SubnetId: aws.String("subnet-123"),
 					},
 				},
 
-				Placement: &ec2.Placement{
+				Placement: &ec2.LaunchTemplatePlacementRequest{
 					Affinity: aws.String("foo"),
 				},
 
-				TagSpecifications: []*ec2.TagSpecification{{
+				TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
@@ -663,8 +646,13 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 			},
 		},
 		{
-			name: "create run instances input with simple LC",
+			name: "createLaunchTemplateData() with simple LC",
 			inst: instance{
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						onDemand: 1.5,
+					},
+				},
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -676,6 +664,9 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				},
 				asg: &autoScalingGroup{
 					name: "mygroup",
+					config: AutoScalingConfig{
+						OnDemandPriceMultiplier: 1,
+					},
 					Group: &autoscaling.Group{
 						LaunchConfigurationName: aws.String("myLC"),
 					},
@@ -717,34 +708,27 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 
 					SubnetId: nil,
 				},
-			}, args: args{
-				instanceType: "t2.small",
-				price:        1.5,
 			},
-			want: &ec2.RunInstancesInput{
+			want: &ec2.RequestLaunchTemplateData{
 
 				EbsOptimized: aws.Bool(true),
 
-				IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+				IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 					Name: aws.String("profile"),
 				},
 
 				ImageId: aws.String("ami-123"),
 
-				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
+				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
 					MarketType: aws.String(Spot),
-					SpotOptions: &ec2.SpotMarketOptions{
+					SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
 						MaxPrice: aws.String("1.5"),
 					},
 				},
 
-				InstanceType: aws.String("t2.small"),
-				KeyName:      aws.String("mykey"),
+				KeyName: aws.String("mykey"),
 
-				MaxCount: aws.Int64(1),
-				MinCount: aws.Int64(1),
-
-				Placement: &ec2.Placement{
+				Placement: &ec2.LaunchTemplatePlacementRequest{
 					Affinity: aws.String("foo"),
 				},
 
@@ -753,9 +737,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					aws.String("sg-456"),
 				},
 
-				SubnetId: nil,
-
-				TagSpecifications: []*ec2.TagSpecification{{
+				TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
@@ -781,8 +763,13 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 		},
 
 		{
-			name: "create run instances input with full launch configuration",
+			name: "createLaunchTemplateData() with full launch configuration",
 			inst: instance{
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						onDemand: 1.5,
+					},
+				},
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -794,6 +781,9 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 				},
 				asg: &autoScalingGroup{
 					name: "mygroup",
+					config: AutoScalingConfig{
+						OnDemandPriceMultiplier: 1,
+					},
 					Group: &autoscaling.Group{
 						LaunchConfigurationName: aws.String("myLC"),
 					},
@@ -843,12 +833,10 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 
 					SubnetId: aws.String("subnet-123"),
 				},
-			}, args: args{
-				instanceType: "t2.small",
-				price:        1.5,
 			},
-			want: &ec2.RunInstancesInput{
-				BlockDeviceMappings: []*ec2.BlockDeviceMapping{
+
+			want: &ec2.RequestLaunchTemplateData{
+				BlockDeviceMappings: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
 					{
 						DeviceName: aws.String("foo"),
 					},
@@ -856,34 +844,30 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 
 				EbsOptimized: aws.Bool(true),
 
-				IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+				IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 					Name: aws.String("profile-name"),
 				},
 
 				ImageId: aws.String("ami-123"),
 
-				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
+				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
 					MarketType: aws.String(Spot),
-					SpotOptions: &ec2.SpotMarketOptions{
+					SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
 						MaxPrice: aws.String("1.5"),
 					},
 				},
 
-				InstanceType: aws.String("t2.small"),
-				KeyName:      aws.String("current-key"),
+				KeyName: aws.String("current-key"),
 
-				MaxCount: aws.Int64(1),
-				MinCount: aws.Int64(1),
-
-				Monitoring: &ec2.RunInstancesMonitoringEnabled{
+				Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
 					Enabled: aws.Bool(true),
 				},
 
-				Placement: &ec2.Placement{
+				Placement: &ec2.LaunchTemplatePlacementRequest{
 					Affinity: aws.String("foo"),
 				},
 
-				NetworkInterfaces: []*ec2.InstanceNetworkInterfaceSpecification{
+				NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 					{
 						AssociatePublicIpAddress: aws.Bool(true),
 						DeviceIndex:              aws.Int64(0),
@@ -895,7 +879,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					},
 				},
 
-				TagSpecifications: []*ec2.TagSpecification{{
+				TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
@@ -921,8 +905,13 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 			},
 		},
 		{
-			name: "create run instances input with customized UserData for Beanstalk",
+			name: "createLaunchTemplateData() with customized UserData for Beanstalk",
 			inst: instance{
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						onDemand: 1.5,
+					},
+				},
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -955,7 +944,8 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 						},
 					},
 					config: AutoScalingConfig{
-						PatchBeanstalkUserdata: "true",
+						PatchBeanstalkUserdata:  "true",
+						OnDemandPriceMultiplier: 1,
 					},
 				},
 				Instance: &ec2.Instance{
@@ -985,12 +975,9 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 
 					SubnetId: aws.String("subnet-123"),
 				},
-			}, args: args{
-				instanceType: "t2.small",
-				price:        1.5,
 			},
-			want: &ec2.RunInstancesInput{
-				BlockDeviceMappings: []*ec2.BlockDeviceMapping{
+			want: &ec2.RequestLaunchTemplateData{
+				BlockDeviceMappings: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
 					{
 						DeviceName: aws.String("foo"),
 					},
@@ -998,34 +985,30 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 
 				EbsOptimized: aws.Bool(true),
 
-				IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+				IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 					Name: aws.String("profile-name"),
 				},
 
 				ImageId: aws.String("ami-123"),
 
-				InstanceMarketOptions: &ec2.InstanceMarketOptionsRequest{
+				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
 					MarketType: aws.String(Spot),
-					SpotOptions: &ec2.SpotMarketOptions{
+					SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
 						MaxPrice: aws.String("1.5"),
 					},
 				},
 
-				InstanceType: aws.String("t2.small"),
-				KeyName:      aws.String("current-key"),
+				KeyName: aws.String("current-key"),
 
-				MaxCount: aws.Int64(1),
-				MinCount: aws.Int64(1),
-
-				Monitoring: &ec2.RunInstancesMonitoringEnabled{
+				Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
 					Enabled: aws.Bool(true),
 				},
 
-				Placement: &ec2.Placement{
+				Placement: &ec2.LaunchTemplatePlacementRequest{
 					Affinity: aws.String("foo"),
 				},
 
-				NetworkInterfaces: []*ec2.InstanceNetworkInterfaceSpecification{
+				NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 					{
 						AssociatePublicIpAddress: aws.Bool(true),
 						DeviceIndex:              aws.Int64(0),
@@ -1037,7 +1020,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 					},
 				},
 
-				TagSpecifications: []*ec2.TagSpecification{{
+				TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
 					ResourceType: aws.String("instance"),
 					Tags: []*ec2.Tag{
 						{
@@ -1065,7 +1048,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, _ := tt.inst.createRunInstancesInput(tt.args.instanceType, tt.args.price)
+			got, _ := tt.inst.createLaunchTemplateData()
 
 			// make sure the lists of tags are sorted, otherwise the comparison fails
 			sort.Slice(got.TagSpecifications[0].Tags, func(i, j int) bool {
@@ -1076,7 +1059,7 @@ func Test_instance_createRunInstancesInput(t *testing.T) {
 			})
 
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Instance.createRunInstancesInput() = %v, want %v", got, tt.want)
+				t.Errorf("Instance.createLaunchTemplateData() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -994,7 +993,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 			}
 			lc, err := a.loadLaunchConfiguration()
 
-			if !strings.Contains(err.Error(), tt.expectedErr.Error()) {
+			if !errorMatches(err, tt.expectedErr) {
 				t.Errorf("loadLaunchConfiguration received error status: %+v expected %+v",
 					err, tt.expectedErr)
 			}
@@ -1126,8 +1125,7 @@ func TestLoadLaunchTemplate(t *testing.T) {
 				},
 			}
 			lt, err := a.loadLaunchTemplate()
-
-			if !strings.Contains(err.Error(), tt.expectedErr.Error()) {
+			if !errorMatches(err, tt.expectedErr) {
 				t.Errorf("loadLaunchConfiguration received error status: %+v expected %+v",
 					err, tt.expectedErr)
 			}

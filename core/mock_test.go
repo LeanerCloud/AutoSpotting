@@ -227,3 +227,14 @@ func (m mockSQS) SendMessage(*sqs.SendMessageInput) (*sqs.SendMessageOutput, err
 func (m mockSQS) DeleteMessage(*sqs.DeleteMessageInput) (*sqs.DeleteMessageOutput, error) {
 	return m.dmo, m.dmerr
 }
+
+// utility function for checking if error messages are matching
+func errorMatches(got error, wanted error) bool {
+	if got == nil {
+		return wanted == nil
+	}
+	if wanted == nil {
+		return false
+	}
+	return strings.Contains(got.Error(), wanted.Error())
+}
