@@ -15,15 +15,23 @@
 AutoSpotting is the leading open source spot market automation tool, optimized
 towards quick/easy/frictionless adoption of the EC2 spot market at any scale.
 
-It is usually set up to monitor existing long-running AutoScaling groups with
-minimal configuration changes(often just tagging them, but even that can be
-avoided by using their existing tags), yielding the usual 70%-90% Spot cost
-savings but in a better integrated, more cost effective and easier to adopt way
-than the alternative tools and solutions.
+It's being used by thousands of users around the world, from companies of all
+shapes and sizes, in aggregate probably saving them in the tens of millions of
+dollars monthly as per our current estimations.
+
+It is usually set up to monitor existing long-running AutoScaling groups,
+replacing their instances with Spot instances with minimal configuration
+changes.
+
+Often all it needs is just tagging them with `spot-enabled=true`, but
+even that can be avoided in some cases, yielding the usual 70%-90% Spot cost
+savings but in a better integrated and easier to adopt way
+than other alternative tools and solutions, especially if you run infrastructure
+that for whatever reasons you can't afford to update to Spot by other means.
 
 ## How does it work? ##
 
-Once installed and enabled by tagging to run against existing on-demand
+Once installed and enabled to run against existing on-demand
 AutoScaling groups, AutoSpotting gradually replaces their on-demand instances
 with cheaper spot instances that are at least as large and identically
 configured to the group's members, without changing the group launch
@@ -46,7 +54,7 @@ This process can partly be seen in action below, you can click to expand the ani
 
 ![Workflow](https://autospotting.org/img/autospotting.gif)
 
-Additionally, it implements an advanced logic that is aware of spot and on
+Additionally, it implements some advanced logic that is aware of spot and on
 demand prices, including for different spot products and configurable discounts
 for reserved instances or large volume customers. It also considers the specs of
 all instance types and automatically launches the cheapest available instance
@@ -57,7 +65,7 @@ A single installation can handle all enabled groups from an entire AWS account i
 parallel across all available AWS regions, but it can be restricted to fewer
 regions if desired in certain situations.
 
-Your groups will then monitor and use these spot instances just like they would
+Your groups will then monitor and use these Spot instances just like they would
 do with your on-demand instances. They will automatically join their respective
 load balancer and start receiving traffic once passing the health checks, and
 the traffic would automatically be drained on termination.
@@ -75,18 +83,15 @@ The entire logic described above is implemented in a set of Lambda functions
 deployed using CloudFormation or Terraform stacks that can be installed and
 configured in just a few minutes.
 
-The stack assigns them the minimal set of IAM permissions required for them to
+The stack uses the minimal set of IAM permissions required for them to
 work and requires no admin-like cross-account permissions. The entire code base
 can be audited to see how these permissions are being used and even locked down
 further if your audit discovers any issues. **This is not a SaaS**, there's no
-component that calls home and reveals any details about your infrastructure.
+component that calls home or reveals any details about your infrastructure.
 
 The main Lambda function is written in the Go programming language and the code
-is compiled as a static binary compressed and uploaded to S3. For evaluation or
-debugging purposes, the same binary can run out of the box locally on Linux
-machines or as a Docker container on Windows or macOS. Some people even run
-these containers on their existing Kubernetes clusters assuming the other
-resources provided by the stack are implemented in another way on Kubernetes.
+is compiled as a static binary. As of August 2021 this has been included in a
+Docker image used by the Lambda function.
 
 The stack also consists of a few CloudWatch event triggers, that run the Lambda
 function periodically and whenever it needs to take action against the enabled
@@ -117,120 +122,90 @@ Just like in the above animation, it's as easy as launching a CloudFormation (or
 and setting the (configurable) `spot-enabled` tag on the AutoScaling groups
 where you want it enabled to `true`.
 
-All the required infrastructure and configuration will be created automatically,
-so you can get started as fast as possible.
+When installed from the AWS
+[marketplace](https://aws.amazon.com/marketplace/pp/prodview-6uj4pruhgmun6), all
+the required infrastructure and configuration will be created automatically, so
+you can get started as fast as possible. Otherwise you'll need to build it
+yourself as per the instructions available [here](CUSTOM_BUILDS.md).
 
-For more detailed information you can read this [document](START.md)
-
-### Launch latest evaluation build
-
-Warning: it may occasionally be broken or even unavailable, see the below notes
-for more information.
-
-[![Launch](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://bit.ly/AutoSpotting)
-
-- The evaluation binaries launched by the above link are built from git after
-  each commit.
-- They are free of charge but expire after 30 days since the time they were
-  built.
-- They may occasionally be buggy or even unavailable if no code was committed
-  within the last month.
-- Their main purpose is to quickly find issues of the recently committed code
-  and not necessarily to ease installation for new users, which is just a nice
-  side-effect when development is relatively active.
-- To avoind these limitations you can sign up
-  [here](https://patreon.com/cristim) to get access to the latest stable and
-  supported version that's as easy to install but has no such short expiration.
-- Alternatively you can also build AutoSpotting from the open source code.
-- the Docker images available on DockerHub are also distributed under the
-  same evaluation terms.
+For more detailed information on how to get started you can also read this
+[document](START.md)
 
 ## Support ##
 
-Community support is available on the
-[gitter](https://gitter.im/cristim/autospotting) chat room, where the main
-authors and other users are likely to help you solve issues.
+Marketplace subscribers can get support from [here](mailto:contact@cloudutil.io)
+and any feature requests or issues raised via this communication channel
+will be prioritized.
 
-Note: This is offered on a best effort basis and under certain conditions, such
-as using the latest version of the evaluation builds.
+Community support is available to OSS users on the
+[gitter](https://gitter.im/cristim/autospotting) chat room, where the main
+authors and other users are likely to help you solve issues. This is offered on
+a best effort basis and under certain conditions, such as using the latest
+version of the software available on the main Github branch, without any code
+customizations and using the default configuration options.
 
 If you need help for a large scale rollout or migrating from alternative
-tools/solutions, you can purchase a comprehensive support plan guaranteed to
-save you lots of time and money, if you have any questions you can always get in
-touch on [gitter](https://gitter.im/cristim) if you need such help.
+tools/solutions get in touch on [gitter](https://gitter.im/cristim).
 
 ## Contributing ##
 
-Unlike multiple commercial products in this space that cost a lot of money and
-attempt to lock you in, this project is fully open source and developed in the
-open by a vibrant community of dozens of contributors.
+AutoSpotting is fully open source and developed in the open by a vibrant
+community of dozens of contributors.
 
-If this software helps you save any significant amount of money, it would be
-much appreciated if you could support further development on [Github
-Sponsors](https://github.com/sponsors/cristim).
-
-Financial sponsorship is voluntary, it's also fine if you just try it out and
-give [feedback](https://gitter.im/cristim/autospotting), report issues, improve
-the documentation, write some code or assign a developer to work on it, or even
-just spread the word among your peers who might be interested in it. Any sort of
-support would be greatly appreciated and would make a huge difference to the
-project.
+If it helps you save any significant amount of money, it would be
+greatly appreciated if you could support further development on [Github
+Sponsors](https://github.com/sponsors/cristim) or would purchase it from the AWS
+[Marketplace](https://aws.amazon.com/marketplace/pp/prodview-6uj4pruhgmun6).
 
 Note: Non-trivial code should be submitted according to the contribution
-[guidelines](CONTRIBUTING.md).
+[guidelines](CONTRIBUTING.md). Individuals and companies supporting the
+development of the open source code get free of charge support in getting their
+code merged upstream.
 
-### Proprietary binaries ###
+### Official binaries ###
 
 The source code is and will always be open source, so you can build and run
 it yourself, see how it works and even enhance it if you want.
 
-As mentioned before, we also have evaluation binaries that allow you to try it out
-quickly fof free but come with a few limitations.
+As of August 2021, fully functional, stable official binaries are only offered
+through Docker images available on the AWS
+[Marketplace](https://aws.amazon.com/marketplace/pp/prodview-6uj4pruhgmun6).
 
-To avoid those limitations and also receive access to stable, supported code builds, you can
-sign up to our inexpensive subscription [here](https://www.patreon.com/cristim/overview).
+Evaluation binaries built from trunk after each commit and meant to help the
+development process are also available from the Docker Hub but they expire after
+a month since compilation.
 
-Individuals and companies supporting the development of the open source code get
-free of charge support in getting their code merged upstream and upon demand
-also can get stable build access for a year since their latest contribution to
-the project.
+Proven referrals towards a subscription to the Marketplace will be compensated
+over Paypal with 50% of the first charge of the new subscriber. You can request
+them on [gitter](https://gitter.im/cristim).
 
-Proven referrals that manifest through a subscription to the stable builds will
-be compensated over Paypal with the amount of the first monthly fee of the
-new subscriber (starting from $29). You can request them on
-[gitter](https://gitter.im/cristim).
+### Subscriptions ###
 
-### Stable build benefits ###
+A free low traffic mailing list is available on <https://autospotting.io>, where
+you can sign up for occasional emails related to the project, mainly related to
+major changes in the open source code, savings tips or announcements about other
+tools I've been working on.
 
-Installation instructions for the stable builds suitable for Enterprise use will
-be communicated in private to the stable
-[subscribers](https://www.patreon.com/cristim/overview) as soon as they join and
-subsequently when new version become available later.
+Announcements on new Marketplace releases, including comprehensive release
+notes, upgrade instructions and tips to get the most out of AutoSpotting will be
+communicated in private to Patreon
+[subscribers](https://www.patreon.com/cristim/overview).
 
-Comprehensive release notes, upgrade instructions and tips to get the most out
-of AutoSpotting will accompany new stable releases and also made available
-through the same private communciated channel. These documents will not be
-communicated to the public audience.
-
-
-These come with comprehensive support from the author, who will do his best to
-help you successfully run AutoSpotting on your environment so you can get the
-most out of it.
-
-The feature requests and issues raised on Github or via private communication
-channels will be prioritized.
-
-There is also a private forum where stable build users can interact with each
-other.
+A Github [sponsors](https://github.com/sponsors/cristim) subscription is also
+available for people interested in the ongoing development of AutoSpotting, with
+tiers covering anything from a non-strings attached donation, prioritization of
+feature requests, all the way to custom features development and maintenance of
+private customized forks.
 
 Please get in touch on [gitter](https://gitter.im/cristim) if you have any
-questions about these stable builds.
+questions about these offerings or if you have any other ideas on how I could
+provide additional value to my community.
 
 ## Compiling and Installing ##
 
-It is recommended to use the evaluation or stable binaries, which are easy to
-install, support further development of the software and allow you to get
-support.
+It is recommended to use the evaluation or stable Docker images available on the
+AWS marketplace, which are easy to install, support further development of the
+software and allow you to get some support.
 
 But if you have some special needs that require some customizations or you don't
 want to rely on the author's infrastructure or contribute anything for longer
@@ -240,15 +215,12 @@ in any way.
 
 More details are available [here](CUSTOM_BUILDS.md)
 
-## Users ##
-
-Autospotting is already used by hundreds of individuals and organizations around
-the world and as per internal AWS information a significant(but undisclosed)
-percentage of all currently running spot instances were launched using it.
-
 ## License ##
 
 This software is distributed under the terms of the OSL-3.0 [license](LICENSE).
 
-The official binaries are licensed under this proprietary
+The evaluation images available on Docker Hub are licensed under this proprietary
 [license](BINARY_LICENSE).
+
+The AWS Marketplace offering is made available under the standard AWS
+Marketplace EULA.

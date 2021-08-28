@@ -23,13 +23,13 @@ import (
 )
 
 var debug *log.Logger
+var totalSavings float64
 
 // AutoSpotting hosts global configuration and has as methods all the public
 // entrypoints of this library
 type AutoSpotting struct {
-	config       *Config
-	savingsMutex *sync.RWMutex
-	mainEC2Conn  ec2iface.EC2API
+	config      *Config
+	mainEC2Conn ec2iface.EC2API
 }
 
 var as *AutoSpotting
@@ -43,11 +43,19 @@ func (a *AutoSpotting) Init(cfg *Config) {
 
 	cfg.InstanceData = data
 	a.config = cfg
-	a.savingsMutex = &sync.RWMutex{}
 	a.config.setupLogging()
 	// use this only to list all the other regions
 	a.mainEC2Conn = connectEC2(a.config.MainRegion)
 	as = a
+}
+
+// RunningFromLambda quite obviously returns true when running from Lambda.
+func RunningFromLambda() bool {
+	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
+		log.Println("Running from Lambda")
+		return true
+	}
+	return false
 }
 
 // ProcessCronEvent starts processing all AWS regions looking for AutoScaling groups
@@ -116,15 +124,37 @@ func (cfg *Config) setupLogging() {
 // by default this is all asg with the tag 'spot-enabled=true'.
 func (a *AutoSpotting) processRegions(regions []string) {
 	var wg sync.WaitGroup
+	var savingsMutex sync.RWMutex
 
 	for _, r := range regions {
-
 		wg.Add(1)
+		r := region{name: r, conf: a.config}
+		go func() {
+			s := r.calculateSavings()
+			savingsMutex.Lock()
+			totalSavings += s
+			savingsMutex.Unlock()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 
+	log.Println("Total hourly savings:", totalSavings)
+	if strings.Contains(as.config.Version, "stable") {
+		log.Println("Running a stable build, submitting AWS marketplace metering data")
+		if err := meterMarketplaceUsage(totalSavings); err != nil {
+			log.Println("Failed marketplace metering, exiting... Encountered error:", err.Error())
+			return
+		}
+	} else {
+		log.Println("Not running a stable build, skipped AWS marketplace metering")
+	}
+
+	for _, r := range regions {
+		wg.Add(1)
 		r := region{name: r, conf: a.config}
 
 		go func() {
-
 			if r.enabled() {
 				log.Printf("Enabled to run in %s, processing region.\n", r.name)
 				r.processRegion()
@@ -224,6 +254,7 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, ins
 	} else if eventType == SpotInstanceInterruptionWarningCode || eventType == InstanceRebalanceRecommendationCode {
 		// If the event is for an Instance Spot Interruption/Rebalance
 		spotTermination := newSpotTermination(region)
+
 		if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
 			err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction, eventType)
 			if err != nil {

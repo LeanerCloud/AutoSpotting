@@ -13,7 +13,7 @@
         leaving it unset, instances will be chosen by AutoSpotting's instance
         compatibility algorithm based on CPU, memory, disk, etc., basically
         getting you the cheapest available instances that are at least as big as
-        your existing ones. Using the 'current' keyword for this paremeter will
+        your existing ones. Using the 'current' keyword for this parameter will
         use the instance type configured in the group's launch configuration.
         This is a global value that can be overridden on a per-group basis using
         the 'autospotting_allowed_instance_types' tag set on the AutoScaling
@@ -136,14 +136,6 @@
       Description: "Value of the tag to be applied to the Lambda function"
       Default: "AutoSpotting"
       Type: "String"
-    LambdaHandlerFunction:
-      Default: "AutoSpotting"
-      AllowedValues:
-        - "AutoSpotting"
-      Description: >
-        "Handler function for the Lambda function, don't change this unless you
-        know what you're doing!"
-      Type: "String"
     LambdaMemorySize:
       Default: 1024
       Description: >
@@ -152,28 +144,25 @@
       Type: Number
       MinValue: 128
       MaxValue: 3008
-
-    LambdaS3Bucket:
-      Default: "cloudprowess"
+    SourceECR:
+      Default: "709825985650.dkr.ecr.us-east-1.amazonaws.com"
       Description: >
-        "S3 bucket that contains the
-        precompiled binaries, you can change this to your own if you build and
-        host your own binaries."
+        "ECR repository that stores the AutoSpotting Docker image used by
+        Lambda. The default value is using the AWS Marketplace ECR repository
+        and only works if you purchased AutoSpotting through the AWS
+        Marketplace. If you built it yourself, you need to override this value
+        with the URL of your own ECR repository that contains the AutoSpotting
+        Docker image."
       Type: "String"
-    LambdaS3BucketPrefix:
-      Default: "nightly"
+    SourceImage:
+      Default: "cloudutil/autospotting"
       Description: >
-        "S3 bucket prefix to use as source of lambdas and template, you may need
-        to change this if you build and host your own binaries."
+        "The Docker image used for the Lambda function"
       Type: "String"
-    LambdaZipName:
-      Default: "lambda.zip"
+    SourceImageTag:
+      Default: "1.0.1"
       Description: >
-        "Name of Lambda function zip file inside the S3 bucket. Can be used to
-        update to a more recent version, such as 'lambda_build_57.zip'.
-        Precompiled binaries easy to get started with can be taken from the
-        'cloudprowess' S3 public bucket, see
-        https://cloudprowess.s3.amazonaws.com/index.html"
+        "The version of the Docker image used for the Lambda function"
       Type: "String"
     LogRetentionPeriod:
       Default: "7"
@@ -280,16 +269,6 @@
         groups except for those tagged with 'spot-enabled=false' or other values
         configured in the same 'FilterByTags' option"
       Type: "String"
-    License:
-      Default: "evaluation"
-      AllowedValues:
-        - "evaluation"
-        - "I_am_supporting_it_on_Patreon"
-        - "I_contributed_to_development_within_the_last_year"
-        - "I_built_it_from_source_code"
-      Description: >
-        "Obsolete, please ignore, only kept for compatibility with previous builds."
-      Type: "String"
     PatchBeanstalkUserdata:
       Default: "false"
       AllowedValues:
@@ -352,13 +331,17 @@
       Type: "AWS::IAM::Role"
 
     LambdaFunction:
+      DependsOn:
+        - CopyDockerImage
       Properties:
+        PackageType: Image
         Code:
-          S3Bucket:
-            Ref: "LambdaS3Bucket"
-          S3Key:
-            Fn::Sub: "${LambdaS3BucketPrefix}/${LambdaZipName}"
-        Description: "Implements SPOT instance automation"
+          ImageUri:
+            Fn::Join:
+              - ':'
+              - - Fn::GetAtt: ECRRepository.RepositoryUri
+                - Ref: SourceImageTag
+        Description: "Implements Spot instance automation"
         Environment:
           Variables:
             ALLOWED_INSTANCE_TYPES:
@@ -379,8 +362,6 @@
               Ref: "GP2ConversionThreshold"
             INSTANCE_TERMINATION_METHOD:
               Ref: "InstanceTerminationMethod"
-            LICENSE:
-              Ref: "License"
             MIN_ON_DEMAND_NUMBER:
               Ref: "MinOnDemandNumber"
             MIN_ON_DEMAND_PERCENTAGE:
@@ -407,15 +388,12 @@
               Ref: "PatchBeanstalkUserdata"
             SQS_QUEUE_URL:
               Ref: "SQSQueue"
-        Handler:
-          Ref: "LambdaHandlerFunction"
         MemorySize:
           Ref: "LambdaMemorySize"
         Role:
           Fn::GetAtt:
             - "LambdaExecutionRole"
             - "Arn"
-        Runtime: "go1.x"
         Tags:
           -
             Key:
@@ -443,6 +421,8 @@
                 - "autoscaling:SuspendProcesses"
                 - "autoscaling:TerminateInstanceInAutoScalingGroup"
                 - "autoscaling:UpdateAutoScalingGroup"
+                - "aws-marketplace:MeterUsage"
+                - "aws-marketplace:RegisterUsage"
                 - "cloudformation:Describe*"
                 - "ec2:CreateTags"
                 - "ec2:DeleteTags"
@@ -472,10 +452,26 @@
                 Fn::GetAtt:
                   - SQSQueue
                   - Arn
+            -
+              Action:
+                - "ssm:GetParameter"
+                - "ssm:PutParameter"
+              Effect: "Allow"
+              Resource:
+                Fn::Join:
+                  - ":"
+                  -
+                    - arn:aws:ssm:us-east-1
+                    -
+                      Ref: AWS::AccountId
+                    - parameter/autospotting-metering
+
         PolicyName: "LambdaPolicy"
         Roles:
           -
             Ref: "LambdaExecutionRole"
+          -
+            Ref: ECSTaskExecutionRole
       Type: "AWS::IAM::Policy"
 
     LambdaEventSourceMapping:
@@ -685,3 +681,456 @@
               Effect: "Allow"
               Resource: "*"
 
+    # As per https://docs.aws.amazon.com/lambda/latest/dg/images-create.html
+    # Lambda functions using Docker images currently require an ECR repository
+    # located in the same AWS account(probably also the same region). So the ECR
+    # of the AWS marketplace belonging to an AWS-managed account can't be used
+    # directly for the Lambda function. In order to reduce user friction, we
+    # create a local ECR repository and we use a custom Cloudformation resource
+    # that clones the Docker image from the Marketplace ECR into our local ECR
+    # using the crane tool available at
+    # https://github.com/google/go-containerregistry/tree/main/cmd/crane
+
+    # The custom resource is backed by a Lambda function that downloads a crane
+    # binary and runs it for cloning the Docker image from the source ECR to our
+    # local ECR.
+    ECRRepository:
+      Type: AWS::ECR::Repository
+      DeletionPolicy: Retain
+      # We have to use Retain here because otherwise stack deletion fails when
+      # the ECR contains images. This means the ECR would need to be cleaned up
+      # manually when uninstalling AutoSpotting. We could probably later on
+      # delete the images from our local ECR when deleting the CloudFormation
+      # custom resource but for now this manual cleanup should be fine.
+      UpdateReplacePolicy: Retain
+      Properties:
+        ImageScanningConfiguration:
+          ScanOnPush: true
+
+# Below we create a Custom CloudFormation resource backed by a Lambda function,
+# which copies the AutoSpotting Docker image from the source ECR repository to
+# the ECR repository belonging to the current CloudFormation stack.
+
+    CopyDockerImage:
+      Type: Custom::CopyDockerImage
+      DependsOn: CopyDockerImageLambdaPolicy
+      Properties:
+        ServiceToken:
+          Fn::GetAtt:
+          - CopyDockerImageLambda
+          - Arn
+        Region:
+          Ref: AWS::Region
+        ImageTag:
+          Ref: SourceImageTag
+
+    # IAM role and inline policy to be used by the Custom resource Lambda
+    CopyDockerImageLambdaExecutionRole:
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            -
+              Action: "sts:AssumeRole"
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - "lambda.amazonaws.com"
+        Path: "/lambda/"
+      Type: "AWS::IAM::Role"
+
+    CopyDockerImageLambdaPolicy:
+      Properties:
+        PolicyDocument:
+          Statement:
+            -
+              Action:
+                - "ecr:BatchGetImage"
+                - "ecr:GetAuthorizationToken"
+                - "ecr:GetDownloadUrlForLayer"
+                - "lambda:InvokeFunction"
+                - "logs:CreateLogGroup"
+                - "logs:CreateLogStream"
+                - "logs:PutLogEvents"
+              Effect: "Allow"
+              Resource: "*"
+            -
+              Action:
+                - "ecr:BatchCheckLayerAvailability"
+                - "ecr:CompleteLayerUpload"
+                - "ecr:InitiateLayerUpload"
+                - "ecr:PutImage"
+                - "ecr:UploadLayerPart"
+              Effect: "Allow"
+              Resource:
+                Fn::GetAtt:
+                  - ECRRepository
+                  - Arn
+
+        PolicyName: "LambdaPolicy"
+        Roles:
+          -
+            Ref: "CopyDockerImageLambdaExecutionRole"
+      Type: "AWS::IAM::Policy"
+
+    CopyDockerImageLambda:
+      Type: AWS::Lambda::Function
+      Properties:
+        Description: >
+          "Lambda function that copies the Docker image from the Marketplace ECR to our local ECR"
+        Handler: "index.handler"
+        Runtime: "python3.8"
+        Timeout: 300
+        Environment:
+          Variables:
+            SOURCE_ECR:
+              Ref: SourceECR
+            SOURCE_IMAGE:
+              Ref: SourceImage
+            SOURCE_IMAGE_TAG:
+              Ref: SourceImageTag
+            DESTINATION_ECR:
+              Fn::GetAtt: ECRRepository.RepositoryUri
+        Role:
+          Fn::GetAtt:
+            - CopyDockerImageLambdaExecutionRole
+            - Arn
+        Code:
+          ZipFile: |
+            import base64
+            import boto3
+            import os
+            import stat
+            import shutil
+
+            import cfnresponse
+            from urllib import request
+
+
+            CRANE_URL='https://github.com/google/go-containerregistry/releases/download/v0.5.1/go-containerregistry_Linux_x86_64.tar.gz'
+            CRANE_PATH='./crane'
+
+            def download_crane():
+              request.urlretrieve(CRANE_URL, "crane.tar.gz")
+              shutil.unpack_archive('crane.tar.gz')
+              os.chmod('crane', stat.S_IRWXU)
+
+            def get_docker_auth(ecr_url):
+              client = boto3.client('ecr')
+              response = client.get_authorization_token(
+                registryIds=[
+                    ecr_url.split('.')[0]
+                ]
+              )
+              result = base64.b64decode(response['authorizationData'][0]['authorizationToken'])
+              return result.decode().split(':')
+
+            def crane_login(ecr, user, passwd):
+              os.system('./crane auth login %s -u %s -p %s' % (ecr, user, passwd))
+
+            def crane_copy(src, dst):
+              os.system('./crane copy %s %s' % (src, dst))
+
+            def clone_image():
+              os.chdir('/tmp')
+              os.environ['HOME'] = '/tmp'
+
+              src_ecr = os.getenv('SOURCE_ECR')
+              src_img = os.getenv('SOURCE_IMAGE')
+              src_image_tag = os.getenv('SOURCE_IMAGE_TAG')
+              src_image_uri = src_ecr+'/'+src_img+':'+src_image_tag
+
+              dst_image_uri = os.getenv('DESTINATION_ECR')
+              dst_ecr = dst_image_uri.split('/')[0]
+              dst_img = dst_image_uri.split('/')[1]+':'+src_image_tag
+
+              download_crane()
+
+              src_user, src_pass = get_docker_auth(src_ecr)
+              dst_user, dst_pass = get_docker_auth(dst_ecr)
+
+              crane_login(src_ecr, src_user, src_pass)
+              crane_login(dst_ecr, dst_user, dst_pass)
+
+              crane_copy(src_image_uri, dst_image_uri+':'+src_image_tag)
+
+            def handler(event, context):
+              print('## EVENT')
+              print(event)
+              print('## CONTEXT')
+              print(context)
+
+              clone_image()
+
+              # TODO: clean up the ECR on deletion to avoid the Retain deletion
+              # policy on the ECR repo and the manual cleanups of the ECR
+              # repository currently required after uninstalling AutoSpotting.
+
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+
+    # The Marketplace Metering API needs to be invoked hourly to charge a
+    # percentage of the savings. Currently it can't be called from Lambda, so we
+    # use the same Docker image we use on Lambda from ECS Fargate. We have a
+    # Fargate cron schedule that runs hourly and successfully calls the
+    # Marketplace Metering API.
+
+    # For Fargate we then need a VPC, so in order to avoid relying on the
+    # Default VPC or requiring active CIDR allocation we just hardcoded a CIDR
+    # which we use for all AutoSpotting VPCs. The conflicting values when
+    # installing the CloudFormation template multiple times are okay since we
+    # don't expect to connect these VPCs to each other.
+
+    VPC:
+      Type: AWS::EC2::VPC
+      Properties:
+        EnableDnsSupport: true
+        EnableDnsHostnames: true
+        CidrBlock: "192.168.0.0/24"
+        Tags:
+          - Key: Name
+            Value: AutoSpotting Fargate VPC
+
+    # We create two public subnets, one per AZ, where to run our Fargate tasks.
+    PublicSubnetOne:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone:
+          Fn::Select:
+          - 0
+          - Fn::GetAZs:
+              Ref: 'AWS::Region'
+        VpcId:
+          Ref: 'VPC'
+        CidrBlock:
+          Fn::Select:
+          - 0
+          - Fn::Cidr:
+              - Fn::GetAtt:
+                - VPC
+                - CidrBlock
+              - 2
+              - 7
+        MapPublicIpOnLaunch: true # this is apparently required for Fargate
+    PublicSubnetTwo:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone:
+          Fn::Select:
+          - 1
+          - Fn::GetAZs:
+              Ref: 'AWS::Region'
+        VpcId:
+          Ref: VPC
+        CidrBlock:
+          Fn::Select:
+          - 1
+          - Fn::Cidr:
+              - Fn::GetAtt:
+                - VPC
+                - CidrBlock
+              - 2
+              - 7
+        MapPublicIpOnLaunch: true
+
+    # Setup networking resources for the public subnets. Containers in the
+    # public subnets have public IP addresses and the routing table sends
+    # network traffic via the internet gateway.
+    InternetGateway:
+      Type: AWS::EC2::InternetGateway
+    GatewayAttachement:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        VpcId:
+          Ref: VPC
+        InternetGatewayId:
+          Ref: InternetGateway
+    PublicRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId:
+          Ref: VPC
+    PublicRoute:
+      Type: AWS::EC2::Route
+      DependsOn: GatewayAttachement
+      Properties:
+        RouteTableId: !Ref 'PublicRouteTable'
+        DestinationCidrBlock: '0.0.0.0/0'
+        GatewayId: !Ref 'InternetGateway'
+    PublicSubnetOneRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref PublicSubnetOne
+        RouteTableId: !Ref PublicRouteTable
+    PublicSubnetTwoRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref PublicSubnetTwo
+        RouteTableId: !Ref PublicRouteTable
+
+    ECSCluster:
+      Type: AWS::ECS::Cluster
+      Properties:
+        CapacityProviders:
+          - FARGATE
+        DefaultCapacityProviderStrategy:
+          -
+            CapacityProvider: FARGATE
+
+    # We need to create this SG even if it has no rules, otherwise it's created
+    # automatically and will then block the deletion of the VPC when deleting
+    # the CloudFormation stack.
+    FargateContainerSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Dummy SG used for the AutoSpotting billing Fargate cron task.
+        VpcId:
+          Ref: VPC
+        Tags:
+          - Key: Name
+            Value: AutoSpotting Fargate dummy SG
+
+    # This is a role which is used by the ECS tasks themselves.
+    ECSTaskExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ecs-tasks.amazonaws.com
+            Action:
+            - 'sts:AssumeRole'
+        Path: /
+        Policies:
+          - PolicyName: AmazonECSTaskExecutionRolePolicy
+            PolicyDocument:
+              Statement:
+              - Effect: Allow
+                Action:
+                  # Allow the ECS Tasks to download images from ECR
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:BatchGetImage'
+
+                  # Allow the ECS tasks to upload logs to CloudWatch
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+
+    TaskDefinition:
+      Type: AWS::ECS::TaskDefinition
+      Properties:
+        # awsvpc is required for Fargate
+        NetworkMode: awsvpc
+        RequiresCompatibilities:
+          - FARGATE
+        # 256 (.25 vCPU) - Available memory values: 0.5GB, 1GB, 2GB
+        # 512 (.5 vCPU) - Available memory values: 1GB, 2GB, 3GB, 4GB
+        # 1024 (1 vCPU) - Available memory values: 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB
+        # 2048 (2 vCPU) - Available memory values: Between 4GB and 16GB in 1GB increments
+        # 4096 (4 vCPU) - Available memory values: Between 8GB and 30GB in 1GB increments
+        Cpu: "256"
+        # 0.5GB, 1GB, 2GB - Available cpu values: 256 (.25 vCPU)
+        # 1GB, 2GB, 3GB, 4GB - Available cpu values: 512 (.5 vCPU)
+        # 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB - Available cpu values: 1024 (1 vCPU)
+        # Between 4GB and 16GB in 1GB increments - Available cpu values: 2048 (2 vCPU)
+        # Between 8GB and 30GB in 1GB increments - Available cpu values: 4096 (4 vCPU)
+        Memory: 0.5GB
+        ExecutionRoleArn:
+          Ref: ECSTaskExecutionRole
+        TaskRoleArn:
+          Ref: ECSTaskExecutionRole
+        ContainerDefinitions:
+          - Name: AutoSpottingBilling
+            Image:
+              Fn::Join:
+              - ':'
+              - - Fn::GetAtt: ECRRepository.RepositoryUri
+                - Ref: SourceImageTag
+            LogConfiguration:
+              LogDriver: awslogs
+              Options:
+                awslogs-region: !Ref AWS::Region
+                awslogs-group: !Ref FargateLogGroup
+                awslogs-stream-prefix: AutoSpottingBilling
+
+    AutoSpottingBillingTaskSchedule:
+      Type: AWS::Events::Rule
+      Properties:
+        Description: "Hourly billing for AutoSpotting"
+        ScheduleExpression: "rate(1 hour)"
+        State: ENABLED
+        Targets:
+          - Id: AutoSpottingBilling-fargate-task
+            RoleArn:
+              Fn::GetAtt:
+                - TaskSchedulerRole
+                - Arn
+            Arn:
+              Fn::GetAtt:
+                - ECSCluster
+                - Arn
+            EcsParameters:
+              TaskCount: 1
+              TaskDefinitionArn:
+                Ref:
+                  TaskDefinition
+              NetworkConfiguration:
+                AwsVpcConfiguration:
+                  AssignPublicIp: ENABLED
+                  Subnets:
+                  - Ref: PublicSubnetOne
+                  - Ref: PublicSubnetTwo
+
+    FargateLogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName:
+          Fn::Join:
+              - '/'
+              - - /ecs/fargate
+                - Ref: AWS::StackName
+                - Billing
+        RetentionInDays:
+          Ref: "LogRetentionPeriod"
+
+    TaskSchedulerRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            -
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - "events.amazonaws.com"
+              Action:
+                - "sts:AssumeRole"
+        Path: /
+        Policies:
+          - PolicyDocument:
+              Statement:
+                - Effect: "Allow"
+                  Condition:
+                    ArnEquals:
+                      ecs:cluster:
+                        Fn::GetAtt:
+                          - ECSCluster
+                          - Arn
+                  Action: "ecs:RunTask"
+                  Resource: "*"
+                - Effect: "Allow"
+                  Condition:
+                    ArnEquals:
+                      ecs:cluster:
+                        Fn::GetAtt:
+                          - ECSCluster
+                          - Arn
+                  Action:
+                    - "iam:ListInstanceProfiles"
+                    - "iam:ListRoles"
+                    - "iam:PassRole"
+                  Resource: "*"
+            PolicyName: "TaskSchedulerPolicy"

@@ -1,17 +1,17 @@
-version: '3.2'
+version: '3.8'
 services:
     autospotting:
         build:
           context: .
-          dockerfile: Dockerfile-build
+          dockerfile: Dockerfile.build
+          args:
+            flavor: nightly
         environment:
-        - FLAVOR=${FLAVOR:-nightly}
-        - CGO_ENABLED=0
-        - COVERALLS_TOKEN
-        - TRAVIS_BUILD_NUMBER
+          - AWS_ACCESS_KEY_ID
+          - AWS_SECRET_ACCESS_KEY
+          - AWS_SESSION_TOKEN
         entrypoint:
-          - make
-          - ci
+          - ./AutoSpotting
         volumes:
           - type: bind
             source: ./build
