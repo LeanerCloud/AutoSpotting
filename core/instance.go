@@ -162,6 +162,14 @@ func (i *instance) isSpot() bool {
 		*i.InstanceLifecycle == Spot
 }
 
+func (i *instance) getSavings() float64 {
+	odPrice := i.typeInfo.pricing.onDemand
+	spotPrice := i.typeInfo.pricing.spot[*i.Placement.AvailabilityZone]
+
+	log.Printf("Calculating savings for instance %s with OD price %f and Spot price %f\n", *i.InstanceId, odPrice, spotPrice)
+	return odPrice - spotPrice
+}
+
 func (i *instance) isProtectedFromTermination() (bool, error) {
 	debug.Println("\tChecking termination protection for instance: ", *i.InstanceId)
 
@@ -1020,6 +1028,15 @@ func (i *instance) getReplacementTargetInstanceID() *string {
 	return nil
 }
 
+func (i *instance) isLaunchedByAutoSpotting() bool {
+	for _, tag := range i.Tags {
+		if *tag.Key == "launched-by-autospotting" {
+			return true
+		}
+	}
+	return false
+}
+
 func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {
 	asgName := i.getReplacementTargetASGName()
 	if asgName == nil {
@@ -1062,9 +1079,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 			*odInstanceID)
 	}
 
-	// var waiter sync.WaitGroup
-	// defer waiter.Wait()
-	// go asg.temporarilySuspendTerminations(&waiter)
 	asg.suspendProcesses()
 	defer asg.resumeProcesses()
 
@@ -1098,8 +1112,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 			*odInstanceID)
 	}
 
-	// asg.resumeTerminationProcess()
-	// waiter.Done()
 	return odInstance, nil
 }
 

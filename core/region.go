@@ -529,3 +529,31 @@ func (r *region) sqsDeleteMessage(instanceID *string, instanceLifecycle string) 
 	return nil
 
 }
+
+func (r *region) calculateSavings() float64 {
+	savings := 0.0
+	r.services.connect(r.name, r.conf.MainRegion)
+
+	log.Println("Scanning full instance information in", r.name)
+	r.determineInstanceTypeInformation(r.conf)
+
+	log.Println("Scanning instances in", r.name)
+	err := r.scanInstances()
+	if err != nil {
+		log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
+	}
+
+	log.Println("Calculating AutoSpotting savings in", r.name)
+
+	for inst := range r.instances.instances() {
+
+		if inst.isSpot() && inst.isLaunchedByAutoSpotting() {
+			is := inst.getSavings()
+			log.Printf("Found AutoSpotting instance %s(%s) in %s with hourly savings %f\n",
+				*inst.InstanceId, *inst.InstanceType, r.name, is)
+			savings += is
+		}
+	}
+	log.Printf("Total savings in %s: %f\n", r.name, savings)
+	return savings
+}

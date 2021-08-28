@@ -1,4 +1,4 @@
-DEPS := "wget git go docker golint zip"
+DEPS := "wget git go docker golint"
 
 BINARY := AutoSpotting
 
@@ -7,18 +7,22 @@ BUCKET_NAME ?= cloudprowess
 FLAVOR ?= custom
 LOCAL_PATH := build/s3/$(FLAVOR)
 LICENSE_FILES := LICENSE THIRDPARTY
-GOOS ?= linux
-GOARCH ?= amd64
+
+# the default is used for pushing to the AWS Marketplace ECR. Set this as an
+# environment variable to push to your own ECR repository instead.
+AWS_REGION ?= us-east-1
+DOCKER_IMAGE ?= 709825985650.dkr.ecr.us-east-1.amazonaws.com/cloudutil/autospotting
+DOCKER_IMAGE_VERSION ?= 1.0
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
-BUILD := $(or $(TRAVIS_BUILD_NUMBER), $(TRAVIS_BUILD_NUMBER), $(SHA))
+BUILD := $(DOCKER_IMAGE_VERSION)-$(FLAVOR)-$(SHA)
 EXPIRATION := $(shell go run ./scripts/expiration_date.go)
 
 ifneq ($(FLAVOR), custom)
     LICENSE_FILES += BINARY_LICENSE
 endif
 
-LDFLAGS="-X main.Version=$(FLAVOR)-$(BUILD) -X main.ExpirationDate=$(EXPIRATION) -s -w"
+LDFLAGS="-X main.Version=$(BUILD) -X main.ExpirationDate=$(EXPIRATION) -s -w"
 
 all: fmt-check vet-check build test                          ## Build the code
 .PHONY: all
@@ -45,24 +49,46 @@ update_deps:                                                 ## Update all depen
 .PHONY: update_deps
 
 build:                                                       ## Build the AutoSpotting binary
-	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags=$(LDFLAGS) -o $(BINARY)
+	go build -ldflags=$(LDFLAGS) -o $(BINARY)
 .PHONY: build
 
-archive: build                                               ## Create archive to be uploaded
+artifacts:                                       			 ## Create CloudFormation artifacts to be uploaded to S3
 	@rm -rf $(LOCAL_PATH)
 	@mkdir -p $(LOCAL_PATH)
-	@zip $(LOCAL_PATH)/lambda.zip $(BINARY) $(LICENSE_FILES)
-	@cp -f cloudformation/stacks/AutoSpotting/template.yaml $(LOCAL_PATH)/
 	@cp -f cloudformation/stacks/AutoSpotting/template.yaml $(LOCAL_PATH)/template_build_$(BUILD).yaml
 	@cp -f cloudformation/stacks/AutoSpotting/regional_template.yaml $(LOCAL_PATH)/
-	@sed -e "s#lambda\.zip#lambda_build_$(BUILD).zip#" $(LOCAL_PATH)/template_build_$(BUILD).yaml > $(LOCAL_PATH)/template_build_$(BUILD).yaml.new
+	@sed -e "s#1.0.1#$(DOCKER_IMAGE_VERSION)#" $(LOCAL_PATH)/template_build_$(BUILD).yaml > $(LOCAL_PATH)/template_build_$(BUILD).yaml.new
 	@mv -- $(LOCAL_PATH)/template_build_$(BUILD).yaml.new $(LOCAL_PATH)/template_build_$(BUILD).yaml
-	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(BUILD).zip
-	@cp -f $(LOCAL_PATH)/lambda.zip $(LOCAL_PATH)/lambda_build_$(SHA).zip
+	@cp -f $(LOCAL_PATH)/template_build_$(BUILD).yaml $(LOCAL_PATH)/template.yaml
 
-.PHONY: archive
+.PHONY: artifacts
 
-upload: archive                                              ## Upload binary
+docker: 													 ##  Build a Docker image, currently only supports x86 hosts
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) .
+.PHONY: docker
+
+docker-login:
+	 aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(DOCKER_IMAGE)
+
+docker-push: docker
+	docker push $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION)
+.PHONY: docker-push
+
+docker-push-artifacts: docker-push artifacts
+.PHONY: docker-push-artifacts
+
+docker-marketplace:
+	docker build -f Dockerfile.marketplace -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) .
+.PHONY: docker-marketplace
+
+docker-marketplace-push: docker-marketplace
+	docker push $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION)
+.PHONY: docker-marketplace-push
+
+docker-marketplace-push-artifacts: docker-marketplace-push artifacts
+.PHONY: docker-marketplace-push-artifacts
+
+upload: artifacts                                ## Upload data to S3
 	aws s3 sync build/s3/ s3://$(BUCKET_NAME)/
 .PHONY: upload
 
@@ -103,7 +129,7 @@ endif
 ci-checks: fmt-check vet-check module-check lint             ## Pass fmt / vet & lint format
 .PHONY: ci-checks
 
-ci: archive ci-checks ci-cover                               ## Executes inside the CI Docker builder
+ci: build artifacts ci-checks ci-cover                               ## Executes inside the CI Docker builder
 .PHONY: ci
 
 ci-docker:                                                   ## Executed by CI

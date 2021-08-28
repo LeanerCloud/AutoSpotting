@@ -26,24 +26,19 @@
 
 ## Binary License Notice ##
 
-All pre-build binaries mentioned in this page are distributed under a
+The pre-build Docker image mentioned in this page is distributed under a
 proprietary [license](BINARY_LICENSE), and can only be used for evaluation
-purposes. They expire automatically a month after they were built.
+purposes. It expires automatically a month after it was built.
 
-Project patrons and code contributors can get access to stable builds, which
-have been thoroughly tested and come with enterprise-grade support.
-
-If you don't agree with the terms of this license nor you want to become
-a patron, you can still build it from source code yourself but you'll get very
-limited community support if you do so.
-
-See [autospotting.org](https://autospotting.org) for more details.
+Stable builds, which will work indefinitely, have been thoroughly tested and
+come with enterprise-grade support are available on the AWS
+[marketplace](https://aws.amazon.com/marketplace/pp/prodview-6uj4pruhgmun6).
 
 ## Requirements ##
 
-* You will need credentials to an AWS account able to start CloudFormation
+- You will need credentials to an AWS account able to start CloudFormation
   stacks.
-* Some of the following steps assume you have the AWS cli tool installed, but
+- Some of the following steps assume you have the AWS cli tool installed, but
   the setup can also be done manually using the AWS console or using other tools
   able to launch CloudFormation stacks and set tags on AutoScaling groups.
 
@@ -51,7 +46,7 @@ See [autospotting.org](https://autospotting.org) for more details.
 
 ### Installation options ###
 
-Autospotting can be installed via CloudFormation or Terraform, both install
+AutoSpotting can be installed via CloudFormation or Terraform, both install
 methods take a number of parameters, which allows you to configure it for
 your own environment. The defaults should be safe enough for most use cases,
 but for testing or more advanced use cases you may want to tweak some of them.
@@ -94,11 +89,11 @@ aws cloudformation create-stack \
 
 Notes:
 
-* For technical reasons the stack launched from the official binaries needs to
+- For technical reasons the stack launched from the official binaries needs to
   be launched in the US-East-1(Virginia) region, so make sure it's not created
   in another region. Custom builds can be deployed in any region you prefer,
   just make sure your S3 bucket is in that region.
-* The AutoScaling groups it runs against can be in any region, since all regions
+- The AutoScaling groups it runs against can be in any region, since all regions
   are processed at runtime, unless configured otherwise.
 
 ### Install via terraform ###
@@ -342,10 +337,10 @@ tags as you see fit.  i.e. `-tag_filters 'spot-enabled=true,Environment=dev,Team
 
 #### Note ####
 
-* These configurations are also implemented when running from Lambda, where they
+- These configurations are also implemented when running from Lambda, where they
   are actually passed as environment variables set by CloudFormation in the
   Lambda function's configuration.
-* The above list may not be up-to-date, please run it locally to see the latest
+- The above list may not be up-to-date, please run it locally to see the latest
   list of supported flags, and if you notice any difference please report it in
   a Pull request.
 
@@ -424,7 +419,7 @@ the Travis CI [builds page](https://travis-ci.org/AutoSpotting/AutoSpotting/buil
 
 ### Compatibility notices ###
 
-* The CloudFormation template is also versioned for every build. Although the
+- The CloudFormation template is also versioned for every build. Although the
   template rarely changes, it's recommended that you always keep it at the same
   build number as the binary.
 
