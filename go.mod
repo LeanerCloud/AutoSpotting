@@ -10,6 +10,7 @@ require (
 	github.com/mattn/goveralls v0.0.11
 	github.com/namsral/flag v0.0.0-20170814194028-67f268f20922
 	github.com/robfig/cron/v3 v3.0.1
+	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
 	golang.org/x/sys v0.0.0-20220627191245-f75cf1eec38b // indirect
 	golang.org/x/tools v0.1.11
