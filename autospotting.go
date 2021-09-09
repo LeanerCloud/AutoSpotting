@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"strconv"
 
 	autospotting "github.com/AutoSpotting/AutoSpotting/core"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -18,6 +19,7 @@ var conf autospotting.Config
 
 // Version represents the build version being used
 var Version = "number missing"
+var SavingsCut = "0"
 
 // ExpirationDate represents the date at which the version will expire
 var ExpirationDate = "01-Jan-2100"
@@ -42,7 +44,7 @@ func main() {
 
 func eventHandler(event *json.RawMessage) {
 
-	log.Println("Starting autospotting agent, build ", Version, "expiring on", ExpirationDate)
+	log.Println("Starting autospotting agent, build ", Version, "expiring on", ExpirationDate, "charging", SavingsCut, "percent of savings via AWS Marketplace")
 
 	if isExpired(ExpirationDate) {
 		log.Println("Autospotting expired, please install a newer nightly version, build it from source or get a stable build.")
@@ -60,8 +62,14 @@ func eventHandler(event *json.RawMessage) {
 func init() {
 	as = &autospotting.AutoSpotting{}
 
+	sc, err := strconv.ParseFloat(SavingsCut, 64)
+	if err != nil {
+		log.Printf("Failed to convert savings cut %s to float\n", SavingsCut)
+	}
+
 	conf = autospotting.Config{
-		Version: Version,
+		Version:    Version,
+		SavingsCut: sc,
 	}
 
 	autospotting.ParseConfig(&conf)
