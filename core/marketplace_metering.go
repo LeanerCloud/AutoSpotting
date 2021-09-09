@@ -32,11 +32,17 @@ func meterMarketplaceUsage(savings float64) error {
 	// Create a MarketplaceMetering client with additional configuration
 	svc := marketplacemetering.New(mySession, aws.NewConfig().WithRegion("us-east-1"))
 
+	charge := savings * 0.01 * as.config.SavingsCut
+	units := int64(charge * 1000)
+
+	log.Printf("Billing %v units for $%v saved/hour (%v%% of the generated savings of $%v/hour)",
+		units, charge, as.config.SavingsCut, savings)
+
 	res, err := svc.MeterUsage(&marketplacemetering.MeterUsageInput{
 		ProductCode:    aws.String("9e5m3z5f5hlwdqcrv16xdi040"),
 		Timestamp:      aws.Time(time.Now()),
 		UsageDimension: aws.String("SavingsCut"),
-		UsageQuantity:  aws.Int64(int64(savings * 1000 * 0.05)),
+		UsageQuantity:  aws.Int64(units),
 	})
 
 	if err != nil {

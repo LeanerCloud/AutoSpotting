@@ -92,6 +92,9 @@ type Config struct {
 	// The AutoSpotting version
 	Version string
 
+	// The percentage of the savings
+	SavingsCut float64
+
 	// The license of this AutoSpotting build - obsolete
 	LicenseType string
 
