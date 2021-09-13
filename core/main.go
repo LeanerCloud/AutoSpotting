@@ -464,12 +464,20 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 		defer i.region.sqsDeleteMessage(i.InstanceId, OnDemand)
 
 		log.Printf("%s instance %s belongs to an enabled ASG and should be "+
-			"replaced with spot, attempting to launch spot replacement",
-			i.region.name, *i.InstanceId)
-		if spotInstanceID, err = i.launchSpotReplacement(); err != nil {
-			log.Printf("%s Couldn't launch spot replacement for %s",
-				i.region.name, *i.InstanceId)
-			return err
+			"replaced with spot", i.region.name, *i.InstanceId)
+
+		spotInstance := i.asg.findUnattachedInstanceLaunchedForThisASG()
+
+		if spotInstance != nil {
+			spotInstanceID := *spotInstance.InstanceId
+			log.Println("Found unattached spot instance", spotInstanceID)
+		} else {
+			log.Printf("Attempting to launch spot replacement")
+			if spotInstanceID, err = i.launchSpotReplacement(); err != nil {
+				log.Printf("%s Couldn't launch spot replacement for %s",
+					i.region.name, *i.InstanceId)
+				return err
+			}
 		}
 		log.Printf("Waiting for spot instance %s to be in status running", *spotInstanceID)
 		err := r.services.ec2.WaitUntilInstanceRunning(
@@ -486,7 +494,7 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 				*spotInstanceID, err.Error())
 			return err
 		}
-		spotInstance := r.instances.get(*spotInstanceID)
+		spotInstance = r.instances.get(*spotInstanceID)
 		if _, err := spotInstance.swapWithGroupMember(i.asg); err != nil {
 			log.Printf("%s, couldn't perform spot replacement of %s ",
 				i.region.name, *i.InstanceId)
