@@ -117,6 +117,9 @@ type Config struct {
 
 	// DisableEventBasedInstanceReplacement forces execution in cron mode only
 	DisableEventBasedInstanceReplacement bool
+
+	// DisableInstanceRebalanceRecommendation disable the handling of Instance Rebalance Recommendation events.
+	DisableInstanceRebalanceRecommendation bool
 }
 
 // ParseConfig loads configuration from command line flags, environments variables, and config files.
@@ -252,6 +255,10 @@ func ParseConfig(conf *Config) {
 	flagSet.BoolVar(&conf.DisableEventBasedInstanceReplacement, "disable_event_based_instance_replacement", false,
 		"\n\tDisables the event based instance replacement, forcing the legacy cron mode.\n"+
 			"\tExample: ./AutoSpotting --disable_event_based_instance_replacement=true\n")
+
+	flagSet.BoolVar(&conf.DisableInstanceRebalanceRecommendation, "disable_instance_rebalance_recommendation", false,
+		"\n\tDisables handling of instance rebalance recommendation events.\n"+
+			"\tExample: ./AutoSpotting --disable_instance_rebalance_recommendation=true\n")
 
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 
