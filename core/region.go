@@ -490,10 +490,14 @@ func (r *region) sqsSendMessageOnInstanceLaunch(asgName, instanceID, instanceSta
 
 	svc := r.services.sqs
 
+	groupID := fmt.Sprintf("%s-%s", r.name, *asgName)
+	// truncate to 125 characters, fixing #470
+	groupID = groupID[0:min(len(groupID), 125)]
+
 	_, err := svc.SendMessage(
 		&sqs.SendMessageInput{
 			MessageBody:    &inputJSON,
-			MessageGroupId: aws.String(fmt.Sprintf("%s-%s", r.name, *asgName)),
+			MessageGroupId: aws.String(groupID),
 			QueueUrl:       &r.conf.SQSQueueURL,
 		})
 
