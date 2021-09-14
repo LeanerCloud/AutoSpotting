@@ -20,7 +20,7 @@ var conf autospotting.Config
 // Version represents the build version being used
 var Version = "number missing"
 
-// SavingsCut stores the saving percentage charged for the stable builds
+// SavingsCut is populated at build time and controls the percentage of the savings charged for the stable builds
 var SavingsCut = "0"
 
 // ExpirationDate represents the date at which the version will expire
