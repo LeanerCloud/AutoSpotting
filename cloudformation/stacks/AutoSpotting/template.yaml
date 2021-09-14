@@ -71,6 +71,14 @@
       Description: >
         "Disables the event based instance replacement, forcing AutoSpotting to run in legacy cron mode".
       Type: "String"
+    DisableInstanceRebalanceRecommendation:
+      AllowedValues:
+        - "true"
+        - "false"
+      Default: "false"
+      Description: >
+        "Disables handling of instance rebalance recommendation events.".
+      Type: "String"
     DisallowedInstanceTypes:
       Default: ""
       Description: >
@@ -356,6 +364,8 @@
               Ref: "CronScheduleState"
             DISABLE_EVENT_BASED_INSTANCE_REPLACEMENT:
               Ref: "DisableEventBasedInstanceReplacement"
+            DISABLE_INSTANCE_REBALANCE_RECOMMENDATION:
+              Ref: "DisableInstanceRebalanceRecommendation"
             DISALLOWED_INSTANCE_TYPES:
               Ref: "DisallowedInstanceTypes"
             EBS_GP2_CONVERSION_THRESHOLD:
