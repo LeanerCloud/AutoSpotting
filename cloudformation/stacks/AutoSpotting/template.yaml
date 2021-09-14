@@ -77,7 +77,7 @@
         - "false"
       Default: "false"
       Description: >
-        "Disables handling of instance rebalance recommendation events.".
+        "Disables handling of instance rebalance recommendation events".
       Type: "String"
     DisallowedInstanceTypes:
       Default: ""
