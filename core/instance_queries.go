@@ -166,7 +166,7 @@ func (i *instance) isPriceCompatible(spotPrice float64) bool {
 	return false
 }
 
-func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool {
+func (i *instance) isClassCompatible(spotCandidate *instanceTypeInformation) bool {
 	current := i.typeInfo
 
 	debug.Println("Comparing class spot/instance:")
@@ -185,7 +185,7 @@ func (i *instance) isClassCompatible(spotCandidate instanceTypeInformation) bool
 	return false
 }
 
-func (i *instance) isSameArch(other instanceTypeInformation) bool {
+func (i *instance) isSameArch(other *instanceTypeInformation) bool {
 	thisCPU := i.typeInfo.PhysicalProcessor
 	otherCPU := other.PhysicalProcessor
 
@@ -217,7 +217,7 @@ func isARM(cpuName string) bool {
 	return strings.Contains(cpuName, "AWS")
 }
 
-func (i *instance) isEBSCompatible(spotCandidate instanceTypeInformation) bool {
+func (i *instance) isEBSCompatible(spotCandidate *instanceTypeInformation) bool {
 	if spotCandidate.EBSThroughput < i.typeInfo.EBSThroughput {
 		debug.Println("\tEBS throughput insufficient:", spotCandidate.EBSThroughput, "<", i.typeInfo.EBSThroughput)
 		return false
@@ -233,7 +233,7 @@ func (i *instance) isEBSCompatible(spotCandidate instanceTypeInformation) bool {
 //   original instance
 // - volume size: each of the volumes should be at least as big as the
 //   original instance's volumes
-func (i *instance) isStorageCompatible(spotCandidate instanceTypeInformation, attachedVolumes int) bool {
+func (i *instance) isStorageCompatible(spotCandidate *instanceTypeInformation, attachedVolumes int) bool {
 	existing := i.typeInfo
 
 	debug.Println("Comparing storage spot/instance:")
@@ -333,12 +333,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 		debug.Println("Comparing current type", current.instanceType, "with price", i.price,
 			"with candidate", candidate.instanceType, "with price", candidatePrice)
 
-		if i.isAllowed(candidate.instanceType, allowedList, disallowedList) &&
-			i.isPriceCompatible(candidatePrice) &&
-			i.isEBSCompatible(candidate) &&
-			i.isClassCompatible(candidate) &&
-			i.isStorageCompatible(candidate, attachedVolumesNumber) &&
-			i.isVirtualizationCompatible(candidate.virtualizationTypes) {
+		if i.isAllowed(candidate.instanceType, allowedList, disallowedList) && i.isCompatible(&candidate, candidatePrice, attachedVolumesNumber) {
 			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice})
 			log.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candidates list for instance", *i.InstanceId)
 		} else if candidate.instanceType != "" {
@@ -360,6 +355,14 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 	}
 
 	return nil, fmt.Errorf("no cheaper spot instance types could be found")
+}
+
+func (i *instance) isCompatible(candidate *instanceTypeInformation, candidatePrice float64, attachedVolumesNumber int) bool {
+	return i.isPriceCompatible(candidatePrice) &&
+		i.isEBSCompatible(candidate) &&
+		i.isClassCompatible(candidate) &&
+		i.isStorageCompatible(candidate, attachedVolumesNumber) &&
+		i.isVirtualizationCompatible(candidate.virtualizationTypes)
 }
 
 func (i *instance) getReplacementTargetInstanceID() *string {

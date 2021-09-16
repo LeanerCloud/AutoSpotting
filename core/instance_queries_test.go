@@ -53,12 +53,12 @@ func TestIsSpot(t *testing.T) {
 func TestIsEBSCompatible(t *testing.T) {
 	tests := []struct {
 		name         string
-		spotInfo     instanceTypeInformation
+		spotInfo     *instanceTypeInformation
 		instanceInfo instance
 		expected     bool
 	}{
 		{name: "EBS not Optimized Spot not Optimized",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				EBSThroughput: 0,
 			},
 			instanceInfo: instance{
@@ -69,7 +69,7 @@ func TestIsEBSCompatible(t *testing.T) {
 			expected: true,
 		},
 		{name: "EBS Optimized Spot Optimized with same throughput",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				EBSThroughput: 100,
 			},
 			instanceInfo: instance{
@@ -80,7 +80,7 @@ func TestIsEBSCompatible(t *testing.T) {
 			expected: true,
 		},
 		{name: "EBS Optimized Spot Optimized with more throughput",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				EBSThroughput: 200,
 			},
 			instanceInfo: instance{
@@ -91,7 +91,7 @@ func TestIsEBSCompatible(t *testing.T) {
 			expected: true,
 		},
 		{name: "EBS Optimized Spot not Optimized",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				EBSThroughput: 0,
 			},
 			instanceInfo: instance{
@@ -102,7 +102,7 @@ func TestIsEBSCompatible(t *testing.T) {
 			expected: false,
 		},
 		{name: "EBS not Optimized Spot Optimized",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				EBSThroughput: 100,
 			},
 			instanceInfo: instance{
@@ -197,14 +197,14 @@ func TestIsPriceCompatible(t *testing.T) {
 func TestIsClassCompatible(t *testing.T) {
 	tests := []struct {
 		name           string
-		spotInfo       instanceTypeInformation
+		spotInfo       *instanceTypeInformation
 		instanceCPU    int
 		instanceMemory float32
 		instanceGPU    int
 		expected       bool
 	}{
 		{name: "Spot is higher in both CPU & memory",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				vCPU:              10,
 				memory:            2.5,
 				PhysicalProcessor: "Intel",
@@ -214,7 +214,7 @@ func TestIsClassCompatible(t *testing.T) {
 			expected:       true,
 		},
 		{name: "Spot is lower in CPU but higher in memory",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				vCPU:              10,
 				memory:            2.5,
 				PhysicalProcessor: "Intel",
@@ -224,7 +224,7 @@ func TestIsClassCompatible(t *testing.T) {
 			expected:       false,
 		},
 		{name: "Spot is lower in memory but higher in CPU",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				vCPU:              10,
 				memory:            2.5,
 				PhysicalProcessor: "Intel",
@@ -234,7 +234,7 @@ func TestIsClassCompatible(t *testing.T) {
 			expected:       false,
 		},
 		{name: "Spot is lower in both CPU & memory",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				vCPU:              10,
 				memory:            2.5,
 				PhysicalProcessor: "Intel",
@@ -244,7 +244,7 @@ func TestIsClassCompatible(t *testing.T) {
 			expected:       false,
 		},
 		{name: "Spot is lower in CPU, memory and GPU ",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				vCPU:              10,
 				memory:            2.5,
 				GPU:               0,
@@ -257,7 +257,7 @@ func TestIsClassCompatible(t *testing.T) {
 		},
 
 		{name: "Spot is higher in CPU, memory and GPU ",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				vCPU:              10,
 				memory:            20,
 				GPU:               4,
@@ -289,13 +289,13 @@ func TestIsClassCompatible(t *testing.T) {
 func TestIsStorageCompatible(t *testing.T) {
 	tests := []struct {
 		name            string
-		spotInfo        instanceTypeInformation
+		spotInfo        *instanceTypeInformation
 		instanceInfo    instanceTypeInformation
 		attachedVolumes int
 		expected        bool
 	}{
 		{name: "Instance has no attached volumes",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				instanceStoreDeviceCount: 0.0,
 				instanceStoreDeviceSize:  0.0,
 				instanceStoreIsSSD:       false,
@@ -308,7 +308,7 @@ func TestIsStorageCompatible(t *testing.T) {
 			expected:        true,
 		},
 		{name: "Spot's storage is identical to instance",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				instanceStoreDeviceCount: 1,
 				instanceStoreDeviceSize:  50.0,
 				instanceStoreIsSSD:       false,
@@ -321,7 +321,7 @@ func TestIsStorageCompatible(t *testing.T) {
 			expected:        true,
 		},
 		{name: "Spot's storage is lower than the instance's one",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				instanceStoreDeviceCount: 1,
 				instanceStoreDeviceSize:  25.0,
 				instanceStoreIsSSD:       false,
@@ -334,7 +334,7 @@ func TestIsStorageCompatible(t *testing.T) {
 			expected:        false,
 		},
 		{name: "Spot's storage is bigger than the instance's one",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				instanceStoreDeviceCount: 1,
 				instanceStoreDeviceSize:  150.0,
 				instanceStoreIsSSD:       false,
@@ -347,7 +347,7 @@ func TestIsStorageCompatible(t *testing.T) {
 			expected:        true,
 		},
 		{name: "Spot's storage is bigger and has less storage attached",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				instanceStoreDeviceCount: 1,
 				instanceStoreDeviceSize:  150.0,
 				instanceStoreIsSSD:       false,
@@ -360,7 +360,7 @@ func TestIsStorageCompatible(t *testing.T) {
 			expected:        false,
 		},
 		{name: "Spot's storage is bigger and has more storage attached",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				instanceStoreDeviceCount: 4,
 				instanceStoreDeviceSize:  150.0,
 				instanceStoreIsSSD:       false,
@@ -373,7 +373,7 @@ func TestIsStorageCompatible(t *testing.T) {
 			expected:        true,
 		},
 		{name: "Spot's storage is bigger and has more storage attached but isn't SSD (unlike the instance)",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				instanceStoreDeviceCount: 4,
 				instanceStoreDeviceSize:  150.0,
 				instanceStoreIsSSD:       false,
@@ -386,7 +386,7 @@ func TestIsStorageCompatible(t *testing.T) {
 			expected:        false,
 		},
 		{name: "Spot's storage is bigger, has more storage attached, is SSD (like the instance)",
-			spotInfo: instanceTypeInformation{
+			spotInfo: &instanceTypeInformation{
 				instanceStoreDeviceCount: 4,
 				instanceStoreDeviceSize:  150.0,
 				instanceStoreIsSSD:       true,
@@ -1001,7 +1001,7 @@ func Test_instance_isSameArch(t *testing.T) {
 	tests := []struct {
 		name          string
 		Instance      instance
-		spotCandidate instanceTypeInformation
+		spotCandidate *instanceTypeInformation
 		want          bool
 	}{
 		{
@@ -1011,7 +1011,7 @@ func Test_instance_isSameArch(t *testing.T) {
 					PhysicalProcessor: "Intel",
 				},
 			},
-			spotCandidate: instanceTypeInformation{
+			spotCandidate: &instanceTypeInformation{
 				PhysicalProcessor: "Intel",
 			},
 			want: true,
@@ -1024,7 +1024,7 @@ func Test_instance_isSameArch(t *testing.T) {
 					PhysicalProcessor: "AMD",
 				},
 			},
-			spotCandidate: instanceTypeInformation{
+			spotCandidate: &instanceTypeInformation{
 				PhysicalProcessor: "AMD",
 			},
 			want: true,
@@ -1037,7 +1037,7 @@ func Test_instance_isSameArch(t *testing.T) {
 					PhysicalProcessor: "Intel",
 				},
 			},
-			spotCandidate: instanceTypeInformation{
+			spotCandidate: &instanceTypeInformation{
 				PhysicalProcessor: "AMD",
 			},
 			want: true,
@@ -1050,7 +1050,7 @@ func Test_instance_isSameArch(t *testing.T) {
 					PhysicalProcessor: "AMD",
 				},
 			},
-			spotCandidate: instanceTypeInformation{
+			spotCandidate: &instanceTypeInformation{
 				PhysicalProcessor: "Intel",
 			},
 			want: true,
@@ -1063,7 +1063,7 @@ func Test_instance_isSameArch(t *testing.T) {
 					PhysicalProcessor: "Intel",
 				},
 			},
-			spotCandidate: instanceTypeInformation{
+			spotCandidate: &instanceTypeInformation{
 				PhysicalProcessor: "Variable",
 			},
 			want: true,
@@ -1076,7 +1076,7 @@ func Test_instance_isSameArch(t *testing.T) {
 					PhysicalProcessor: "Variable",
 				},
 			},
-			spotCandidate: instanceTypeInformation{
+			spotCandidate: &instanceTypeInformation{
 				PhysicalProcessor: "Intel",
 			},
 			want: true,
@@ -1089,7 +1089,7 @@ func Test_instance_isSameArch(t *testing.T) {
 					PhysicalProcessor: "AWS",
 				},
 			},
-			spotCandidate: instanceTypeInformation{
+			spotCandidate: &instanceTypeInformation{
 				PhysicalProcessor: "AWS",
 			},
 			want: true,
@@ -1102,7 +1102,7 @@ func Test_instance_isSameArch(t *testing.T) {
 					PhysicalProcessor: "Intel",
 				},
 			},
-			spotCandidate: instanceTypeInformation{
+			spotCandidate: &instanceTypeInformation{
 				PhysicalProcessor: "AWS",
 			},
 			want: false,
@@ -1115,7 +1115,7 @@ func Test_instance_isSameArch(t *testing.T) {
 					PhysicalProcessor: "Intel",
 				},
 			},
-			spotCandidate: instanceTypeInformation{
+			spotCandidate: &instanceTypeInformation{
 				PhysicalProcessor: "AWS",
 			},
 			want: false,
@@ -1128,7 +1128,7 @@ func Test_instance_isSameArch(t *testing.T) {
 					PhysicalProcessor: "AWS",
 				},
 			},
-			spotCandidate: instanceTypeInformation{
+			spotCandidate: &instanceTypeInformation{
 				PhysicalProcessor: "Intel",
 			},
 			want: false,
@@ -1141,7 +1141,7 @@ func Test_instance_isSameArch(t *testing.T) {
 					PhysicalProcessor: "AWS",
 				},
 			},
-			spotCandidate: instanceTypeInformation{
+			spotCandidate: &instanceTypeInformation{
 				PhysicalProcessor: "AMD",
 			},
 			want: false,
