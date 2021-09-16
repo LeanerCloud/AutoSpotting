@@ -443,17 +443,3 @@ func (i *instance) isReadyToAttach(asg *autoScalingGroup) bool {
 	}
 	return false
 }
-
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
-}
-
-func max(x, y int) int {
-	if x > y {
-		return x
-	}
-	return y
-}
