@@ -423,9 +423,12 @@ func (i *instance) createFleetInput(ltName *string, instanceTypes []*string) *ec
 
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 
-	for _, inst := range instanceTypes {
+	for p, inst := range instanceTypes {
 		override := ec2.FleetLaunchTemplateOverridesRequest{
 			InstanceType: inst,
+		}
+		if i.asg.config.SpotAllocationStrategy == "capacity-optimized-prioritized" {
+			override.Priority = aws.Float64(float64(p))
 		}
 		overrides = append(overrides, &override)
 	}

@@ -1545,7 +1545,57 @@ func Test_instance_createFleetInput(t *testing.T) {
 		want          *ec2.CreateFleetInput
 	}{
 		{
-			name:   "test generating list of overrides",
+			name:   "test generating list of overrides with capacity-optimized-prioritized",
+			ltName: aws.String("testLT"),
+			instanceTypes: []*string{
+				aws.String("instance-type1"),
+				aws.String("instance-type2"),
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					config: AutoScalingConfig{
+						SpotAllocationStrategy: "capacity-optimized-prioritized",
+					},
+				},
+				region: &region{},
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						onDemand: 1,
+					},
+				},
+			},
+			want: &ec2.CreateFleetInput{
+				LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
+					{
+						LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+							LaunchTemplateName: aws.String("testLT"),
+							Version:            aws.String("$Latest"),
+						},
+						Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
+							{
+								InstanceType: aws.String("instance-type1"),
+								Priority:     aws.Float64(0),
+							},
+							{
+								InstanceType: aws.String("instance-type2"),
+								Priority:     aws.Float64(1),
+							},
+						},
+					},
+				},
+				SpotOptions: &ec2.SpotOptionsRequest{
+					AllocationStrategy: aws.String("capacity-optimized-prioritized"),
+				},
+				TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
+					DefaultTargetCapacityType: aws.String("spot"),
+					SpotTargetCapacity:        aws.Int64(1),
+					TotalTargetCapacity:       aws.Int64(1),
+				},
+				Type: aws.String("instant"),
+			},
+		},
+		{
+			name:   "test generating list of overrides with capacity-optimized",
 			ltName: aws.String("testLT"),
 			instanceTypes: []*string{
 				aws.String("instance-type1"),
