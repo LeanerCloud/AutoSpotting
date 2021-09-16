@@ -264,6 +264,7 @@ func (i *instance) processLaunchTemplate(retval *ec2.RequestLaunchTemplateData) 
 	if err != nil {
 		return err
 	}
+	retval.ImageId = ltData.ImageId
 
 	retval.BlockDeviceMappings = i.convertLaunchTemplateBlockDeviceMappings(ltData.BlockDeviceMappings)
 

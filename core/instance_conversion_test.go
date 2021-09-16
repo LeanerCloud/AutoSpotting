@@ -675,7 +675,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 						LaunchConfiguration: &autoscaling.LaunchConfiguration{
 							AssociatePublicIpAddress: nil,
 							BlockDeviceMappings:      nil,
-							ImageId:                  aws.String("ami-123"),
+							ImageId:                  aws.String("ami-12345"),
 							KeyName:                  aws.String("mykey"),
 							InstanceMonitoring:       nil,
 							UserData:                 aws.String("userdata"),
@@ -689,6 +689,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					IamInstanceProfile: &ec2.IamInstanceProfile{
 						Arn: aws.String("profile-arn"),
 					},
+					ImageId:      aws.String("ami-123"),
 					InstanceId:   aws.String("i-foo"),
 					InstanceType: aws.String("t2.medium"),
 
@@ -718,7 +719,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					Name: aws.String("profile"),
 				},
 
-				ImageId: aws.String("ami-123"),
+				ImageId: aws.String("ami-12345"),
 
 				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
 					MarketType: aws.String(Spot),
@@ -791,7 +792,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					launchConfiguration: &launchConfiguration{
 						LaunchConfiguration: &autoscaling.LaunchConfiguration{
 							IamInstanceProfile: aws.String("profile-name"),
-							ImageId:            aws.String("ami-123"),
+							ImageId:            aws.String("ami-12345"),
 							InstanceMonitoring: &autoscaling.InstanceMonitoring{
 								Enabled: aws.Bool(true),
 							},
@@ -812,7 +813,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					IamInstanceProfile: &ec2.IamInstanceProfile{
 						Arn: aws.String("profile-arn"),
 					},
-
+					ImageId:      aws.String("ami-123"),
 					InstanceId:   aws.String("i-foo"),
 					InstanceType: aws.String("t2.medium"),
 					KeyName:      aws.String("older-key"),
@@ -849,7 +850,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					Name: aws.String("profile-name"),
 				},
 
-				ImageId: aws.String("ami-123"),
+				ImageId: aws.String("ami-12345"),
 
 				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
 					MarketType: aws.String(Spot),
@@ -930,7 +931,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					launchConfiguration: &launchConfiguration{
 						LaunchConfiguration: &autoscaling.LaunchConfiguration{
 							IamInstanceProfile: aws.String("profile-name"),
-							ImageId:            aws.String("ami-123"),
+							ImageId:            aws.String("ami-12345"),
 							InstanceMonitoring: &autoscaling.InstanceMonitoring{
 								Enabled: aws.Bool(true),
 							},
@@ -955,7 +956,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					IamInstanceProfile: &ec2.IamInstanceProfile{
 						Arn: aws.String("profile-arn"),
 					},
-
+					ImageId:      aws.String("ami-123"),
 					InstanceType: aws.String("t2.medium"),
 					KeyName:      aws.String("older-key"),
 
@@ -990,7 +991,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					Name: aws.String("profile-name"),
 				},
 
-				ImageId: aws.String("ami-123"),
+				ImageId: aws.String("ami-12345"),
 
 				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
 					MarketType: aws.String(Spot),
