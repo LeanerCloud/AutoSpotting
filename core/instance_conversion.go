@@ -487,16 +487,28 @@ func (i *instance) generateTagsList() []*ec2.LaunchTemplateTagSpecificationReque
 		})
 	}
 
-	for _, tag := range i.Tags {
+	tags.Tags = append(tags.Tags, filterTags(i.Tags)...)
+
+	return []*ec2.LaunchTemplateTagSpecificationRequest{&tags}
+}
+
+func filterTags(tags []*ec2.Tag) []*ec2.Tag {
+	var tl []*ec2.Tag
+
+	var tagsToSkip = []string{
+		"launched-by-autospotting",
+		"launched-for-asg",
+		"launched-for-replacing-instance",
+		"LaunchTemplateID",
+		"LaunchTemplateVersion",
+		"LaunchConfigurationName",
+	}
+
+	for _, tag := range tags {
 		if !strings.HasPrefix(*tag.Key, "aws:") &&
-			*tag.Key != "launched-by-autospotting" &&
-			*tag.Key != "launched-for-asg" &&
-			*tag.Key != "launched-for-replacing-instance" &&
-			*tag.Key != "LaunchTemplateID" &&
-			*tag.Key != "LaunchTemplateVersion" &&
-			*tag.Key != "LaunchConfigurationName" {
-			tags.Tags = append(tags.Tags, tag)
+			!itemInSlice(*tag.Key, tagsToSkip) {
+			tl = append(tl, tag)
 		}
 	}
-	return []*ec2.LaunchTemplateTagSpecificationRequest{&tags}
+	return tl
 }
