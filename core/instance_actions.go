@@ -51,12 +51,17 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 
 	defer i.deleteLaunchTemplate(lt)
 
-	cfi, err := i.createFleetInput(lt)
+	i.price = i.typeInfo.pricing.onDemand * i.asg.config.OnDemandPriceMultiplier
+	instanceTypes, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(
+		i.asg.getAllowedInstanceTypes(i),
+		i.asg.getDisallowedInstanceTypes(i))
 
 	if err != nil {
-		log.Println(i.region, i.asg.name, "createFleetInput() failure:", err.Error())
+		log.Println("Couldn't determine the list of compatible spot instance types")
 		return nil, err
 	}
+
+	cfi := i.createFleetInput(lt, instanceTypes)
 
 	resp, err := i.region.services.ec2.CreateFleet(cfi)
 

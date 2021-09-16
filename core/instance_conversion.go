@@ -303,7 +303,7 @@ func (i *instance) processLaunchConfiguration(retval *ec2.RequestLaunchTemplateD
 	}
 	retval.ImageId = lc.ImageId
 
-	if strings.ToLower(i.asg.config.PatchBeanstalkUserdata) == "true" {
+	if i.asg.config.PatchBeanstalkUserdata {
 		retval.UserData = getPatchedUserDataForBeanstalk(lc.UserData)
 	} else {
 		retval.UserData = lc.UserData
@@ -407,7 +407,7 @@ func (i *instance) createFleetLaunchTemplate(ltData *ec2.RequestLaunchTemplateDa
 
 	if err != nil {
 		log.Println("failed to create LaunchTemplate,", err.Error())
-		//if the LT already exists maybe from a previous failed run we take it and use it
+		// if the LT already exists maybe from a previous failed run we take it and use it
 		if !strings.Contains(err.Error(), "AlreadyExistsException") {
 			return nil, err
 		}
@@ -418,22 +418,13 @@ func (i *instance) createFleetLaunchTemplate(ltData *ec2.RequestLaunchTemplateDa
 	return &ltName, err
 }
 
-func (i *instance) createFleetInput(ltName *string) (*ec2.CreateFleetInput, error) {
-	i.price = i.typeInfo.pricing.onDemand / i.region.conf.OnDemandPriceMultiplier * i.asg.config.OnDemandPriceMultiplier
-	instanceTypes, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(
-		i.asg.getAllowedInstanceTypes(i),
-		i.asg.getDisallowedInstanceTypes(i))
-
-	if err != nil {
-		log.Println("Couldn't determine the cheapest compatible spot instance type")
-		return nil, err
-	}
+func (i *instance) createFleetInput(ltName *string, instanceTypes []*string) *ec2.CreateFleetInput {
 
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 
 	for _, inst := range instanceTypes {
 		override := ec2.FleetLaunchTemplateOverridesRequest{
-			InstanceType: aws.String(inst.instanceType),
+			InstanceType: inst,
 		}
 		overrides = append(overrides, &override)
 	}
@@ -449,7 +440,7 @@ func (i *instance) createFleetInput(ltName *string) (*ec2.CreateFleetInput, erro
 			},
 		},
 		SpotOptions: &ec2.SpotOptionsRequest{
-			AllocationStrategy: aws.String("capacity-optimized-prioritized"), // TODO : make the Spot AllocationStrategy configurable globally and per ASG
+			AllocationStrategy: aws.String(i.asg.config.SpotAllocationStrategy),
 		},
 		Type: aws.String("instant"),
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
@@ -458,7 +449,7 @@ func (i *instance) createFleetInput(ltName *string) (*ec2.CreateFleetInput, erro
 			DefaultTargetCapacityType: aws.String("spot"),
 		},
 	}
-	return retval, err
+	return retval
 }
 
 func (i *instance) generateTagsList() []*ec2.LaunchTemplateTagSpecificationRequest {

@@ -5,6 +5,7 @@ package autospotting
 
 import (
 	"encoding/base64"
+	"errors"
 	"io/ioutil"
 	"reflect"
 	"sort"
@@ -944,7 +945,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 						},
 					},
 					config: AutoScalingConfig{
-						PatchBeanstalkUserdata:  "true",
+						PatchBeanstalkUserdata:  true,
 						OnDemandPriceMultiplier: 1,
 					},
 				},
@@ -1060,6 +1061,605 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Instance.createLaunchTemplateData() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_instance_convertLaunchTemplateBlockDeviceMappings(t *testing.T) {
+	tests := []struct {
+		name string
+		BDMs []*ec2.LaunchTemplateBlockDeviceMapping
+		i    *instance
+		want []*ec2.LaunchTemplateBlockDeviceMappingRequest
+	}{
+		{
+			name: "nil block device mapping",
+			BDMs: nil,
+			i:    &instance{},
+			want: nil,
+		},
+		{
+			name: "instance-store only, skipping one of the volumes from the BDMs",
+			BDMs: []*ec2.LaunchTemplateBlockDeviceMapping{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					NoDevice:    aws.String("true"),
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName:  aws.String("/dev/ephemeral1"),
+					Ebs:         nil,
+					VirtualName: aws.String("bar"),
+				},
+			},
+			i: &instance{},
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+				{
+					DeviceName:  aws.String("/dev/ephemeral1"),
+					Ebs:         nil,
+					VirtualName: aws.String("bar"),
+				},
+			},
+		},
+
+		{
+			name: "GP2 EBS to be converted to GP3 when size it below the configured threshold",
+			BDMs: []*ec2.LaunchTemplateBlockDeviceMapping{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDevice{
+						DeleteOnTermination: aws.Bool(false),
+						VolumeSize:          aws.Int64(10),
+						VolumeType:          aws.String("gp2"),
+					},
+					VirtualName: aws.String("bar"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "not-blacklisted",
+					},
+					config: AutoScalingConfig{
+						GP2ConversionThreshold: 100,
+					},
+				},
+			},
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+						DeleteOnTermination: aws.Bool(false),
+						VolumeSize:          aws.Int64(10),
+						VolumeType:          aws.String("gp3"),
+					},
+					VirtualName: aws.String("bar"),
+				},
+			},
+		},
+		{
+			name: "GP2 EBS to be kept as it is when size it above the configured threshold",
+			BDMs: []*ec2.LaunchTemplateBlockDeviceMapping{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDevice{
+						DeleteOnTermination: aws.Bool(false),
+						VolumeSize:          aws.Int64(150),
+						VolumeType:          aws.String("gp2"),
+					},
+					VirtualName: aws.String("bar"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "not-blacklisted",
+					},
+					config: AutoScalingConfig{
+						GP2ConversionThreshold: 100,
+					},
+				},
+			},
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+						DeleteOnTermination: aws.Bool(false),
+						VolumeSize:          aws.Int64(150),
+						VolumeType:          aws.String("gp2"),
+					},
+					VirtualName: aws.String("bar"),
+				},
+			},
+		},
+		{
+			name: "Provision IO2 EBS volume instead of IO1 in a supported region",
+			BDMs: []*ec2.LaunchTemplateBlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDevice{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+						VolumeType:          aws.String("io1"),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "supported",
+					},
+				},
+			},
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+						VolumeType:          aws.String("io2"),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+		},
+		{
+			name: "Provision IO1 EBS volume instead of replacing to IO2 in an unsupported region",
+			BDMs: []*ec2.LaunchTemplateBlockDeviceMapping{
+
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDevice{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+						VolumeType:          aws.String("io1"),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "us-gov-west-1",
+					},
+				},
+			},
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+						VolumeType:          aws.String("io1"),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.i.convertLaunchTemplateBlockDeviceMappings(tt.BDMs); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("instance.convertLaunchTemplateBlockDeviceMappings() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_instance_convertImageBlockDeviceMappings(t *testing.T) {
+	tests := []struct {
+		name string
+		BDMs []*ec2.BlockDeviceMapping
+		i    *instance
+		want []*ec2.LaunchTemplateBlockDeviceMappingRequest
+	}{
+		{
+			name: "nil block device mapping",
+			BDMs: nil,
+			i:    &instance{},
+			want: nil,
+		},
+		{
+			name: "instance-store only, skipping one of the volumes from the BDMs",
+			BDMs: []*ec2.BlockDeviceMapping{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					NoDevice:    aws.String("true"),
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName:  aws.String("/dev/ephemeral1"),
+					Ebs:         nil,
+					VirtualName: aws.String("bar"),
+				},
+			},
+			i: &instance{},
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+				{
+					DeviceName:  aws.String("/dev/ephemeral1"),
+					Ebs:         nil,
+					VirtualName: aws.String("bar"),
+				},
+			},
+		},
+
+		{
+			name: "GP2 EBS to be converted to GP3 when size it below the configured threshold",
+			BDMs: []*ec2.BlockDeviceMapping{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					Ebs: &ec2.EbsBlockDevice{
+						DeleteOnTermination: aws.Bool(false),
+						VolumeSize:          aws.Int64(10),
+						VolumeType:          aws.String("gp2"),
+					},
+					VirtualName: aws.String("bar"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "not-blacklisted",
+					},
+					config: AutoScalingConfig{
+						GP2ConversionThreshold: 100,
+					},
+				},
+			},
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+						DeleteOnTermination: aws.Bool(false),
+						VolumeSize:          aws.Int64(10),
+						VolumeType:          aws.String("gp3"),
+					},
+					VirtualName: aws.String("bar"),
+				},
+			},
+		},
+		{
+			name: "GP2 EBS to be kept as it is when size it above the configured threshold",
+			BDMs: []*ec2.BlockDeviceMapping{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					Ebs: &ec2.EbsBlockDevice{
+						DeleteOnTermination: aws.Bool(false),
+						VolumeSize:          aws.Int64(150),
+						VolumeType:          aws.String("gp2"),
+					},
+					VirtualName: aws.String("bar"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "not-blacklisted",
+					},
+					config: AutoScalingConfig{
+						GP2ConversionThreshold: 100,
+					},
+				},
+			},
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+				{
+					DeviceName:  aws.String("/dev/ephemeral0"),
+					Ebs:         nil,
+					VirtualName: aws.String("foo"),
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+						DeleteOnTermination: aws.Bool(false),
+						VolumeSize:          aws.Int64(150),
+						VolumeType:          aws.String("gp2"),
+					},
+					VirtualName: aws.String("bar"),
+				},
+			},
+		},
+		{
+			name: "Provision IO2 EBS volume instead of IO1 in a supported region",
+			BDMs: []*ec2.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &ec2.EbsBlockDevice{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+						VolumeType:          aws.String("io1"),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "supported",
+					},
+				},
+			},
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+						VolumeType:          aws.String("io2"),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+		},
+		{
+			name: "Provision IO1 EBS volume instead of replacing to IO2 in an unsupported region",
+			BDMs: []*ec2.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &ec2.EbsBlockDevice{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+						VolumeType:          aws.String("io1"),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					name: "asg-with",
+					region: &region{
+						name: "us-gov-west-1",
+					},
+				},
+			},
+			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+						DeleteOnTermination: aws.Bool(true),
+						VolumeSize:          aws.Int64(20),
+						VolumeType:          aws.String("io1"),
+					},
+					VirtualName: aws.String("baz"),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.i.convertImageBlockDeviceMappings(tt.BDMs); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("instance.convertImageBlockDeviceMappings() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_convertLaunchConfigurationEBSVolumeType(t *testing.T) {
+	tests := []struct {
+		name string
+		ebs  *autoscaling.Ebs
+		a    *autoScalingGroup
+		want *string
+	}{
+		{
+			name: "nil volume type",
+			a: &autoScalingGroup{
+				region: &region{
+					name: "us-east-1",
+				},
+			},
+			ebs: &autoscaling.Ebs{
+				VolumeType: nil,
+			},
+			want: nil,
+		},
+
+		{
+			name: "IO1 in region supported by IO2",
+			a: &autoScalingGroup{
+				region: &region{
+					name: "us-east-1",
+				},
+			},
+			ebs: &autoscaling.Ebs{
+				VolumeType: aws.String("io1"),
+			},
+			want: aws.String("io2"),
+		},
+		{
+			name: "IO1 in region not supported by IO2",
+			a: &autoScalingGroup{
+				region: &region{
+					name: "cn-northwest-1",
+				},
+			},
+			ebs: &autoscaling.Ebs{
+				VolumeType: aws.String("io1"),
+			},
+			want: aws.String("io1"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := convertLaunchConfigurationEBSVolumeType(tt.ebs, tt.a); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("convertLaunchConfigurationEBSVolumeType() = %v, want %v", spew.Sdump(got), spew.Sdump(tt.want))
+			}
+		})
+	}
+}
+
+func Test_instance_createFleetInput(t *testing.T) {
+
+	tests := []struct {
+		name          string
+		i             *instance
+		ltName        *string
+		instanceTypes []*string
+		want          *ec2.CreateFleetInput
+	}{
+		{
+			name:   "test generating list of overrides",
+			ltName: aws.String("testLT"),
+			instanceTypes: []*string{
+				aws.String("instance-type1"),
+				aws.String("instance-type2"),
+			},
+			i: &instance{
+				asg: &autoScalingGroup{
+					config: AutoScalingConfig{
+						SpotAllocationStrategy: "capacity-optimized",
+					},
+				},
+				region: &region{},
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						onDemand: 1,
+					},
+				},
+			},
+			want: &ec2.CreateFleetInput{
+				LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
+					{
+						LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+							LaunchTemplateName: aws.String("testLT"),
+							Version:            aws.String("$Latest"),
+						},
+						Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
+							{
+								InstanceType: aws.String("instance-type1"),
+							},
+							{
+								InstanceType: aws.String("instance-type2"),
+							},
+						},
+					},
+				},
+				SpotOptions: &ec2.SpotOptionsRequest{
+					AllocationStrategy: aws.String("capacity-optimized"),
+				},
+				TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
+					DefaultTargetCapacityType: aws.String("spot"),
+					SpotTargetCapacity:        aws.Int64(1),
+					TotalTargetCapacity:       aws.Int64(1),
+				},
+				Type: aws.String("instant"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			got := tt.i.createFleetInput(tt.ltName, tt.instanceTypes)
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("instance.createFleetInput() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_instance_createFleetLaunchTemplate(t *testing.T) {
+	tests := []struct {
+		name       string
+		ltData     *ec2.RequestLaunchTemplateData
+		instanceID string
+		cltErr     error
+		want       *string
+		wantErr    bool
+	}{
+		{
+			name:       "dummy instance, no errors",
+			instanceID: "i-dummy",
+			want:       aws.String("AutoSpotting-Temporary-LaunchTemplate-for-i-dummy"),
+		},
+		{
+			name:       "dummy instance, AlreadyExistsException error",
+			instanceID: "i-dummy",
+			cltErr:     errors.New("AlreadyExistsException"),
+			want:       aws.String("AutoSpotting-Temporary-LaunchTemplate-for-i-dummy"),
+		},
+		{
+			name:       "dummy instance, another error",
+			instanceID: "i-dummy",
+			cltErr:     errors.New("randomError"),
+			want:       nil,
+			wantErr:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i := &instance{
+				Instance: &ec2.Instance{
+					InstanceId: aws.String(tt.instanceID),
+				},
+				region: &region{
+					services: connections{
+						ec2: mockEC2{
+							clterr: tt.cltErr,
+						},
+					},
+				},
+			}
+
+			got, err := i.createFleetLaunchTemplate(tt.ltData)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("instance.createFleetLaunchTemplate() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if got == nil && tt.want != nil {
+				t.Errorf("instance.createFleetLaunchTemplate() = nil, want %v", tt.want)
+			}
+
+			if got != nil && tt.want != nil && *got != *tt.want {
+				t.Errorf("instance.createFleetLaunchTemplate() = %v, want %v", *got, tt.want)
 			}
 		})
 	}

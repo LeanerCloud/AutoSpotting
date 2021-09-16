@@ -459,7 +459,7 @@ func TestIsVirtualizationCompatible(t *testing.T) {
 	}
 }
 
-func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
+func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T) {
 	tests := []struct {
 		name                  string
 		spotInfos             map[string]instanceTypeInformation
@@ -896,7 +896,7 @@ func TestGetCheapestCompatibleSpotInstanceType(t *testing.T) {
 			retValue, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allowedList, disallowedList)
 			var retInstTypes []string
 			for _, retval := range retValue {
-				retInstTypes = append(retInstTypes, retval.instanceType)
+				retInstTypes = append(retInstTypes, *retval)
 			}
 			if err == nil && tt.expectedError != err {
 				t.Errorf("1 Error received: %v expected %v", err, tt.expectedError.Error())
@@ -1318,6 +1318,50 @@ func TestMin(t *testing.T) {
 			retValue := min(tt.x, tt.y)
 			if retValue != tt.expected {
 				t.Errorf("Value received: %d expected %d", retValue, tt.expected)
+			}
+		})
+	}
+}
+
+func Test_instance_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T) {
+	type fields struct {
+		Instance  *ec2.Instance
+		typeInfo  instanceTypeInformation
+		price     float64
+		region    *region
+		protected bool
+		asg       *autoScalingGroup
+	}
+	type args struct {
+		allowedList    []string
+		disallowedList []string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []instanceTypeInformation
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i := &instance{
+				Instance:  tt.fields.Instance,
+				typeInfo:  tt.fields.typeInfo,
+				price:     tt.fields.price,
+				region:    tt.fields.region,
+				protected: tt.fields.protected,
+				asg:       tt.fields.asg,
+			}
+			got, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(tt.args.allowedList, tt.args.disallowedList)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("instance.getCompatibleSpotInstanceTypesListSortedAscendingByPrice() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("instance.getCompatibleSpotInstanceTypesListSortedAscendingByPrice() = %v, want %v", got, tt.want)
 			}
 		})
 	}

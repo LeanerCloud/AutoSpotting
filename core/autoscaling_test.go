@@ -2884,8 +2884,10 @@ func Test_autoScalingGroup_needReplaceOnDemandInstances(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &autoScalingGroup{
-				instances:   tt.instances,
-				minOnDemand: tt.minOnDemand,
+				instances: tt.instances,
+				config: AutoScalingConfig{
+					MinOnDemand: tt.minOnDemand,
+				},
 			}
 			gotNeed, gotTotal := a.needReplaceOnDemandInstances()
 			if gotNeed != tt.wantNeed {
@@ -2908,7 +2910,6 @@ func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.
 		region              *region
 		launchConfiguration *launchConfiguration
 		instances           instances
-		minOnDemand         int64
 		config              AutoScalingConfig
 		totalRunning        int64
 		wait                bool
@@ -2958,7 +2959,9 @@ func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.
 			group: &autoscaling.Group{
 				DesiredCapacity: aws.Int64(2),
 			},
-			minOnDemand: 1,
+			config: AutoScalingConfig{
+				MinOnDemand: 1,
+			},
 			instances: makeInstancesWithCatalog(instanceMap{
 				"i-f00": &instance{
 					Instance: &ec2.Instance{
@@ -3059,7 +3062,6 @@ func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.
 				region:              tt.region,
 				launchConfiguration: tt.launchConfiguration,
 				instances:           tt.instances,
-				minOnDemand:         tt.minOnDemand,
 				config:              tt.config,
 			}
 			if err := a.terminateRandomSpotInstanceIfHavingEnough(tt.totalRunning, tt.wait); (err != nil) != tt.wantErr {

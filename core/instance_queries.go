@@ -300,7 +300,7 @@ func (i *instance) isAllowed(instanceType string, allowedList []string, disallow
 }
 
 func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allowedList []string,
-	disallowedList []string) ([]instanceTypeInformation, error) {
+	disallowedList []string) ([]*string, error) {
 	current := i.typeInfo
 	var acceptableInstanceTypes []acceptableInstance
 
@@ -352,9 +352,9 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 		})
 		debug.Println("List of cheapest compatible spot instances found, sorted ascending by price: ",
 			acceptableInstanceTypes)
-		var result []instanceTypeInformation
+		var result []*string
 		for _, ai := range acceptableInstanceTypes {
-			result = append(result, ai.instanceTI)
+			result = append(result, aws.String(ai.instanceTI.instanceType))
 		}
 		return result, nil
 	}
