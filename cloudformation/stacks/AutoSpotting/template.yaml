@@ -219,6 +219,19 @@
         bucket stored on another region, but it can process AutoScaling groups
         from any other regions. Example: 'us-east-1,eu-west-1'"
       Type: CommaDelimitedList
+    SpotAllocationStrategy:
+      Type: "String"
+      Description: >
+        "Controls the Spot allocation strategy for
+        launching Spot instances. Allowed options:
+        'capacity-optimized-prioritized' (default), 'capacity-optimized',
+        'lowest-price'. Further information on this is available at
+        https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html"
+      AllowedValues:
+        - "capacity-optimized-prioritized"
+        - "capacity-optimized"
+        - "lowest-price"
+      Default: "capacity-optimized-prioritized"
     SpotPricePercentageBuffer:
       Default: "10.0"
       Description: >
@@ -382,6 +395,8 @@
               Fn::Join:
               - ","
               - Ref: "Regions"
+            SPOT_ALLOCATION_STRATEGY:
+              Ref: SpotAllocationStrategy
             SPOT_PRICE_BUFFER_PERCENTAGE:
               Ref: "SpotPricePercentageBuffer"
             SPOT_PRODUCT_DESCRIPTION:

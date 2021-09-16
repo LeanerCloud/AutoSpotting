@@ -261,9 +261,9 @@ func ParseConfig(conf *Config) {
 			"\tExample: ./AutoSpotting --disable_instance_rebalance_recommendation=true\n")
 
 	flagSet.StringVar(&conf.SpotAllocationStrategy, "spot_allocation_strategy", "capacity-optimized-prioritized",
-		"\n\tControls the Spot allocation strategy for launching Spot instances. Allowed options: "+
-			"'capacity-optimized-prioritized' (default), 'capacity-optimized', 'lowest-price'.\n"+
-			"Further information on this is available at "+
+		"\n\tControls the Spot allocation strategy for launching Spot instances. Allowed options: \n"+
+			"\t'capacity-optimized-prioritized' (default), 'capacity-optimized', 'lowest-price'.\n"+
+			"\tFurther information on this is available at "+
 			"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html\n"+
 			"\tExample: ./AutoSpotting --spot_allocation_strategy capacity-optimized-prioritized\n")
 
