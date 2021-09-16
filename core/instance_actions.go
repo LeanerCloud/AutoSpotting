@@ -75,6 +75,50 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 }
 
 func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error) {
+
+	odInstance, err := i.getSwapCandidate()
+	if err != nil {
+		log.Printf("Couldn't find suitable OnDemand swap candidate: %s", err.Error())
+		return nil, err
+	}
+
+	asg.suspendProcesses()
+	defer asg.resumeProcesses()
+
+	desiredCapacity, maxSize := *asg.DesiredCapacity, *asg.MaxSize
+
+	// temporarily increase AutoScaling group in case the desired capacity reaches the max size,
+	// otherwise attachSpotInstance might fail
+	if desiredCapacity == maxSize {
+		log.Println(asg.name, "Temporarily increasing MaxSize")
+		asg.setAutoScalingMaxSize(maxSize + 1)
+		defer asg.setAutoScalingMaxSize(maxSize)
+	}
+
+	log.Printf("Attaching spot instance %s to the group %s",
+		*i.InstanceId, asg.name)
+	err = asg.attachSpotInstance(*i.InstanceId, true)
+
+	if err != nil {
+		log.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
+			*i.InstanceId, asg.name)
+		i.terminate()
+		return nil, fmt.Errorf("couldn't attach spot instance %s ", *i.InstanceId)
+	}
+
+	log.Printf("Terminating on-demand instance %s from the group %s",
+		*odInstance.InstanceId, asg.name)
+	if err := asg.terminateInstanceInAutoScalingGroup(odInstance.Instance.InstanceId, true, true); err != nil {
+		log.Printf("On-demand instance %s couldn't be terminated, re-trying...",
+			*odInstance.InstanceId)
+		return nil, fmt.Errorf("couldn't terminate on-demand instance %s",
+			*odInstance.InstanceId)
+	}
+
+	return odInstance, nil
+}
+
+func (i *instance) getSwapCandidate() (*instance, error) {
 	odInstanceID := i.getReplacementTargetInstanceID()
 	if odInstanceID == nil {
 		log.Println("Couldn't find target on-demand instance of", *i.InstanceId)
@@ -98,40 +142,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 		return nil, fmt.Errorf("target instance %s should not be replaced with spot",
 			*odInstanceID)
 	}
-
-	asg.suspendProcesses()
-	defer asg.resumeProcesses()
-
-	desiredCapacity, maxSize := *asg.DesiredCapacity, *asg.MaxSize
-
-	// temporarily increase AutoScaling group in case the desired capacity reaches the max size,
-	// otherwise attachSpotInstance might fail
-	if desiredCapacity == maxSize {
-		log.Println(asg.name, "Temporarily increasing MaxSize")
-		asg.setAutoScalingMaxSize(maxSize + 1)
-		defer asg.setAutoScalingMaxSize(maxSize)
-	}
-
-	log.Printf("Attaching spot instance %s to the group %s",
-		*i.InstanceId, asg.name)
-	err := asg.attachSpotInstance(*i.InstanceId, true)
-
-	if err != nil {
-		log.Printf("Spot instance %s couldn't be attached to the group %s, terminating it...",
-			*i.InstanceId, asg.name)
-		i.terminate()
-		return nil, fmt.Errorf("couldn't attach spot instance %s ", *i.InstanceId)
-	}
-
-	log.Printf("Terminating on-demand instance %s from the group %s",
-		*odInstanceID, asg.name)
-	if err := asg.terminateInstanceInAutoScalingGroup(odInstanceID, true, true); err != nil {
-		log.Printf("On-demand instance %s couldn't be terminated, re-trying...",
-			*odInstanceID)
-		return nil, fmt.Errorf("couldn't terminate on-demand instance %s",
-			*odInstanceID)
-	}
-
 	return odInstance, nil
 }
 
