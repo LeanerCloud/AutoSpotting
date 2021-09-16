@@ -29,10 +29,16 @@ func CheckErrors(t *testing.T, err error, expected error) {
 type mockEC2 struct {
 	ec2iface.EC2API
 
-	// DescribeSpotPriceHistoryPages output
-	dsphpo []*ec2.DescribeSpotPriceHistoryOutput
+	// CreateLaunchTemplate Output and error
+	clto   *ec2.CreateLaunchTemplateOutput
+	clterr error
 
-	// DescribeSpotPriceHistoryPages error
+	// CreateFleet input/error
+	cfo   *ec2.CreateFleetOutput
+	cferr error
+
+	// DescribeSpotPriceHistoryPages output
+	dsphpo   []*ec2.DescribeSpotPriceHistoryOutput
 	dsphperr error
 
 	// DescribeInstancesOutput
@@ -53,6 +59,10 @@ type mockEC2 struct {
 	tio   *ec2.TerminateInstancesOutput
 	tierr error
 
+	// DeleteLaunchTemplate
+	dlto   *ec2.DeleteLaunchTemplateOutput
+	dlterr error
+
 	// Describe Regions
 	dro   *ec2.DescribeRegionsOutput
 	drerr error
@@ -67,6 +77,18 @@ type mockEC2 struct {
 
 	// WaitUntilInstanceRunning error
 	wuirerr error
+}
+
+func (m mockEC2) CreateFleet(in *ec2.CreateFleetInput) (*ec2.CreateFleetOutput, error) {
+	return m.cfo, m.cferr
+}
+
+func (m mockEC2) CreateLaunchTemplate(in *ec2.CreateLaunchTemplateInput) (*ec2.CreateLaunchTemplateOutput, error) {
+	return m.clto, m.clterr
+}
+
+func (m mockEC2) DeleteLaunchTemplate(*ec2.DeleteLaunchTemplateInput) (*ec2.DeleteLaunchTemplateOutput, error) {
+	return m.dlto, m.dlterr
 }
 
 func (m mockEC2) DescribeSpotPriceHistoryPages(in *ec2.DescribeSpotPriceHistoryInput, f func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool) error {
