@@ -470,6 +470,11 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 		log.Printf("%s instance %s belongs to an enabled ASG and should be "+
 			"replaced with spot", i.region.name, *i.InstanceId)
 
+		// Search if there is already a spot instance that we can re-use.
+		log.Println("Scanning instances in", r.name)
+		if err := r.scanInstances(); err != nil {
+			log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
+		}
 		spotInstance := i.asg.findUnattachedInstanceLaunchedForThisASG()
 
 		if spotInstance != nil {
