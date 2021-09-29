@@ -545,11 +545,13 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 								LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{
 									{
 										LaunchTemplateData: &ec2.ResponseLaunchTemplateData{
+											KeyName: aws.String("mykey"),
 											NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecification{
 												{
 													Description: aws.String("dummy network interface definition"),
 												},
 											},
+											UserData: aws.String("dummy"),
 										},
 									},
 								},
@@ -606,7 +608,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 						MaxPrice: aws.String("1.5"),
 					},
 				},
-
+				KeyName: aws.String("mykey"),
 				NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 					{
 						Groups:   []*string{aws.String("sg-123"), aws.String("sg-456")},
@@ -644,6 +646,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					},
 				},
 				},
+				UserData: aws.String("dummy"),
 			},
 		},
 		{

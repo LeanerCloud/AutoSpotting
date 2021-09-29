@@ -264,9 +264,50 @@ func (i *instance) processLaunchTemplate(retval *ec2.RequestLaunchTemplateData) 
 	if err != nil {
 		return err
 	}
-	retval.ImageId = ltData.ImageId
+
+	// see https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#RequestLaunchTemplateData for the attributes we need to copy over to the new LT
+
+	// currently omitted fields:
+	// ElasticGpuSpecifications - not sure about the use case for this, but I'm open to add it later
+	// ElasticInferenceAccelerators - not sure about the use case for this, but I'm open to add it later
+	// EnclaveOptions - not sure about the use case for this, but I'm open to add it later
+	// HibernationOptions - not sure about the use case for this, but I'm open to add it later
+	// InstanceMarketOptions - needs to be set to Spot anyway
+	// InstanceType - not needed because we pass more instance types
+	// KernelId - probably not needed, should be determined from the AMI
+	// LicenseSpecifications - probably not needed, should be determined from the AMI
+	// MetadataOptions - not sure what's the use case for changing this
+	// Placement - determined dynamically when launching each Spot instance
+	// RamDiskId probably not needed, should be determined from the AMI
+	// SecurityGroupIds - already set from the caller code
+	// SecurityGroups - already set from the caller code
 
 	retval.BlockDeviceMappings = i.convertLaunchTemplateBlockDeviceMappings(ltData.BlockDeviceMappings)
+
+	if ltData.CapacityReservationSpecification != nil {
+		retval.CapacityReservationSpecification = &ec2.LaunchTemplateCapacityReservationSpecificationRequest{
+			CapacityReservationPreference: ltData.CapacityReservationSpecification.CapacityReservationPreference,
+			CapacityReservationTarget:     (*ec2.CapacityReservationTarget)(ltData.CapacityReservationSpecification.CapacityReservationTarget),
+		}
+	}
+
+	retval.CpuOptions = (*ec2.LaunchTemplateCpuOptionsRequest)(ltData.CpuOptions)
+
+	retval.CreditSpecification = (*ec2.CreditSpecificationRequest)(ltData.CreditSpecification)
+
+	retval.DisableApiTermination = ltData.DisableApiTermination
+
+	retval.EbsOptimized = ltData.EbsOptimized
+
+	retval.IamInstanceProfile = (*ec2.LaunchTemplateIamInstanceProfileSpecificationRequest)(ltData.IamInstanceProfile)
+
+	retval.ImageId = ltData.ImageId
+
+	retval.InstanceInitiatedShutdownBehavior = ltData.InstanceInitiatedShutdownBehavior
+
+	retval.KeyName = ltData.KeyName
+
+	retval.Monitoring = (*ec2.LaunchTemplatesMonitoringRequest)(ltData.Monitoring)
 
 	if having, nis := i.launchTemplateHasNetworkInterfaces(ltData); having {
 		for _, ni := range nis {
@@ -281,6 +322,13 @@ func (i *instance) processLaunchTemplate(retval *ec2.RequestLaunchTemplateData) 
 		}
 		retval.SecurityGroupIds = nil
 	}
+
+	if i.asg.config.PatchBeanstalkUserdata {
+		retval.UserData = getPatchedUserDataForBeanstalk(ltData.UserData)
+	} else {
+		retval.UserData = ltData.UserData
+	}
+
 	return nil
 }
 
