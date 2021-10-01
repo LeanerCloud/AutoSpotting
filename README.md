@@ -45,21 +45,19 @@ replaced with spot clones within seconds of being launched.
 
 If this fails temporarily due to insufficient spot capacity, AutoSpotting will
 continuously attempt to replace them every few minutes until successful after
-spot capacity becomes available again. When launching Spot instances, the
-compatible instance types are attempted in increasing order of their price,
-until one is successfully launched, lazily achieving diversification in case of
-temporary unavailability of certain instance types.
+spot capacity becomes available again.
+
+When launching Spot instances, the compatible instance types are chosen by
+default using a the
+[capacity-optimized-prioritized](https://docs.amazonaws.cn/en_us/AWSEC2/latest/UserGuide/ec2-fleet-examples.html#ec2-fleet-config11)
+allocation strategy, which is given a list of instance types sorted by price. This
+configuration offers a good tradeoff between low cost and significantly reduced
+interruption rates. The lowest-price allocation strategy is still available as a
+configuration option.
 
 This process can partly be seen in action below, you can click to expand the animation:
 
 ![Workflow](https://autospotting.org/img/autospotting.gif)
-
-Additionally, it implements some advanced logic that is aware of spot and on
-demand prices, including for different spot products and configurable discounts
-for reserved instances or large volume customers. It also considers the specs of
-all instance types and automatically launches the cheapest available instance
-types based on flexible configuration set globally or overridden at the group
-level using additional tags, but these overrides are often not needed.
 
 A single installation can handle all enabled groups from an entire AWS account in
 parallel across all available AWS regions, but it can be restricted to fewer
