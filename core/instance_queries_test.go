@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func TestIsSpot(t *testing.T) {
@@ -1162,126 +1163,159 @@ func Test_instance_isUnattachedSpotInstanceLaunchedForAnEnabledASG(t *testing.T)
 	tests := []struct {
 		name           string
 		i              *instance
-		wantASG        *autoScalingGroup
 		wantUnattached bool
 	}{
-		// {
-		// 	name: "on-demand instance",
-		// 	i: &instance{
-		// 		Instance: &ec2.Instance{
-		// 			InstanceLifecycle: nil,
-		// 		},
-		// 	},
-		// },
+		{
+			name: "on-demand instance",
+			i: &instance{
+				Instance: &ec2.Instance{
+					InstanceId: aws.String("id-1"),
+				},
+				region: &region{
+					enabledASGs: []autoScalingGroup{
+						{
+							name: "mygroup",
+							region: &region{
+								instances: makeInstancesWithCatalog(
+									instanceMap{
+										"id-2": {
+											Instance: &ec2.Instance{
+												InstanceId: aws.String("id-2"),
+												Tags:       []*ec2.Tag{},
+											},
+										},
+									},
+								),
+							},
+						},
+					},
+				},
+			},
+			wantUnattached: false,
+		},
 
-		// {
-		// 	name: "no instances launched for this ASG",
-		// 	asg: autoScalingGroup{
-		// 		name: "mygroup",
-		// 		region: &region{
-		// 			instances: makeInstancesWithCatalog(
-		// 				instanceMap{
-		// 					"id-1": {
-		// 						Instance: &ec2.Instance{
-		// 							InstanceId: aws.String("id-1"),
-		// 							Tags:       []*ec2.Tag{},
-		// 						},
-		// 					},
-		// 				},
-		// 			),
-		// 		},
-		// 	},
-		// 	want: nil,
-		// },
-		// {
-		// 	name: "instance launched for another ASG",
-		// 	asg: autoScalingGroup{
-		// 		name: "mygroup",
-		// 		region: &region{
-		// 			instances: makeInstancesWithCatalog(
-		// 				instanceMap{
-		// 					"id-1": {
-		// 						Instance: &ec2.Instance{
-		// 							InstanceId: aws.String("id-1"),
-		// 							Tags:       []*ec2.Tag{},
-		// 						},
-		// 					},
-		// 					"id-2": {
-		// 						Instance: &ec2.Instance{
-		// 							InstanceId: aws.String("id-2"),
-		// 							Tags: []*ec2.Tag{
-		// 								{
-		// 									Key:   aws.String("launched-for-asg"),
-		// 									Value: aws.String("another-asg"),
-		// 								},
-		// 								{
-		// 									Key:   aws.String("another-key"),
-		// 									Value: aws.String("another-value"),
-		// 								},
-		// 							},
-		// 						},
-		// 					},
-		// 				},
-		// 			),
-		// 		},
-		// 	},
-		// 	want: nil,
-		// }, {
-		// 	name: "instance launched for current ASG",
-		// 	asg: autoScalingGroup{
-		// 		name: "mygroup",
-		// 		Group: &autoscaling.Group{
-		// 			Instances: []*autoscaling.Instance{
-		// 				{InstanceId: aws.String("foo")},
-		// 				{InstanceId: aws.String("bar")},
-		// 				{InstanceId: aws.String("baz")},
-		// 			},
-		// 		},
+		{
+			name: "unattached spot instance launched for another ASG",
+			i: &instance{
+				Instance: &ec2.Instance{
+					InstanceId:        aws.String("id-1"),
+					InstanceLifecycle: aws.String("spot"),
+					Tags: []*ec2.Tag{{
+						Key:   aws.String("launched-for-asg"),
+						Value: aws.String("another-asg"),
+					},
+					},
+				},
+				region: &region{
+					enabledASGs: []autoScalingGroup{
+						{
+							name: "mygroup",
+							region: &region{
+								instances: makeInstancesWithCatalog(
+									instanceMap{
+										"id-2": {
+											Instance: &ec2.Instance{
+												InstanceId: aws.String("id-2"),
+												Tags:       []*ec2.Tag{},
+											},
+										},
+									},
+								),
+							},
+						},
+					},
+				},
+			},
+			wantUnattached: false,
+		},
 
-		// 		region: &region{
-		// 			instances: makeInstancesWithCatalog(
-		// 				instanceMap{
-		// 					"id-1": {
-		// 						Instance: &ec2.Instance{
-		// 							InstanceId: aws.String("id-1"),
-		// 							Tags:       []*ec2.Tag{},
-		// 						},
-		// 					},
-		// 					"id-2": {
-		// 						Instance: &ec2.Instance{
-		// 							InstanceId: aws.String("id-2"),
-		// 							Tags: []*ec2.Tag{
-		// 								{
-		// 									Key:   aws.String("launched-for-asg"),
-		// 									Value: aws.String("mygroup"),
-		// 								},
-		// 								{
-		// 									Key:   aws.String("another-key"),
-		// 									Value: aws.String("another-value"),
-		// 								},
-		// 							},
-		// 						},
-		// 					},
-		// 				},
-		// 			),
-		// 		},
-		// 	},
-		// 	want: &instance{
-		// 		Instance: &ec2.Instance{
-		// 			InstanceId: aws.String("id-2"),
-		// 			Tags: []*ec2.Tag{
-		// 				{
-		// 					Key:   aws.String("launched-for-asg"),
-		// 					Value: aws.String("mygroup"),
-		// 				},
-		// 				{
-		// 					Key:   aws.String("another-key"),
-		// 					Value: aws.String("another-value"),
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
+		{
+			name: "unattached spot instance launched for this ASG",
+			i: &instance{
+				Instance: &ec2.Instance{
+					InstanceId:        aws.String("id-1"),
+					InstanceLifecycle: aws.String("spot"),
+					Tags: []*ec2.Tag{{
+						Key:   aws.String("launched-for-asg"),
+						Value: aws.String("mygroup"),
+					},
+					},
+				},
+				region: &region{
+					enabledASGs: []autoScalingGroup{
+						{
+							name: "mygroup",
+							region: &region{
+								instances: makeInstancesWithCatalog(
+									instanceMap{
+										"id-2": {
+											Instance: &ec2.Instance{
+												InstanceId: aws.String("id-2"),
+												Tags:       []*ec2.Tag{},
+											},
+										},
+									},
+								),
+							},
+							Group: &autoscaling.Group{
+								// AutoScalingGroupName: "",
+
+								Instances: []*autoscaling.Instance{
+									{
+										InstanceId: aws.String("id-2"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantUnattached: true,
+		},
+
+		{
+			name: "already attached spot instance launched for this ASG",
+			i: &instance{
+				Instance: &ec2.Instance{
+					InstanceId:        aws.String("id-1"),
+					InstanceLifecycle: aws.String("spot"),
+					Tags: []*ec2.Tag{{
+						Key:   aws.String("launched-for-asg"),
+						Value: aws.String("mygroup"),
+					},
+					},
+				},
+				region: &region{
+					enabledASGs: []autoScalingGroup{
+						{
+							name: "mygroup",
+							region: &region{
+								instances: makeInstancesWithCatalog(
+									instanceMap{
+										"id-2": {
+											Instance: &ec2.Instance{
+												InstanceId: aws.String("id-1"),
+												Tags:       []*ec2.Tag{},
+											},
+										},
+									},
+								),
+							},
+							Group: &autoscaling.Group{
+								// AutoScalingGroupName: "",
+
+								Instances: []*autoscaling.Instance{
+									{
+										InstanceId: aws.String("id-1"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantUnattached: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1323,45 +1357,40 @@ func TestMin(t *testing.T) {
 	}
 }
 
-func Test_instance_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T) {
-	type fields struct {
-		Instance  *ec2.Instance
-		typeInfo  instanceTypeInformation
-		price     float64
-		region    *region
-		protected bool
-		asg       *autoScalingGroup
-	}
-	type args struct {
-		allowedList    []string
-		disallowedList []string
-	}
+func Test_instance_getReplacementTargetASGName(t *testing.T) {
+
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []instanceTypeInformation
-		wantErr bool
+		name     string
+		instance *ec2.Instance
+		want     *string
 	}{
-		// TODO: Add test cases.
+		{
+			name: "instance has no tags",
+			instance: &ec2.Instance{
+				Tags: nil,
+			},
+			want: nil,
+		},
+		{
+			name: "instance has the expected tag",
+			instance: &ec2.Instance{
+				Tags: []*ec2.Tag{
+					{
+						Key:   aws.String("launched-for-asg"),
+						Value: aws.String("mygroup"),
+					},
+				},
+			},
+			want: aws.String("mygroup"),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			i := &instance{
-				Instance:  tt.fields.Instance,
-				typeInfo:  tt.fields.typeInfo,
-				price:     tt.fields.price,
-				region:    tt.fields.region,
-				protected: tt.fields.protected,
-				asg:       tt.fields.asg,
+				Instance: tt.instance,
 			}
-			got, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(tt.args.allowedList, tt.args.disallowedList)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("instance.getCompatibleSpotInstanceTypesListSortedAscendingByPrice() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("instance.getCompatibleSpotInstanceTypesListSortedAscendingByPrice() = %v, want %v", got, tt.want)
+			if got := i.getReplacementTargetASGName(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("instance.getReplacementTargetASGName() = %#v, want %#v", spew.Sdump(got), spew.Sdump(tt.want))
 			}
 		})
 	}
