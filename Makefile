@@ -96,6 +96,10 @@ upload: artifacts                                ## Upload data to S3
 	aws s3 sync build/s3/ s3://$(BUCKET_NAME)/
 .PHONY: upload
 
+marketplace:
+	scripts/marketplace.sh
+.PHONY: marketplace
+
 vet-check:                                                   ## Verify vet compliance
 	@go vet -all ./...
 .PHONY: vet-check
