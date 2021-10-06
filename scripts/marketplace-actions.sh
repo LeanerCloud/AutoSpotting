@@ -1,4 +1,6 @@
-make docker-login docker-marketplace-push-artifacts
+make docker-marketplace-push
+make artifacts
 
-source ~/.aws/cloudprowess.env
+export AWS_PROFILE=personal
+unset AWS_SESSION_TOKEN AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 make upload
