@@ -30,7 +30,7 @@ func meterMarketplaceUsage(savings float64) error {
 	mySession := session.Must(session.NewSession())
 
 	// Create a MarketplaceMetering client with additional configuration
-	svc := marketplacemetering.New(mySession, aws.NewConfig().WithRegion("us-east-1"))
+	svc := marketplacemetering.New(mySession, aws.NewConfig())
 
 	charge := savings * 0.01 * as.config.SavingsCut
 	units := int64(charge * 1000)
