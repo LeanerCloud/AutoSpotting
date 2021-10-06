@@ -1,8 +1,14 @@
 FROM golang:alpine as golang
 RUN apk add -U --no-cache ca-certificates git make
-COPY . /src
+
+COPY go.mod go.sum /src/
+# Download dependencies
 WORKDIR /src
-RUN FLAVOR=stable CGO_ENABLED=0 GOPROXY=direct make
+RUN GOPROXY=direct go mod download
+
+COPY . /src
+
+RUN FLAVOR=stable CGO_ENABLED=0 GOPROXY=direct SAVINGS_CUT=$savings_cut make
 
 FROM alpine:latest
 COPY LICENSE BINARY_LICENSE THIRDPARTY /
