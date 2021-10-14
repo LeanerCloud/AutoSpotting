@@ -1,8 +1,8 @@
-FROM golang:1.16-alpine as golang
+FROM golang:alpine as golang
 RUN apk add -U --no-cache ca-certificates git make
 COPY . /src
 WORKDIR /src
-RUN FLAVOR=nightly CGO_ENABLED=0 GOPROXY=direct make
+RUN GOARCH=amd64 FLAVOR=nightly CGO_ENABLED=0 GOPROXY=direct make
 
 FROM scratch
 COPY LICENSE BINARY_LICENSE THIRDPARTY /

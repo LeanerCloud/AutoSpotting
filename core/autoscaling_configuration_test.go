@@ -4,10 +4,12 @@
 package autospotting
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/davecgh/go-spew/spew"
 )
 
 func TestLoadSpotPriceBufferPercentage(t *testing.T) {
@@ -466,9 +468,9 @@ func TestLoadConfOnDemand(t *testing.T) {
 			done := a.loadConfOnDemand()
 			if tt.loadingExpected != done {
 				t.Errorf("loadConfOnDemand returned: %t expected %t", done, tt.loadingExpected)
-			} else if tt.numberExpected != a.minOnDemand {
+			} else if tt.numberExpected != a.config.MinOnDemand {
 				t.Errorf("loadConfOnDemand, minOnDemand value received %d, expected %d",
-					a.minOnDemand, tt.numberExpected)
+					a.config.MinOnDemand, tt.numberExpected)
 			}
 		})
 	}
@@ -647,9 +649,11 @@ func TestLoadConfigFromTags(t *testing.T) {
 		asgTags         []*autoscaling.TagDescription
 		asgInstances    instances
 		maxSize         *int64
+		regionalCfg     *Config
 		loadingExpected bool
+		expectedConfig  AutoScalingConfig
 	}{
-		{name: "Percentage value not a number",
+		{name: OnDemandPercentageTag + " OD percentage value not a number",
 			asgTags: []*autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
@@ -668,11 +672,17 @@ func TestLoadConfigFromTags(t *testing.T) {
 					Value: aws.String("-15.0"),
 				},
 			},
-			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			asgInstances: makeInstances(),
+			maxSize:      aws.Int64(10),
+			regionalCfg: &Config{
+				AutoScalingConfig: AutoScalingConfig{
+					BiddingPolicy:             "normal",
+					SpotPriceBufferPercentage: 10.0,
+				}},
 			loadingExpected: false,
+			expectedConfig:  AutoScalingConfig{},
 		},
-		{name: "Number is invalid so percentage value is used",
+		{name: OnDemandNumberLong + " OD number is invalid so percentage value is used",
 			asgTags: []*autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
@@ -703,31 +713,78 @@ func TestLoadConfigFromTags(t *testing.T) {
 					"id-4": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize: aws.Int64(10),
+			regionalCfg: &Config{
+				AutoScalingConfig: AutoScalingConfig{
+					BiddingPolicy:             "normal",
+					SpotPriceBufferPercentage: 10.0,
+				}},
 			loadingExpected: true,
+			expectedConfig: AutoScalingConfig{
+				MinOnDemand: 3,
+			},
+		},
+		{name: "OD price multiplier",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+				{
+					Key:   aws.String(OnDemandPriceMultiplierTag),
+					Value: aws.String("0.5"),
+				},
+			},
+			regionalCfg: &Config{
+				AutoScalingConfig: AutoScalingConfig{
+					OnDemandPriceMultiplier: 0.3,
+				}},
+			loadingExpected: true,
+			expectedConfig: AutoScalingConfig{
+				OnDemandPriceMultiplier: 0.5,
+			},
+		},
+		{name: "OD price multiplier incorrect value",
+			asgTags: []*autoscaling.TagDescription{
+				{
+					Key:   aws.String("Name"),
+					Value: aws.String("asg-test"),
+				},
+				{
+					Key:   aws.String(OnDemandPriceMultiplierTag),
+					Value: aws.String("kaboom"),
+				},
+			},
+			regionalCfg: &Config{
+				AutoScalingConfig: AutoScalingConfig{
+					OnDemandPriceMultiplier: 0.5,
+				}},
+			loadingExpected: false,
+			expectedConfig: AutoScalingConfig{
+				OnDemandPriceMultiplier: 0.5,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &Config{
-				AutoScalingConfig: AutoScalingConfig{
-					BiddingPolicy:             "normal",
-					SpotPriceBufferPercentage: 10.0,
-				}}
 			a := autoScalingGroup{Group: &autoscaling.Group{},
 				region: &region{
 					name: "us-east-1",
-					conf: cfg,
+					conf: tt.regionalCfg,
 				},
 			}
 			a.Tags = tt.asgTags
 			a.instances = tt.asgInstances
 			a.MaxSize = tt.maxSize
 
-			done := a.loadConfigFromTags()
-			if tt.loadingExpected != done {
-				t.Errorf("loadConfigFromTags returned: %t expected %t", done, tt.loadingExpected)
+			got := a.loadConfigFromTags()
+			if tt.loadingExpected != got {
+				t.Errorf("loadConfigFromTags returned: %t expected %t", got, tt.loadingExpected)
+			}
+			if !reflect.DeepEqual(a.config, tt.expectedConfig) {
+				t.Errorf("loadConfigFromTags created incorrect ASG configuration: %v expected %v",
+					spew.Sdump(a.config), spew.Sdump(tt.expectedConfig))
 			}
 		})
 	}
@@ -953,9 +1010,9 @@ func TestLoadDefaultConf(t *testing.T) {
 			done := a.loadDefaultConfig()
 			if tt.loadingExpected != done {
 				t.Errorf("loadDefaultConfig returned: %t expected %t", done, tt.loadingExpected)
-			} else if tt.numberExpected != a.minOnDemand {
+			} else if tt.numberExpected != a.config.MinOnDemand {
 				t.Errorf("loadDefaultConfig, minOnDemand value received %d, expected %d",
-					a.minOnDemand, tt.numberExpected)
+					a.config.MinOnDemand, tt.numberExpected)
 			}
 		})
 	}
@@ -1143,27 +1200,27 @@ func Test_autoScalingGroup_LoadPatchBeanstalkUserdata(t *testing.T) {
 		asgName string
 		config  AutoScalingConfig
 		region  *region
-		want    string
+		want    bool
 	}{
 		{
 			name:  "No tag set on the group, use region config (no value)",
 			Group: &autoscaling.Group{},
 			region: &region{
 				conf: &Config{
-					PatchBeanstalkUserdata: "",
+					PatchBeanstalkUserdata: false,
 				},
 			},
-			want: "",
+			want: false,
 		},
 		{
 			name:  "No tag set on the group, use region config (true)",
 			Group: &autoscaling.Group{},
 			region: &region{
 				conf: &Config{
-					PatchBeanstalkUserdata: "true",
+					PatchBeanstalkUserdata: true,
 				},
 			},
-			want: "true",
+			want: true,
 		},
 		{
 			name: "Tag set on the group",
@@ -1177,10 +1234,10 @@ func Test_autoScalingGroup_LoadPatchBeanstalkUserdata(t *testing.T) {
 			},
 			region: &region{
 				conf: &Config{
-					PatchBeanstalkUserdata: "true",
+					PatchBeanstalkUserdata: true,
 				},
 			},
-			want: "false",
+			want: false,
 		},
 	}
 	for _, tt := range tests {
@@ -1195,6 +1252,142 @@ func Test_autoScalingGroup_LoadPatchBeanstalkUserdata(t *testing.T) {
 			got := a.config.PatchBeanstalkUserdata
 			if got != tt.want {
 				t.Errorf("LoadPatchBeanstalkUserdata got %v, expected %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_autoScalingGroup_loadSpotAllocationStrategy(t *testing.T) {
+
+	tests := []struct {
+		name       string
+		asgName    string
+		group      *autoscaling.Group
+		asgTags    []*autoscaling.TagDescription
+		region     *region
+		want       bool
+		wantConfig AutoScalingConfig
+	}{
+		{
+			name:  "No tag set on the group, use region config",
+			group: &autoscaling.Group{},
+			region: &region{
+				conf: &Config{
+					AutoScalingConfig: AutoScalingConfig{
+						SpotAllocationStrategy: "foo",
+					},
+				},
+			},
+			want: false,
+			wantConfig: AutoScalingConfig{
+				SpotAllocationStrategy: "foo",
+			},
+		},
+		{
+			name: "Tag set on the group",
+			group: &autoscaling.Group{
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String(SpotAllocationStrategyTag),
+						Value: aws.String("bar"),
+					},
+				},
+			},
+			region: &region{
+				conf: &Config{
+					AutoScalingConfig: AutoScalingConfig{
+						SpotAllocationStrategy: "foo",
+					},
+				},
+			},
+			want: true,
+			wantConfig: AutoScalingConfig{
+				SpotAllocationStrategy: "bar",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				name:   tt.asgName,
+				region: tt.region,
+				Group:  tt.group,
+			}
+			if got := a.loadSpotAllocationStrategy(); got != tt.want {
+				t.Errorf("autoScalingGroup.loadSpotAllocationStrategy() = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(a.config, tt.wantConfig) {
+				t.Errorf("loadSpotAllocationStrategy() created incorrect ASG configuration: %v expected %v",
+					spew.Sdump(a.config), spew.Sdump(tt.wantConfig))
+			}
+		})
+	}
+}
+
+func Test_autoScalingGroup_loadGP2ConversionThreshold(t *testing.T) {
+	tests := []struct {
+		name       string
+		asgName    string
+		group      *autoscaling.Group
+		asgTags    []*autoscaling.TagDescription
+		region     *region
+		want       bool
+		wantConfig AutoScalingConfig
+	}{
+		{
+			name:  "No tag set on the group, use region config",
+			group: &autoscaling.Group{},
+			region: &region{
+				conf: &Config{
+					AutoScalingConfig: AutoScalingConfig{
+						GP2ConversionThreshold: 100,
+					},
+				},
+			},
+			want: false,
+			wantConfig: AutoScalingConfig{
+				GP2ConversionThreshold: 100,
+			},
+		},
+		{
+			name: "Tag set on the group",
+			group: &autoscaling.Group{
+				Tags: []*autoscaling.TagDescription{
+					{
+						Key:   aws.String(GP2ConversionThresholdTag),
+						Value: aws.String("120"),
+					},
+				},
+			},
+			region: &region{
+				conf: &Config{
+					AutoScalingConfig: AutoScalingConfig{
+						GP2ConversionThreshold: 100,
+					},
+				},
+			},
+			want: true,
+			wantConfig: AutoScalingConfig{
+				GP2ConversionThreshold: 120,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &autoScalingGroup{
+				name:   tt.asgName,
+				region: tt.region,
+				Group:  tt.group,
+			}
+			if got := a.loadGP2ConversionThreshold(); got != tt.want {
+				t.Errorf("autoScalingGroup.loadGP2ConversionThreshold() = %v, want %v", got, tt.want)
+			}
+
+			if !reflect.DeepEqual(a.config, tt.wantConfig) {
+				t.Errorf("autoScalingGroup.loadGP2ConversionThreshold() created incorrect ASG configuration: %v expected %v",
+					spew.Sdump(a.config), spew.Sdump(tt.wantConfig))
 			}
 		})
 	}

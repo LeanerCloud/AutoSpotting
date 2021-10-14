@@ -42,7 +42,7 @@ type launchSpotReplacement struct {
 func (lsr launchSpotReplacement) run() {
 	spotInstanceID, err := lsr.target.onDemandInstance.launchSpotReplacement()
 	if err != nil {
-		log.Printf("Could not launch cheapest spot instance: %s", err)
+		log.Printf("Could not launch replacement spot instance: %s", err)
 		return
 	}
 	log.Printf("Successfully launched spot instance %s, exiting...", *spotInstanceID)

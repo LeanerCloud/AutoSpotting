@@ -101,7 +101,7 @@ type Config struct {
 	// Controls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use
 	// the instance role when calling CloudFormation helpers instead of the standard CloudFormation
 	// authentication method
-	PatchBeanstalkUserdata string
+	PatchBeanstalkUserdata bool
 
 	// JSON file containing event data used for locally simulating execution from Lambda.
 	EventFile string
@@ -239,7 +239,7 @@ func ParseConfig(conf *Config) {
 		"This needs to exist in the same region as the main AutoSpotting Lambda function"+
 		"\tExample: ./AutoSpotting --sqs_queue_url https://sqs.{AwsRegion}.amazonaws.com/{AccountId}/AutoSpotting.fifo\n")
 
-	flagSet.StringVar(&conf.PatchBeanstalkUserdata, "patch_beanstalk_userdata", "",
+	flagSet.BoolVar(&conf.PatchBeanstalkUserdata, "patch_beanstalk_userdata", false,
 		"\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the "+
 			"instance role when calling CloudFormation helpers instead of the standard CloudFormation "+
 			"authentication method\n"+
@@ -259,6 +259,13 @@ func ParseConfig(conf *Config) {
 	flagSet.BoolVar(&conf.DisableInstanceRebalanceRecommendation, "disable_instance_rebalance_recommendation", false,
 		"\n\tDisables handling of instance rebalance recommendation events.\n"+
 			"\tExample: ./AutoSpotting --disable_instance_rebalance_recommendation=true\n")
+
+	flagSet.StringVar(&conf.SpotAllocationStrategy, "spot_allocation_strategy", "capacity-optimized-prioritized",
+		"\n\tControls the Spot allocation strategy for launching Spot instances. Allowed options: \n"+
+			"\t'capacity-optimized-prioritized' (default), 'capacity-optimized', 'lowest-price'.\n"+
+			"\tFurther information on this is available at "+
+			"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html\n"+
+			"\tExample: ./AutoSpotting --spot_allocation_strategy capacity-optimized-prioritized\n")
 
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 

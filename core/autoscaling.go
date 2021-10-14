@@ -23,7 +23,6 @@ type autoScalingGroup struct {
 	launchConfiguration *launchConfiguration
 	launchTemplate      *launchTemplate
 	instances           instances
-	minOnDemand         int64
 	config              AutoScalingConfig
 }
 
@@ -121,7 +120,7 @@ func (a *autoScalingGroup) loadLaunchTemplate() (*launchTemplate, error) {
 func (a *autoScalingGroup) needReplaceOnDemandInstances() (bool, int64) {
 	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, nil)
 	debug.Printf("onDemandRunning=%v totalRunning=%v a.minOnDemand=%v",
-		onDemandRunning, totalRunning, a.minOnDemand)
+		onDemandRunning, totalRunning, a.config.MinOnDemand)
 
 	if totalRunning == 0 {
 		log.Printf("The group %s is currently empty or in the process of launching new instances",
@@ -129,12 +128,12 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() (bool, int64) {
 		return true, totalRunning
 	}
 
-	if onDemandRunning > a.minOnDemand {
+	if onDemandRunning > a.config.MinOnDemand {
 		log.Println("Currently more than enough OnDemand instances running")
 		return true, totalRunning
 	}
 
-	if onDemandRunning == a.minOnDemand {
+	if onDemandRunning == a.config.MinOnDemand {
 		log.Println("Currently OnDemand running equals to the required number, skipping run")
 		return false, totalRunning
 	}
@@ -150,7 +149,7 @@ func (a *autoScalingGroup) terminateRandomSpotInstanceIfHavingEnough(totalRunnin
 	}
 
 	if allInstancesAreRunning, onDemandRunning := a.allInstancesRunning(); allInstancesAreRunning {
-		if a.instances.count64() == *a.DesiredCapacity && onDemandRunning == a.minOnDemand {
+		if a.instances.count64() == *a.DesiredCapacity && onDemandRunning == a.config.MinOnDemand {
 			log.Println("Currently Spot running equals to the required number, skipping termination")
 			return nil
 		}
