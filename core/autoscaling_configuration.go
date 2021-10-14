@@ -106,11 +106,16 @@ const (
 	// GP2ConversionThresholdTag is the name of the tag set on the AutoScaling Group that
 	// can override the global value of the GP2ConversionThreshold parameter
 	GP2ConversionThresholdTag = "autospotting_gp2_conversion_threshold"
+
+	// SpotAllocationStrategyTag is the name of the tag set on the AutoScaling Group that
+	// can override the global value of the SpotAllocationStrategy parameter
+	SpotAllocationStrategyTag = "autospotting_spot_allocation_strategy"
 )
 
 // AutoScalingConfig stores some group-specific configurations that can override
 // their corresponding global values
 type AutoScalingConfig struct {
+	MinOnDemand             int64
 	MinOnDemandNumber       int64
 	MinOnDemandPercentage   float64
 	AllowedInstanceTypes    string
@@ -136,10 +141,16 @@ type AutoScalingConfig struct {
 	CronTimezone      string
 	CronScheduleState string // "on" or "off", dictate whether to run inside the CronSchedule or not
 
-	PatchBeanstalkUserdata string
+	PatchBeanstalkUserdata bool
 
-	// Threshold for converting EBS volumes from GP2 to GP3, since after a certain size GP2 may be more performant than GP3.
+	// Threshold for converting EBS volumes from GP2 to GP3, since after a certain
+	// size GP2 may be more performant than GP3.
 	GP2ConversionThreshold int64
+
+	// Controls the instance type selection when launching new Spot instances.
+	// Further information about this is available at
+	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html
+	SpotAllocationStrategy string
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -214,8 +225,8 @@ func (a *autoScalingGroup) getTagValue(keyMatch string) *string {
 }
 
 func (a *autoScalingGroup) setMinOnDemandIfLarger(newValue int64, hasMinOnDemand bool) bool {
-	if !hasMinOnDemand || newValue > a.minOnDemand {
-		a.minOnDemand = newValue
+	if !hasMinOnDemand || newValue > a.config.MinOnDemand {
+		a.config.MinOnDemand = newValue
 	}
 	return true
 }
@@ -241,27 +252,48 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 	return foundLimit
 }
 
-func (a *autoScalingGroup) loadPatchBeanstalkUserdata() {
+func (a *autoScalingGroup) loadPatchBeanstalkUserdata() bool {
 	tagValue := a.getTagValue(PatchBeanstalkUserdataTag)
 
 	if tagValue != nil {
 		log.Printf("Loaded PatchBeanstalkUserdata value %v from tag %v\n", *tagValue, PatchBeanstalkUserdataTag)
-		a.config.PatchBeanstalkUserdata = *tagValue
-		return
-	}
+		val, err := strconv.ParseBool(*tagValue)
 
+		if err != nil {
+			log.Printf("Failed to parse PatchBeanstalkUserdata value %v as a boolean", *tagValue)
+			return false
+		}
+		a.config.PatchBeanstalkUserdata = val
+		return true
+	}
 	debug.Println("Couldn't find tag", PatchBeanstalkUserdataTag, "on the group", a.name, "using the default configuration")
 	a.config.PatchBeanstalkUserdata = a.region.conf.PatchBeanstalkUserdata
+	return false
 }
 
-func (a *autoScalingGroup) loadGP2ConversionThreshold() {
+func (a *autoScalingGroup) loadSpotAllocationStrategy() bool {
+	a.config.SpotAllocationStrategy = a.region.conf.SpotAllocationStrategy
+
+	tagValue := a.getTagValue(SpotAllocationStrategyTag)
+
+	if tagValue != nil {
+		log.Printf("Loaded AllocationStrategy value %v from tag %v\n", *tagValue, SpotAllocationStrategyTag)
+		a.config.SpotAllocationStrategy = *tagValue
+		return true
+	}
+
+	debug.Println("Couldn't find tag", SpotAllocationStrategyTag, "on the group", a.name, "using the default configuration")
+	return false
+}
+
+func (a *autoScalingGroup) loadGP2ConversionThreshold() bool {
 	// setting the default value
 	a.config.GP2ConversionThreshold = a.region.conf.GP2ConversionThreshold
 
 	tagValue := a.getTagValue(GP2ConversionThresholdTag)
 	if tagValue == nil {
 		log.Printf("Couldn't load the GP2ConversionThreshold from tag %v, using the globally configured value of %v\n", GP2ConversionThresholdTag, a.config.GP2ConversionThreshold)
-		return
+		return false
 	}
 
 	log.Printf("Loaded GP2ConversionThreshold value %v from tag %v\n", *tagValue, GP2ConversionThresholdTag)
@@ -269,12 +301,12 @@ func (a *autoScalingGroup) loadGP2ConversionThreshold() {
 	threshold, err := strconv.Atoi(*tagValue)
 	if err != nil {
 		log.Printf("Error parsing %v qs integer: %s\n", *tagValue, err.Error())
-		return
+		return false
 	}
 
 	debug.Println("Successfully parsed", GP2ConversionThresholdTag, "on the group", a.name, "overriding the default configuration")
 	a.config.GP2ConversionThreshold = int64(threshold)
-
+	return true
 }
 
 func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
@@ -287,42 +319,45 @@ func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
 	return biddingPolicy, true
 }
 
-func (a *autoScalingGroup) LoadCronSchedule() {
+func (a *autoScalingGroup) LoadCronSchedule() bool {
 	tagValue := a.getTagValue(ScheduleTag)
 
 	if tagValue != nil {
 		log.Printf("Loaded CronSchedule value %v from tag %v\n", *tagValue, ScheduleTag)
 		a.config.CronSchedule = *tagValue
-		return
+		return true
 	}
 
 	debug.Println("Couldn't find tag", ScheduleTag, "on the group", a.name, "using the default configuration")
 	a.config.CronSchedule = a.region.conf.CronSchedule
+	return false
 }
 
-func (a *autoScalingGroup) LoadCronTimezone() {
+func (a *autoScalingGroup) LoadCronTimezone() bool {
 	tagValue := a.getTagValue(TimezoneTag)
 
 	if tagValue != nil {
 		log.Printf("Loaded CronTimezone value %v from tag %v\n", *tagValue, TimezoneTag)
 		a.config.CronTimezone = *tagValue
-		return
+		return true
 	}
 
 	debug.Println("Couldn't find tag", TimezoneTag, "on the group", a.name, "using the default configuration")
 	a.config.CronTimezone = a.region.conf.CronTimezone
+	return false
 }
 
-func (a *autoScalingGroup) LoadCronScheduleState() {
+func (a *autoScalingGroup) LoadCronScheduleState() bool {
 	tagValue := a.getTagValue(CronScheduleStateTag)
 	if tagValue != nil {
 		log.Printf("Loaded CronScheduleState value %v from tag %v\n", *tagValue, CronScheduleStateTag)
 		a.config.CronScheduleState = *tagValue
-		return
+		return true
 	}
 
 	debug.Println("Couldn't find tag", CronScheduleStateTag, "on the group", a.name, "using the default configuration")
 	a.config.CronScheduleState = a.region.conf.CronScheduleState
+	return false
 }
 
 func (a *autoScalingGroup) loadConfSpot() bool {
@@ -357,7 +392,7 @@ func (a *autoScalingGroup) loadConfSpotPrice() bool {
 }
 
 func (a *autoScalingGroup) loadConfOnDemandPriceMultiplier() bool {
-
+	a.config.OnDemandPriceMultiplier = a.region.conf.OnDemandPriceMultiplier
 	tagValue := a.getTagValue(OnDemandPriceMultiplierTag)
 	if tagValue == nil {
 		return false
@@ -375,37 +410,59 @@ func (a *autoScalingGroup) loadConfOnDemandPriceMultiplier() bool {
 
 // Add configuration of other elements here: prices, whitelisting, etc
 func (a *autoScalingGroup) loadConfigFromTags() bool {
+	ret := false
 
-	resOnDemandConf := a.loadConfOnDemand()
-
-	resOnDemandPriceMultiplierConf := a.loadConfOnDemandPriceMultiplier()
-
-	resSpotConf := a.loadConfSpot()
-
-	resSpotPriceConf := a.loadConfSpotPrice()
-
-	a.LoadCronSchedule()
-	a.LoadCronTimezone()
-	a.LoadCronScheduleState()
-	a.loadPatchBeanstalkUserdata()
-	a.loadGP2ConversionThreshold()
-
-	if resOnDemandConf {
+	if a.loadConfOnDemand() {
 		log.Println("Found and applied configuration for OnDemand value")
+		ret = true
 	}
-	if resOnDemandPriceMultiplierConf {
+
+	if a.loadConfOnDemandPriceMultiplier() {
 		log.Println("Found and applied configuration for OnDemand Price Multiplier")
+		ret = true
 	}
-	if resSpotConf {
+
+	if a.loadConfSpot() {
 		log.Println("Found and applied configuration for Spot Bid")
+		ret = true
 	}
-	if resSpotPriceConf {
+
+	if a.loadConfSpotPrice() {
 		log.Println("Found and applied configuration for Spot Price")
+		ret = true
 	}
-	if resOnDemandConf || resOnDemandPriceMultiplierConf || resSpotConf || resSpotPriceConf {
-		return true
+
+	if a.LoadCronSchedule() {
+		log.Println("Found and applied configuration for Spot Price")
+		ret = true
 	}
-	return false
+
+	if a.LoadCronTimezone() {
+		log.Println("Found and applied configuration for Spot Price")
+		ret = true
+	}
+
+	if a.LoadCronScheduleState() {
+		log.Println("Found and applied configuration for Spot Price")
+		ret = true
+	}
+
+	if a.loadPatchBeanstalkUserdata() {
+		log.Println("Found and applied configuration for Spot Price")
+		ret = true
+	}
+
+	if a.loadGP2ConversionThreshold() {
+		log.Println("Found and applied configuration for Spot Price")
+		ret = true
+	}
+
+	if a.loadSpotAllocationStrategy() {
+		log.Println("Found and applied configuration for Spot Price")
+		ret = true
+	}
+
+	return ret
 }
 
 func (a *autoScalingGroup) loadDefaultConfigNumber() (int64, bool) {
@@ -432,17 +489,17 @@ func (a *autoScalingGroup) loadDefaultConfigPercentage() (int64, bool) {
 
 func (a *autoScalingGroup) loadDefaultConfig() bool {
 	done := false
-	a.minOnDemand = DefaultMinOnDemandValue
+	a.config.MinOnDemand = DefaultMinOnDemandValue
 
 	if a.region.conf.SpotPriceBufferPercentage <= 0 {
 		a.region.conf.SpotPriceBufferPercentage = DefaultSpotPriceBufferPercentage
 	}
 
 	if a.region.conf.MinOnDemandNumber != 0 {
-		a.minOnDemand, done = a.loadDefaultConfigNumber()
+		a.config.MinOnDemand, done = a.loadDefaultConfigNumber()
 	}
 	if !done && a.region.conf.MinOnDemandPercentage != 0 {
-		a.minOnDemand, done = a.loadDefaultConfigPercentage()
+		a.config.MinOnDemand, done = a.loadDefaultConfigPercentage()
 	} else {
 		log.Println("No default value for on-demand instances specified, skipping.")
 	}

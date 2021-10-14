@@ -993,7 +993,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 			}
 			lc, err := a.loadLaunchConfiguration()
 
-			if !reflect.DeepEqual(tt.expectedErr, err) {
+			if !errorMatches(err, tt.expectedErr) {
 				t.Errorf("loadLaunchConfiguration received error status: %+v expected %+v",
 					err, tt.expectedErr)
 			}
@@ -1125,8 +1125,7 @@ func TestLoadLaunchTemplate(t *testing.T) {
 				},
 			}
 			lt, err := a.loadLaunchTemplate()
-
-			if !reflect.DeepEqual(tt.expectedErr, err) {
+			if !errorMatches(err, tt.expectedErr) {
 				t.Errorf("loadLaunchConfiguration received error status: %+v expected %+v",
 					err, tt.expectedErr)
 			}
@@ -1351,7 +1350,7 @@ func TestGetAnySpotInstance(t *testing.T) {
 					},
 					"ondemand-stopped": {
 						Instance: &ec2.Instance{
-							InstanceId:        aws.String("onemand-stopped"),
+							InstanceId:        aws.String("ondemand-stopped"),
 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
@@ -1359,7 +1358,7 @@ func TestGetAnySpotInstance(t *testing.T) {
 					},
 					"ondemand-running": {
 						Instance: &ec2.Instance{
-							InstanceId:        aws.String("onemand-running"),
+							InstanceId:        aws.String("ondemand-running"),
 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1c")},
 							InstanceLifecycle: aws.String(""),
@@ -2066,7 +2065,7 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 		expected     []string
 		instanceInfo *instance
 		asg          *autoScalingGroup
-		asgtags      []*autoscaling.TagDescription
+		asgTags      []*autoscaling.TagDescription
 	}{
 		{name: "Single Type Tag c2.xlarge",
 			expected: []string{"c2.xlarge"},
@@ -2088,7 +2087,7 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			asgtags: []*autoscaling.TagDescription{
+			asgTags: []*autoscaling.TagDescription{
 				{
 					Key:   aws.String("autospotting_allowed_instance_types"),
 					Value: aws.String("c2.xlarge"),
@@ -2115,7 +2114,7 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			asgtags: []*autoscaling.TagDescription{},
+			asgTags: []*autoscaling.TagDescription{},
 		},
 		{name: "Single Type from Base c2.xlarge",
 			expected: []string{"c2.xlarge"},
@@ -2137,7 +2136,7 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			asgtags: []*autoscaling.TagDescription{},
+			asgTags: []*autoscaling.TagDescription{},
 		},
 		{name: "ASG precedence on command line",
 			expected: []string{"c4.4xlarge"},
@@ -2159,7 +2158,7 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			asgtags: []*autoscaling.TagDescription{
+			asgTags: []*autoscaling.TagDescription{
 				{
 					Key:   aws.String("autospotting_allowed_instance_types"),
 					Value: aws.String("c4.4xlarge"),
@@ -2186,7 +2185,7 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			asgtags: []*autoscaling.TagDescription{
+			asgTags: []*autoscaling.TagDescription{
 				{
 					Key:   aws.String("autospotting_allowed_instance_types"),
 					Value: aws.String("current"),
@@ -2213,7 +2212,7 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			asgtags: []*autoscaling.TagDescription{},
+			asgTags: []*autoscaling.TagDescription{},
 		},
 		{name: "Space separated list",
 			expected: []string{"c2.xlarge", "t2.medium", "c3.small"},
@@ -2235,7 +2234,7 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			asgtags: []*autoscaling.TagDescription{},
+			asgTags: []*autoscaling.TagDescription{},
 		},
 		{name: "No empty elements in comma separated list",
 			expected: []string{"c2.xlarge", "t2.medium", "c3.small"},
@@ -2257,7 +2256,7 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			asgtags: []*autoscaling.TagDescription{},
+			asgTags: []*autoscaling.TagDescription{},
 		},
 		{name: "No empty elements in space separated list",
 			expected: []string{"c2.xlarge", "t2.medium", "c3.small"},
@@ -2279,14 +2278,14 @@ func TestGetAllowedInstanceTypes(t *testing.T) {
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			asgtags: []*autoscaling.TagDescription{},
+			asgTags: []*autoscaling.TagDescription{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := tt.asg
-			a.Tags = tt.asgtags
+			a.Tags = tt.asgTags
 			baseInstance := tt.instanceInfo
 			allowed := a.getAllowedInstanceTypes(baseInstance)
 			if !reflect.DeepEqual(allowed, tt.expected) {
@@ -2578,9 +2577,9 @@ func Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance(t *testing.T) {
 							},
 						},
 					},
-					"ondemand-protected-scalein": {
+					"ondemand-protected-scale-in": {
 						Instance: &ec2.Instance{
-							InstanceId:        aws.String("ondemand-protected-scalein"),
+							InstanceId:        aws.String("ondemand-protected-scale-in"),
 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("1b")},
 							InstanceLifecycle: aws.String(""),
@@ -2589,7 +2588,7 @@ func Test_autoScalingGroup_getAnyUnprotectedOnDemandInstance(t *testing.T) {
 							Group: &autoscaling.Group{
 								Instances: []*autoscaling.Instance{
 									{
-										InstanceId:           aws.String("ondemand-protected-scalein"),
+										InstanceId:           aws.String("ondemand-protected-scale-in"),
 										ProtectedFromScaleIn: aws.Bool(true),
 										AvailabilityZone:     aws.String("1b"),
 									},
@@ -2885,8 +2884,10 @@ func Test_autoScalingGroup_needReplaceOnDemandInstances(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &autoScalingGroup{
-				instances:   tt.instances,
-				minOnDemand: tt.minOnDemand,
+				instances: tt.instances,
+				config: AutoScalingConfig{
+					MinOnDemand: tt.minOnDemand,
+				},
 			}
 			gotNeed, gotTotal := a.needReplaceOnDemandInstances()
 			if gotNeed != tt.wantNeed {
@@ -2909,7 +2910,6 @@ func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.
 		region              *region
 		launchConfiguration *launchConfiguration
 		instances           instances
-		minOnDemand         int64
 		config              AutoScalingConfig
 		totalRunning        int64
 		wait                bool
@@ -2959,7 +2959,9 @@ func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.
 			group: &autoscaling.Group{
 				DesiredCapacity: aws.Int64(2),
 			},
-			minOnDemand: 1,
+			config: AutoScalingConfig{
+				MinOnDemand: 1,
+			},
 			instances: makeInstancesWithCatalog(instanceMap{
 				"i-f00": &instance{
 					Instance: &ec2.Instance{
@@ -3060,7 +3062,6 @@ func Test_autoScalingGroup_terminateRandomSpotInstanceIfHavingEnough(t *testing.
 				region:              tt.region,
 				launchConfiguration: tt.launchConfiguration,
 				instances:           tt.instances,
-				minOnDemand:         tt.minOnDemand,
 				config:              tt.config,
 			}
 			if err := a.terminateRandomSpotInstanceIfHavingEnough(tt.totalRunning, tt.wait); (err != nil) != tt.wantErr {

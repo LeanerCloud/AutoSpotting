@@ -23,11 +23,22 @@ It is usually set up to monitor existing long-running AutoScaling groups,
 replacing their instances with Spot instances with minimal configuration
 changes.
 
-Often all it needs is just tagging them with `spot-enabled=true`, but
-even that can be avoided in some cases, yielding the usual 70%-90% Spot cost
+Often all it needs is just tagging them with `spot-enabled=true`, (in some cases
+even that can be avoided), yielding the usual 70%-90% Spot cost
 savings but in a better integrated and easier to adopt way
-than other alternative tools and solutions, especially if you run infrastructure
-that for whatever reasons you can't afford to update to Spot by other means.
+than other alternative tools and solutions.
+
+It is particularly useful if you have a large footprint that you want to migrate
+to Spot quickly due to management pressure but with minimal effort and configuration
+changes.
+
+## Guiding principles ##
+
+- Customer-focused, designed to maximize user benefits and reduce adoption friction
+- Safe and secure, hosted in your AWS account and with minimal required set of IAM permissions
+- Auditable OSS code base developed in the open
+- Inexpensive, easy to install and supported builds offered through the AWS Marketplace
+- Simple, minimalist implementation
 
 ## How does it work? ##
 
@@ -45,21 +56,19 @@ replaced with spot clones within seconds of being launched.
 
 If this fails temporarily due to insufficient spot capacity, AutoSpotting will
 continuously attempt to replace them every few minutes until successful after
-spot capacity becomes available again. When launching Spot instances, the
-compatible instance types are attempted in increasing order of their price,
-until one is successfully launched, lazily achieving diversification in case of
-temporary unavailability of certain instance types.
+spot capacity becomes available again.
+
+When launching Spot instances, the compatible instance types are chosen by
+default using a the
+[capacity-optimized-prioritized](https://docs.amazonaws.cn/en_us/AWSEC2/latest/UserGuide/ec2-fleet-examples.html#ec2-fleet-config11)
+allocation strategy, which is given a list of instance types sorted by price. This
+configuration offers a good tradeoff between low cost and significantly reduced
+interruption rates. The lowest-price allocation strategy is still available as a
+configuration option.
 
 This process can partly be seen in action below, you can click to expand the animation:
 
 ![Workflow](https://autospotting.org/img/autospotting.gif)
-
-Additionally, it implements some advanced logic that is aware of spot and on
-demand prices, including for different spot products and configurable discounts
-for reserved instances or large volume customers. It also considers the specs of
-all instance types and automatically launches the cheapest available instance
-types based on flexible configuration set globally or overridden at the group
-level using additional tags, but these overrides are often not needed.
 
 A single installation can handle all enabled groups from an entire AWS account in
 parallel across all available AWS regions, but it can be restricted to fewer
@@ -74,8 +83,6 @@ the traffic would automatically be drained on termination.
 
 The savings it generates are in the 60-90% range usually seen when using spot
 instances, but they may vary depending on region and instance type.
-
-![Savings](https://autospotting.org/img/savings.png)
 
 ## What's under the hood? ##
 

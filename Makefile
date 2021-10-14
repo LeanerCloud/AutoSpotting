@@ -19,6 +19,8 @@ BUILD := $(DOCKER_IMAGE_VERSION)-$(FLAVOR)-$(SHA)
 EXPIRATION := $(shell go run ./scripts/expiration_date.go)
 SAVINGS_CUT ?= 5
 
+GOARCH ?= amd64
+
 ifneq ($(FLAVOR), custom)
     LICENSE_FILES += BINARY_LICENSE
 endif

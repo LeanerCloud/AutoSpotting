@@ -38,6 +38,7 @@ func (s *spotPrices) fetch(product string,
 	data := []*ec2.SpotPrice{}
 	err := ec2Conn.DescribeSpotPriceHistoryPages(params, func(page *ec2.DescribeSpotPriceHistoryOutput, lastPage bool) bool {
 		data = append(data, page.SpotPriceHistory...)
+		debug.Printf("DescribeSpotPriceHistory lastPage: %v", lastPage)
 		return true
 	})
 

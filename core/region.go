@@ -51,7 +51,7 @@ type prices struct {
 	premium      float64
 }
 
-// The key in this map is the availavility zone
+// The key in this map is the availability zone
 type spotPriceMap map[string]float64
 
 func (r *region) enabled() bool {
@@ -435,7 +435,7 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 		&autoscaling.DescribeAutoScalingGroupsInput{},
 		func(page *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
 			pageNum++
-			debug.Println("Processing page", pageNum, "of DescribeAutoScalingGroupsPages for", r.name)
+			debug.Println("Processing page", pageNum, "of DescribeAutoScalingGroupsPages for", r.name, "lastPage is", lastPage)
 			matchingAsgs := r.findMatchingASGsInPageOfResults(page.AutoScalingGroups, r.tagsToFilterASGsBy)
 			r.enabledASGs = append(r.enabledASGs, matchingAsgs...)
 			return true
