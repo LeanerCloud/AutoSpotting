@@ -1,4 +1,4 @@
-make docker-marketplace-push
+make docker-marketplace
 make artifacts
 
 export AWS_PROFILE=personal
