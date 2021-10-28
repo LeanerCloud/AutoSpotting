@@ -67,28 +67,20 @@ artifacts:                                       			 ## Create CloudFormation ar
 .PHONY: artifacts
 
 docker: 													 ##  Build a Docker image, currently only supports x86 hosts
-	docker build -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) .
+	docker build --platform=linux/amd64 --push -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) .
 .PHONY: docker
 
 docker-login:
 	 aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(DOCKER_IMAGE)
 
-docker-push: docker
-	docker push $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION)
-.PHONY: docker-push
-
-docker-push-artifacts: docker-push artifacts
+docker-push-artifacts: docker artifacts
 .PHONY: docker-push-artifacts
 
 docker-marketplace:
-	docker build -f Dockerfile.marketplace -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) .
+	docker build -f Dockerfile.marketplace --platform=linux/amd64 --push -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) --build-arg savings_cut=${SAVINGS_CUT} .
 .PHONY: docker-marketplace
 
-docker-marketplace-push: docker-marketplace
-	docker push $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION)
-.PHONY: docker-marketplace-push
-
-docker-marketplace-push-artifacts: docker-marketplace-push artifacts
+docker-marketplace-push-artifacts: docker-marketplace artifacts
 .PHONY: docker-marketplace-push-artifacts
 
 upload: artifacts                                ## Upload data to S3
