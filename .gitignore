@@ -9,4 +9,4 @@ handler.zip
 .idea/
 Makefile.lambda
 .history
-
+.DS_Store
