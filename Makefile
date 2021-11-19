@@ -67,7 +67,7 @@ artifacts:                                       			 ## Create CloudFormation ar
 .PHONY: artifacts
 
 docker: 													 ##  Build a Docker image, currently only supports x86 hosts
-	docker build --platform=linux/amd64 --push -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) .
+	docker build --build-arg flavor=$(FLAVOR) --platform=linux/amd64 --push -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) .
 .PHONY: docker
 
 docker-login:
