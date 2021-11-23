@@ -1053,7 +1053,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, _ := tt.inst.createLaunchTemplateData()
+			got, _ := tt.inst.createLaunchTemplateData("spot")
 
 			// make sure the lists of tags are sorted, otherwise the comparison fails
 			sort.Slice(got.TagSpecifications[0].Tags, func(i, j int) bool {
@@ -1586,6 +1586,9 @@ func Test_instance_createFleetInput(t *testing.T) {
 						},
 					},
 				},
+				OnDemandOptions: &ec2.OnDemandOptionsRequest{
+					AllocationStrategy: aws.String("prioritized"),
+				},
 				SpotOptions: &ec2.SpotOptionsRequest{
 					AllocationStrategy: aws.String("capacity-optimized-prioritized"),
 				},
@@ -1634,6 +1637,9 @@ func Test_instance_createFleetInput(t *testing.T) {
 						},
 					},
 				},
+				OnDemandOptions: &ec2.OnDemandOptionsRequest{
+					AllocationStrategy: aws.String("prioritized"),
+				},
 				SpotOptions: &ec2.SpotOptionsRequest{
 					AllocationStrategy: aws.String("capacity-optimized"),
 				},
@@ -1650,7 +1656,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got := tt.i.createFleetInput(tt.ltName, tt.instanceTypes)
+			got := tt.i.createFleetInput(tt.ltName, tt.instanceTypes, "spot")
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("instance.createFleetInput() = %v, want %v", got, tt.want)

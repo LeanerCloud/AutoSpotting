@@ -403,8 +403,13 @@ func (i *instance) processImageBlockDevices(rii *ec2.RequestLaunchTemplateData) 
 	rii.BlockDeviceMappings = i.convertImageBlockDeviceMappings(resp.Images[0].BlockDeviceMappings)
 }
 
-func (i *instance) createLaunchTemplateData() (*ec2.RequestLaunchTemplateData, error) {
-	i.price = i.typeInfo.pricing.onDemand * i.asg.config.OnDemandPriceMultiplier
+func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2.RequestLaunchTemplateData, error) {
+	odPrice := i.typeInfo.pricing.onDemand
+	mp := 1.0
+	if i.asg != nil && i.asg.config.OnDemandPriceMultiplier != 0 {
+		mp = i.asg.config.OnDemandPriceMultiplier
+	}
+	i.price = odPrice * mp
 
 	placement := ec2.LaunchTemplatePlacementRequest(*i.Placement)
 
@@ -430,11 +435,14 @@ func (i *instance) createLaunchTemplateData() (*ec2.RequestLaunchTemplateData, e
 
 	ltData.EbsOptimized = i.EbsOptimized
 
-	ltData.InstanceMarketOptions = &ec2.LaunchTemplateInstanceMarketOptionsRequest{
-		MarketType: aws.String(Spot),
-		SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
-			MaxPrice: aws.String(strconv.FormatFloat(i.price, 'g', 10, 64)),
-		},
+	if instanceLifecycle == "spot" {
+
+		ltData.InstanceMarketOptions = &ec2.LaunchTemplateInstanceMarketOptionsRequest{
+			MarketType: aws.String(Spot),
+			SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
+				MaxPrice: aws.String(strconv.FormatFloat(i.price, 'g', 10, 64)),
+			},
+		}
 	}
 
 	ltData.Placement = &placement
@@ -467,7 +475,7 @@ func (i *instance) createFleetLaunchTemplate(ltData *ec2.RequestLaunchTemplateDa
 	return &ltName, err
 }
 
-func (i *instance) createFleetInput(ltName *string, instanceTypes []*string) *ec2.CreateFleetInput {
+func (i *instance) createFleetInput(ltName *string, instanceTypes []*string, lifeCycle string) *ec2.CreateFleetInput {
 
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 
@@ -494,12 +502,21 @@ func (i *instance) createFleetInput(ltName *string, instanceTypes []*string) *ec
 		SpotOptions: &ec2.SpotOptionsRequest{
 			AllocationStrategy: aws.String(i.asg.config.SpotAllocationStrategy),
 		},
+		OnDemandOptions: &ec2.OnDemandOptionsRequest{
+			AllocationStrategy: aws.String("prioritized"),
+		},
 		Type: aws.String("instant"),
 		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 			SpotTargetCapacity:        aws.Int64(1),
 			TotalTargetCapacity:       aws.Int64(1),
 			DefaultTargetCapacityType: aws.String("spot"),
 		},
+	}
+	if lifeCycle != "spot" {
+		log.Printf("Overriding default capacity type to ondemand\n")
+		retval.TargetCapacitySpecification.DefaultTargetCapacityType = aws.String("on-demand")
+		retval.TargetCapacitySpecification.SpotTargetCapacity = aws.Int64(0)
+		retval.TargetCapacitySpecification.OnDemandTargetCapacity = aws.Int64(1)
 	}
 	return retval
 }

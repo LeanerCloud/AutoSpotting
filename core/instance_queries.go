@@ -97,8 +97,7 @@ func (i *instance) canTerminate() bool {
 func (i *instance) shouldBeReplacedWithSpot() bool {
 	protT, _ := i.isProtectedFromTermination()
 	return i.belongsToEnabledASG() &&
-		i.asgNeedsReplacement() &&
-		!i.isSpot() &&
+		(i.isSpot() || i.asgNeedsReplacement()) &&
 		!i.isProtectedFromScaleIn() &&
 		!protT
 }
@@ -121,7 +120,7 @@ func (i *instance) belongsToEnabledASG() bool {
 			asg.loadLaunchTemplate()
 			i.asg = &asg
 			i.price = i.typeInfo.pricing.onDemand / i.region.conf.OnDemandPriceMultiplier * i.asg.config.OnDemandPriceMultiplier
-			log.Printf("%s instace %s belongs to enabled ASG %s", i.region.name,
+			log.Printf("%s instance %s belongs to enabled ASG %s", i.region.name,
 				*i.InstanceId, i.asg.name)
 			return true
 		}
