@@ -413,29 +413,29 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 // Terminates an instance from the group using the
 // TerminateInstanceInAutoScalingGroup api call.
 func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
-	instanceID *string, wait bool, decreaseCapacity bool) error {
+	i *instance, wait bool, decreaseCapacity bool) error {
 
 	if wait {
 		err := a.region.services.ec2.WaitUntilInstanceRunning(
 			&ec2.DescribeInstancesInput{
-				InstanceIds: []*string{instanceID},
+				InstanceIds: []*string{i.InstanceId},
 			})
 
 		if err != nil {
 			log.Printf("Issue while waiting for instance %v to start: %v",
-				*instanceID, err.Error())
+				*i.InstanceId, err.Error())
 		}
 
-		if err = a.waitForInstanceStatus(instanceID, "InService", 80); err != nil {
+		if err = a.waitForInstanceStatus(i.InstanceId, "InService", 80); err != nil {
 			log.Printf("Instance %s is still not InService, trying to terminate it anyway.",
-				*instanceID)
+				*i.InstanceId)
 		}
 	}
 
 	log.Println(a.region.name,
 		a.name,
 		"Terminating instance:",
-		*instanceID)
+		*i.InstanceId)
 
 	asSvc := a.region.services.autoScaling
 
@@ -453,7 +453,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 		asSvc.CompleteLifecycleAction(
 			&autoscaling.CompleteLifecycleActionInput{
 				AutoScalingGroupName:  a.AutoScalingGroupName,
-				InstanceId:            instanceID,
+				InstanceId:            i.InstanceId,
 				LifecycleHookName:     hook.LifecycleHookName,
 				LifecycleActionResult: aws.String("ABANDON"),
 			})
@@ -461,7 +461,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 
 	resTIIASG, err := asSvc.TerminateInstanceInAutoScalingGroup(
 		&autoscaling.TerminateInstanceInAutoScalingGroupInput{
-			InstanceId:                     instanceID,
+			InstanceId:                     i.InstanceId,
 			ShouldDecrementDesiredCapacity: aws.Bool(decreaseCapacity),
 		})
 

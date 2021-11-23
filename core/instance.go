@@ -12,5 +12,5 @@ type instance struct {
 	region      *region
 	protected   bool
 	asg         *autoScalingGroup
-	SpotProduct *string
+	spotProduct *string
 }
