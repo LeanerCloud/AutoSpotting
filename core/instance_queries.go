@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	ec2instancesinfo "github.com/LeanerCloud/ec2-instances-info"
 	"github.com/aws/aws-sdk-go/aws"
@@ -50,8 +51,8 @@ func (i *instance) isSpot() bool {
 
 func (i *instance) getSavings() float64 {
 	var spotProduct *string
-	if i.belongsToEnabledASG() {
-		spotProduct = i.asg.getSpotProduct()
+	if belongs, asg := i.belongsToEnabledASG(); belongs {
+		spotProduct = asg.getSpotProduct()
 	} else {
 		spotProduct = i.getSpotProductFromAMI()
 	}
@@ -74,8 +75,8 @@ func (i *instance) getODPrice() float64 {
 	}
 
 	var spotProduct *string
-	if i.belongsToEnabledASG() {
-		spotProduct = i.asg.getSpotProduct()
+	if belongs, asg := i.belongsToEnabledASG(); belongs {
+		spotProduct = asg.getSpotProduct()
 	} else {
 		spotProduct = i.getSpotProductFromAMI()
 	}
@@ -139,22 +140,47 @@ func (i *instance) canTerminate() bool {
 		*i.State.Name != ec2.InstanceStateNameShuttingDown
 }
 
-func (i *instance) shouldBeReplacedWithSpot() bool {
-	protT, _ := i.isProtectedFromTermination()
-	return i.belongsToEnabledASG() &&
-		i.asgNeedsReplacement() &&
-		!i.isSpot() &&
-		!i.isProtectedFromScaleIn() &&
-		!protT
+func (i *instance) shouldBeReplacedWithNewSpotInstance() bool {
+	// only replace Spot instances if they are older than 2 minutes
+	if i.isSpot() {
+		if i.LaunchTime.Before(time.Now().Add(-2 * time.Minute)) {
+			log.Printf("Instance %s is a Spot instance and older than 2 minutes, will be replaced with a new Spot instance", *i.InstanceId)
+			return true
+		}
+		return false
+	}
+
+	// instance is not in an enabled ASG
+	if belongs, _ := i.belongsToEnabledASG(); !belongs {
+		log.Printf("Instance %s does not belong to an enabled ASG, will not be replaced with a new Spot instance", *i.InstanceId)
+		return false
+	}
+
+	// instance is protected from termination or scale-in
+	if protTerm, _ := i.isProtectedFromTermination(); protTerm || i.isProtectedFromScaleIn() {
+		log.Printf("Instance %s is protected from termination or scale-in, will not be replaced with a new Spot instance", *i.InstanceId)
+		return false
+	}
+
+	if i.asgNeedsReplacement() {
+		log.Printf("Instance %s needs to be replaced by the ASG, will be replaced with a new Spot instance", *i.InstanceId)
+		return true
+	}
+
+	log.Printf("Instance %s does not need to be replaced with a new Spot instance", *i.InstanceId)
+	return false
 }
 
-func (i *instance) belongsToEnabledASG() bool {
+func (i *instance) belongsToEnabledASG() (bool, *autoScalingGroup) {
 	belongs, asgName := i.belongsToAnASG()
 	if !belongs {
 		log.Printf("%s instance %s doesn't belong to any ASG",
 			i.region.name, *i.InstanceId)
-		return false
+		return false, nil
 	}
+
+	log.Printf("%s instance %s belongs to ASG %s",
+		i.region.name, *i.InstanceId, *asgName)
 
 	for _, asg := range i.region.enabledASGs {
 		if asg.name == *asgName {
@@ -177,10 +203,10 @@ func (i *instance) belongsToEnabledASG() bool {
 			i.odPrice = i.typeInfo.pricing[*spotProduct].onDemand
 			log.Printf("%s instace %s belongs to enabled ASG %s", i.region.name,
 				*i.InstanceId, i.asg.name)
-			return true
+			return true, &asg
 		}
 	}
-	return false
+	return false, nil
 }
 
 func (i *instance) belongsToAnASG() (bool, *string) {
@@ -588,8 +614,8 @@ func calculateInstanceTypeGeneration(InstanceType string, itfic *instanceTypeFam
 // Retrieves the Spot product associated with the instance's AMI ID.
 func (i *instance) getSpotProductFromAMI() *string {
 
-	if i.SpotProduct != nil {
-		return i.SpotProduct
+	if i.spotProduct != nil {
+		return i.spotProduct
 	}
 
 	// Retrieve the image details for the AMI ID of the instance

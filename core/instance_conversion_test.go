@@ -427,7 +427,14 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 		{
 			name: "createLaunchTemplateData() with basic launch template",
 			inst: instance{
-				odPrice: 1.5,
+				spotProduct: aws.String(LinuxSpotProduct),
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						LinuxSpotProduct: {
+							onDemand: 1.5,
+						},
+					},
+				},
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -446,7 +453,8 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					},
 				},
 				asg: &autoScalingGroup{
-					name: "mygroup",
+					name:        "mygroup",
+					spotProduct: aws.String(LinuxSpotProduct),
 					Group: &autoscaling.Group{
 						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
 							LaunchTemplateId: aws.String("lt-id"),
@@ -537,7 +545,14 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 		{
 			name: "createLaunchTemplateData() with launch template containing advanced network configuration",
 			inst: instance{
-				odPrice: 1.5,
+				spotProduct: aws.String(LinuxSpotProduct),
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						LinuxSpotProduct: {
+							onDemand: 1.5,
+						},
+					},
+				},
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -564,7 +579,8 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					},
 				},
 				asg: &autoScalingGroup{
-					name: "mygroup",
+					name:        "mygroup",
+					spotProduct: aws.String(LinuxSpotProduct),
 					config: AutoScalingConfig{
 						OnDemandPriceMultiplier: 1,
 					},
@@ -660,7 +676,14 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 		{
 			name: "createLaunchTemplateData() with simple LC",
 			inst: instance{
-				odPrice: 1.5,
+				spotProduct: aws.String(LinuxSpotProduct),
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						LinuxSpotProduct: {
+							onDemand: 1.5,
+						},
+					},
+				},
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -671,7 +694,8 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					},
 				},
 				asg: &autoScalingGroup{
-					name: "mygroup",
+					name:        "mygroup",
+					spotProduct: aws.String(LinuxSpotProduct),
 					config: AutoScalingConfig{
 						OnDemandPriceMultiplier: 1,
 					},
@@ -778,7 +802,14 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 		{
 			name: "createLaunchTemplateData() with full launch configuration",
 			inst: instance{
-				odPrice: 1.5,
+				spotProduct: aws.String(LinuxSpotProduct),
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						LinuxSpotProduct: {
+							onDemand: 1.5,
+						},
+					},
+				},
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -789,7 +820,8 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					},
 				},
 				asg: &autoScalingGroup{
-					name: "mygroup",
+					name:        "mygroup",
+					spotProduct: aws.String(LinuxSpotProduct),
 					config: AutoScalingConfig{
 						OnDemandPriceMultiplier: 1,
 					},
@@ -920,7 +952,14 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 		{
 			name: "createLaunchTemplateData() with customized UserData for Beanstalk",
 			inst: instance{
-				odPrice: 1.5,
+				spotProduct: aws.String(LinuxSpotProduct),
+				typeInfo: instanceTypeInformation{
+					pricing: prices{
+						LinuxSpotProduct: {
+							onDemand: 1.5,
+						},
+					},
+				},
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -931,7 +970,8 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					},
 				},
 				asg: &autoScalingGroup{
-					name: "mygroup",
+					name:        "mygroup",
+					spotProduct: aws.String(LinuxSpotProduct),
 					Group: &autoscaling.Group{
 						LaunchConfigurationName: aws.String("myLC"),
 					},
@@ -1061,7 +1101,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got, _ := tt.inst.createLaunchTemplateData()
+			got, _ := tt.inst.createLaunchTemplateData("spot")
 
 			// make sure the lists of tags are sorted, otherwise the comparison fails
 			sort.Slice(got.TagSpecifications[0].Tags, func(i, j int) bool {
@@ -1563,6 +1603,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 				aws.String("instance-type2"),
 			},
 			i: &instance{
+				spotProduct: aws.String(LinuxSpotProduct),
 				Instance: &ec2.Instance{
 					SubnetId: aws.String("subnet-id"),
 				},
@@ -1601,6 +1642,9 @@ func Test_instance_createFleetInput(t *testing.T) {
 						},
 					},
 				},
+				OnDemandOptions: &ec2.OnDemandOptionsRequest{
+					AllocationStrategy: aws.String("prioritized"),
+				},
 				SpotOptions: &ec2.SpotOptionsRequest{
 					AllocationStrategy: aws.String("capacity-optimized-prioritized"),
 				},
@@ -1620,6 +1664,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 				aws.String("instance-type2"),
 			},
 			i: &instance{
+				spotProduct: aws.String(LinuxSpotProduct),
 				Instance: &ec2.Instance{
 					SubnetId: aws.String("subnet-id"),
 				},
@@ -1656,6 +1701,9 @@ func Test_instance_createFleetInput(t *testing.T) {
 						},
 					},
 				},
+				OnDemandOptions: &ec2.OnDemandOptionsRequest{
+					AllocationStrategy: aws.String("prioritized"),
+				},
 				SpotOptions: &ec2.SpotOptionsRequest{
 					AllocationStrategy: aws.String("capacity-optimized"),
 				},
@@ -1672,7 +1720,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got := tt.i.createFleetInput(tt.ltName, tt.instanceTypes)
+			got := tt.i.createFleetInput(tt.ltName, tt.instanceTypes, "spot")
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("instance.createFleetInput() = %v, want %v", got, tt.want)

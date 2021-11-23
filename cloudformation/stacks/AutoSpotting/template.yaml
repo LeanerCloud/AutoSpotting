@@ -522,10 +522,6 @@ Resources:
             Ref: PrioritizedInstanceTypesBias
           SPOT_PRICE_BUFFER_PERCENTAGE:
             Ref: "SpotPricePercentageBuffer"
-          SPOT_PRODUCT_DESCRIPTION:
-            Ref: "SpotProductDescription"
-          SPOT_PRODUCT_PREMIUM:
-            Ref: "SpotProductPremium"
           TAG_FILTERING_MODE:
             Ref: "TagFilteringMode"
           TAG_FILTERS:

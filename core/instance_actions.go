@@ -34,10 +34,17 @@ func (i *instance) handleInstanceStates() (bool, error) {
 	return false, nil
 }
 
-// returns an instance ID or error
 func (i *instance) launchSpotReplacement() (*string, error) {
+	return i.launchReplacement("spot")
+}
 
-	ltData, err := i.createLaunchTemplateData()
+func (i *instance) launchOnDemandReplacement() (*string, error) {
+	return i.launchReplacement("")
+}
+
+func (i *instance) launchReplacement(replacementLifecycle string) (*string, error) {
+
+	ltData, err := i.createLaunchTemplateData(replacementLifecycle)
 
 	debug.Printf("Launch template data: %+#v", ltData)
 
@@ -66,7 +73,7 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 		return nil, err
 	}
 
-	cfi := i.createFleetInput(lt, instanceTypes)
+	cfi := i.createFleetInput(lt, instanceTypes, replacementLifecycle)
 
 	debug.Printf("Fleet Input: %+#v", cfi)
 
@@ -86,7 +93,7 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 
 	if resp.Errors != nil {
 		errors := getInstanceTypesAndErrorCodes(resp.Errors)
-		return nil, fmt.Errorf("couldn't launch spot instance, encountered errors: %#s", errors)
+		return nil, fmt.Errorf("couldn't launch spot instance, encountered errors: %#v", errors)
 	}
 
 	return nil, fmt.Errorf("couldn't launch spot instance because of unknown errors (this code should never be reached)")
@@ -100,12 +107,20 @@ func getInstanceTypesAndErrorCodes(errors []*ec2.CreateFleetError) map[string]st
 	return instanceTypesAndErrorCodes
 }
 
-func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error) {
-	odInstance, err := i.getSwapCandidate()
-	if err != nil {
-		return nil, fmt.Errorf("couldn't find suitable OnDemand swap candidate: %w", err)
-	}
+func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace *instance) (*instance, error) {
+	var odInstance *instance
+	var err error
 
+	if instancetoReplace != nil {
+		odInstance = instancetoReplace
+	} else {
+		odInstance, err = i.getSwapCandidate()
+		if err != nil {
+			log.Printf("Couldn't find suitable OnDemand swap candidate, terminating Spot instance: %s", *i.InstanceId)
+			i.terminate()
+			return nil, fmt.Errorf("couldn't find suitable OnDemand swap candidate, error: %w", err)
+		}
+	}
 	asg.suspendProcesses()
 	defer asg.resumeProcesses(2 * time.Minute)
 
@@ -122,11 +137,13 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 	// attach the spot instance first and then terminate the on demand instance,
 	//to avoid decreasing the capacity of the group below the mimimum size
 	if desiredCapacity == minSize {
+		log.Printf("Attaching %s instance %s to the group %s", *i.InstanceLifecycle,
+			*i.InstanceId, asg.name)
 		if err := attachSpotInstance(i, asg); err != nil {
 			return nil, fmt.Errorf("couldn't attach spot instance: %w", err)
 		}
 
-		if err := terminateInstanceInAutoScalingGroup(odInstance.Instance.InstanceId, asg); err != nil {
+		if err := i.terminateInstanceInAutoScalingGroup(asg); err != nil {
 			return nil, fmt.Errorf("couldn't terminate on-demand instance: %w", err)
 		}
 
@@ -135,7 +152,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 
 	} else if desiredCapacity > minSize {
 		// we can terminate on-demand instance first and then attach the spot instance.
-		if err := terminateInstanceInAutoScalingGroup(odInstance.Instance.InstanceId, asg); err != nil {
+		if err := i.terminateInstanceInAutoScalingGroup(asg); err != nil {
 			return nil, fmt.Errorf("couldn't terminate on-demand instance: %w", err)
 		}
 
@@ -163,39 +180,41 @@ func attachSpotInstance(i *instance, asg *autoScalingGroup) error {
 	return nil
 }
 
-func terminateInstanceInAutoScalingGroup(instanceID *string, asg *autoScalingGroup) error {
-	if err := asg.terminateInstanceInAutoScalingGroup(instanceID, true, true); err != nil {
-		log.Printf("%s: On-demand instance %s couldn't be terminated, re-trying...", asg.name, *instanceID)
-		return fmt.Errorf("couldn't terminate on-demand instance %s", *instanceID)
+func (i *instance) terminateInstanceInAutoScalingGroup(asg *autoScalingGroup) error {
+	log.Printf("Terminating instance %s from the group %s",
+		*i.InstanceId, asg.name)
+	if err := asg.terminateInstanceInAutoScalingGroup(i, true, true); err != nil {
+		log.Printf("%s: On-demand instance %s couldn't be terminated, re-trying...", asg.name, *i.InstanceId)
+		return fmt.Errorf("couldn't terminate on-demand instance %s: %w", *i.InstanceId, err)
 	}
 	return nil
 }
 
 func (i *instance) getSwapCandidate() (*instance, error) {
-	odInstanceID := i.getReplacementTargetInstanceID()
-	if odInstanceID == nil {
-		log.Println("Couldn't find target on-demand instance of", *i.InstanceId)
+	instanceToReplaceID := i.getReplacementTargetInstanceID()
+	if instanceToReplaceID == nil {
+		log.Println("Couldn't find target instance of", *i.InstanceId)
 		return nil, fmt.Errorf("couldn't find target instance for %s", *i.InstanceId)
 	}
 
-	if err := i.region.scanInstance(odInstanceID); err != nil {
-		log.Printf("Couldn't describe the target on-demand instance %s", *odInstanceID)
-		return nil, fmt.Errorf("target instance %s couldn't be described", *odInstanceID)
+	if err := i.region.scanInstance(instanceToReplaceID); err != nil {
+		log.Printf("Couldn't describe the target instance %s", *instanceToReplaceID)
+		return nil, fmt.Errorf("target instance %s couldn't be described", *instanceToReplaceID)
 	}
 
-	odInstance := i.region.instances.get(*odInstanceID)
-	if odInstance == nil {
-		log.Printf("Target on-demand instance %s couldn't be found", *odInstanceID)
-		return nil, fmt.Errorf("target instance %s is missing", *odInstanceID)
+	instanceToReplace := i.region.instances.get(*instanceToReplaceID)
+	if instanceToReplace == nil {
+		log.Printf("Target instance %s couldn't be found", *instanceToReplaceID)
+		return nil, fmt.Errorf("target instance %s is missing", *instanceToReplaceID)
 	}
 
-	if !odInstance.shouldBeReplacedWithSpot() {
-		log.Printf("Target on-demand instance %s shouldn't be replaced", *odInstanceID)
+	if !instanceToReplace.shouldBeReplacedWithNewSpotInstance() {
+		log.Printf("Target instance %s shouldn't be replaced", *instanceToReplaceID)
 		i.terminate()
-		return nil, fmt.Errorf("target instance %s should not be replaced with spot",
-			*odInstanceID)
+		return nil, fmt.Errorf("target instance %s should not be replaced with a new Spot instance",
+			*instanceToReplaceID)
 	}
-	return odInstance, nil
+	return instanceToReplace, nil
 }
 
 func (i *instance) terminate() error {

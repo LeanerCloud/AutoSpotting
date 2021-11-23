@@ -283,17 +283,15 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, ins
 			return nil
 		}
 		// If the event is for an Instance Spot Interruption/Rebalance
-		spotTermination := newSpotTermination(region)
 
-		if spotTermination.IsInAutoSpottingASG(instanceID, a.config.TagFilteringMode, a.config.FilterByTags) {
-			err := spotTermination.executeAction(instanceID, a.config.TerminationNotificationAction, eventType)
-			if err != nil {
-				log.Printf("Error executing spot termination/rebalance action: %s\n", err.Error())
-				return err
-			}
-		} else {
-			log.Printf("Instance %s is not in AutoSpotting ASG\n", *instanceID)
+		instanceID, err := a.replaceTerminatingSpotInstance(*instanceID, region)
+		if err != nil {
+			log.Printf("Error executing spot termination/rebalance action: %s\n", err.Error())
+			return err
 		}
+
+		log.Printf("Finished executing spot termination/rebalance action, launched replacement instance %s\n",
+			*instanceID)
 	}
 
 	return nil
@@ -465,16 +463,17 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 
 	// Try OnDemand
 	if err := a.handleNewOnDemandInstanceLaunch(r, i); err != nil {
+		log.Printf("%s Instance %s couldn't be handled as on-demand instance", i.region.name, *i.InstanceId)
 		return err
 	}
 
-	// Try Spot
-	// in case we're not triggered by SQS event we do nothing, onDemand event already manage launched spot instance
-	if len(a.config.sqsReceiptHandle) > 0 {
-		if err := a.handleNewSpotInstanceLaunch(r, i); err != nil {
-			return err
-		}
+	lifecycle := "on-demand"
+	if i.isSpot() {
+		lifecycle = "spot"
 	}
+
+	log.Printf("%s Instance %s with lifecycle %s couldn't be handled as on-demand instance",
+		i.region.name, lifecycle, *i.InstanceId)
 	return nil
 }
 
@@ -482,10 +481,17 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 	var spotInstanceID *string
 	var err error
 
-	if !i.shouldBeReplacedWithSpot() {
-		log.Printf("%s skipping instance %s: either doesn't belong to an "+
-			"enabled ASG or should not be replaced with spot, ",
+	if i.isSpot() {
+		log.Printf("%s skipping Spot instance %s: only replacing new On Demand instances",
 			i.region.name, *i.InstanceId)
+		debug.Printf("%#v", i)
+		return fmt.Errorf("instance %s is a spot instance", *i.InstanceId)
+	}
+
+	if !i.shouldBeReplacedWithNewSpotInstance() {
+		log.Printf("%s skipping %s instance %s: either doesn't belong to an "+
+			"enabled ASG or should not be replaced with spot, ",
+			i.region.name, *i.InstanceLifecycle, *i.InstanceId)
 		debug.Printf("%#v", i)
 		return nil
 	}
@@ -536,7 +542,7 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 	}
 
 	spotInstance := r.instances.get(*spotInstanceID)
-	if _, err := spotInstance.swapWithGroupMember(i.asg); err != nil {
+	if _, err := spotInstance.swapWithGroupMember(i.asg, nil); err != nil {
 		log.Printf("%s, couldn't perform spot replacement of %s: %s ",
 			i.region.name, *i.InstanceId, err.Error())
 		return err
@@ -544,35 +550,76 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 	return nil
 }
 
-func (a *AutoSpotting) handleNewSpotInstanceLaunch(r *region, i *instance) error {
-	log.Printf("%s Checking if %s is a spot instance that should be "+
-		"attached to any ASG", i.region.name, *i.InstanceId)
-	unattached := i.isUnattachedSpotInstanceLaunchedForAnEnabledASG()
-	if !unattached {
-		log.Printf("%s Instance %s is already attached to an ASG, skipping it",
+func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName string) (*string, error) {
+	r := &region{name: regionName, conf: a.config, services: connections{}}
+
+	if !r.enabled() {
+		return nil, fmt.Errorf("region %s is not enabled", regionName)
+	}
+
+	r.services.connect(regionName, a.config.MainRegion)
+	r.setupAsgFilters()
+	r.scanForEnabledAutoScalingGroups()
+
+	log.Println("Scanning full instance information in", r.name)
+	r.determineInstanceTypeInformation(r.conf)
+
+	if err := r.scanInstance(aws.String(instanceID)); err != nil {
+		log.Printf("%s Couldn't scan instance %s: %s", regionName,
+			instanceID, err.Error())
+		return nil, err
+	}
+
+	i := r.instances.get(instanceID)
+	if i == nil {
+		log.Printf("%s Instance %s is missing, skipping...",
+			regionName, instanceID)
+		return nil, errors.New("instance missing")
+	}
+	log.Printf("%s Found instance %s in state %s",
+		i.region.name, *i.InstanceId, *i.State.Name)
+
+	if *i.State.Name != "running" {
+		log.Printf("%s Instance %s is not in the running state",
 			i.region.name, *i.InstanceId)
-		return nil
+		return nil, errors.New("instance not in running state")
 	}
 
 	asgName := i.getReplacementTargetASGName()
 
-	asg := i.region.findEnabledASGByName(*asgName)
-
-	if asg == nil {
-		log.Printf("Missing ASG data for region %s", i.region.name)
-		return fmt.Errorf("region %s is missing asg data", i.region.name)
+	if asgName == nil {
+		log.Printf("Missing the ASG name tag\n")
+		return nil, errors.New("missing ASG name tag")
 	}
 
-	defer i.region.sqsDeleteMessage(i.InstanceId, Spot)
+	i.asg = i.region.findEnabledASGByName(*asgName)
+	i.asg.scanInstances()
+	i.asg.loadDefaultConfig()
+	i.asg.loadConfigFromTags()
+	i.asg.loadLaunchConfiguration()
+	i.asg.loadLaunchTemplate()
 
-	log.Printf("%s Found instance %s is not yet attached to its ASG, "+
-		"attempting to swap it against a running on-demand instance",
-		i.region.name, *i.InstanceId)
+	newInstanceID, err := i.launchSpotReplacement()
+	if err != nil {
+		fmt.Printf("Spot Instance launch failed while replacing %s, error: %s, falling back to on-demand\n", *i.InstanceId, err.Error())
 
-	if _, err := i.swapWithGroupMember(asg); err != nil {
-		log.Printf("%s, couldn't perform spot replacement of %s ",
-			i.region.name, *i.InstanceId)
-		return err
+		newInstanceID, err = i.launchOnDemandReplacement()
+		if err != nil {
+			fmt.Printf("Instance launch failed while replacing %s, error: %s\n", *i.InstanceId, err.Error())
+			return nil, err
+		}
 	}
-	return nil
+
+	i.region.scanInstances()
+	newInstance := i.region.instances.get(*newInstanceID)
+
+	newInstance.swapWithGroupMember(i.asg, nil)
+
+	if err = i.asg.waitForInstanceStatus(newInstanceID, "InService", 80); err != nil {
+		log.Printf("Instance %s is still not InService, trying to terminate it.",
+			*newInstanceID)
+		newInstance.terminate()
+	}
+
+	return newInstanceID, nil
 }

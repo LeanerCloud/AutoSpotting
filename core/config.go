@@ -185,13 +185,6 @@ func ParseConfig(conf *Config) {
 		"\n\tInstance termination method.  Must be one of '"+DefaultInstanceTerminationMethod+"' (default),\n"+
 			"\t or 'detach' (compatibility mode, not recommended)\n")
 
-	flagSet.StringVar(&conf.TerminationNotificationAction, "termination_notification_action", DefaultTerminationNotificationAction,
-		"\n\tTermination Notification Action.\n"+
-			"\tValid choices:\n"+
-			"\t'"+DefaultTerminationNotificationAction+
-			"' (terminate if lifecyclehook else detach) | 'terminate' (lifecyclehook triggered)"+
-			" | 'detach' (lifecyclehook not triggered)\n")
-
 	flagSet.Int64Var(&conf.MinOnDemandNumber, "min_on_demand_number", DefaultMinOnDemandValue,
 		"\n\tNumber of on-demand nodes to be kept running in each of the groups.\n\t"+
 			"Can be overridden on a per-group basis using the tag "+OnDemandNumberLong+".\n")
