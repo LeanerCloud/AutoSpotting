@@ -37,12 +37,16 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 
 	ltData, err := i.createLaunchTemplateData()
 
+	debug.Printf("Launch template data: %+#v", ltData)
+
 	if err != nil {
 		log.Println("failed to create LaunchTemplate data,", err.Error())
 		return nil, err
 	}
 
 	lt, err := i.createFleetLaunchTemplate(ltData)
+
+	debug.Printf("Fleet Launch Template: %+#v", lt)
 
 	if err != nil {
 		log.Println(i.region, i.asg.name, "createFleetLaunchTemplate() failure:", err.Error())
@@ -63,6 +67,8 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 
 	cfi := i.createFleetInput(lt, instanceTypes)
 
+	debug.Printf("Fleet Input: %+#v", cfi)
+
 	resp, err := i.region.services.ec2.CreateFleet(cfi)
 
 	if err != nil {
@@ -70,8 +76,11 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 		return nil, err
 	}
 
-	return resp.Instances[0].InstanceIds[0], nil
-
+	if resp != nil && len(resp.Instances) > 0 && resp.Instances[0] != nil && len(resp.Instances[0].InstanceIds) > 0 {
+		return resp.Instances[0].InstanceIds[0], nil
+	} else {
+		return nil, fmt.Errorf("Couldn't launch spot instance replacement")
+	}
 }
 
 func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error) {
