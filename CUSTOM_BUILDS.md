@@ -46,10 +46,14 @@ AutoSpotting uses a Lambda function configured to use a Docker image. Such a
 configuration [currently](https://github.com/aws/containers-roadmap/issues/1281)
 requires the Docker image to be stored in an ECR from your own account.
 
-Also, in order for the generated Docker image to be compatible with the Lambda
-runtime, the image must currently be built on a x86_64 host. Unfortunately ARM
-hosts such as Apple M1 Macbook aren't currently supported because of QEMU
-emulator crashes when performing the cross-compilation using `docker buildx`.
+AutoSpotting trunk currently builds and runs by default as ARM binaries.
+Building it locally most probably requires a `docker buildx` setup, as per the
+official Docker
+[documentation](https://docs.docker.com/buildx/working-with-buildx/). The
+Marketplace version is currently available only at x86 binaries.
+
+Building it as Intel binaries is still possible, but the infrastructure code
+will currently expect ARM binaries.
 
 In order to support the AWS Marketplace setup, which relies on an ECR repository
 hosted in another AWS-managed account, the current CloudFormation template uses
@@ -59,14 +63,14 @@ some complexity but has the nice side effect of being able to push the image to
 any arbitrary ECR in another account/region, offering more flexibility for
 customers who may want to manage custom deployments at scale.
 
-You'll therefore need to build an x86_64 Docker image, upload it to an ECR
+You'll therefore need to build an ARM Docker image, upload it to an ECR
 repository in your AWS account and configure your CloudFormation or Terraform
 stack to use this new image as a source image.
 
 1. Set up an ECR repository in your AWS account that will host your custom
    Docker images.
 
-1. The build system can use a `DOCKER_IMAGE` variable that tells it where to
+2. The build system can use a `DOCKER_IMAGE` variable that tells it where to
    upload the image. Set it into your environment to the name of your ECR
    repository. When unset you'll attempt to push to the Marketplace ECR and
    you'll receive permission errors.
@@ -76,23 +80,23 @@ stack to use this new image as a source image.
    export DOCKER_IMAGE_VERSION=1.0.2 # it's strongly recommended versioning images
    ```
 
-1. Define some AWS credentials or profile information into your
+3. Define some AWS credentials or profile information into your
    [environment](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-environment).
 
-1. Authenticate to your ECR repository
+4. Authenticate to your ECR repository
 
    ```shell
    make docker-login
    ```
 
-1. Build and upload your Docker image to your ECR and configure a CloudFormation
+5. Build and upload your Docker image to your ECR and configure a CloudFormation
    template to use your ECR
 
    ``` shell
    make docker-push-artifacts
    ```
 
-1. Use the CloudFormation template from the `build` directory to create the
+6. Use the CloudFormation template from the `build` directory to create the
    resources. Make sure you set the parameters `SourceECR` and `SourceImage` to
    point to your ECR repository (`SourceECR` should be set to contain the
    hostname part of your ECR repository, before the first `/` character and
