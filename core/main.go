@@ -150,6 +150,11 @@ func (a *AutoSpotting) processRegions(regions []string) {
 		log.Println("Not running a stable build, skipped AWS marketplace metering")
 	}
 
+	if a.config.BillingOnly {
+		log.Println("Billing only mode enabled, exiting...")
+		return
+	}
+
 	for _, r := range regions {
 		wg.Add(1)
 		r := region{name: r, conf: a.config}

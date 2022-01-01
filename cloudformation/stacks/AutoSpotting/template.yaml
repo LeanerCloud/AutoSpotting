@@ -1076,6 +1076,9 @@
               - ':'
               - - Fn::GetAtt: ECRRepository.RepositoryUri
                 - Ref: SourceImageTag
+            Environment:
+            - Name: BILLING_ONLY
+              Value: "true"
             LogConfiguration:
               LogDriver: awslogs
               Options:
