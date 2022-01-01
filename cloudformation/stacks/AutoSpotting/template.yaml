@@ -356,6 +356,8 @@
         - CopyDockerImage
       Properties:
         PackageType: Image
+        Architectures:
+          - arm64
         Code:
           ImageUri:
             Fn::Join:
@@ -1065,6 +1067,8 @@
         # Between 4GB and 16GB in 1GB increments - Available cpu values: 2048 (2 vCPU)
         # Between 8GB and 30GB in 1GB increments - Available cpu values: 4096 (4 vCPU)
         Memory: 0.5GB
+        RuntimePlatform:
+          CpuArchitecture: ARM64
         ExecutionRoleArn:
           Ref: ECSTaskExecutionRole
         TaskRoleArn:
