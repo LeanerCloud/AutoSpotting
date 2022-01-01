@@ -279,8 +279,6 @@ func (i *instance) processLaunchTemplate(retval *ec2.RequestLaunchTemplateData) 
 	// MetadataOptions - not sure what's the use case for changing this
 	// Placement - determined dynamically when launching each Spot instance
 	// RamDiskId probably not needed, should be determined from the AMI
-	// SecurityGroupIds - already set from the caller code
-	// SecurityGroups - already set from the caller code
 
 	retval.BlockDeviceMappings = i.convertLaunchTemplateBlockDeviceMappings(ltData.BlockDeviceMappings)
 
@@ -321,6 +319,11 @@ func (i *instance) processLaunchTemplate(retval *ec2.RequestLaunchTemplateData) 
 			)
 		}
 		retval.SecurityGroupIds = nil
+		retval.SecurityGroups = nil
+	} else {
+		retval.NetworkInterfaces = nil
+		retval.SecurityGroupIds = append(retval.SecurityGroupIds, ltData.SecurityGroupIds...)
+		retval.SecurityGroups = append(retval.SecurityGroups, ltData.SecurityGroups...)
 	}
 
 	if i.asg.config.PatchBeanstalkUserdata {
@@ -443,6 +446,8 @@ func (i *instance) createLaunchTemplateData() (*ec2.RequestLaunchTemplateData, e
 
 	i.processImageBlockDevices(&ltData)
 
+	debug.Printf("ltData: %+#v\n", ltData)
+
 	return &ltData, nil
 }
 
@@ -471,9 +476,12 @@ func (i *instance) createFleetInput(ltName *string, instanceTypes []*string) *ec
 
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 
+	debug.Printf("instance Details: %+#v\n", i)
+
 	for p, inst := range instanceTypes {
 		override := ec2.FleetLaunchTemplateOverridesRequest{
 			InstanceType: inst,
+			SubnetId:     i.SubnetId,
 		}
 		if i.asg.config.SpotAllocationStrategy == "capacity-optimized-prioritized" {
 			override.Priority = aws.Float64(float64(p))

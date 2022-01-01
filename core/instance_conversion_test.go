@@ -1555,6 +1555,9 @@ func Test_instance_createFleetInput(t *testing.T) {
 				aws.String("instance-type2"),
 			},
 			i: &instance{
+				Instance: &ec2.Instance{
+					SubnetId: aws.String("subnet-id"),
+				},
 				asg: &autoScalingGroup{
 					config: AutoScalingConfig{
 						SpotAllocationStrategy: "capacity-optimized-prioritized",
@@ -1578,10 +1581,12 @@ func Test_instance_createFleetInput(t *testing.T) {
 							{
 								InstanceType: aws.String("instance-type1"),
 								Priority:     aws.Float64(0),
+								SubnetId:     aws.String("subnet-id"),
 							},
 							{
 								InstanceType: aws.String("instance-type2"),
 								Priority:     aws.Float64(1),
+								SubnetId:     aws.String("subnet-id"),
 							},
 						},
 					},
@@ -1605,6 +1610,9 @@ func Test_instance_createFleetInput(t *testing.T) {
 				aws.String("instance-type2"),
 			},
 			i: &instance{
+				Instance: &ec2.Instance{
+					SubnetId: aws.String("subnet-id"),
+				},
 				asg: &autoScalingGroup{
 					config: AutoScalingConfig{
 						SpotAllocationStrategy: "capacity-optimized",
@@ -1627,9 +1635,11 @@ func Test_instance_createFleetInput(t *testing.T) {
 						Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
 							{
 								InstanceType: aws.String("instance-type1"),
+								SubnetId:     aws.String("subnet-id"),
 							},
 							{
 								InstanceType: aws.String("instance-type2"),
+								SubnetId:     aws.String("subnet-id"),
 							},
 						},
 					},
