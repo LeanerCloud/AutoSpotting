@@ -78,9 +78,9 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 
 	if resp != nil && len(resp.Instances) > 0 && resp.Instances[0] != nil && len(resp.Instances[0].InstanceIds) > 0 {
 		return resp.Instances[0].InstanceIds[0], nil
-	} else {
-		return nil, fmt.Errorf("Couldn't launch spot instance replacement")
 	}
+
+	return nil, fmt.Errorf("Couldn't launch spot instance replacement")
 }
 
 func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error) {
