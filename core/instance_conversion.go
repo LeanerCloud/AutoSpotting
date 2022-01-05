@@ -420,6 +420,8 @@ func (i *instance) createLaunchTemplateData() (*ec2.RequestLaunchTemplateData, e
 
 	ltData.SecurityGroupIds = i.convertSecurityGroups()
 
+	i.processImageBlockDevices(&ltData)
+
 	if i.asg.LaunchTemplate != nil {
 		err := i.processLaunchTemplate(&ltData)
 		if err != nil {
@@ -443,8 +445,6 @@ func (i *instance) createLaunchTemplateData() (*ec2.RequestLaunchTemplateData, e
 	ltData.Placement = &placement
 
 	ltData.TagSpecifications = i.generateTagsList()
-
-	i.processImageBlockDevices(&ltData)
 
 	debug.Printf("ltData: %+#v\n", ltData)
 
