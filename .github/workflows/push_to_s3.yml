@@ -20,7 +20,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Build
-      run: make ci-docker
+      run: FLAVOR=nightly make ci
 
     - name: Push to S3
       uses: shallwefootball/s3-upload-action@master
