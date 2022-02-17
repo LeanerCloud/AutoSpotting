@@ -407,7 +407,6 @@ func (i *instance) processImageBlockDevices(rii *ec2.RequestLaunchTemplateData) 
 }
 
 func (i *instance) createLaunchTemplateData() (*ec2.RequestLaunchTemplateData, error) {
-	i.price = i.typeInfo.pricing.onDemand * i.asg.config.OnDemandPriceMultiplier
 
 	placement := ec2.LaunchTemplatePlacementRequest(*i.Placement)
 

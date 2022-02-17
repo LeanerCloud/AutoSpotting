@@ -419,11 +419,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 		{
 			name: "createLaunchTemplateData() with basic launch template",
 			inst: instance{
-				typeInfo: instanceTypeInformation{
-					pricing: prices{
-						onDemand: 1.5,
-					},
-				},
+				price: 1.5,
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -529,11 +525,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 		{
 			name: "createLaunchTemplateData() with launch template containing advanced network configuration",
 			inst: instance{
-				typeInfo: instanceTypeInformation{
-					pricing: prices{
-						onDemand: 1.5,
-					},
-				},
+				price: 1.5,
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -652,11 +644,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 		{
 			name: "createLaunchTemplateData() with simple LC",
 			inst: instance{
-				typeInfo: instanceTypeInformation{
-					pricing: prices{
-						onDemand: 1.5,
-					},
-				},
+				price: 1.5,
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -770,11 +758,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 		{
 			name: "createLaunchTemplateData() with full launch configuration",
 			inst: instance{
-				typeInfo: instanceTypeInformation{
-					pricing: prices{
-						onDemand: 1.5,
-					},
-				},
+				price: 1.5,
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
@@ -912,11 +896,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 		{
 			name: "createLaunchTemplateData() with customized UserData for Beanstalk",
 			inst: instance{
-				typeInfo: instanceTypeInformation{
-					pricing: prices{
-						onDemand: 1.5,
-					},
-				},
+				price: 1.5,
 				region: &region{
 					services: connections{
 						ec2: mockEC2{
