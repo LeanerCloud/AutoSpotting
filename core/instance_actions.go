@@ -54,8 +54,6 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 	}
 
 	defer i.deleteLaunchTemplate(lt)
-
-	i.price = i.typeInfo.pricing.onDemand * i.asg.config.OnDemandPriceMultiplier
 	instanceTypes, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(
 		i.asg.getAllowedInstanceTypes(i),
 		i.asg.getDisallowedInstanceTypes(i))
