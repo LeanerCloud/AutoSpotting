@@ -121,7 +121,7 @@ ifdef COVERALLS_TOKEN
 endif
 .PHONY: ci-cover
 
-ci-checks: fmt-check vet-check module-check lint             ## Pass fmt / vet & lint format
+ci-checks: fmt-check vet-check module-check test lint             ## Pass fmt / vet & lint format
 .PHONY: ci-checks
 
 ci: build artifacts ci-checks ci-cover                               ## Executes inside the CI Docker builder
