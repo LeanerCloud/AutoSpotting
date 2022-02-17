@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2021 Cristian Măgherușan-Stanciu
+// Copyright (c) 2016-2022 Cristian Măgherușan-Stanciu
 // Licensed under the Open Software License version 3.0
 
 // instance_queries.go contains read-only functions that return various information about instances.
