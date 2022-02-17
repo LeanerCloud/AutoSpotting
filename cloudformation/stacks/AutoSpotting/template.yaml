@@ -831,6 +831,7 @@
             import os
             import stat
             import shutil
+            import time
 
             import cfnresponse
             from urllib import request
@@ -895,6 +896,7 @@
               # policy on the ECR repo and the manual cleanups of the ECR
               # repository currently required after uninstalling AutoSpotting.
 
+              time.sleep(10)
               cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
 
     # The Marketplace Metering API needs to be invoked hourly to charge a
@@ -998,6 +1000,8 @@
 
     ECSCluster:
       Type: AWS::ECS::Cluster
+      DependsOn:
+        - ECSServiceLinkedRole
       Properties:
         CapacityProviders:
           - FARGATE
@@ -1169,3 +1173,9 @@
                     - "iam:PassRole"
                   Resource: "*"
             PolicyName: "TaskSchedulerPolicy"
+
+    ECSServiceLinkedRole:
+      Type: AWS::IAM::ServiceLinkedRole
+      Properties:
+        AWSServiceName: ecs.amazonaws.com
+        Description: Role to enable Amazon ECS to manage your cluster.
