@@ -120,7 +120,7 @@ func (i *instance) belongsToEnabledASG() bool {
 			asg.loadLaunchConfiguration()
 			asg.loadLaunchTemplate()
 			i.asg = &asg
-			i.price = i.typeInfo.pricing.onDemand
+			i.price = i.typeInfo.pricing.onDemand / i.region.conf.OnDemandPriceMultiplier * i.asg.config.OnDemandPriceMultiplier
 			log.Printf("%s instace %s belongs to enabled ASG %s", i.region.name,
 				*i.InstanceId, i.asg.name)
 			return true

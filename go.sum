@@ -7,6 +7,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:ma
 github.com/cpuguy83/go-md2man/v2 v2.0.0/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
 github.com/cristim/ec2-instances-info v0.0.0-20210909050335-b239c40fcad0 h1:X6u+vwxB2EQwA8+A7jhkYdNK0oE0p0LuuiPbAezZH+g=
 github.com/cristim/ec2-instances-info v0.0.0-20210909050335-b239c40fcad0/go.mod h1:0yCjO4zBzlwWSGh/zGfW2Zq1NX605qCYVBHD1fPXKNs=
+github.com/cristim/ec2-instances-info v0.0.0-20220302182402-4b7a873a84cf h1:/0fth76qMtSWpTbkOLRKHX/k6KgUAK6HMbXArUi7dTc=
+github.com/cristim/ec2-instances-info v0.0.0-20220302182402-4b7a873a84cf/go.mod h1:0yCjO4zBzlwWSGh/zGfW2Zq1NX605qCYVBHD1fPXKNs=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
