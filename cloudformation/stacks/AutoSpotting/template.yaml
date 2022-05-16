@@ -98,7 +98,7 @@
         better IOPS than a baseline GP3 volume."
       Type: Number
     ExecutionFrequency:
-      Default: "rate(5 minutes)"
+      Default: "rate(30 minutes)"
       Description: >
         "Frequency of executing the Lambda function, influences the speed of
         replacing your instances since they are currently replaced one at a
