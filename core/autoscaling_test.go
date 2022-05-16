@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -726,7 +725,7 @@ func TestDetachAndTerminateOnDemandInstance(t *testing.T) {
 				region:    tt.regionASG,
 				instances: tt.instancesASG,
 			}
-			err := a.detachAndTerminateOnDemandInstance(tt.instanceID, false)
+			err := a.detachAndTerminateOnDemandInstance(tt.instanceID, false, true)
 			CheckErrors(t, err, tt.expected)
 		})
 	}
@@ -3088,7 +3087,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 		},
 	}
 
-	asgTerminateSpotInstance := autoScalingGroup{
+	asgCantTerminateOnDemandInstance := autoScalingGroup{
 
 		Group: &autoscaling.Group{
 			Instances: []*autoscaling.Instance{
@@ -3141,200 +3140,60 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 		},
 	}
 
-	onDemandInstance := instance{
-		Instance: &ec2.Instance{
-			InstanceId: aws.String("i-ondemand"),
+	// asgTerminateOnDemandInstance := autoScalingGroup{
 
-			Placement: &ec2.Placement{
-				AvailabilityZone: aws.String("us-east-1a"),
-			},
-			State: &ec2.InstanceState{
-				Name: aws.String(ec2.InstanceStateNameRunning),
-			},
-		},
-		price: 30.3,
-		typeInfo: instanceTypeInformation{
-			pricing: prices{
-				onDemand: 30.3,
-				spot: spotPriceMap{
-					"us-east-1a": 0.2,
-				},
-			},
-		},
-	}
+	// 	Group: &autoscaling.Group{
+	// 		Instances: []*autoscaling.Instance{
+	// 			{
+	// 				InstanceId:           aws.String("i-ondemand"),
+	// 				ProtectedFromScaleIn: aws.Bool(false),
+	// 				LifecycleState:       aws.String("Running"),
+	// 			},
+	// 		},
+	// 	},
+	// 	region: &region{
+	// 		conf: &Config{
+	// 			AutoScalingConfig: AutoScalingConfig{
+	// 				CronSchedule:      DefaultCronSchedule,
+	// 				CronScheduleState: "on",
+	// 				MinOnDemandNumber: 0,
+	// 			},
+	// 			LicenseType: "custom",
+	// 			Version:     "nightly",
+	// 			FinalRecap:  make(map[string][]string),
+	// 		},
+	// 		instances: makeInstancesWithCatalog(
+	// 			instanceMap{
+	// 				"i-ondemand": {
+	// 					Instance: &ec2.Instance{
+	// 						InstanceId: aws.String("i-ondemand"),
 
-	asgLaunchSpotReplacement := autoScalingGroup{
-		instances: makeInstancesWithCatalog(instanceMap{}),
-		Group: &autoscaling.Group{
-			Instances: []*autoscaling.Instance{
-				{
-					InstanceId:           aws.String("i-ondemand"),
-					ProtectedFromScaleIn: aws.Bool(false),
-					LifecycleState:       aws.String("Running"),
-				},
-			},
-		},
-		region: &region{
-			conf: &Config{
-				AutoScalingConfig: AutoScalingConfig{
-					CronSchedule:      DefaultCronSchedule,
-					CronScheduleState: "on",
+	// 						Placement: &ec2.Placement{
+	// 							AvailabilityZone: aws.String("us-east-1a"),
+	// 						},
+	// 						State: &ec2.InstanceState{
+	// 							Name: aws.String(ec2.InstanceStateNameRunning),
+	// 						},
+	// 					},
+	// 					price: 30.3,
+	// 					typeInfo: instanceTypeInformation{
+	// 						pricing: prices{
+	// 							onDemand: 30.3,
+	// 							spot: spotPriceMap{
+	// 								"us-east-1a": 0.2,
+	// 							},
+	// 						},
+	// 					},
+	// 				},
+	// 			}),
+	// 		services: connections{
+	// 			ec2: mockEC2{
+	// 				diao: &ec2.DescribeInstanceAttributeOutput{},
+	// 			},
+	// 		},
+	// 	},
+	// }
 
-					MinOnDemandNumber: 0,
-				},
-				LicenseType: "custom",
-				Version:     "nightly",
-			},
-			instances: makeInstancesWithCatalog(
-				instanceMap{
-					"i-ondemand": &onDemandInstance,
-				}),
-			services: connections{
-				ec2: mockEC2{
-					diao: &ec2.DescribeInstanceAttributeOutput{},
-				},
-			},
-		},
-	}
-
-	spotInstance := instance{
-		Instance: &ec2.Instance{
-			InstanceId:        aws.String("i-spot"),
-			InstanceLifecycle: aws.String(Spot),
-			LaunchTime:        aws.Time(time.Now().Add(-1 * time.Hour)),
-
-			Placement: &ec2.Placement{
-				AvailabilityZone: aws.String("us-east-1a"),
-			},
-			State: &ec2.InstanceState{
-				Name: aws.String(ec2.InstanceStateNameRunning),
-			},
-			Tags: []*ec2.Tag{
-				{Key: aws.String("launched-for-asg"),
-					Value: aws.String("asg-foo"),
-				},
-			},
-		},
-		price: 30.3,
-		typeInfo: instanceTypeInformation{
-			pricing: prices{
-				onDemand: 30.3,
-				spot: spotPriceMap{
-					"us-east-1a": 0.2,
-				},
-			},
-		},
-	}
-
-	asgExistingSpotReplacementButUnneeded := autoScalingGroup{
-		name:      "asg-foo",
-		instances: makeInstancesWithCatalog(instanceMap{}),
-		Group: &autoscaling.Group{
-			Instances: []*autoscaling.Instance{
-				{
-					InstanceId:           aws.String("i-ondemand"),
-					ProtectedFromScaleIn: aws.Bool(false),
-					LifecycleState:       aws.String("Running"),
-				},
-			},
-			HealthCheckGracePeriod: aws.Int64(60),
-		},
-		region: &region{
-			conf: &Config{
-				AutoScalingConfig: AutoScalingConfig{
-					CronSchedule:      DefaultCronSchedule,
-					CronScheduleState: "on",
-
-					MinOnDemandNumber: 1,
-				},
-				FinalRecap:  make(map[string][]string),
-				LicenseType: "custom",
-				Version:     "nightly",
-			},
-			instances: makeInstancesWithCatalog(
-				instanceMap{
-					"i-ondemand": &onDemandInstance,
-					"i-spot":     &spotInstance,
-				}),
-			services: connections{
-				ec2: mockEC2{
-					diao: &ec2.DescribeInstanceAttributeOutput{},
-				},
-			},
-		},
-	}
-
-	asgExistingSpotReplacementButNotReady := autoScalingGroup{
-		name:      "asg-foo",
-		instances: makeInstancesWithCatalog(instanceMap{}),
-		Group: &autoscaling.Group{
-			Instances: []*autoscaling.Instance{
-				{
-					InstanceId:           aws.String("i-ondemand"),
-					ProtectedFromScaleIn: aws.Bool(false),
-					LifecycleState:       aws.String("Running"),
-				},
-			},
-			HealthCheckGracePeriod: aws.Int64(7200),
-		},
-		region: &region{
-			conf: &Config{
-				AutoScalingConfig: AutoScalingConfig{
-					CronSchedule:      DefaultCronSchedule,
-					CronScheduleState: "on",
-					MinOnDemandNumber: 0,
-				},
-				LicenseType: "custom",
-				Version:     "nightly",
-			},
-			instances: makeInstancesWithCatalog(
-				instanceMap{
-					"i-ondemand": &onDemandInstance,
-					"i-spot":     &spotInstance,
-				}),
-			services: connections{
-				ec2: mockEC2{
-					diao: &ec2.DescribeInstanceAttributeOutput{},
-				},
-			},
-		},
-	}
-
-	asgExistingSpotReplacementAndReady := autoScalingGroup{
-		name:      "asg-foo",
-		instances: makeInstancesWithCatalog(instanceMap{}),
-		Group: &autoscaling.Group{
-			Instances: []*autoscaling.Instance{
-				{
-					InstanceId:           aws.String("i-ondemand"),
-					ProtectedFromScaleIn: aws.Bool(false),
-					LifecycleState:       aws.String("Running"),
-				},
-			},
-			HealthCheckGracePeriod: aws.Int64(60),
-		},
-		region: &region{
-			conf: &Config{
-				AutoScalingConfig: AutoScalingConfig{
-					CronSchedule:      DefaultCronSchedule,
-					CronScheduleState: "on",
-					MinOnDemandNumber: 0,
-				},
-				LicenseType: "custom",
-				Version:     "nightly",
-			},
-			instances: makeInstancesWithCatalog(
-				instanceMap{
-					"i-ondemand": &onDemandInstance,
-					"i-spot":     &spotInstance,
-				}),
-			services: connections{
-				ec2: mockEC2{
-					diao: &ec2.DescribeInstanceAttributeOutput{},
-				},
-			},
-		},
-	}
 	tests := []struct {
 		name string
 		asg  *autoScalingGroup
@@ -3362,42 +3221,21 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 			want: skipRun{reason: "no-instances-to-replace"},
 		},
 
-		{name: "not allowed to replace instances, terminate-spot-instance",
-			asg:  &asgTerminateSpotInstance,
-			want: terminateSpotInstance{target{asg: &asgTerminateSpotInstance, totalInstances: 1}},
+		{name: "not allowed to terminate on demand instance",
+			asg:  &asgCantTerminateOnDemandInstance,
+			want: skipRun{reason: "not-allowed-to-replace-more-instances"},
 		},
 
-		{name: "allowed to replace instance, launch spot instance replacement",
-			asg: &asgLaunchSpotReplacement,
-			want: launchSpotReplacement{target{
-				onDemandInstance: &onDemandInstance},
-			},
-		},
-
-		{name: "allowed to replace instance, spot instance replacement exists but not needed",
-			asg: &asgExistingSpotReplacementButUnneeded,
-			want: terminateUnneededSpotInstance{
-				target{
-					asg:            &asgExistingSpotReplacementButUnneeded,
-					spotInstance:   &spotInstance,
-					totalInstances: 1,
-				},
-			},
-		},
-
-		{name: "allowed to replace instance, spot instance replacement exists but not ready",
-			asg:  &asgExistingSpotReplacementButNotReady,
-			want: skipRun{reason: "spot instance replacement exists but not ready"},
-		},
-
-		{name: "allowed to replace instance, spot instance replacement exists and ready",
-			asg: &asgExistingSpotReplacementAndReady,
-			want: swapSpotInstance{target{
-				asg:          &asgExistingSpotReplacementAndReady,
-				spotInstance: &spotInstance,
-			},
-			},
-		},
+		// {name: "terminate on demand instance",
+		// 	asg: &asgTerminateOnDemandInstance,
+		// 	want: replaceAndTerminateInstance{
+		// 		target{
+		// 			autospotting:     &autospotting{},
+		// 			totalInstances:   0,
+		// 			onDemandInstance: asgTerminateOnDemandInstance.region.instances.get("i-ondemand"),
+		// 		},
+		// 	},
+		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

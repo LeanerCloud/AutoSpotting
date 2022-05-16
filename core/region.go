@@ -30,7 +30,8 @@ type Tag struct {
 type region struct {
 	name string
 
-	conf *Config
+	autospotting *AutoSpotting
+	conf         *Config
 	// The key in this map is the instance type.
 	instanceTypeInformation map[string]instanceTypeInformation
 
@@ -459,6 +460,7 @@ func (r *region) processEnabledAutoScalingGroups() {
 
 		// Pass default configs to the group
 		asg.config = r.conf.AutoScalingConfig
+		asg.autospotting = r.autospotting
 
 		r.wg.Add(1)
 		go func(a autoScalingGroup) {
