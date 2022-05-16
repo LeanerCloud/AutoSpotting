@@ -157,7 +157,7 @@ func (a *AutoSpotting) processRegions(regions []string) {
 
 	for _, r := range regions {
 		wg.Add(1)
-		r := region{name: r, conf: a.config}
+		r := region{name: r, conf: a.config, autospotting: a}
 
 		go func() {
 			if r.enabled() {

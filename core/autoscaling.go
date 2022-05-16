@@ -22,6 +22,7 @@ type autoScalingGroup struct {
 	region              *region
 	launchConfiguration *launchConfiguration
 	launchTemplate      *launchTemplate
+	autospotting        *AutoSpotting
 	instances           instances
 	config              AutoScalingConfig
 }
@@ -197,10 +198,6 @@ func (a *autoScalingGroup) cronEventAction() runer {
 	a.loadDefaultConfig()
 	a.loadConfigFromTags()
 
-	log.Println("Finding spot instances created for", a.name)
-
-	spotInstance := a.findUnattachedInstanceLaunchedForThisASG()
-
 	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronTimezone, a.config.CronScheduleState)
 	debug.Println(a.region.name, a.name, "Should take replacement actions:", shouldRun)
 
@@ -210,66 +207,28 @@ func (a *autoScalingGroup) cronEventAction() runer {
 		return skipRun{reason: "outside-cron-schedule"}
 	}
 
-	if spotInstance == nil {
-		log.Println("No spot instances were found for ", a.name)
+	onDemandInstance := a.getAnyUnprotectedOnDemandInstance()
 
-		onDemandInstance := a.getAnyUnprotectedOnDemandInstance()
-
-		if need, total := a.needReplaceOnDemandInstances(); !need {
-			log.Printf("Not allowed to replace any more of the running OD instances in %s", a.name)
-			return terminateSpotInstance{target{asg: a, totalInstances: total}}
-		}
-
-		if onDemandInstance == nil {
-			log.Println(a.region.name, a.name,
-				"No running unprotected on-demand instances were found, nothing to do here...")
-
-			return skipRun{reason: "no-instances-to-replace"}
-		}
-
-		a.loadLaunchConfiguration()
-		a.loadLaunchTemplate()
-
-		if len(a.region.conf.SQSQueueURL) == 0 {
-			return launchSpotReplacement{target{
-				onDemandInstance: onDemandInstance}}
-		}
-		return sqsSendMessageOnInstanceLaunch{
-			target{
-				asg:              a,
-				onDemandInstance: onDemandInstance,
-			},
-		}
+	if need, total := a.needReplaceOnDemandInstances(); !need {
+		log.Printf("Not allowed to replace any more of the running OD instances in %s, currently running %d on-demand instances", a.name, total)
+		return skipRun{reason: "not-allowed-to-replace-more-instances"}
 	}
 
-	spotInstanceID := *spotInstance.InstanceId
-	log.Println("Found unattached spot instance", spotInstanceID)
+	if onDemandInstance == nil {
+		log.Println(a.region.name, a.name,
+			"No running unprotected on-demand instances were found, nothing to do here...")
 
-	if need, total := a.needReplaceOnDemandInstances(); !need || !shouldRun {
-		// add to FinalRecap
-		recapText := fmt.Sprintf("%s Terminated spot instance %s [not needed]", a.name, spotInstanceID)
-		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
-		return terminateUnneededSpotInstance{
-			target{
-				asg:            a,
-				spotInstance:   spotInstance,
-				totalInstances: total,
-			}}
+		return skipRun{reason: "no-instances-to-replace"}
 	}
 
-	if !spotInstance.isReadyToAttach(a) {
-		log.Printf("Spot instance %s not yet ready, waiting for next run while processing %s",
-			spotInstanceID,
-			a.name)
-		return skipRun{"spot instance replacement exists but not ready"}
+	recapText := fmt.Sprintf("%s Triggered replacement for on-demand instance %s", a.name, *onDemandInstance.Instance.InstanceId)
+	a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
+
+	return replaceAndTerminateInstance{target{
+		autospotting:     a.autospotting,
+		onDemandInstance: onDemandInstance,
+	},
 	}
-
-	log.Println(a.region.name, "Found spot instance:", spotInstanceID,
-		"Attaching it to", a.name)
-
-	return swapSpotInstance{target{
-		asg:          a,
-		spotInstance: spotInstance}}
 }
 
 func (a *autoScalingGroup) scanInstances() instances {
@@ -573,7 +532,7 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 // Terminates an on-demand instance from the group,
 // but only after it was detached from the autoscaling group
 func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
-	instanceID *string, wait bool) error {
+	instanceID *string, wait bool, decreaseCapacity bool) error {
 
 	if wait {
 		err := a.region.services.ec2.WaitUntilInstanceRunning(
@@ -597,7 +556,7 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 		InstanceIds: []*string{
 			instanceID,
 		},
-		ShouldDecrementDesiredCapacity: aws.Bool(true),
+		ShouldDecrementDesiredCapacity: aws.Bool(decreaseCapacity),
 	}
 
 	asSvc := a.region.services.autoScaling
@@ -610,6 +569,7 @@ func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
 	// Wait till detachment initialize is complete before terminate instance
 	time.Sleep(20 * time.Second * a.region.conf.SleepMultiplier)
 
+	a.region.scanInstances()
 	return a.region.instances.get(*instanceID).terminate()
 }
 
