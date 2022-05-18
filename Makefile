@@ -67,7 +67,8 @@ artifacts:                                       			 ## Create CloudFormation ar
 .PHONY: artifacts
 
 docker: 													 ##  Build a Docker image, currently only supports x86 hosts
-	docker build --build-arg flavor=$(FLAVOR) --platform=linux/$(GOARCH) --push -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) .
+	docker build --build-arg flavor=$(FLAVOR) --platform=linux/$(GOARCH) --load -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) .
+	docker push $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION)
 .PHONY: docker
 
 docker-login:
@@ -77,7 +78,8 @@ docker-push-artifacts: docker artifacts
 .PHONY: docker-push-artifacts
 
 docker-marketplace:
-	docker build -f Dockerfile.marketplace --platform=linux/$(GOARCH) --push -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) --build-arg savings_cut=${SAVINGS_CUT} .
+	docker build -f Dockerfile.marketplace --platform=linux/$(GOARCH) --load -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) --build-arg savings_cut=${SAVINGS_CUT} .
+	docker push $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION)
 .PHONY: docker-marketplace
 
 docker-marketplace-push-artifacts: docker-marketplace artifacts
