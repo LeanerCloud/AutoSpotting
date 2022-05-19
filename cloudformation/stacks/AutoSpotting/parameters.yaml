@@ -9,8 +9,8 @@
 # DeployRegionalResourcesStackSet: 'true'
 # SQSQueueName: AutoSpotting.fifo
 
-# Default value: rate(5 minutes)
-ExecutionFrequency: rate(30 minute)
+# Default value: rate(30 minutes)
+ExecutionFrequency: rate(2 minutes)
 
 # Tag to be applied on the Lambda function
 LambdaFunctionTagKey: Name

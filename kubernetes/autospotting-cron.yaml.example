@@ -6,7 +6,7 @@ kind: CronJob
 metadata:
   name: autospotting
 spec:
-  schedule: "*/5 * * * *" # run every 5 minutes
+  schedule: "*/5 * * * *" # run every 30 minutes
   startingDeadlineSeconds: 10 # skip if it hasn't started in this many seconds
   concurrencyPolicy: Forbid # either allow|forbid|replace
   successfulJobsHistoryLimit: 3 # how many completed jobs should be kept
