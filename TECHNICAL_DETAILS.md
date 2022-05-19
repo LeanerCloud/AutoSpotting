@@ -176,9 +176,9 @@ configured but cheaper spot instances.
 
 The replacements are done using the relatively new Attach/Detach actions
 supported by the AutoScaling API. A new compatible spot instance is launched,
-and after a while, at least as much as the group's grace period, it will be
-attached to the group, while at the same time an on-demand instance is detached
-from the group and terminated in order to keep the group at constant capacity.
+and it will be immediately attached to the group, while at the same time an
+on-demand instance is detached from the group and terminated in order to keep
+the group at constant capacity.
 
 When assessing the compatibility, it takes into account the hardware specs, such
 as CPU cores, RAM size, attached instance store volumes and their type and size,
@@ -205,14 +205,14 @@ During multiple replacements performed on a given group, it only swaps them one
 at a time per Lambda function invocation, in order to not change the group too
 fast, but instances belonging to multiple groups can be replaced concurrently.
 If you find this slow, the Lambda function invocation frequency (defaulting to
-once every 5 minutes) can be changed by updating the stack, which has a
+once every 30 minutes) can be changed by updating the stack, which has a
 parameter for it.
 
 In the (so far unlikely) case in which the market price is high enough that
 there are no spot instances that can be launched, (and also in case of software
 crashes which may still rarely happen), the group would not be changed and it
 would keep running as it is, but AutoSpotting will continuously attempt to
-replace them, until eventually the prices decrease again and replaecments may
+replace them, until eventually the prices decrease again and replacements may
 succeed again.
 
 ## Internal components ##
@@ -223,7 +223,7 @@ Amazon AWS account, created automatically with CloudFormation or Terraform:
 ### Event generator ###
 
 CloudWatch event source used for triggering the Lambda function. The default
-frequency is every 5 minutes, but it is configurable using stack parameters.
+frequency is every 30 minutes, but it is configurable using stack parameters.
 
 ### Lambda function ###
 
@@ -236,18 +236,14 @@ frequency is every 5 minutes, but it is configurable using stack parameters.
   of passing any explicit AWS credentials or access keys.
 - Some algorithm parameters can be configured using Lambda environment
   variables, based on some of the stack parameters.
-- Contains a handler written in Golang, built using the
-  [eawsy/aws-lambda-go](https://github.com/eawsy/aws-lambda-go) library, which
-  implements a novel aproach that allows Golang code compiled natively to be
-  built in such a way that it can be injected into the Lambda Python runtime.
-- The handler implements all the instance replacement logic.
+- Contains a handler written in Golang which implements all the instance
+  replacement logic.
 - The spot instances are created by duplicating the configuration of the
   currently running on-demand instances as closely as possible(IAM roles,
-  security groups, user_data script, etc.) only by adding a spot bid price
-  attribute and eventually changing the instance type to a usually bigger, but
-  compatible one.
-- The bid price is set to the on-demand price of the instances configured
-  initially on the AutoScaling group.
+  security groups, user_data script, etc.), maybe changing the instance type
+  to a usually bigger, but compatible one.
+- The Spot price is set by default to the on-demand price of the instances configured
+  initially on the AutoScaling group, but this is configurable.
 - The new launch configuration may also have a different instance type,
   determined based on compatibility with the original instance type,
   considering also how much redundancy we need to have in place in the current
