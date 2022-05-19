@@ -11,7 +11,14 @@ LICENSE_FILES := LICENSE THIRDPARTY
 # the default is used for pushing to the AWS Marketplace ECR. Set this as an
 # environment variable to push to your own ECR repository instead.
 AWS_REGION ?= us-east-1
-DOCKER_IMAGE ?= 709825985650.dkr.ecr.us-east-1.amazonaws.com/cloudutil/autospotting
+
+DOCKER_ECR_ACCOUNT ?= 709825985650
+DOCKER_ECR_REGION ?= us-east-1
+
+DOCKER_ECR ?= $(DOCKER_ECR_ACCOUNT).dkr.ecr.$(DOCKER_ECR_REGION).amazonaws.com
+DOCKER_IMAGE ?= cloudutil/autospotting
+DOCKER_IMAGE_TAG ?= $(DOCKER_ECR)/$(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION)
+
 DOCKER_IMAGE_VERSION ?= 1.0
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
@@ -67,19 +74,19 @@ artifacts:                                       			 ## Create CloudFormation ar
 .PHONY: artifacts
 
 docker: 													 ##  Build a Docker image, currently only supports x86 hosts
-	docker build --build-arg flavor=$(FLAVOR) --platform=linux/$(GOARCH) --load -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) .
-	docker push $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION)
+	docker build --build-arg flavor=$(FLAVOR) --platform=linux/$(GOARCH) --load -t $(DOCKER_IMAGE_TAG) .
+	docker push $(DOCKER_IMAGE_TAG)
 .PHONY: docker
 
 docker-login:
-	 aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(DOCKER_IMAGE)
+	 aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(DOCKER_ECR)
 
 docker-push-artifacts: docker artifacts
 .PHONY: docker-push-artifacts
 
 docker-marketplace:
-	docker build -f Dockerfile.marketplace --platform=linux/$(GOARCH) --load -t $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION) --build-arg savings_cut=${SAVINGS_CUT} .
-	docker push $(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION)
+	docker build -f Dockerfile.marketplace --platform=linux/$(GOARCH) --load -t $(DOCKER_IMAGE_TAG) --build-arg savings_cut=${SAVINGS_CUT} .
+	docker push $(DOCKER_IMAGE_TAG)
 .PHONY: docker-marketplace
 
 docker-marketplace-push-artifacts: docker-marketplace artifacts
