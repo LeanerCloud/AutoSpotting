@@ -10,7 +10,7 @@
 # SQSQueueName: AutoSpotting.fifo
 
 # Default value: rate(5 minutes)
-ExecutionFrequency: rate(1 minute)
+ExecutionFrequency: rate(30 minute)
 
 # Tag to be applied on the Lambda function
 LambdaFunctionTagKey: Name
@@ -32,4 +32,4 @@ SpotProductDescription: Linux/UNIX (Amazon VPC)
 # Valid choices: opt-in (default), opt-out
 TagFilteringMode: opt-out
 
-SourceImageTag: 1.0.1.1
+SourceImageTag: 1.0.9-rc7
