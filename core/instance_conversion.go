@@ -27,6 +27,7 @@ var unsupportedIO2Regions = [...]string{
 	"af-south-1",
 	"eu-west-3",
 	"ap-northeast-3",
+	"ap-southeast-3",
 }
 
 func (i *instance) getPriceToBid(
