@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
+	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -28,6 +29,7 @@ type connections struct {
 	cloudFormation cloudformationiface.CloudFormationAPI
 	lambda         lambdaiface.LambdaAPI
 	sqs            sqsiface.SQSAPI
+	codedeploy     codedeployiface.CodeDeployAPI
 	region         string
 }
 
