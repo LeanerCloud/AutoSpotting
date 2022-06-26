@@ -12,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/codedeploy"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
@@ -526,6 +527,10 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		return err
 	}
 
+	if hasLH, hook := a.hasCodeDeployLifecycleHook(); hasLH {
+		a.triggerCodeDeployDeployment(hook, spotInstanceID)
+	}
+
 	return nil
 }
 
@@ -693,4 +698,120 @@ func (a *autoScalingGroup) resumeProcesses() {
 	if err != nil {
 		log.Printf("couldn't resume processes on ASG %s ", a.name)
 	}
+}
+
+func (a *autoScalingGroup) hasLifecycleHook(hookType string) (bool, *autoscaling.LifecycleHook) {
+	result, err := a.region.services.autoScaling.
+		DescribeLifecycleHooks(
+			&autoscaling.DescribeLifecycleHooksInput{
+				AutoScalingGroupName: a.AutoScalingGroupName,
+			})
+
+	if err != nil {
+		log.Println(err.Error())
+		return false, nil
+	}
+
+	for _, lfh := range result.LifecycleHooks {
+		if *lfh.LifecycleTransition == hookType {
+			log.Println("Found Hook", *lfh.LifecycleHookName)
+			return true, lfh
+		}
+	}
+	return false, nil
+}
+
+func (a *autoScalingGroup) hasCodeDeployLifecycleHook() (bool, *autoscaling.LifecycleHook) {
+	hasLH, lHook := a.hasLifecycleHook("autoscaling:EC2_INSTANCE_LAUNCHING")
+
+	if !hasLH {
+		return false, nil
+	}
+	if strings.HasPrefix(*lHook.LifecycleHookName, "CodeDeploy-managed-automatic-launch-deployment-hook") {
+		return true, lHook
+	}
+	return false, nil
+
+}
+
+func (a *autoScalingGroup) triggerCodeDeployDeployment(hook *autoscaling.LifecycleHook, spotInstanceID string) error {
+
+	appName, deploymentGroupName, err := a.findDeployment(*hook.LifecycleHookName)
+
+	if err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	return a.triggerDeployment(appName, deploymentGroupName)
+
+}
+
+func (a *autoScalingGroup) findDeployment(hookName string) (*string, *string, error) {
+
+	apps, err := a.region.services.codedeploy.ListApplications(&codedeploy.ListApplicationsInput{})
+
+	if err != nil {
+		log.Println(err.Error())
+		return nil, nil, err
+	}
+
+	for _, app := range apps.Applications {
+		log.Println("Processing CodeDeploy application:", app)
+
+		groups, err := a.region.services.codedeploy.ListDeploymentGroups(&codedeploy.ListDeploymentGroupsInput{
+			ApplicationName: app,
+		})
+
+		if err != nil {
+			log.Println(err.Error())
+			return nil, nil, err
+		}
+
+		for _, group := range groups.DeploymentGroups {
+
+			log.Printf("Processing CodeDeploy deployment group %s for application %s", *group, *app)
+			gd, err := a.region.services.codedeploy.GetDeploymentGroup(&codedeploy.GetDeploymentGroupInput{
+				ApplicationName:     app,
+				DeploymentGroupName: group,
+			})
+
+			if err != nil {
+				log.Println(err.Error())
+				return nil, nil, err
+			}
+
+			if gd.DeploymentGroupInfo.AutoScalingGroups == nil {
+				log.Printf("Deployment group %s for application %s has no ASG configuration", *group, *app)
+				return nil, nil, fmt.Errorf("deployment group %s for application %s has no ASG configuration", *group, *app)
+			}
+
+			asg := *gd.DeploymentGroupInfo.AutoScalingGroups[0]
+
+			log.Printf("Deployment group %s for application %s has the ASG %s and hook %s", *group, *app, *asg.Name, *asg.Hook)
+
+			if *asg.Hook == hookName && *asg.Name == a.name {
+				return app, group, nil
+			}
+		}
+	}
+	return nil, nil, fmt.Errorf("unable to find deployment group information")
+}
+
+func (a *autoScalingGroup) triggerDeployment(appName, deploymentGroupName *string) error {
+
+	_, err := a.region.services.codedeploy.CreateDeployment(
+		&codedeploy.CreateDeploymentInput{
+			ApplicationName:             appName,
+			DeploymentGroupName:         deploymentGroupName,
+			Description:                 aws.String("AutoSpoting triggered deployment"),
+			UpdateOutdatedInstancesOnly: aws.Bool(true),
+		})
+
+	if err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	return nil
 }
