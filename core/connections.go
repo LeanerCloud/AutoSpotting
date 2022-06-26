@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
+	"github.com/aws/aws-sdk-go/service/codedeploy"
 	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -51,14 +52,16 @@ func (c *connections) connect(region, mainRegion string) {
 	cloudformationConn := make(chan *cloudformation.CloudFormation)
 	lambdaConn := make(chan *lambda.Lambda)
 	sqsConn := make(chan *sqs.SQS)
+	codedeployConn := make(chan *codedeploy.CodeDeploy)
 
 	go func() { asConn <- autoscaling.New(c.session) }()
 	go func() { ec2Conn <- ec2.New(c.session) }()
 	go func() { lambdaConn <- lambda.New(c.session) }()
 	go func() { cloudformationConn <- cloudformation.New(c.session) }()
+	go func() { codedeployConn <- codedeploy.New(c.session) }()
 	go func() { sqsConn <- sqs.New(c.session, aws.NewConfig().WithRegion(mainRegion)) }()
 
-	c.autoScaling, c.ec2, c.cloudFormation, c.lambda, c.sqs, c.region = <-asConn, <-ec2Conn, <-cloudformationConn, <-lambdaConn, <-sqsConn, region
+	c.autoScaling, c.ec2, c.cloudFormation, c.lambda, c.sqs, c.codedeploy, c.region = <-asConn, <-ec2Conn, <-cloudformationConn, <-lambdaConn, <-sqsConn, <-codedeployConn, region
 
 	debug.Println("Created service connections in", region)
 }
