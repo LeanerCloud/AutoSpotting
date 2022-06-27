@@ -461,65 +461,68 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 	var spotInstanceID *string
 	var err error
 
-	if i.shouldBeReplacedWithSpot() {
-
-		// In case we're not triggered by SQS event we generate such an event and send it to the queue.
-		// We want to delay the further below code for until we're processing it through the SQS queue,
-		// in order to avoid launching Spot instances too early and having them run outside their ASG
-		// for too long.
-		if len(a.config.sqsReceiptHandle) == 0 {
-			return i.region.sqsSendMessageOnInstanceLaunch(&i.asg.name, i.InstanceId, i.State.Name, "on-demand-instance-launch")
-		}
-		defer i.region.sqsDeleteMessage(i.InstanceId, OnDemand)
-
-		log.Printf("%s instance %s belongs to an enabled ASG and should be "+
-			"replaced with spot", i.region.name, *i.InstanceId)
-
-		// Search if there is already a spot instance that we can re-use.
-		log.Println("Scanning instances in", r.name)
-		if err := r.scanInstances(); err != nil {
-			log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
-		}
-		spotInstance := i.asg.findUnattachedInstanceLaunchedForThisASG()
-
-		if spotInstance != nil {
-			spotInstanceID := *spotInstance.InstanceId
-			log.Println("Found unattached spot instance", spotInstanceID)
-		} else {
-			log.Printf("Attempting to launch spot replacement")
-			if spotInstanceID, err = i.launchSpotReplacement(); err != nil {
-				log.Printf("%s Couldn't launch spot replacement for %s",
-					i.region.name, *i.InstanceId)
-				return err
-			}
-		}
-		log.Printf("Waiting for spot instance %s to be in status running", *spotInstanceID)
-		err := r.services.ec2.WaitUntilInstanceRunning(
-			&ec2.DescribeInstancesInput{
-				InstanceIds: []*string{spotInstanceID},
-			})
-		if err != nil {
-			log.Printf("Issue while waiting for spot instance %v to start: %v",
-				spotInstanceID, err.Error())
-			return err
-		}
-		if err := r.scanInstance(spotInstanceID); err != nil {
-			log.Printf("%s Couldn't scan instance %s: %s", i.region.name,
-				*spotInstanceID, err.Error())
-			return err
-		}
-		spotInstance = r.instances.get(*spotInstanceID)
-		if _, err := spotInstance.swapWithGroupMember(i.asg); err != nil {
-			log.Printf("%s, couldn't perform spot replacement of %s ",
-				i.region.name, *i.InstanceId)
-			return err
-		}
-
-	} else {
+	if !i.shouldBeReplacedWithSpot() {
 		log.Printf("%s skipping instance %s: either doesn't belong to an "+
 			"enabled ASG or should not be replaced with spot, ",
 			i.region.name, *i.InstanceId)
 		debug.Printf("%#v", i)
+		return nil
+	}
+
+	// In case we're not triggered by SQS event we generate such an event and send it to the queue.
+	// We want to delay the further below code for until we're processing it through the SQS queue,
+	// in order to avoid launching Spot instances too early and having them run outside their ASG
+	// for too long.
+	if len(a.config.sqsReceiptHandle) == 0 {
+		return i.region.sqsSendMessageOnInstanceLaunch(&i.asg.name, i.InstanceId, i.State.Name, "on-demand-instance-launch")
+	}
+	defer i.region.sqsDeleteMessage(i.InstanceId, OnDemand)
+
+	log.Printf("%s instance %s belongs to an enabled ASG and should be "+
+		"replaced with spot", i.region.name, *i.InstanceId)
+
+	// Search if there is already a spot instance that we can re-use.
+	log.Println("Scanning instances in", r.name)
+	if err := r.scanInstances(); err != nil {
+		log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
+	}
+	spotInstance := i.asg.findUnattachedInstanceLaunchedForThisASG()
+
+	if spotInstance != nil {
+		spotInstanceID = spotInstance.InstanceId
+		log.Println("Found unattached spot instance", *spotInstanceID)
+	} else {
+		log.Printf("Attempting to launch spot replacement")
+		if spotInstanceID, err = i.launchSpotReplacement(); err != nil {
+			log.Printf("%s Couldn't launch spot replacement for %s",
+				i.region.name, *i.InstanceId)
+			return err
+		}
+	}
+	if spotInstanceID == nil {
+		return errors.New("no spot instance found")
+	}
+
+	log.Printf("Waiting for spot instance %s to be in status running", *spotInstanceID)
+	err = r.services.ec2.WaitUntilInstanceRunning(
+		&ec2.DescribeInstancesInput{
+			InstanceIds: []*string{spotInstanceID},
+		})
+	if err != nil {
+		log.Printf("Issue while waiting for spot instance %v to start: %v",
+			spotInstanceID, err.Error())
+		return err
+	}
+	if err := r.scanInstance(spotInstanceID); err != nil {
+		log.Printf("%s Couldn't scan instance %s: %s", i.region.name,
+			*spotInstanceID, err.Error())
+		return err
+	}
+	spotInstance = r.instances.get(*spotInstanceID)
+	if _, err := spotInstance.swapWithGroupMember(i.asg); err != nil {
+		log.Printf("%s, couldn't perform spot replacement of %s ",
+			i.region.name, *i.InstanceId)
+		return err
 	}
 	return nil
 }
