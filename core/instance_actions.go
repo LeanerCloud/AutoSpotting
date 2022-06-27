@@ -90,7 +90,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 	}
 
 	asg.suspendProcesses()
-	defer asg.resumeProcesses()
 
 	desiredCapacity, maxSize := *asg.DesiredCapacity, *asg.MaxSize
 

@@ -466,6 +466,7 @@ func (r *region) processEnabledAutoScalingGroups() {
 		go func(a autoScalingGroup) {
 			action := a.cronEventAction()
 			action.run()
+			a.resumeProcesses()
 			r.wg.Done()
 		}(asg)
 	}
