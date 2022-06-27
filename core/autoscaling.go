@@ -684,6 +684,7 @@ func (a *autoScalingGroup) suspendProcesses() {
 	if err != nil {
 		log.Printf("couldn't suspend processes on ASG %s ", a.name)
 	}
+	time.Sleep(30 * time.Second * a.region.conf.SleepMultiplier)
 }
 
 func (a *autoScalingGroup) resumeProcesses() {
