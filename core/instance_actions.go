@@ -78,7 +78,7 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 		return resp.Instances[0].InstanceIds[0], nil
 	}
 
-	return nil, fmt.Errorf("Couldn't launch spot instance replacement")
+	return nil, fmt.Errorf("couldn't launch spot instance replacement")
 }
 
 func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error) {
