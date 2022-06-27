@@ -493,6 +493,7 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 
 func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) error {
 	if wait {
+		log.Printf("Waiting for instance %s to start", spotInstanceID)
 		err := a.region.services.ec2.WaitUntilInstanceRunning(
 			&ec2.DescribeInstancesInput{
 				InstanceIds: []*string{aws.String(spotInstanceID)},
@@ -504,7 +505,7 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		}
 
 	}
-
+	log.Printf("Attaching instance %s to ASG %v", spotInstanceID, a.name)
 	resp, err := a.region.services.autoScaling.AttachInstances(
 		&autoscaling.AttachInstancesInput{
 			AutoScalingGroupName: aws.String(a.name),
@@ -514,13 +515,13 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		},
 	)
 
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "is already part of AutoScalingGroup") {
 		log.Println(err.Error())
 		// Pretty-print the response data.
 		log.Println(resp)
 		return err
 	}
-
+	log.Printf("Waiting for instance %s to become in service", spotInstanceID)
 	if err := a.waitForInstanceStatus(&spotInstanceID, "InService", 5); err != nil {
 		log.Printf("Spot instance %s couldn't be attached to the group %s: %v",
 			spotInstanceID, a.name, err.Error())
