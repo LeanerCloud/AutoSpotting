@@ -592,7 +592,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 
 		if err != nil {
 			log.Printf("Issue while waiting for instance %v to start: %v",
-				instanceID, err.Error())
+				*instanceID, err.Error())
 		}
 
 		if err = a.waitForInstanceStatus(instanceID, "InService", 5); err != nil {
@@ -759,7 +759,7 @@ func (a *autoScalingGroup) findDeployment(hookName string) (*string, *string, er
 	}
 
 	for _, app := range apps.Applications {
-		log.Println("Processing CodeDeploy application:", app)
+		log.Println("Processing CodeDeploy application:", *app)
 
 		groups, err := a.region.services.codedeploy.ListDeploymentGroups(&codedeploy.ListDeploymentGroupsInput{
 			ApplicationName: app,
