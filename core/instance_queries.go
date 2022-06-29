@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -409,40 +408,6 @@ func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {
 		i.isSpot() {
 		log.Println("Found unattached spot instance", *i.InstanceId)
 		return true
-	}
-	return false
-}
-
-// returns an instance ID as *string, set to nil if we need to wait for the next
-// run in case there are no spot instances
-func (i *instance) isReadyToAttach(asg *autoScalingGroup) bool {
-
-	log.Println("Considering ", *i.InstanceId, "for attaching to", asg.name)
-
-	gracePeriod := *asg.HealthCheckGracePeriod
-
-	instanceUpTime := time.Now().Unix() - i.LaunchTime.Unix()
-
-	log.Println("Instance uptime:", time.Duration(instanceUpTime)*time.Second)
-
-	// Check if the spot instance is out of the grace period, so in that case we
-	// can replace an on-demand instance with it
-	if *i.State.Name == ec2.InstanceStateNameRunning &&
-		instanceUpTime > gracePeriod {
-		log.Println("The spot instance", *i.InstanceId,
-			" has passed grace period and is ready to attach to the group.")
-		return true
-	} else if *i.State.Name == ec2.InstanceStateNameRunning &&
-		instanceUpTime < gracePeriod {
-		log.Println("The spot instance", *i.InstanceId,
-			"is still in the grace period,",
-			"waiting for it to be ready before we can attach it to the group...")
-		return false
-	} else if *i.State.Name == ec2.InstanceStateNamePending {
-		log.Println("The spot instance", *i.InstanceId,
-			"is still pending,",
-			"waiting for it to be running before we can attach it to the group...")
-		return false
 	}
 	return false
 }
