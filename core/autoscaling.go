@@ -143,56 +143,6 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() (bool, int64) {
 	return false, totalRunning
 }
 
-func (a *autoScalingGroup) terminateRandomSpotInstanceIfHavingEnough(totalRunning int64, wait bool) error {
-
-	if totalRunning == 1 {
-		log.Println("Warning: blocking replacement of very last instance - consider raising ASG to >= 2")
-		return nil
-	}
-
-	if allInstancesAreRunning, onDemandRunning := a.allInstancesRunning(); allInstancesAreRunning {
-		if a.instances.count64() == *a.DesiredCapacity && onDemandRunning == a.config.MinOnDemand {
-			log.Println("Currently Spot running equals to the required number, skipping termination")
-			return nil
-		}
-
-		if a.instances.count64() < *a.DesiredCapacity {
-			log.Println("Not enough capacity in the group")
-			return nil
-		}
-	}
-
-	randomSpot := a.getAnySpotInstance()
-	if randomSpot == nil {
-		log.Println("Couldn't pick a random spot instance")
-		return nil
-	}
-
-	log.Println("Terminating randomly-selected spot instance",
-		*randomSpot.Instance.InstanceId)
-
-	var isTerminated error
-	switch a.config.TerminationMethod {
-	case DetachTerminationMethod:
-		isTerminated = randomSpot.terminate()
-	default:
-		isTerminated = a.terminateInstanceInAutoScalingGroup(randomSpot.Instance.InstanceId, wait, false)
-	}
-
-	if isTerminated == nil {
-		// add to FinalRecap
-		recapText := fmt.Sprintf("%s Terminated random spot instance %s [too few onDemands]", a.name, *randomSpot.Instance.InstanceId)
-		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
-	}
-
-	return isTerminated
-}
-
-func (a *autoScalingGroup) allInstancesRunning() (bool, int64) {
-	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, nil)
-	return totalRunning == a.instances.count64(), onDemandRunning
-}
-
 func (a *autoScalingGroup) cronEventAction() runer {
 
 	a.scanInstances()
@@ -271,40 +221,6 @@ func (a *autoScalingGroup) scanInstances() instances {
 	return a.instances
 }
 
-func (a *autoScalingGroup) replaceOnDemandInstanceWithSpot(spotInstanceID string) error {
-	var odInstance *instance
-	var err error
-
-	// get the details of our spot instance so we can see its AZ
-	log.Println(a.name, "Retrieving instance details for ", spotInstanceID)
-	spotInst := a.region.instances.get(spotInstanceID)
-	if spotInst == nil {
-		return errors.New("couldn't find spot instance to use")
-	}
-
-	if len(a.region.conf.SQSQueueURL) == 0 {
-		if odInstance, err = spotInst.swapWithGroupMember(a); err != nil {
-			log.Printf("%s, couldn't perform spot replacement of %s ",
-				a.region.name, *spotInst.InstanceId)
-			return err
-		}
-		// add to FinalRecap
-		recapText := fmt.Sprintf("%s OnDemand instance %s replaced with spot instance %s",
-			a.name, *odInstance.InstanceId, *spotInst.InstanceId)
-		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
-
-	} else {
-
-		if err := a.region.sqsSendMessageOnInstanceLaunch(&a.name, &spotInstanceID, spotInst.State.Name, "swap-with-on-demand"); err != nil {
-			return err
-		}
-		// add to FinalRecap
-		recapText := fmt.Sprintf("%s Sent spot instance %s event message to SQSQueue", a.name, *spotInst.InstanceId)
-		a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
-	}
-	return nil
-}
-
 // Returns the information about the first running instance found in
 // the group, while iterating over all instances from the
 // group. It can also filter by AZ and Lifecycle.
@@ -351,10 +267,6 @@ func (a *autoScalingGroup) getInstance(
 
 func (a *autoScalingGroup) getAnyUnprotectedOnDemandInstance() *instance {
 	return a.getInstance(nil, true, true)
-}
-
-func (a *autoScalingGroup) getAnySpotInstance() *instance {
-	return a.getInstance(nil, false, false)
 }
 
 func (a *autoScalingGroup) hasMemberInstance(inst *instance) bool {
@@ -533,50 +445,6 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 	}
 
 	return nil
-}
-
-// Terminates an on-demand instance from the group,
-// but only after it was detached from the autoscaling group
-func (a *autoScalingGroup) detachAndTerminateOnDemandInstance(
-	instanceID *string, wait bool, decreaseCapacity bool) error {
-
-	if wait {
-		err := a.region.services.ec2.WaitUntilInstanceRunning(
-			&ec2.DescribeInstancesInput{
-				InstanceIds: []*string{instanceID},
-			})
-
-		if err != nil {
-			log.Printf("Issue while waiting for instance %v to start: %v",
-				instanceID, err.Error())
-		}
-	}
-
-	log.Println(a.region.name,
-		a.name,
-		"Detaching and terminating instance:",
-		*instanceID)
-	// detach the on-demand instance
-	detachParams := autoscaling.DetachInstancesInput{
-		AutoScalingGroupName: aws.String(a.name),
-		InstanceIds: []*string{
-			instanceID,
-		},
-		ShouldDecrementDesiredCapacity: aws.Bool(decreaseCapacity),
-	}
-
-	asSvc := a.region.services.autoScaling
-
-	if _, err := asSvc.DetachInstances(&detachParams); err != nil {
-		log.Println(err.Error())
-		return err
-	}
-
-	// Wait till detachment initialize is complete before terminate instance
-	time.Sleep(20 * time.Second * a.region.conf.SleepMultiplier)
-
-	a.region.scanInstances()
-	return a.region.instances.get(*instanceID).terminate()
 }
 
 // Terminates an instance from the group using the
