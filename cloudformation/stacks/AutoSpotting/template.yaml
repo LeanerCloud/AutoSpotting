@@ -1,1187 +1,1183 @@
 # Copyright (c) 2016-2022 Cristian Măgherușan-Stanciu
 # Licensed under the Open Software License version 3.0
 
-  AWSTemplateFormatVersion: "2010-09-09"
-  Description: "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling"
-  Parameters:
-    AllowedInstanceTypes:
-      Default: "*"
-      Description: >
-        "Comma separated list of allowed instance types for spot, in case you
-        may want to limit it to a smaller set of instance types (supports
-        globs). Example: 'm4.xlarge,r4.xlarge,m5.*'. If using the default or
-        leaving it unset, instances will be chosen by AutoSpotting's instance
-        compatibility algorithm based on CPU, memory, disk, etc., basically
-        getting you the cheapest available instances that are at least as big as
-        your existing ones. Using the 'current' keyword for this parameter will
-        use the instance type configured in the group's launch configuration.
-        This is a global value that can be overridden on a per-group basis using
-        the 'autospotting_allowed_instance_types' tag set on the AutoScaling
-        group, which accepts the same configuration values."
-      Type: "String"
-    BiddingPolicy:
-      AllowedValues:
-        - "normal"
-        - "aggressive"
-      Default: "normal"
-      Description: >
-        "Policy choice for spot bid. If set to 'normal', we bid at the on-demand
-        price of the instance type configured in the launch configuration. If
-        set to 'aggressive', we bid by default 10% on top of the current spot
-        price(configurable using the 'SpotPricePercentageBuffer' parameter), in
-        order avoid significant spot price increases."
-      Type: "String"
-    CronSchedule:
-      Default: "* *"
-      Description: >
-        "Restrict AutoSpotting to run within a time interval given as a
-        simplified cron-like rule format restricted to hours and days of week.
-        Example: '9-18 1-5' would run it during the work-week and only within
-        the usual 9-18 office hours. This is a global value that can be
-        overridden on a per-group basis using the 'autospotting_cron_schedule'
-        tag set on the AutoScaling group. The default value '* *' makes it run
-        at all times.
-      Type: "String"
-    CronTimezone:
-      Default: "UTC"
-      Description: >
-        "Sets the timezone in which to check the CronSchedule. Example: If the
-        timezone is set to 'UTC' and the CronSchedule is '9-18 1-5' it would
-        start the interval at 9am UTC, with the timezone set to 'Europe/London'
-        it would start the interval at 9am BST (10am UTC) or 9am GMT (9am UTC)
-        depending on daylight savings."
-      Type: "String"
-    CronScheduleState:
-      AllowedValues:
-        - "on"
-        - "off"
-      Default: "on"
-      Description: >
-        "Controls whether or not to run AutoSpotting within a time interval
-        given in the 'CronSchedule' parameter. Setting this to 'off' would make
-        it run only outside the defined interval. This is a global value that
-        can be overridden on a per-AutoScaling-group basis using the
-        'autospotting_cron_schedule_state' tag set on the AutoScaling group".
-      Type: "String"
-    DisableEventBasedInstanceReplacement:
-      AllowedValues:
-        - "true"
-        - "false"
-      Default: "false"
-      Description: >
-        "Disables the event based instance replacement, forcing AutoSpotting to run in legacy cron mode".
-      Type: "String"
-    DisableInstanceRebalanceRecommendation:
-      AllowedValues:
-        - "true"
-        - "false"
-      Default: "false"
-      Description: >
-        "Disables handling of instance rebalance recommendation events".
-      Type: "String"
-    DisallowedInstanceTypes:
-      Default: ""
-      Description: >
-        "Comma separated list of disallowed instance types for spot, in case you
-        want to exclude specific types. This is a global
-        value that can be overridden on a per-group basis using the
-        'autospotting_disallowed_instance_types' tag set on the AutoScaling
-        group. It also supports globs, such as 't2.*,m4.large'"
-      Type: "String"
-    GP2ConversionThreshold:
-      Default: 170
-      Description: >
-        "The EBS volume size below which to automatically replace GP2 EBS volumes
-        to the newer GP3 volume type, that's 20% cheaper and more performant than
-        GP2 for smaller sizes, but it's not getting more performant wth size as
-        GP2 does. Over 170 GB GP2 gets better throughput, and at 1TB GP2 also has
-        better IOPS than a baseline GP3 volume."
-      Type: Number
-    ExecutionFrequency:
-      Default: "rate(30 minutes)"
-      Description: >
-        "Frequency of executing the Lambda function, influences the speed of
-        replacing your instances since they are currently replaced one at a
-        time. Can accept any value documented at
-        http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html
-        Warning: Setting this to a higher execution frequency(lower value) may
-        suddenly replace all your AutoScaling group members, especially if you
-        don't have a grace period configured. Only change this if you really
-        know what you're doing!"
-      Type: "String"
-    InstanceTerminationMethod:
-      Default: "autoscaling"
-      Description: >
-        "Instance termination method. Must be one of 'autoscaling' (default) or
-        'detach' - compatibility mode, not recommended because it won't execute
-        the termination lifecycle hooks"
-      Type: "String"
-    TerminationNotificationAction:
-      AllowedValues:
-        - "auto"
-        - "detach"
-        - "terminate"
-      Default: "auto"
-      Description: >
-        "Action to do when receiving a Spot Instance Termination Notification.
-        Must be one of 'auto' (terminate if lifecycle hook is defined, or else
-        detach) [default], 'terminate' (lifecycle hook triggered), 'detach'
-        (lifecycle hook not triggered)"
-      Type: "String"
-    FilterByTags:
-      Default: ""
-      Description: >
-        "Comma separated list of tags given in 'key=value' format, on which to
-        filter the ASGs that AutoSpotting considers. By default (if no filters
-        are specified) the 'spot-enabled=true' key/value pair is used. Example:
-        'spot-enabled=true,environment=dev'"
-      Type: "String"
-    LambdaFunctionTagKey:
-      Description: "Name of the tag to be applied to the Lambda function"
-      Default: "Name"
-      Type: "String"
-    LambdaFunctionTagValue:
-      Description: "Value of the tag to be applied to the Lambda function"
-      Default: "AutoSpotting"
-      Type: "String"
-    LambdaMemorySize:
-      Default: 1024
-      Description: >
-        "Memory allocated to the Lambda function, setting this lower will slow
-        down the execution a bit"
-      Type: Number
-      MinValue: 128
-      MaxValue: 3008
-    SourceECR:
-      Default: "709825985650.dkr.ecr.us-east-1.amazonaws.com"
-      Description: >
-        "ECR repository that stores the AutoSpotting Docker image used by
-        Lambda. The default value is using the AWS Marketplace ECR repository
-        and only works if you purchased AutoSpotting through the AWS
-        Marketplace. If you built it yourself, you need to override this value
-        with the URL of your own ECR repository that contains the AutoSpotting
-        Docker image."
-      Type: "String"
-    SourceImage:
-      Default: "cloudutil/autospotting"
-      Description: >
-        "The Docker image used for the Lambda function"
-      Type: "String"
-    SourceImageTag:
-      Default: "1.0.1"
-      Description: >
-        "The version of the Docker image used for the Lambda function"
-      Type: "String"
-    LogRetentionPeriod:
-      Default: "7"
-      Description: >
-        "Number of days to keep the Lambda function logs in CloudWatch."
-      Type: "Number"
-    MinOnDemandNumber:
-      Default: "0"
-      Description: >
-        "Minimum on-demand instances (absolute number) to be kept in each of
-        your groups. It is a global default value that can be overridden on a
-        per-group basis using the 'autospotting_min_on_demand_number' tag that
-        can be set on the AutoScaling group. It takes precedence over
-        'MinOnDemandPercentage' parameter and its corresponding overriding tag,
-        so it doesn't make sense to pass both of them."
-      Type: "Number"
-    MinOnDemandPercentage:
-      Default: "0.0"
-      Description: >
-        "Minimum on-demand instances (as percentage of the instances currently
-        running in each group) that will be kept when replacing with spot
-        instances. It is also a global default value that can be overridden on a
-        per-group basis using the 'autospotting_min_on_demand_percentage' tag
-        that can be set on the AutoScaling group. The 'MinOnDemandNumber'
-        parameter takes precedence if both these parameters are passed."
-      Type: "Number"
-    OnDemandPriceMultiplier:
-      Default: "1.0"
-      Description: >
-        "Multiplier for the on-demand price. This is useful for volume discounts
-        or if you want to set your bid price to be lower than the on demand
-        price to ensure you don't run spot instances instead of your existing
-        reserved instances. It is also a global default value that can be
-        overridden on a per-group basis using the
-        'autospotting_on_demand_price_multiplier' tag that can be set on the
-        AutoScaling group."
-      Type: "Number"
-    Regions:
-      Default: "ap-northeast-1,ap-northeast-2,ap-south-1,ap-southeast-1,ap-southeast-2,ca-central-1,eu-central-1,eu-north-1,eu-west-1,eu-west-2,eu-west-3,sa-east-1,us-east-1,us-east-2,us-west-1,us-west-2"
-      Description: >
-        "Comma-separated list of regions where AutoSpotting should run and also
-        where it install the regional resources StackSet. It defaults to all
-        supported commercially available AWS regions as of Oct 2020. Because of
-        a Lambda limitation, the main AutoSpotting Lambda function can currently
-        only be installed in "us-east-1" unless you host it yourself in an S3
-        bucket stored on another region, but it can process AutoScaling groups
-        from any other regions. Example: 'us-east-1,eu-west-1'"
-      Type: CommaDelimitedList
-    SpotAllocationStrategy:
-      Type: "String"
-      Description: >
-        "Controls the Spot allocation strategy for
-        launching Spot instances. Allowed options:
-        'capacity-optimized-prioritized' (default), 'capacity-optimized',
-        'lowest-price'. Further information on this is available at
-        https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html"
-      AllowedValues:
-        - "capacity-optimized-prioritized"
-        - "capacity-optimized"
-        - "lowest-price"
-      Default: "capacity-optimized-prioritized"
-    SpotPricePercentageBuffer:
-      Default: "10.0"
-      Description: >
-        "Percentage Value of the bid above the current spot price. A spot bid
-        would be placed at a value = current_spot_price * [1 +
-        (spot_price_buffer_percentage/100.0)]. The main benefit is that it
-        protects the group from running spot instances that got significantly
-        more expensive than when they were initially launched, but still
-        somewhat less than the on-demand price. This is a global value that can
-        be overridden on a per-group basis using the
-        'autospotting_spot_price_buffer_percentage' tag set on the AutoScaling
-        group. Warning: multiple spot instances may be terminated suddenly once
-        the price was reached, use with care!"
-      Type: "Number"
-    SpotProductDescription:
-      AllowedValues:
-        - "Linux/UNIX"
-        - "SUSE Linux"
-        - "Windows"
-        - "Linux/UNIX (Amazon VPC)"
-        - "SUSE Linux (Amazon VPC)"
-        - "Windows (Amazon VPC)"
-        - "Red Hat Enterprise Linux"
-      Default: "Linux/UNIX (Amazon VPC)"
-      Description: >
-        "The Spot Product or operating system to use when looking up spot price
-        history in the market. Valid choices: 'Linux/UNIX | SUSE Linux | Windows
-        | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon
-        VPC) | Red Hat Enterprise Linux'"
-      Type: "String"
-    SpotProductPremium:
-      Default: 0.0
-      Description: >
-        "The Product Premium to apply to the on demand price to improve spot
-        selection and savings calculations when using a premium instance type
-        such as RHEL."
-      Type: "Number"
-    SQSQueueName:
-      Default: AutoSpotting.fifo
-      Description: >
-        "The Name of the SQS fifo queue used to manage spot replacement actions.
-        Must end with '.fifo' and can have up to 80 characters, including the fifo suffix;
-        valid values: alphanumeric characters, hyphens (- ), and underscores (_ )."
-      AllowedPattern: '^[a-zA-Z0-9-_]{1,75}\.fifo$'
-      Type: "String"
-    TagFilteringMode:
-      AllowedValues:
-        - "opt-in"
-        - "opt-out"
-      Default: "opt-in"
-      Description: >
-        "Controls the behavior against the tagged AutoScaling groups. Defaults
-        to 'opt-in', only processing the groups tagged with 'spot-enabled=true'
-        or whatever else you may have configured using the 'FilterByTags'
-        option. The 'opt-out' mode yields opposite behavior, running against all
-        groups except for those tagged with 'spot-enabled=false' or other values
-        configured in the same 'FilterByTags' option"
-      Type: "String"
-    PatchBeanstalkUserdata:
-      Default: "false"
-      AllowedValues:
-        - "false"
-        - "true"
-      Description: >
-        "Controls whether AutoSpotting patches Elastic Beanstalk UserData
-        scripts to use the instance role when calling CloudFormation helpers
-        instead of the standard CloudFormation authentication method.
-        After creating this CloudFormation stack, you must add the
-        AutoSpotting's ElasticBeanstalk managed policy to your Beanstalk
-        instance profile/role if you turn this option to On"
-      Type: "String"
-    DeployRegionalResourcesStackSet:
-      AllowedValues:
-        - "false"
-        - "true"
-      Default: "true"
-      Description: >
-        "Controls whether to deploy the regional resources StackSet and the
-        required nested stacks that create StackSet enabler IAM roles.
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling"
+Parameters:
+  AllowedInstanceTypes:
+    Default: "*"
+    Description: >
+      "Comma separated list of allowed instance types for spot, in case you
+      may want to limit it to a smaller set of instance types (supports
+      globs). Example: 'm4.xlarge,r4.xlarge,m5.*'. If using the default or
+      leaving it unset, instances will be chosen by AutoSpotting's instance
+      compatibility algorithm based on CPU, memory, disk, etc., basically
+      getting you the cheapest available instances that are at least as big as
+      your existing ones. Using the 'current' keyword for this parameter will
+      use the instance type configured in the group's launch configuration.
+      This is a global value that can be overridden on a per-group basis using
+      the 'autospotting_allowed_instance_types' tag set on the AutoScaling
+      group, which accepts the same configuration values."
+    Type: "String"
+  BiddingPolicy:
+    AllowedValues:
+      - "normal"
+      - "aggressive"
+    Default: "normal"
+    Description: >
+      "Policy choice for spot bid. If set to 'normal', we bid at the on-demand
+      price of the instance type configured in the launch configuration. If
+      set to 'aggressive', we bid by default 10% on top of the current spot
+      price(configurable using the 'SpotPricePercentageBuffer' parameter), in
+      order avoid significant spot price increases."
+    Type: "String"
+  CpuArchitecture:
+    Type: "String"
+    AllowedValues:
+      - arm64
+      - x86_64
+    Default: x86_64
+    Description: >
+      "The CPU architecture to use for running the AutoSpotting Docker image"
+  CronSchedule:
+    Default: "* *"
+    Description: >
+      "Restrict AutoSpotting to run within a time interval given as a
+      simplified cron-like rule format restricted to hours and days of week.
+      Example: '9-18 1-5' would run it during the work-week and only within
+      the usual 9-18 office hours. This is a global value that can be
+      overridden on a per-group basis using the 'autospotting_cron_schedule'
+      tag set on the AutoScaling group. The default value '* *' makes it run
+      at all times.
+    Type: "String"
+  CronTimezone:
+    Default: "UTC"
+    Description: >
+      "Sets the timezone in which to check the CronSchedule. Example: If the
+      timezone is set to 'UTC' and the CronSchedule is '9-18 1-5' it would
+      start the interval at 9am UTC, with the timezone set to 'Europe/London'
+      it would start the interval at 9am BST (10am UTC) or 9am GMT (9am UTC)
+      depending on daylight savings."
+    Type: "String"
+  CronScheduleState:
+    AllowedValues:
+      - "on"
+      - "off"
+    Default: "on"
+    Description: >
+      "Controls whether or not to run AutoSpotting within a time interval
+      given in the 'CronSchedule' parameter. Setting this to 'off' would make
+      it run only outside the defined interval. This is a global value that
+      can be overridden on a per-AutoScaling-group basis using the
+      'autospotting_cron_schedule_state' tag set on the AutoScaling group".
+    Type: "String"
+  DisableEventBasedInstanceReplacement:
+    AllowedValues:
+      - "true"
+      - "false"
+    Default: "false"
+    Description: >
+      "Disables the event based instance replacement, forcing AutoSpotting to run in legacy cron mode".
+    Type: "String"
+  DisableInstanceRebalanceRecommendation:
+    AllowedValues:
+      - "true"
+      - "false"
+    Default: "false"
+    Description: >
+      "Disables handling of instance rebalance recommendation events".
+    Type: "String"
+  DisallowedInstanceTypes:
+    Default: ""
+    Description: >
+      "Comma separated list of disallowed instance types for spot, in case you
+      want to exclude specific types. This is a global
+      value that can be overridden on a per-group basis using the
+      'autospotting_disallowed_instance_types' tag set on the AutoScaling
+      group. It also supports globs, such as 't2.*,m4.large'"
+    Type: "String"
+  GP2ConversionThreshold:
+    Default: 170
+    Description: >
+      "The EBS volume size below which to automatically replace GP2 EBS volumes
+      to the newer GP3 volume type, that's 20% cheaper and more performant than
+      GP2 for smaller sizes, but it's not getting more performant wth size as
+      GP2 does. Over 170 GB GP2 gets better throughput, and at 1TB GP2 also has
+      better IOPS than a baseline GP3 volume."
+    Type: Number
+  ExecutionFrequency:
+    Default: "rate(30 minutes)"
+    Description: >
+      "Frequency of executing the Lambda function, influences the speed of
+      replacing your instances since they are currently replaced one at a
+      time. Can accept any value documented at
+      http://docs.aws.amazon.com/AmazonCloudWatch/latest/events/ScheduledEvents.html
+      Warning: Setting this to a higher execution frequency(lower value) may
+      suddenly replace all your AutoScaling group members, especially if you
+      don't have a grace period configured. Only change this if you really
+      know what you're doing!"
+    Type: "String"
+  InstanceTerminationMethod:
+    Default: "autoscaling"
+    Description: >
+      "Instance termination method. Must be one of 'autoscaling' (default) or
+      'detach' - compatibility mode, not recommended because it won't execute
+      the termination lifecycle hooks"
+    Type: "String"
+  TerminationNotificationAction:
+    AllowedValues:
+      - "auto"
+      - "detach"
+      - "terminate"
+    Default: "auto"
+    Description: >
+      "Action to do when receiving a Spot Instance Termination Notification.
+      Must be one of 'auto' (terminate if lifecycle hook is defined, or else
+      detach) [default], 'terminate' (lifecycle hook triggered), 'detach'
+      (lifecycle hook not triggered)"
+    Type: "String"
+  FilterByTags:
+    Default: ""
+    Description: >
+      "Comma separated list of tags given in 'key=value' format, on which to
+      filter the ASGs that AutoSpotting considers. By default (if no filters
+      are specified) the 'spot-enabled=true' key/value pair is used. Example:
+      'spot-enabled=true,environment=dev'"
+    Type: "String"
+  LambdaFunctionTagKey:
+    Description: "Name of the tag to be applied to the Lambda function"
+    Default: "Name"
+    Type: "String"
+  LambdaFunctionTagValue:
+    Description: "Value of the tag to be applied to the Lambda function"
+    Default: "AutoSpotting"
+    Type: "String"
+  LambdaMemorySize:
+    Default: 1024
+    Description: >
+      "Memory allocated to the Lambda function, setting this lower will slow
+      down the execution a bit"
+    Type: Number
+    MinValue: 128
+    MaxValue: 3008
+  SourceECR:
+    Default: "709825985650.dkr.ecr.us-east-1.amazonaws.com"
+    Description: >
+      "ECR repository that stores the AutoSpotting Docker image used by
+      Lambda. The default value is using the AWS Marketplace ECR repository
+      and only works if you purchased AutoSpotting through the AWS
+      Marketplace. If you built it yourself, you need to override this value
+      with the URL of your own ECR repository that contains the AutoSpotting
+      Docker image."
+    Type: "String"
+  SourceImage:
+    Default: "cloudutil/autospotting"
+    Description: >
+      "The Docker image used for the Lambda function"
+    Type: "String"
+  SourceImageTag:
+    Default: "1.0.1"
+    Description: >
+      "The version of the Docker image used for the Lambda function"
+    Type: "String"
+  LogRetentionPeriod:
+    Default: "7"
+    Description: >
+      "Number of days to keep the Lambda function logs in CloudWatch."
+    Type: "Number"
+  MinOnDemandNumber:
+    Default: "0"
+    Description: >
+      "Minimum on-demand instances (absolute number) to be kept in each of
+      your groups. It is a global default value that can be overridden on a
+      per-group basis using the 'autospotting_min_on_demand_number' tag that
+      can be set on the AutoScaling group. It takes precedence over
+      'MinOnDemandPercentage' parameter and its corresponding overriding tag,
+      so it doesn't make sense to pass both of them."
+    Type: "Number"
+  MinOnDemandPercentage:
+    Default: "0.0"
+    Description: >
+      "Minimum on-demand instances (as percentage of the instances currently
+      running in each group) that will be kept when replacing with spot
+      instances. It is also a global default value that can be overridden on a
+      per-group basis using the 'autospotting_min_on_demand_percentage' tag
+      that can be set on the AutoScaling group. The 'MinOnDemandNumber'
+      parameter takes precedence if both these parameters are passed."
+    Type: "Number"
+  OnDemandPriceMultiplier:
+    Default: "1.0"
+    Description: >
+      "Multiplier for the on-demand price. This is useful for volume discounts
+      or if you want to set your bid price to be lower than the on demand
+      price to ensure you don't run spot instances instead of your existing
+      reserved instances. It is also a global default value that can be
+      overridden on a per-group basis using the
+      'autospotting_on_demand_price_multiplier' tag that can be set on the
+      AutoScaling group."
+    Type: "Number"
+  Regions:
+    Default: "ap-northeast-1,ap-northeast-2,ap-south-1,ap-southeast-1,ap-southeast-2,ca-central-1,eu-central-1,eu-north-1,eu-west-1,eu-west-2,eu-west-3,sa-east-1,us-east-1,us-east-2,us-west-1,us-west-2"
+    Description: >
+      "Comma-separated list of regions where AutoSpotting should run and also
+      where it install the regional resources StackSet. It defaults to all
+      supported commercially available AWS regions as of Oct 2020. Because of
+      a Lambda limitation, the main AutoSpotting Lambda function can currently
+      only be installed in "us-east-1" unless you host it yourself in an S3
+      bucket stored on another region, but it can process AutoScaling groups
+      from any other regions. Example: 'us-east-1,eu-west-1'"
+    Type: CommaDelimitedList
+  SpotAllocationStrategy:
+    Type: "String"
+    Description: >
+      "Controls the Spot allocation strategy for
+      launching Spot instances. Allowed options:
+      'capacity-optimized-prioritized' (default), 'capacity-optimized',
+      'lowest-price'. Further information on this is available at
+      https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html"
+    AllowedValues:
+      - "capacity-optimized-prioritized"
+      - "capacity-optimized"
+      - "lowest-price"
+    Default: "capacity-optimized-prioritized"
+  SpotPricePercentageBuffer:
+    Default: "10.0"
+    Description: >
+      "Percentage Value of the bid above the current spot price. A spot bid
+      would be placed at a value = current_spot_price * [1 +
+      (spot_price_buffer_percentage/100.0)]. The main benefit is that it
+      protects the group from running spot instances that got significantly
+      more expensive than when they were initially launched, but still
+      somewhat less than the on-demand price. This is a global value that can
+      be overridden on a per-group basis using the
+      'autospotting_spot_price_buffer_percentage' tag set on the AutoScaling
+      group. Warning: multiple spot instances may be terminated suddenly once
+      the price was reached, use with care!"
+    Type: "Number"
+  SpotProductDescription:
+    AllowedValues:
+      - "Linux/UNIX"
+      - "SUSE Linux"
+      - "Windows"
+      - "Linux/UNIX (Amazon VPC)"
+      - "SUSE Linux (Amazon VPC)"
+      - "Windows (Amazon VPC)"
+      - "Red Hat Enterprise Linux"
+    Default: "Linux/UNIX (Amazon VPC)"
+    Description: >
+      "The Spot Product or operating system to use when looking up spot price
+      history in the market. Valid choices: 'Linux/UNIX | SUSE Linux | Windows
+      | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon
+      VPC) | Red Hat Enterprise Linux'"
+    Type: "String"
+  SpotProductPremium:
+    Default: 0.0
+    Description: >
+      "The Product Premium to apply to the on demand price to improve spot
+      selection and savings calculations when using a premium instance type
+      such as RHEL."
+    Type: "Number"
+  SQSQueueName:
+    Default: AutoSpotting.fifo
+    Description: >
+      "The Name of the SQS fifo queue used to manage spot replacement actions.
+      Must end with '.fifo' and can have up to 80 characters, including the fifo suffix;
+      valid values: alphanumeric characters, hyphens (- ), and underscores (_ )."
+    AllowedPattern: '^[a-zA-Z0-9-_]{1,75}\.fifo$'
+    Type: "String"
+  TagFilteringMode:
+    AllowedValues:
+      - "opt-in"
+      - "opt-out"
+    Default: "opt-in"
+    Description: >
+      "Controls the behavior against the tagged AutoScaling groups. Defaults
+      to 'opt-in', only processing the groups tagged with 'spot-enabled=true'
+      or whatever else you may have configured using the 'FilterByTags'
+      option. The 'opt-out' mode yields opposite behavior, running against all
+      groups except for those tagged with 'spot-enabled=false' or other values
+      configured in the same 'FilterByTags' option"
+    Type: "String"
+  PatchBeanstalkUserdata:
+    Default: "false"
+    AllowedValues:
+      - "false"
+      - "true"
+    Description: >
+      "Controls whether AutoSpotting patches Elastic Beanstalk UserData
+      scripts to use the instance role when calling CloudFormation helpers
+      instead of the standard CloudFormation authentication method.
+      After creating this CloudFormation stack, you must add the
+      AutoSpotting's ElasticBeanstalk managed policy to your Beanstalk
+      instance profile/role if you turn this option to On"
+    Type: "String"
+  DeployRegionalResourcesStackSet:
+    AllowedValues:
+      - "false"
+      - "true"
+    Default: "true"
+    Description: >
+      "Controls whether to deploy the regional resources StackSet and the
+      required nested stacks that create StackSet enabler IAM roles.
 
-        You may need to disable this flag if these IAM roles already exist in
-        your account and you fail to launch the CloudFormation stack due to a
-        resource naming conflict.
+      You may need to disable this flag if these IAM roles already exist in
+      your account and you fail to launch the CloudFormation stack due to a
+      resource naming conflict.
 
-        The Stack Set resource is a required component of AutoSpotting's
-        event-based mode, so you'll then need to install it yourself if this
-        flag is disabled, otherwise AutoSpotting will fallback to the legacy
-        cron execution mode.
-      Type: "String"
-  Conditions:
-    DeployRegionalResourcesStackSet:
-      Fn::Equals:
-        - Ref: DeployRegionalResourcesStackSet
-        - "true"
-  Outputs:
-    AutoSpottingLambdaARN:
-      Value:
-        Fn::GetAtt:
-          - "LambdaFunction"
-          - "Arn"
-    LambdaRegionalStackExecutionRoleARN:
-      Value:
-        Fn::GetAtt:
-          - "LambdaRegionalStackExecutionRole"
-          - "Arn"
-  Resources:
-    LambdaExecutionRole:
-      Properties:
-        AssumeRolePolicyDocument:
-          Statement:
-            -
-              Action: "sts:AssumeRole"
-              Effect: "Allow"
-              Principal:
-                Service:
-                  - "lambda.amazonaws.com"
-        Path: "/lambda/"
-      Type: "AWS::IAM::Role"
+      The Stack Set resource is a required component of AutoSpotting's
+      event-based mode, so you'll then need to install it yourself if this
+      flag is disabled, otherwise AutoSpotting will fallback to the legacy
+      cron execution mode.
+    Type: "String"
+Conditions:
+  DeployRegionalResourcesStackSet:
+    Fn::Equals:
+      - Ref: DeployRegionalResourcesStackSet
+      - "true"
+  Arm64:
+    Fn::Equals:
+      - Ref: CpuArchitecture
+      - "arm64"
+Outputs:
+  AutoSpottingLambdaARN:
+    Value:
+      Fn::GetAtt:
+        - "LambdaFunction"
+        - "Arn"
+  LambdaRegionalStackExecutionRoleARN:
+    Value:
+      Fn::GetAtt:
+        - "LambdaRegionalStackExecutionRole"
+        - "Arn"
+Resources:
+  LambdaExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Path: "/lambda/"
+    Type: "AWS::IAM::Role"
 
-    LambdaFunction:
-      DependsOn:
-        - CopyDockerImage
-      Properties:
-        PackageType: Image
-        # Architectures:
-        #   - arm64
-        Code:
-          ImageUri:
+  LambdaFunction:
+    DependsOn:
+      - CopyDockerImage
+    Properties:
+      PackageType: Image
+      Architectures:
+        - "Fn::If":
+            - Arm64
+            - arm64
+            - x86_64
+      Code:
+        ImageUri:
+          Fn::Join:
+            - ":"
+            - - Fn::GetAtt: ECRRepository.RepositoryUri
+              - Ref: SourceImageTag
+      Description: "Implements Spot instance automation"
+      Environment:
+        Variables:
+          ALLOWED_INSTANCE_TYPES:
+            Ref: "AllowedInstanceTypes"
+          BIDDING_POLICY:
+            Ref: "BiddingPolicy"
+          CRON_SCHEDULE:
+            Ref: "CronSchedule"
+          CRON_TIMEZONE:
+            Ref: "CronTimezone"
+          CRON_SCHEDULE_STATE:
+            Ref: "CronScheduleState"
+          DISABLE_EVENT_BASED_INSTANCE_REPLACEMENT:
+            Ref: "DisableEventBasedInstanceReplacement"
+          DISABLE_INSTANCE_REBALANCE_RECOMMENDATION:
+            Ref: "DisableInstanceRebalanceRecommendation"
+          DISALLOWED_INSTANCE_TYPES:
+            Ref: "DisallowedInstanceTypes"
+          EBS_GP2_CONVERSION_THRESHOLD:
+            Ref: "GP2ConversionThreshold"
+          INSTANCE_TERMINATION_METHOD:
+            Ref: "InstanceTerminationMethod"
+          MIN_ON_DEMAND_NUMBER:
+            Ref: "MinOnDemandNumber"
+          MIN_ON_DEMAND_PERCENTAGE:
+            Ref: "MinOnDemandPercentage"
+          ON_DEMAND_PRICE_MULTIPLIER:
+            Ref: "OnDemandPriceMultiplier"
+          REGIONS:
             Fn::Join:
-              - ':'
-              - - Fn::GetAtt: ECRRepository.RepositoryUri
-                - Ref: SourceImageTag
-        Description: "Implements Spot instance automation"
-        Environment:
-          Variables:
-            ALLOWED_INSTANCE_TYPES:
-              Ref: "AllowedInstanceTypes"
-            BIDDING_POLICY:
-              Ref: "BiddingPolicy"
-            CRON_SCHEDULE:
-              Ref: "CronSchedule"
-            CRON_TIMEZONE:
-              Ref: "CronTimezone"
-            CRON_SCHEDULE_STATE:
-              Ref: "CronScheduleState"
-            DISABLE_EVENT_BASED_INSTANCE_REPLACEMENT:
-              Ref: "DisableEventBasedInstanceReplacement"
-            DISABLE_INSTANCE_REBALANCE_RECOMMENDATION:
-              Ref: "DisableInstanceRebalanceRecommendation"
-            DISALLOWED_INSTANCE_TYPES:
-              Ref: "DisallowedInstanceTypes"
-            EBS_GP2_CONVERSION_THRESHOLD:
-              Ref: "GP2ConversionThreshold"
-            INSTANCE_TERMINATION_METHOD:
-              Ref: "InstanceTerminationMethod"
-            MIN_ON_DEMAND_NUMBER:
-              Ref: "MinOnDemandNumber"
-            MIN_ON_DEMAND_PERCENTAGE:
-              Ref: "MinOnDemandPercentage"
-            ON_DEMAND_PRICE_MULTIPLIER:
-              Ref: "OnDemandPriceMultiplier"
-            REGIONS:
-              Fn::Join:
               - ","
               - Ref: "Regions"
-            SPOT_ALLOCATION_STRATEGY:
-              Ref: SpotAllocationStrategy
-            SPOT_PRICE_BUFFER_PERCENTAGE:
-              Ref: "SpotPricePercentageBuffer"
-            SPOT_PRODUCT_DESCRIPTION:
-              Ref: "SpotProductDescription"
-            SPOT_PRODUCT_PREMIUM:
-              Ref: "SpotProductPremium"
-            TAG_FILTERING_MODE:
-              Ref: "TagFilteringMode"
-            TAG_FILTERS:
-              Ref: "FilterByTags"
-            TERMINATION_NOTIFICATION_ACTION:
-              Ref: "TerminationNotificationAction"
-            PATCH_BEANSTALK_USERDATA:
-              Ref: "PatchBeanstalkUserdata"
-            SQS_QUEUE_URL:
-              Ref: "SQSQueue"
-        MemorySize:
-          Ref: "LambdaMemorySize"
-        Role:
-          Fn::GetAtt:
-            - "LambdaExecutionRole"
-            - "Arn"
-        Tags:
-          -
-            Key:
-              Ref: "LambdaFunctionTagKey"
-            Value:
-              Ref: "LambdaFunctionTagValue"
-        Timeout: 900
-      Type: "AWS::Lambda::Function"
-    LambdaPolicy:
-      Properties:
-        PolicyDocument:
-          Statement:
-            -
-              Action:
-                - "autoscaling:AttachInstances"
-                - "autoscaling:CompleteLifecycleAction"
-                - "autoscaling:CreateOrUpdateTags"
-                - "autoscaling:DescribeAutoScalingGroups"
-                - "autoscaling:DescribeAutoScalingInstances"
-                - "autoscaling:DescribeLaunchConfigurations"
-                - "autoscaling:DescribeLifecycleHooks"
-                - "autoscaling:DescribeTags"
-                - "autoscaling:DetachInstances"
-                - "autoscaling:ResumeProcesses"
-                - "autoscaling:SuspendProcesses"
-                - "autoscaling:TerminateInstanceInAutoScalingGroup"
-                - "autoscaling:UpdateAutoScalingGroup"
-                - "aws-marketplace:MeterUsage"
-                - "aws-marketplace:RegisterUsage"
-                - "cloudformation:Describe*"
-                - "codedeploy:CreateDeployment"
-                - "codedeploy:GetApplicationRevision"
-                - "codedeploy:GetDeploymentConfig"
-                - "codedeploy:GetDeploymentGroup"
-                - "codedeploy:ListApplications"
-                - "codedeploy:ListDeploymentGroups"
-                - "ec2:CreateTags"
-                - "ec2:CreateLaunchTemplate"
-                - "ec2:CreateFleet"
-                - "ec2:DeleteLaunchTemplate"
-                - "ec2:DeleteTags"
-                - "ec2:DescribeImages"
-                - "ec2:DescribeInstanceAttribute"
-                - "ec2:DescribeInstances"
-                - "ec2:DescribeLaunchTemplateVersions"
-                - "ec2:DescribeRegions"
-                - "ec2:DescribeSpotPriceHistory"
-                - "ec2:RunInstances"
-                - "ec2:TerminateInstances"
-                - "iam:CreateServiceLinkedRole"
-                - "iam:PassRole"
-                - "logs:CreateLogGroup"
-                - "logs:CreateLogStream"
-                - "logs:PutLogEvents"
-              Effect: "Allow"
-              Resource: "*"
-            -
-              Action:
-                - "sqs:ReceiveMessage"
-                - "sqs:SendMessage"
-                - "sqs:DeleteMessage"
-                - "sqs:GetQueueAttributes"
-              Effect: "Allow"
-              Resource:
-                Fn::GetAtt:
-                  - SQSQueue
-                  - Arn
-            -
-              Action:
-                - "ssm:GetParameter"
-                - "ssm:PutParameter"
-              Effect: "Allow"
-              Resource:
-                Fn::Join:
-                  - ":"
-                  -
-                    - arn:aws:ssm:us-east-1
-                    -
-                      Ref: AWS::AccountId
-                    - parameter/autospotting-metering
-
-        PolicyName: "LambdaPolicy"
-        Roles:
-          -
-            Ref: "LambdaExecutionRole"
-          -
-            Ref: ECSTaskExecutionRole
-      Type: "AWS::IAM::Policy"
-
-    LambdaEventSourceMapping:
-      DependsOn: LambdaPolicy
-      Type: AWS::Lambda::EventSourceMapping
-      Properties:
-        BatchSize: 1
-        EventSourceArn:
-          Fn::GetAtt:
-            - SQSQueue
-            - Arn
-        FunctionName:
-          Ref: LambdaFunction
-
-    # Need to specify QueueName, or CloudFormation for StackSets Stacks will generate a long name
-    # then it will append .fifo (because it's a FIFO queue), this will go over the 80 char limit.
-    # Using a name is not a problem for SQSQueue cause the only property that if changed replace
-    # the resource is FifoQueue itself.
-    SQSQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        ContentBasedDeduplication: true
-        FifoQueue: true
-        MessageRetentionPeriod: 86400
-        QueueName:
-          Ref: SQSQueueName
-        VisibilityTimeout: 900
-
-    RegionalStackSet:
-      Condition: DeployRegionalResourcesStackSet
-      DependsOn:
-        - StackSetAdministrationRole
-        - StackSetExecutionRole
-      Type: AWS::CloudFormation::StackSet
-      Properties:
-        TemplateURL: https://s3.amazonaws.com/cloudprowess/nightly/regional_template.yaml
-        Capabilities:
-          - CAPABILITY_IAM
-        Description:  "StackSet that deploys regional resources required by AutoSpotting for capturing events."
-        OperationPreferences:
-          FailureTolerancePercentage: 50
-          MaxConcurrentPercentage: 100
-          RegionConcurrencyType: PARALLEL
-        PermissionModel: SELF_MANAGED
-        Parameters:
-          - ParameterKey: AutoSpottingLambdaARN
-            ParameterValue:
+          SPOT_ALLOCATION_STRATEGY:
+            Ref: SpotAllocationStrategy
+          SPOT_PRICE_BUFFER_PERCENTAGE:
+            Ref: "SpotPricePercentageBuffer"
+          SPOT_PRODUCT_DESCRIPTION:
+            Ref: "SpotProductDescription"
+          SPOT_PRODUCT_PREMIUM:
+            Ref: "SpotProductPremium"
+          TAG_FILTERING_MODE:
+            Ref: "TagFilteringMode"
+          TAG_FILTERS:
+            Ref: "FilterByTags"
+          TERMINATION_NOTIFICATION_ACTION:
+            Ref: "TerminationNotificationAction"
+          PATCH_BEANSTALK_USERDATA:
+            Ref: "PatchBeanstalkUserdata"
+          SQS_QUEUE_URL:
+            Ref: "SQSQueue"
+      MemorySize:
+        Ref: "LambdaMemorySize"
+      Role:
+        Fn::GetAtt:
+          - "LambdaExecutionRole"
+          - "Arn"
+      Tags:
+        - Key:
+            Ref: "LambdaFunctionTagKey"
+          Value:
+            Ref: "LambdaFunctionTagValue"
+      Timeout: 900
+    Type: "AWS::Lambda::Function"
+  LambdaPolicy:
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "autoscaling:AttachInstances"
+              - "autoscaling:CompleteLifecycleAction"
+              - "autoscaling:CreateOrUpdateTags"
+              - "autoscaling:DescribeAutoScalingGroups"
+              - "autoscaling:DescribeAutoScalingInstances"
+              - "autoscaling:DescribeLaunchConfigurations"
+              - "autoscaling:DescribeLifecycleHooks"
+              - "autoscaling:DescribeTags"
+              - "autoscaling:DetachInstances"
+              - "autoscaling:ResumeProcesses"
+              - "autoscaling:SuspendProcesses"
+              - "autoscaling:TerminateInstanceInAutoScalingGroup"
+              - "autoscaling:UpdateAutoScalingGroup"
+              - "aws-marketplace:MeterUsage"
+              - "aws-marketplace:RegisterUsage"
+              - "cloudformation:Describe*"
+              - "codedeploy:CreateDeployment"
+              - "codedeploy:GetApplicationRevision"
+              - "codedeploy:GetDeploymentConfig"
+              - "codedeploy:GetDeploymentGroup"
+              - "codedeploy:ListApplications"
+              - "codedeploy:ListDeploymentGroups"
+              - "ec2:CreateTags"
+              - "ec2:CreateLaunchTemplate"
+              - "ec2:CreateFleet"
+              - "ec2:DeleteLaunchTemplate"
+              - "ec2:DeleteTags"
+              - "ec2:DescribeImages"
+              - "ec2:DescribeInstanceAttribute"
+              - "ec2:DescribeInstances"
+              - "ec2:DescribeLaunchTemplateVersions"
+              - "ec2:DescribeRegions"
+              - "ec2:DescribeSpotPriceHistory"
+              - "ec2:RunInstances"
+              - "ec2:TerminateInstances"
+              - "iam:CreateServiceLinkedRole"
+              - "iam:PassRole"
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Effect: "Allow"
+            Resource: "*"
+          - Action:
+              - "sqs:ReceiveMessage"
+              - "sqs:SendMessage"
+              - "sqs:DeleteMessage"
+              - "sqs:GetQueueAttributes"
+            Effect: "Allow"
+            Resource:
               Fn::GetAtt:
-                - LambdaFunction
+                - SQSQueue
                 - Arn
-          - ParameterKey: LambdaRegionalExecutionRoleARN
-            ParameterValue:
-              Fn::GetAtt:
-                - LambdaRegionalStackExecutionRole
-                - Arn
-        StackSetName: AutoSpottingRegionalResources
-        StackInstancesGroup:
-          - DeploymentTargets:
-              Accounts:
-                - Ref: AWS::AccountId
-            Regions:
-              Ref: Regions
-
-    # Enablers of the regional StackSet
-    StackSetAdministrationRole:
-      Condition: DeployRegionalResourcesStackSet
-      Type: AWS::IAM::Role
-      Properties:
-        RoleName: AWSCloudFormationStackSetAdministrationRole
-        AssumeRolePolicyDocument:
-          Version: 2012-10-17
-          Statement:
-            - Effect: Allow
-              Principal:
-                Service: cloudformation.amazonaws.com
-              Action:
-                - sts:AssumeRole
-        Path: /
-        Policies:
-          - PolicyName: AssumeRole-AWSCloudFormationStackSetExecutionRole
-            PolicyDocument:
-              Version: 2012-10-17
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - sts:AssumeRole
-                  Resource:
-                    - "arn:*:iam::*:role/AWSCloudFormationStackSetExecutionRole"
-
-    StackSetExecutionRole:
-      Condition: DeployRegionalResourcesStackSet
-      Type: AWS::IAM::Role
-      Properties:
-        RoleName: AWSCloudFormationStackSetExecutionRole
-        AssumeRolePolicyDocument:
-          Version: 2012-10-17
-          Statement:
-            - Effect: Allow
-              Principal:
-                AWS:
+          - Action:
+              - "ssm:GetParameter"
+              - "ssm:PutParameter"
+            Effect: "Allow"
+            Resource:
+              Fn::Join:
+                - ":"
+                - - arn:aws:ssm:us-east-1
                   - Ref: AWS::AccountId
-              Action:
-                - sts:AssumeRole
-        Path: /
-        ManagedPolicyArns:
-          - !Sub arn:${AWS::Partition}:iam::aws:policy/AdministratorAccess
+                  - parameter/autospotting-metering
 
-    # IAM role and inline policy to be used by the regional Lambdas, so we only
-    # create them once instead of once per region
-    LambdaRegionalStackExecutionRole:
-      Properties:
-        AssumeRolePolicyDocument:
-          Statement:
-            -
-              Action: "sts:AssumeRole"
-              Effect: "Allow"
-              Principal:
-                Service:
-                  - "lambda.amazonaws.com"
-        Path: "/lambda/"
-      Type: "AWS::IAM::Role"
-    LambdaRegionalPolicy:
-      Properties:
-        PolicyDocument:
-          Statement:
-            -
-              Action:
-                - "lambda:InvokeFunction"
-                - "logs:CreateLogGroup"
-                - "logs:CreateLogStream"
-                - "logs:PutLogEvents"
-                - "cloudformation:List*"
-                - "cloudformation:Describe*"
-              Effect: "Allow"
-              Resource: "*"
-        PolicyName: "LambdaPolicy"
-        Roles:
-          -
-            Ref: "LambdaRegionalStackExecutionRole"
-      Type: "AWS::IAM::Policy"
+      PolicyName: "LambdaPolicy"
+      Roles:
+        - Ref: "LambdaExecutionRole"
+        - Ref: ECSTaskExecutionRole
+    Type: "AWS::IAM::Policy"
 
-    LogGroup:
-      UpdateReplacePolicy: Retain
-      DeletionPolicy: Retain
-      Properties:
-        LogGroupName:
-          Fn::Join:
-            - ""
-            -
-              - "/aws/lambda/"
-              -
-                Ref: "LambdaFunction"
-        RetentionInDays:
-          Ref: "LogRetentionPeriod"
-      Type: "AWS::Logs::LogGroup"
+  LambdaEventSourceMapping:
+    DependsOn: LambdaPolicy
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      EventSourceArn:
+        Fn::GetAtt:
+          - SQSQueue
+          - Arn
+      FunctionName:
+        Ref: LambdaFunction
 
-    PermissionForEventsToInvokeLambda:
-      Properties:
-        Action: "lambda:InvokeFunction"
-        FunctionName:
-          Ref: "LambdaFunction"
-        Principal: "events.amazonaws.com"
-        SourceArn:
-          Fn::GetAtt:
-            - "ScheduledRule"
-            - "Arn"
-      Type: "AWS::Lambda::Permission"
+  # Need to specify QueueName, or CloudFormation for StackSets Stacks will generate a long name
+  # then it will append .fifo (because it's a FIFO queue), this will go over the 80 char limit.
+  # Using a name is not a problem for SQSQueue cause the only property that if changed replace
+  # the resource is FifoQueue itself.
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      FifoQueue: true
+      MessageRetentionPeriod: 86400
+      QueueName:
+        Ref: SQSQueueName
+      VisibilityTimeout: 900
 
-    PermissionForInvokingTheLambdaFunctionFromOtherRegions:
-      Properties:
-        Action: lambda:InvokeFunction
-        FunctionName:
-          Ref: LambdaFunction
-        Principal: lambda.amazonaws.com
-        SourceAccount:
-          Ref: AWS::AccountId
-      Type: "AWS::Lambda::Permission"
-    ScheduledRule:
-      Properties:
-        Description: "ScheduledRule for launching the AutoSpotting Lambda function"
-        ScheduleExpression:
-          Ref: "ExecutionFrequency"
-        State: "ENABLED"
-        Targets:
-          -
-            Arn:
-              Fn::GetAtt:
-                - "LambdaFunction"
-                - "Arn"
-            Id: "AutoSpottingEventGenerator"
-      Type: "AWS::Events::Rule"
+  RegionalStackSet:
+    Condition: DeployRegionalResourcesStackSet
+    DependsOn:
+      - StackSetAdministrationRole
+      - StackSetExecutionRole
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/cloudprowess/nightly/regional_template.yaml
+      Capabilities:
+        - CAPABILITY_IAM
+      Description: "StackSet that deploys regional resources required by AutoSpotting for capturing events."
+      OperationPreferences:
+        FailureTolerancePercentage: 50
+        MaxConcurrentPercentage: 100
+        RegionConcurrencyType: PARALLEL
+      PermissionModel: SELF_MANAGED
+      Parameters:
+        - ParameterKey: AutoSpottingLambdaARN
+          ParameterValue:
+            Fn::GetAtt:
+              - LambdaFunction
+              - Arn
+        - ParameterKey: LambdaRegionalExecutionRoleARN
+          ParameterValue:
+            Fn::GetAtt:
+              - LambdaRegionalStackExecutionRole
+              - Arn
+      StackSetName: AutoSpottingRegionalResources
+      StackInstancesGroup:
+        - DeploymentTargets:
+            Accounts:
+              - Ref: AWS::AccountId
+          Regions:
+            Ref: Regions
 
-    ElasticBeanstalkPolicy:
-      Type: AWS::IAM::ManagedPolicy
-      Properties:
-        Description: "Allow instances to get initialization information from CloudFormation when they are a part of a Beanstalk cluster. Add this policy to your Elastic Beanstalk instance profile (role) when enabling patch_beanstalk_userdata in AutoSpotting. (Managed policy created by AutoSpotting)"
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            -
-              Action:
-                - "cloudformation:DescribeStackResource"
-                - "cloudformation:DescribeStackResources"
-                - "cloudformation:SignalResource"
-                - "cloudformation:RegisterListener"
-                - "cloudformation:GetListenerCredentials"
-              Effect: "Allow"
-              Resource: "*"
+  # Enablers of the regional StackSet
+  StackSetAdministrationRole:
+    Condition: DeployRegionalResourcesStackSet
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AWSCloudFormationStackSetAdministrationRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: AssumeRole-AWSCloudFormationStackSetExecutionRole
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource:
+                  - "arn:*:iam::*:role/AWSCloudFormationStackSetExecutionRole"
 
-    # As per https://docs.aws.amazon.com/lambda/latest/dg/images-create.html
-    # Lambda functions using Docker images currently require an ECR repository
-    # located in the same AWS account(probably also the same region). So the ECR
-    # of the AWS marketplace belonging to an AWS-managed account can't be used
-    # directly for the Lambda function. In order to reduce user friction, we
-    # create a local ECR repository and we use a custom Cloudformation resource
-    # that clones the Docker image from the Marketplace ECR into our local ECR
-    # using the crane tool available at
-    # https://github.com/google/go-containerregistry/tree/main/cmd/crane
+  StackSetExecutionRole:
+    Condition: DeployRegionalResourcesStackSet
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AWSCloudFormationStackSetExecutionRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - Ref: AWS::AccountId
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AdministratorAccess
 
-    # The custom resource is backed by a Lambda function that downloads a crane
-    # binary and runs it for cloning the Docker image from the source ECR to our
-    # local ECR.
-    ECRRepository:
-      Type: AWS::ECR::Repository
-      DeletionPolicy: Retain
-      # We have to use Retain here because otherwise stack deletion fails when
-      # the ECR contains images. This means the ECR would need to be cleaned up
-      # manually when uninstalling AutoSpotting. We could probably later on
-      # delete the images from our local ECR when deleting the CloudFormation
-      # custom resource but for now this manual cleanup should be fine.
-      UpdateReplacePolicy: Retain
-      Properties:
-        ImageScanningConfiguration:
-          ScanOnPush: true
+  # IAM role and inline policy to be used by the regional Lambdas, so we only
+  # create them once instead of once per region
+  LambdaRegionalStackExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Path: "/lambda/"
+    Type: "AWS::IAM::Role"
+  LambdaRegionalPolicy:
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "lambda:InvokeFunction"
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+              - "cloudformation:List*"
+              - "cloudformation:Describe*"
+            Effect: "Allow"
+            Resource: "*"
+      PolicyName: "LambdaPolicy"
+      Roles:
+        - Ref: "LambdaRegionalStackExecutionRole"
+    Type: "AWS::IAM::Policy"
 
-# Below we create a Custom CloudFormation resource backed by a Lambda function,
-# which copies the AutoSpotting Docker image from the source ECR repository to
-# the ECR repository belonging to the current CloudFormation stack.
+  LogGroup:
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - "/aws/lambda/"
+            - Ref: "LambdaFunction"
+      RetentionInDays:
+        Ref: "LogRetentionPeriod"
+    Type: "AWS::Logs::LogGroup"
 
-    CopyDockerImage:
-      Type: Custom::CopyDockerImage
-      DependsOn: CopyDockerImageLambdaPolicy
-      Properties:
-        ServiceToken:
-          Fn::GetAtt:
+  PermissionForEventsToInvokeLambda:
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName:
+        Ref: "LambdaFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn:
+        Fn::GetAtt:
+          - "ScheduledRule"
+          - "Arn"
+    Type: "AWS::Lambda::Permission"
+
+  PermissionForInvokingTheLambdaFunctionFromOtherRegions:
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Ref: LambdaFunction
+      Principal: lambda.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+    Type: "AWS::Lambda::Permission"
+  ScheduledRule:
+    Properties:
+      Description: "ScheduledRule for launching the AutoSpotting Lambda function"
+      ScheduleExpression:
+        Ref: "ExecutionFrequency"
+      State: "ENABLED"
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - "LambdaFunction"
+              - "Arn"
+          Id: "AutoSpottingEventGenerator"
+    Type: "AWS::Events::Rule"
+
+  ElasticBeanstalkPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: "Allow instances to get initialization information from CloudFormation when they are a part of a Beanstalk cluster. Add this policy to your Elastic Beanstalk instance profile (role) when enabling patch_beanstalk_userdata in AutoSpotting. (Managed policy created by AutoSpotting)"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - "cloudformation:DescribeStackResource"
+              - "cloudformation:DescribeStackResources"
+              - "cloudformation:SignalResource"
+              - "cloudformation:RegisterListener"
+              - "cloudformation:GetListenerCredentials"
+            Effect: "Allow"
+            Resource: "*"
+
+  # As per https://docs.aws.amazon.com/lambda/latest/dg/images-create.html
+  # Lambda functions using Docker images currently require an ECR repository
+  # located in the same AWS account(probably also the same region). So the ECR
+  # of the AWS marketplace belonging to an AWS-managed account can't be used
+  # directly for the Lambda function. In order to reduce user friction, we
+  # create a local ECR repository and we use a custom Cloudformation resource
+  # that clones the Docker image from the Marketplace ECR into our local ECR
+  # using the crane tool available at
+  # https://github.com/google/go-containerregistry/tree/main/cmd/crane
+
+  # The custom resource is backed by a Lambda function that downloads a crane
+  # binary and runs it for cloning the Docker image from the source ECR to our
+  # local ECR.
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    # We have to use Retain here because otherwise stack deletion fails when
+    # the ECR contains images. This means the ECR would need to be cleaned up
+    # manually when uninstalling AutoSpotting. We could probably later on
+    # delete the images from our local ECR when deleting the CloudFormation
+    # custom resource but for now this manual cleanup should be fine.
+    UpdateReplacePolicy: Retain
+    Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
+  # Below we create a Custom CloudFormation resource backed by a Lambda function,
+  # which copies the AutoSpotting Docker image from the source ECR repository to
+  # the ECR repository belonging to the current CloudFormation stack.
+
+  CopyDockerImage:
+    Type: Custom::CopyDockerImage
+    DependsOn: CopyDockerImageLambdaPolicy
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
           - CopyDockerImageLambda
           - Arn
-        Region:
-          Ref: AWS::Region
-        ImageTag:
-          Ref: SourceImageTag
+      Region:
+        Ref: AWS::Region
+      ImageTag:
+        Ref: SourceImageTag
 
-    # IAM role and inline policy to be used by the Custom resource Lambda
-    CopyDockerImageLambdaExecutionRole:
-      Properties:
-        AssumeRolePolicyDocument:
-          Statement:
-            -
-              Action: "sts:AssumeRole"
-              Effect: "Allow"
-              Principal:
-                Service:
-                  - "lambda.amazonaws.com"
-        Path: "/lambda/"
-      Type: "AWS::IAM::Role"
+  # IAM role and inline policy to be used by the Custom resource Lambda
+  CopyDockerImageLambdaExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: "sts:AssumeRole"
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+      Path: "/lambda/"
+    Type: "AWS::IAM::Role"
 
-    CopyDockerImageLambdaPolicy:
-      Properties:
-        PolicyDocument:
-          Statement:
-            -
-              Action:
-                - "ecr:BatchGetImage"
-                - "ecr:GetAuthorizationToken"
-                - "ecr:GetDownloadUrlForLayer"
-                - "lambda:InvokeFunction"
-                - "logs:CreateLogGroup"
-                - "logs:CreateLogStream"
-                - "logs:PutLogEvents"
-              Effect: "Allow"
-              Resource: "*"
-            -
-              Action:
-                - "ecr:BatchCheckLayerAvailability"
-                - "ecr:CompleteLayerUpload"
-                - "ecr:InitiateLayerUpload"
-                - "ecr:PutImage"
-                - "ecr:UploadLayerPart"
-              Effect: "Allow"
-              Resource:
-                Fn::GetAtt:
-                  - ECRRepository
-                  - Arn
+  CopyDockerImageLambdaPolicy:
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "ecr:BatchGetImage"
+              - "ecr:GetAuthorizationToken"
+              - "ecr:GetDownloadUrlForLayer"
+              - "lambda:InvokeFunction"
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Effect: "Allow"
+            Resource: "*"
+          - Action:
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:CompleteLayerUpload"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:PutImage"
+              - "ecr:UploadLayerPart"
+            Effect: "Allow"
+            Resource:
+              Fn::GetAtt:
+                - ECRRepository
+                - Arn
 
-        PolicyName: "LambdaPolicy"
-        Roles:
-          -
-            Ref: "CopyDockerImageLambdaExecutionRole"
-      Type: "AWS::IAM::Policy"
+      PolicyName: "LambdaPolicy"
+      Roles:
+        - Ref: "CopyDockerImageLambdaExecutionRole"
+    Type: "AWS::IAM::Policy"
 
-    CopyDockerImageLambda:
-      Type: AWS::Lambda::Function
-      Properties:
-        Description: >
-          "Lambda function that copies the Docker image from the Marketplace ECR to our local ECR"
-        Handler: "index.handler"
-        Runtime: "python3.8"
-        Timeout: 300
-        Environment:
-          Variables:
-            SOURCE_ECR:
-              Ref: SourceECR
-            SOURCE_IMAGE:
-              Ref: SourceImage
-            SOURCE_IMAGE_TAG:
-              Ref: SourceImageTag
-            DESTINATION_ECR:
-              Fn::GetAtt: ECRRepository.RepositoryUri
-        Role:
-          Fn::GetAtt:
-            - CopyDockerImageLambdaExecutionRole
-            - Arn
-        Code:
-          ZipFile: |
-            import base64
-            import boto3
-            import os
-            import stat
-            import shutil
-            import time
+  CopyDockerImageLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: >
+        "Lambda function that copies the Docker image from the Marketplace ECR to our local ECR"
+      Handler: "index.handler"
+      Runtime: "python3.8"
+      Timeout: 300
+      Environment:
+        Variables:
+          SOURCE_ECR:
+            Ref: SourceECR
+          SOURCE_IMAGE:
+            Ref: SourceImage
+          SOURCE_IMAGE_TAG:
+            Ref: SourceImageTag
+          DESTINATION_ECR:
+            Fn::GetAtt: ECRRepository.RepositoryUri
+      Role:
+        Fn::GetAtt:
+          - CopyDockerImageLambdaExecutionRole
+          - Arn
+      Code:
+        ZipFile: |
+          import base64
+          import boto3
+          import os
+          import stat
+          import shutil
+          import time
 
-            import cfnresponse
-            from urllib import request
+          import cfnresponse
+          from urllib import request
 
 
-            CRANE_URL='https://github.com/google/go-containerregistry/releases/download/v0.5.1/go-containerregistry_Linux_x86_64.tar.gz'
-            CRANE_PATH='./crane'
+          CRANE_URL='https://github.com/google/go-containerregistry/releases/download/v0.5.1/go-containerregistry_Linux_x86_64.tar.gz'
+          CRANE_PATH='./crane'
 
-            def download_crane():
-              request.urlretrieve(CRANE_URL, "crane.tar.gz")
-              shutil.unpack_archive('crane.tar.gz')
-              os.chmod('crane', stat.S_IRWXU)
+          def download_crane():
+            request.urlretrieve(CRANE_URL, "crane.tar.gz")
+            shutil.unpack_archive('crane.tar.gz')
+            os.chmod('crane', stat.S_IRWXU)
 
-            def get_docker_auth(ecr_url):
-              client = boto3.client('ecr')
-              response = client.get_authorization_token(
-                registryIds=[
-                    ecr_url.split('.')[0]
-                ]
-              )
-              result = base64.b64decode(response['authorizationData'][0]['authorizationToken'])
-              return result.decode().split(':')
+          def get_docker_auth(ecr_url):
+            client = boto3.client('ecr')
+            response = client.get_authorization_token(
+              registryIds=[
+                  ecr_url.split('.')[0]
+              ]
+            )
+            result = base64.b64decode(response['authorizationData'][0]['authorizationToken'])
+            return result.decode().split(':')
 
-            def crane_login(ecr, user, passwd):
-              os.system('./crane auth login %s -u %s -p %s' % (ecr, user, passwd))
+          def crane_login(ecr, user, passwd):
+            os.system('./crane auth login %s -u %s -p %s' % (ecr, user, passwd))
 
-            def crane_copy(src, dst):
-              os.system('./crane copy %s %s' % (src, dst))
+          def crane_copy(src, dst):
+            os.system('./crane copy %s %s' % (src, dst))
 
-            def clone_image():
-              os.chdir('/tmp')
-              os.environ['HOME'] = '/tmp'
+          def clone_image():
+            os.chdir('/tmp')
+            os.environ['HOME'] = '/tmp'
 
-              src_ecr = os.getenv('SOURCE_ECR')
-              src_img = os.getenv('SOURCE_IMAGE')
-              src_image_tag = os.getenv('SOURCE_IMAGE_TAG')
-              src_image_uri = src_ecr+'/'+src_img+':'+src_image_tag
+            src_ecr = os.getenv('SOURCE_ECR')
+            src_img = os.getenv('SOURCE_IMAGE')
+            src_image_tag = os.getenv('SOURCE_IMAGE_TAG')
+            src_image_uri = src_ecr+'/'+src_img+':'+src_image_tag
 
-              dst_image_uri = os.getenv('DESTINATION_ECR')
-              dst_ecr = dst_image_uri.split('/')[0]
-              dst_img = dst_image_uri.split('/')[1]+':'+src_image_tag
+            dst_image_uri = os.getenv('DESTINATION_ECR')
+            dst_ecr = dst_image_uri.split('/')[0]
+            dst_img = dst_image_uri.split('/')[1]+':'+src_image_tag
 
-              download_crane()
+            download_crane()
 
-              src_user, src_pass = get_docker_auth(src_ecr)
-              dst_user, dst_pass = get_docker_auth(dst_ecr)
+            src_user, src_pass = get_docker_auth(src_ecr)
+            dst_user, dst_pass = get_docker_auth(dst_ecr)
 
-              crane_login(src_ecr, src_user, src_pass)
-              crane_login(dst_ecr, dst_user, dst_pass)
+            crane_login(src_ecr, src_user, src_pass)
+            crane_login(dst_ecr, dst_user, dst_pass)
 
-              crane_copy(src_image_uri, dst_image_uri+':'+src_image_tag)
+            crane_copy(src_image_uri, dst_image_uri+':'+src_image_tag)
 
-            def handler(event, context):
-              print('## EVENT')
-              print(event)
-              print('## CONTEXT')
-              print(context)
+          def handler(event, context):
+            print('## EVENT')
+            print(event)
+            print('## CONTEXT')
+            print(context)
 
-              clone_image()
+            clone_image()
 
-              # TODO: clean up the ECR on deletion to avoid the Retain deletion
-              # policy on the ECR repo and the manual cleanups of the ECR
-              # repository currently required after uninstalling AutoSpotting.
+            # TODO: clean up the ECR on deletion to avoid the Retain deletion
+            # policy on the ECR repo and the manual cleanups of the ECR
+            # repository currently required after uninstalling AutoSpotting.
 
-              time.sleep(10)
-              cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+            time.sleep(10)
+            cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
 
-    # The Marketplace Metering API needs to be invoked hourly to charge a
-    # percentage of the savings. Currently it can't be called from Lambda, so we
-    # use the same Docker image we use on Lambda from ECS Fargate. We have a
-    # Fargate cron schedule that runs hourly and successfully calls the
-    # Marketplace Metering API.
+  # The Marketplace Metering API needs to be invoked hourly to charge a
+  # percentage of the savings. Currently it can't be called from Lambda, so we
+  # use the same Docker image we use on Lambda from ECS Fargate. We have a
+  # Fargate cron schedule that runs hourly and successfully calls the
+  # Marketplace Metering API.
 
-    # For Fargate we then need a VPC, so in order to avoid relying on the
-    # Default VPC or requiring active CIDR allocation we just hardcoded a CIDR
-    # which we use for all AutoSpotting VPCs. The conflicting values when
-    # installing the CloudFormation template multiple times are okay since we
-    # don't expect to connect these VPCs to each other.
+  # For Fargate we then need a VPC, so in order to avoid relying on the
+  # Default VPC or requiring active CIDR allocation we just hardcoded a CIDR
+  # which we use for all AutoSpotting VPCs. The conflicting values when
+  # installing the CloudFormation template multiple times are okay since we
+  # don't expect to connect these VPCs to each other.
 
-    VPC:
-      Type: AWS::EC2::VPC
-      Properties:
-        EnableDnsSupport: true
-        EnableDnsHostnames: true
-        CidrBlock: "192.168.0.0/24"
-        Tags:
-          - Key: Name
-            Value: AutoSpotting Fargate VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      CidrBlock: "192.168.0.0/24"
+      Tags:
+        - Key: Name
+          Value: AutoSpotting Fargate VPC
 
-    # We create two public subnets, one per AZ, where to run our Fargate tasks.
-    PublicSubnetOne:
-      Type: AWS::EC2::Subnet
-      Properties:
-        AvailabilityZone:
-          Fn::Select:
+  # We create two public subnets, one per AZ, where to run our Fargate tasks.
+  PublicSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
           - 0
           - Fn::GetAZs:
-              Ref: 'AWS::Region'
-        VpcId:
-          Ref: 'VPC'
-        CidrBlock:
-          Fn::Select:
+              Ref: "AWS::Region"
+      VpcId:
+        Ref: "VPC"
+      CidrBlock:
+        Fn::Select:
           - 0
           - Fn::Cidr:
               - Fn::GetAtt:
-                - VPC
-                - CidrBlock
+                  - VPC
+                  - CidrBlock
               - 2
               - 7
-        MapPublicIpOnLaunch: true # this is apparently required for Fargate
-    PublicSubnetTwo:
-      Type: AWS::EC2::Subnet
-      Properties:
-        AvailabilityZone:
-          Fn::Select:
+      MapPublicIpOnLaunch: true # this is apparently required for Fargate
+  PublicSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
           - 1
           - Fn::GetAZs:
-              Ref: 'AWS::Region'
-        VpcId:
-          Ref: VPC
-        CidrBlock:
-          Fn::Select:
+              Ref: "AWS::Region"
+      VpcId:
+        Ref: VPC
+      CidrBlock:
+        Fn::Select:
           - 1
           - Fn::Cidr:
               - Fn::GetAtt:
-                - VPC
-                - CidrBlock
+                  - VPC
+                  - CidrBlock
               - 2
               - 7
-        MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: true
 
-    # Setup networking resources for the public subnets. Containers in the
-    # public subnets have public IP addresses and the routing table sends
-    # network traffic via the internet gateway.
-    InternetGateway:
-      Type: AWS::EC2::InternetGateway
-    GatewayAttachement:
-      Type: AWS::EC2::VPCGatewayAttachment
-      Properties:
-        VpcId:
-          Ref: VPC
-        InternetGatewayId:
-          Ref: InternetGateway
-    PublicRouteTable:
-      Type: AWS::EC2::RouteTable
-      Properties:
-        VpcId:
-          Ref: VPC
-    PublicRoute:
-      Type: AWS::EC2::Route
-      DependsOn: GatewayAttachement
-      Properties:
-        RouteTableId: !Ref 'PublicRouteTable'
-        DestinationCidrBlock: '0.0.0.0/0'
-        GatewayId: !Ref 'InternetGateway'
-    PublicSubnetOneRouteTableAssociation:
-      Type: AWS::EC2::SubnetRouteTableAssociation
-      Properties:
-        SubnetId: !Ref PublicSubnetOne
-        RouteTableId: !Ref PublicRouteTable
-    PublicSubnetTwoRouteTableAssociation:
-      Type: AWS::EC2::SubnetRouteTableAssociation
-      Properties:
-        SubnetId: !Ref PublicSubnetTwo
-        RouteTableId: !Ref PublicRouteTable
+  # Setup networking resources for the public subnets. Containers in the
+  # public subnets have public IP addresses and the routing table sends
+  # network traffic via the internet gateway.
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  GatewayAttachement:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachement
+    Properties:
+      RouteTableId: !Ref "PublicRouteTable"
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref "InternetGateway"
+  PublicSubnetOneRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetOne
+      RouteTableId: !Ref PublicRouteTable
+  PublicSubnetTwoRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetTwo
+      RouteTableId: !Ref PublicRouteTable
 
-    ECSCluster:
-      Type: AWS::ECS::Cluster
-      DependsOn:
-        - ECSServiceLinkedRole
-      Properties:
-        CapacityProviders:
-          - FARGATE
-        DefaultCapacityProviderStrategy:
-          -
-            CapacityProvider: FARGATE
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    DependsOn:
+      - ECSServiceLinkedRole
+    Properties:
+      CapacityProviders:
+        - FARGATE
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
 
-    # We need to create this SG even if it has no rules, otherwise it's created
-    # automatically and will then block the deletion of the VPC when deleting
-    # the CloudFormation stack.
-    FargateContainerSecurityGroup:
-      Type: AWS::EC2::SecurityGroup
-      Properties:
-        GroupDescription: Dummy SG used for the AutoSpotting billing Fargate cron task.
-        VpcId:
-          Ref: VPC
-        Tags:
-          - Key: Name
-            Value: AutoSpotting Fargate dummy SG
+  # We need to create this SG even if it has no rules, otherwise it's created
+  # automatically and will then block the deletion of the VPC when deleting
+  # the CloudFormation stack.
+  FargateContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Dummy SG used for the AutoSpotting billing Fargate cron task.
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value: AutoSpotting Fargate dummy SG
 
-    # This is a role which is used by the ECS tasks themselves.
-    ECSTaskExecutionRole:
-      Type: AWS::IAM::Role
-      Properties:
-        AssumeRolePolicyDocument:
-          Statement:
+  # This is a role which is used by the ECS tasks themselves.
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
           - Effect: Allow
             Principal:
               Service:
-              - ecs-tasks.amazonaws.com
+                - ecs-tasks.amazonaws.com
             Action:
-            - 'sts:AssumeRole'
-        Path: /
-        Policies:
-          - PolicyName: AmazonECSTaskExecutionRolePolicy
-            PolicyDocument:
-              Statement:
+              - "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
               - Effect: Allow
                 Action:
                   # Allow the ECS Tasks to download images from ECR
-                  - 'ecr:GetAuthorizationToken'
-                  - 'ecr:BatchCheckLayerAvailability'
-                  - 'ecr:GetDownloadUrlForLayer'
-                  - 'ecr:BatchGetImage'
+                  - "ecr:GetAuthorizationToken"
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:BatchGetImage"
 
                   # Allow the ECS tasks to upload logs to CloudWatch
-                  - 'logs:CreateLogStream'
-                  - 'logs:PutLogEvents'
-                Resource: '*'
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
 
-    TaskDefinition:
-      Type: AWS::ECS::TaskDefinition
-      Properties:
-        # awsvpc is required for Fargate
-        NetworkMode: awsvpc
-        RequiresCompatibilities:
-          - FARGATE
-        # 256 (.25 vCPU) - Available memory values: 0.5GB, 1GB, 2GB
-        # 512 (.5 vCPU) - Available memory values: 1GB, 2GB, 3GB, 4GB
-        # 1024 (1 vCPU) - Available memory values: 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB
-        # 2048 (2 vCPU) - Available memory values: Between 4GB and 16GB in 1GB increments
-        # 4096 (4 vCPU) - Available memory values: Between 8GB and 30GB in 1GB increments
-        Cpu: "256"
-        # 0.5GB, 1GB, 2GB - Available cpu values: 256 (.25 vCPU)
-        # 1GB, 2GB, 3GB, 4GB - Available cpu values: 512 (.5 vCPU)
-        # 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB - Available cpu values: 1024 (1 vCPU)
-        # Between 4GB and 16GB in 1GB increments - Available cpu values: 2048 (2 vCPU)
-        # Between 8GB and 30GB in 1GB increments - Available cpu values: 4096 (4 vCPU)
-        Memory: 0.5GB
-        # RuntimePlatform:
-        #   CpuArchitecture: ARM64
-        ExecutionRoleArn:
-          Ref: ECSTaskExecutionRole
-        TaskRoleArn:
-          Ref: ECSTaskExecutionRole
-        ContainerDefinitions:
-          - Name: AutoSpottingBilling
-            Image:
-              Fn::Join:
-              - ':'
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      # awsvpc is required for Fargate
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      # 256 (.25 vCPU) - Available memory values: 0.5GB, 1GB, 2GB
+      # 512 (.5 vCPU) - Available memory values: 1GB, 2GB, 3GB, 4GB
+      # 1024 (1 vCPU) - Available memory values: 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB
+      # 2048 (2 vCPU) - Available memory values: Between 4GB and 16GB in 1GB increments
+      # 4096 (4 vCPU) - Available memory values: Between 8GB and 30GB in 1GB increments
+      Cpu: "256"
+      # 0.5GB, 1GB, 2GB - Available cpu values: 256 (.25 vCPU)
+      # 1GB, 2GB, 3GB, 4GB - Available cpu values: 512 (.5 vCPU)
+      # 2GB, 3GB, 4GB, 5GB, 6GB, 7GB, 8GB - Available cpu values: 1024 (1 vCPU)
+      # Between 4GB and 16GB in 1GB increments - Available cpu values: 2048 (2 vCPU)
+      # Between 8GB and 30GB in 1GB increments - Available cpu values: 4096 (4 vCPU)
+      Memory: 0.5GB
+      RuntimePlatform:
+        CpuArchitecture:
+          "Fn::If":
+            - Arm64
+            - ARM64
+            - X86_64
+      ExecutionRoleArn:
+        Ref: ECSTaskExecutionRole
+      TaskRoleArn:
+        Ref: ECSTaskExecutionRole
+      ContainerDefinitions:
+        - Name: AutoSpottingBilling
+          Image:
+            Fn::Join:
+              - ":"
               - - Fn::GetAtt: ECRRepository.RepositoryUri
                 - Ref: SourceImageTag
-            Environment:
+          Environment:
             - Name: BILLING_ONLY
               Value: "true"
-            LogConfiguration:
-              LogDriver: awslogs
-              Options:
-                awslogs-region: !Ref AWS::Region
-                awslogs-group: !Ref FargateLogGroup
-                awslogs-stream-prefix: AutoSpottingBilling
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref FargateLogGroup
+              awslogs-stream-prefix: AutoSpottingBilling
 
-    AutoSpottingBillingTaskSchedule:
-      Type: AWS::Events::Rule
-      Properties:
-        Description: "Hourly billing for AutoSpotting"
-        ScheduleExpression: "rate(1 hour)"
-        State: ENABLED
-        Targets:
-          - Id: AutoSpottingBilling-fargate-task
-            RoleArn:
-              Fn::GetAtt:
-                - TaskSchedulerRole
-                - Arn
-            Arn:
-              Fn::GetAtt:
-                - ECSCluster
-                - Arn
-            EcsParameters:
-              TaskCount: 1
-              TaskDefinitionArn:
-                Ref:
-                  TaskDefinition
-              NetworkConfiguration:
-                AwsVpcConfiguration:
-                  AssignPublicIp: ENABLED
-                  Subnets:
+  AutoSpottingBillingTaskSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Hourly billing for AutoSpotting"
+      ScheduleExpression: "rate(1 hour)"
+      State: ENABLED
+      Targets:
+        - Id: AutoSpottingBilling-fargate-task
+          RoleArn:
+            Fn::GetAtt:
+              - TaskSchedulerRole
+              - Arn
+          Arn:
+            Fn::GetAtt:
+              - ECSCluster
+              - Arn
+          EcsParameters:
+            TaskCount: 1
+            TaskDefinitionArn:
+              Ref: TaskDefinition
+            NetworkConfiguration:
+              AwsVpcConfiguration:
+                AssignPublicIp: ENABLED
+                Subnets:
                   - Ref: PublicSubnetOne
                   - Ref: PublicSubnetTwo
 
-    FargateLogGroup:
-      Type: AWS::Logs::LogGroup
-      Properties:
-        LogGroupName:
-          Fn::Join:
-              - '/'
-              - - /ecs/fargate
-                - Ref: AWS::StackName
-                - Billing
-        RetentionInDays:
-          Ref: "LogRetentionPeriod"
+  FargateLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+          - "/"
+          - - /ecs/fargate
+            - Ref: AWS::StackName
+            - Billing
+      RetentionInDays:
+        Ref: "LogRetentionPeriod"
 
-    TaskSchedulerRole:
-      Type: AWS::IAM::Role
-      Properties:
-        AssumeRolePolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            -
-              Effect: "Allow"
-              Principal:
-                Service:
-                  - "events.amazonaws.com"
-              Action:
-                - "sts:AssumeRole"
-        Path: /
-        Policies:
-          - PolicyDocument:
-              Statement:
-                - Effect: "Allow"
-                  Condition:
-                    ArnEquals:
-                      ecs:cluster:
-                        Fn::GetAtt:
-                          - ECSCluster
-                          - Arn
-                  Action: "ecs:RunTask"
-                  Resource: "*"
-                - Effect: "Allow"
-                  Condition:
-                    ArnEquals:
-                      ecs:cluster:
-                        Fn::GetAtt:
-                          - ECSCluster
-                          - Arn
-                  Action:
-                    - "iam:ListInstanceProfiles"
-                    - "iam:ListRoles"
-                    - "iam:PassRole"
-                  Resource: "*"
-            PolicyName: "TaskSchedulerPolicy"
+  TaskSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "events.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Effect: "Allow"
+                Condition:
+                  ArnEquals:
+                    ecs:cluster:
+                      Fn::GetAtt:
+                        - ECSCluster
+                        - Arn
+                Action: "ecs:RunTask"
+                Resource: "*"
+              - Effect: "Allow"
+                Condition:
+                  ArnEquals:
+                    ecs:cluster:
+                      Fn::GetAtt:
+                        - ECSCluster
+                        - Arn
+                Action:
+                  - "iam:ListInstanceProfiles"
+                  - "iam:ListRoles"
+                  - "iam:PassRole"
+                Resource: "*"
+          PolicyName: "TaskSchedulerPolicy"
 
-    ECSServiceLinkedRole:
-      Type: AWS::IAM::ServiceLinkedRole
-      Properties:
-        AWSServiceName: ecs.amazonaws.com
-        Description: Role to enable Amazon ECS to manage your cluster.
+  ECSServiceLinkedRole:
+    Type: AWS::IAM::ServiceLinkedRole
+    Properties:
+      AWSServiceName: ecs.amazonaws.com
+      Description: Role to enable Amazon ECS to manage your cluster.
