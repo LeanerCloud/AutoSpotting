@@ -651,9 +651,10 @@ func (a *autoScalingGroup) findDeployment(hookName string) (*string, *string, er
 				return nil, nil, err
 			}
 
-			if gd.DeploymentGroupInfo.AutoScalingGroups == nil {
-				log.Printf("Deployment group %s for application %s has no ASG configuration", *group, *app)
-				return nil, nil, fmt.Errorf("deployment group %s for application %s has no ASG configuration", *group, *app)
+			if gd.DeploymentGroupInfo.AutoScalingGroups == nil ||
+				len(gd.DeploymentGroupInfo.AutoScalingGroups) == 0 {
+				log.Printf("Deployment group %s for application %s has no ASG configuration, skipping...", *group, *app)
+				continue
 			}
 
 			asg := *gd.DeploymentGroupInfo.AutoScalingGroups[0]
@@ -661,11 +662,14 @@ func (a *autoScalingGroup) findDeployment(hookName string) (*string, *string, er
 			log.Printf("Deployment group %s for application %s has the ASG %s and hook %s", *group, *app, *asg.Name, *asg.Hook)
 
 			if *asg.Hook == hookName && *asg.Name == a.name {
+				log.Printf("Found matching deployment group %s for application %s for the ASG %s and hook %s",
+					*group, *app, *asg.Name, *asg.Hook)
 				return app, group, nil
 			}
 		}
 	}
 	return nil, nil, fmt.Errorf("unable to find deployment group information")
+
 }
 
 func (a *autoScalingGroup) triggerDeployment(appName, deploymentGroupName *string) error {
@@ -674,7 +678,7 @@ func (a *autoScalingGroup) triggerDeployment(appName, deploymentGroupName *strin
 		&codedeploy.CreateDeploymentInput{
 			ApplicationName:             appName,
 			DeploymentGroupName:         deploymentGroupName,
-			Description:                 aws.String("AutoSpoting triggered deployment"),
+			Description:                 aws.String("AutoSpoting triggered deployment after new Spot instance launch"),
 			UpdateOutdatedInstancesOnly: aws.Bool(true),
 		})
 
