@@ -9,11 +9,14 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	ec2instancesinfo "github.com/cristim/ec2-instances-info"
 )
 
 func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64 {
@@ -298,7 +301,7 @@ func (i *instance) isAllowed(instanceType string, allowedList []string, disallow
 	return true
 }
 
-func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allowedList []string,
+func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string, allowedList []string,
 	disallowedList []string) ([]*string, error) {
 	current := i.typeInfo
 	var acceptableInstanceTypes []acceptableInstance
@@ -333,7 +336,7 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 			"with candidate", candidate.instanceType, "with price", candidatePrice)
 
 		if i.isAllowed(candidate.instanceType, allowedList, disallowedList) && i.isCompatible(&candidate, candidatePrice, attachedVolumesNumber) {
-			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice})
+			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice, candidate.generationDelta})
 			log.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candidates list for instance", *i.InstanceId)
 		} else if candidate.instanceType != "" {
 			debug.Println("Non compatible option found:", candidate.instanceType, "at", candidatePrice, " - discarding")
@@ -342,9 +345,24 @@ func (i *instance) getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allo
 
 	if acceptableInstanceTypes != nil {
 		sort.Slice(acceptableInstanceTypes, func(i, j int) bool {
+			if PrioritizationBias == "prefer_newer_generations" {
+				log.Printf("Sorting biased towards newer instance types, comparing %v"+
+					" of generation delta %v and price %v(adjusted to %v) with %v of generation delta %v and price %v (adjusted to %v)\n",
+					acceptableInstanceTypes[i].instanceTI.instanceType,
+					acceptableInstanceTypes[i].generationDelta,
+					acceptableInstanceTypes[i].price,
+					acceptableInstanceTypes[i].price*(1.0+0.1*float64(acceptableInstanceTypes[i].generationDelta)),
+					acceptableInstanceTypes[j].instanceTI.instanceType,
+					acceptableInstanceTypes[j].generationDelta,
+					acceptableInstanceTypes[j].price,
+					acceptableInstanceTypes[j].price*(1.0+0.1*float64(acceptableInstanceTypes[j].generationDelta)))
+				return acceptableInstanceTypes[i].price*(1.0+0.1*float64(acceptableInstanceTypes[i].generationDelta)) <
+					acceptableInstanceTypes[j].price*(1.0+0.1*float64(acceptableInstanceTypes[j].generationDelta))
+			}
 			return acceptableInstanceTypes[i].price < acceptableInstanceTypes[j].price
+
 		})
-		debug.Println("List of cheapest compatible spot instances found, sorted ascending by price: ",
+		log.Println("List of cheapest compatible spot instances found, sorted ascending by price/bias: ",
 			acceptableInstanceTypes)
 		var result []*string
 		for _, ai := range acceptableInstanceTypes {
@@ -410,4 +428,55 @@ func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {
 		return true
 	}
 	return false
+}
+
+func calculateGenerationDelta(data *ec2instancesinfo.InstanceData,
+	instanceType string,
+	itfic *InstanceTypeFamilyInfoCache,
+	itmgc *InstanceTypeMaxGenerationCache) int64 {
+
+	family, generation := calculateInstanceTypeGeneration(instanceType, itfic)
+
+	if (*itmgc)[family] != 0 {
+		mg := (*itmgc)[family]
+		debug.Println("Found in cache for family", family, "latest generation ", mg)
+		delta := mg - generation
+		debug.Println("Calculated generation delta for instance type", instanceType, "of generation", generation, "to be", delta)
+		return delta
+	}
+
+	maxGeneration := generation
+	for i := range *data {
+		f, g := calculateInstanceTypeGeneration((*data)[i].InstanceType, itfic)
+		if f == family && g > maxGeneration {
+			maxGeneration = g
+		}
+	}
+	log.Println("Caching maxgeneration", maxGeneration, "for family", family,
+		"while processing instance type", instanceType, "of generation", generation)
+	(*itmgc)[family] = maxGeneration
+	delta := maxGeneration - generation
+	debug.Println("Calculated generation delta for instance type", instanceType, "of generation", generation, "to be", delta)
+	return delta
+}
+
+// for c5ad.2xlarge returns the tuple ("c", 5)
+// for inf1.6xlarge returns the tuple ("inf", 1)
+// for g5g.4xlarge returns the tuple ("g", 5)
+func calculateInstanceTypeGeneration(InstanceType string, itfic *InstanceTypeFamilyInfoCache) (string, int64) {
+	if it := (*itfic)[InstanceType]; it != nil {
+		return it.family, it.generation
+	}
+
+	re := regexp.MustCompile(`^(\w+)(\d+)(\w+)?\.\w+$`)
+	match := re.FindStringSubmatch(InstanceType)
+	if len(match) == 0 {
+		(*itfic)[InstanceType] = &InstanceTypeFamilyInfo{family: InstanceType, generation: 1}
+		return InstanceType, 1
+	}
+	family := match[1]
+	generation, _ := strconv.ParseInt(match[2], 10, 64)
+
+	(*itfic)[InstanceType] = &InstanceTypeFamilyInfo{family: family, generation: generation}
+	return family, generation
 }

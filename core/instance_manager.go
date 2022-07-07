@@ -29,8 +29,9 @@ type instances interface {
 }
 
 type acceptableInstance struct {
-	instanceTI instanceTypeInformation
-	price      float64
+	instanceTI      instanceTypeInformation
+	price           float64
+	generationDelta int64
 }
 
 type instanceTypeInformation struct {
@@ -47,6 +48,7 @@ type instanceTypeInformation struct {
 	instanceStoreIsSSD       bool
 	hasEBSOptimization       bool
 	EBSThroughput            float32
+	generationDelta          int64
 }
 
 func makeInstances() instances {

@@ -54,7 +54,8 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 	}
 
 	defer i.deleteLaunchTemplate(lt)
-	instanceTypes, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(
+	instanceTypes, err := i.getCompatibleSpotInstanceTypesList(
+		i.asg.config.PrioritizedInstanceTypesBias,
 		i.asg.getAllowedInstanceTypes(i),
 		i.asg.getDisallowedInstanceTypes(i))
 

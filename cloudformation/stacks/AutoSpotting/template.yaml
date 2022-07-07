@@ -240,6 +240,20 @@ Parameters:
       - "capacity-optimized"
       - "lowest-price"
     Default: "capacity-optimized-prioritized"
+  PrioritizedInstanceTypesBias:
+    Type: "String"
+    Description: >
+      "Controls the ordering of instance types when using the capacity-optimized-prioritized
+      Spot allocation strategy. By default, using the 'lowest_price' bias it sorts instances by Spot price,
+      giving a softer preference than the 'lowest_price' Spot allocation strategy.
+      Alternatively, you can prefer newer instance types by using the 'prefer_newer_generations' bias",
+      which still oders instance types by price but penalizes instances from older generations by adding
+      10% to their hourly price for each older generation when considering them for the sorted list. For
+      example, a C5 instance type will be penalized by 10% over C6i, while a C4 will be penalized by 20%."
+    AllowedValues:
+      - prefer_newer_generations
+      - lowest_price
+    Default: prefer_newer_generations
   SpotPricePercentageBuffer:
     Default: "10.0"
     Description: >
@@ -413,6 +427,8 @@ Resources:
               - Ref: "Regions"
           SPOT_ALLOCATION_STRATEGY:
             Ref: SpotAllocationStrategy
+          PRIORITIZED_INSTANCE_TYPES_BIAS:
+            Ref: PrioritizedInstanceTypesBias
           SPOT_PRICE_BUFFER_PERCENTAGE:
             Ref: "SpotPricePercentageBuffer"
           SPOT_PRODUCT_DESCRIPTION:
