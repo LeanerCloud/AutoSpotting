@@ -275,6 +275,12 @@ func ParseConfig(conf *Config) {
 			"replacement actions when executed in cron mode\n"+
 			"\tExample: ./AutoSpotting --billing_only true\n")
 
+	flagSet.StringVar(&conf.PrioritizedInstanceTypesBias, "prioritized_instance_types_bias", "lower_cost",
+		"\n\tControls the ordering of instance types when using the capacity-optimized-prioritized\n"+
+			"\tSpot allocation strategy. By default, using the 'lower_cost' bias it sorts instances by Spot price\n"+
+			"\tAlternatively, you can bias towards newer instance types by using the 'prefer_newer_generations' bias\n"+
+			"\tExample: ./AutoSpotting --prioritized_instance_types_bias lower_cost\n")
+
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {

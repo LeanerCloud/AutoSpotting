@@ -110,6 +110,10 @@ const (
 	// SpotAllocationStrategyTag is the name of the tag set on the AutoScaling Group that
 	// can override the global value of the SpotAllocationStrategy parameter
 	SpotAllocationStrategyTag = "autospotting_spot_allocation_strategy"
+
+	// PrioritizedInstanceTypesBiasTag is the name of the tag set on the AutoScaling Group that
+	// can override the global value of the PrioritizedInstanceTypesBias parameter
+	PrioritizedInstanceTypesBiasTag = "autospotting_prioritized_instance_types_bias"
 )
 
 // AutoScalingConfig stores some group-specific configurations that can override
@@ -151,6 +155,10 @@ type AutoScalingConfig struct {
 	// Further information about this is available at
 	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html
 	SpotAllocationStrategy string
+
+	// PrioritizedInstanceTypesBias can be used to tweak the ordering of the instance types when using the
+	//"capacity-optimized-prioritized" allocation strategy, biasing towards newer instance types.
+	PrioritizedInstanceTypesBias string
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -283,6 +291,21 @@ func (a *autoScalingGroup) loadSpotAllocationStrategy() bool {
 	}
 
 	debug.Println("Couldn't find tag", SpotAllocationStrategyTag, "on the group", a.name, "using the default configuration")
+	return false
+}
+
+func (a *autoScalingGroup) loadPrioritizedInstanceTypesBiasTag() bool {
+	a.config.PrioritizedInstanceTypesBias = a.region.conf.PrioritizedInstanceTypesBias
+
+	tagValue := a.getTagValue(PrioritizedInstanceTypesBiasTag)
+
+	if tagValue != nil {
+		log.Printf("Loaded PrioritizedInstanceTypesBiasTag value %v from tag %v\n", *tagValue, PrioritizedInstanceTypesBiasTag)
+		a.config.PrioritizedInstanceTypesBias = *tagValue
+		return true
+	}
+
+	debug.Println("Couldn't find tag", PrioritizedInstanceTypesBiasTag, "on the group", a.name, "using the default configuration")
 	return false
 }
 
@@ -433,32 +456,37 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 	}
 
 	if a.LoadCronSchedule() {
-		log.Println("Found and applied configuration for Spot Price")
+		log.Println("Found and applied configuration for Cron Schedule")
 		ret = true
 	}
 
 	if a.LoadCronTimezone() {
-		log.Println("Found and applied configuration for Spot Price")
+		log.Println("Found and applied configuration for Cron Timezone")
 		ret = true
 	}
 
 	if a.LoadCronScheduleState() {
-		log.Println("Found and applied configuration for Spot Price")
+		log.Println("Found and applied configuration for Cron Schedule State")
 		ret = true
 	}
 
 	if a.loadPatchBeanstalkUserdata() {
-		log.Println("Found and applied configuration for Spot Price")
+		log.Println("Found and applied configuration for Beanstalk Userdata")
 		ret = true
 	}
 
 	if a.loadGP2ConversionThreshold() {
-		log.Println("Found and applied configuration for Spot Price")
+		log.Println("Found and applied configuration for GP2 Conversion Threshold")
 		ret = true
 	}
 
 	if a.loadSpotAllocationStrategy() {
-		log.Println("Found and applied configuration for Spot Price")
+		log.Println("Found and applied configuration for Spot Allocation Strategy")
+		ret = true
+	}
+
+	if a.loadPrioritizedInstanceTypesBiasTag() {
+		log.Println("Found and applied configuration for Prioritized Instance Types Bias")
 		ret = true
 	}
 

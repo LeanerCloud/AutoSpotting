@@ -894,7 +894,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 			i.asg = tt.asg
 			allowedList := tt.allowedList
 			disallowedList := tt.disallowedList
-			retValue, err := i.getCompatibleSpotInstanceTypesListSortedAscendingByPrice(allowedList, disallowedList)
+			retValue, err := i.getCompatibleSpotInstanceTypesList("", allowedList, disallowedList)
 			var retInstTypes []string
 			for _, retval := range retValue {
 				retInstTypes = append(retInstTypes, *retval)
