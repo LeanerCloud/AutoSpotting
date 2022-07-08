@@ -5,7 +5,7 @@ BINARY := AutoSpotting
 COVER_PROFILE := /tmp/coverage.out
 BUCKET_NAME ?= cloudprowess
 FLAVOR ?= custom
-LOCAL_PATH := build/s3/$(FLAVOR)
+
 LICENSE_FILES := LICENSE THIRDPARTY
 
 # the default is used for pushing to the AWS Marketplace ECR. Set this as an
@@ -20,6 +20,7 @@ DOCKER_IMAGE ?= cloudutil/autospotting
 DOCKER_IMAGE_TAG ?= $(DOCKER_ECR)/$(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION)
 
 DOCKER_IMAGE_VERSION ?= 1.0
+LOCAL_PATH := build/s3/$(FLAVOR)/$(DOCKER_IMAGE_VERSION)
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(DOCKER_IMAGE_VERSION)-$(FLAVOR)-$(SHA)
@@ -67,9 +68,11 @@ artifacts:                                       			 ## Create CloudFormation ar
 	@mkdir -p $(LOCAL_PATH)
 	@cp -f cloudformation/stacks/AutoSpotting/template.yaml $(LOCAL_PATH)/template_build_$(BUILD).yaml
 	@cp -f cloudformation/stacks/AutoSpotting/regional_template.yaml $(LOCAL_PATH)/
-	@sed -e "s#1.0.1#$(DOCKER_IMAGE_VERSION)#" $(LOCAL_PATH)/template_build_$(BUILD).yaml > $(LOCAL_PATH)/template_build_$(BUILD).yaml.new
+	@sed -e "s#1.0.1#$(DOCKER_IMAGE_VERSION)#" $(LOCAL_PATH)/template_build_$(BUILD).yaml > $(LOCAL_PATH)/template_build_$(BUILD).yaml.new1
+	@sed -e "s#nightly#$(FLAVOR)/$(DOCKER_IMAGE_VERSION)#" $(LOCAL_PATH)/template_build_$(BUILD).yaml.new1 > $(LOCAL_PATH)/template_build_$(BUILD).yaml.new
 	@mv -- $(LOCAL_PATH)/template_build_$(BUILD).yaml.new $(LOCAL_PATH)/template_build_$(BUILD).yaml
 	@cp -f $(LOCAL_PATH)/template_build_$(BUILD).yaml $(LOCAL_PATH)/template.yaml
+	@rm -f $(LOCAL_PATH)/template_build_$(BUILD).yaml.new1
 
 .PHONY: artifacts
 
