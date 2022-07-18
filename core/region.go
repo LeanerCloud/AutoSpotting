@@ -55,15 +55,15 @@ type prices struct {
 // The key in this map is the availability zone
 type spotPriceMap map[string]float64
 
-type InstanceTypeFamilyInfo struct {
-	family          string
-	generation      int64
-	generationDelta int64
+type instanceTypeFamilyInfo struct {
+	family     string
+	generation int64
 }
-type InstanceTypeFamilyInfoCache map[string]*InstanceTypeFamilyInfo
+
+type instanceTypeFamilyInfoCache map[string]*instanceTypeFamilyInfo
 
 // Stores the maximum generation for each instance type
-type InstanceTypeMaxGenerationCache map[string]int64
+type instanceTypeMaxGenerationCache map[string]int64
 
 func (r *region) enabled() bool {
 
@@ -234,8 +234,8 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 
 	var info instanceTypeInformation
 
-	itfic := make(InstanceTypeFamilyInfoCache)
-	itmgc := make(InstanceTypeMaxGenerationCache)
+	itfic := make(instanceTypeFamilyInfoCache)
+	itmgc := make(instanceTypeMaxGenerationCache)
 
 	for _, it := range *cfg.InstanceData {
 

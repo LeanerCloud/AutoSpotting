@@ -432,8 +432,8 @@ func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {
 
 func calculateGenerationDelta(data *ec2instancesinfo.InstanceData,
 	instanceType string,
-	itfic *InstanceTypeFamilyInfoCache,
-	itmgc *InstanceTypeMaxGenerationCache) int64 {
+	itfic *instanceTypeFamilyInfoCache,
+	itmgc *instanceTypeMaxGenerationCache) int64 {
 
 	family, generation := calculateInstanceTypeGeneration(instanceType, itfic)
 
@@ -463,7 +463,7 @@ func calculateGenerationDelta(data *ec2instancesinfo.InstanceData,
 // for c5ad.2xlarge returns the tuple ("c", 5)
 // for inf1.6xlarge returns the tuple ("inf", 1)
 // for g5g.4xlarge returns the tuple ("g", 5)
-func calculateInstanceTypeGeneration(InstanceType string, itfic *InstanceTypeFamilyInfoCache) (string, int64) {
+func calculateInstanceTypeGeneration(InstanceType string, itfic *instanceTypeFamilyInfoCache) (string, int64) {
 	if it := (*itfic)[InstanceType]; it != nil {
 		return it.family, it.generation
 	}
@@ -471,12 +471,12 @@ func calculateInstanceTypeGeneration(InstanceType string, itfic *InstanceTypeFam
 	re := regexp.MustCompile(`^(\w+)(\d+)(\w+)?\.\w+$`)
 	match := re.FindStringSubmatch(InstanceType)
 	if len(match) == 0 {
-		(*itfic)[InstanceType] = &InstanceTypeFamilyInfo{family: InstanceType, generation: 1}
+		(*itfic)[InstanceType] = &instanceTypeFamilyInfo{family: InstanceType, generation: 1}
 		return InstanceType, 1
 	}
 	family := match[1]
 	generation, _ := strconv.ParseInt(match[2], 10, 64)
 
-	(*itfic)[InstanceType] = &InstanceTypeFamilyInfo{family: family, generation: generation}
+	(*itfic)[InstanceType] = &instanceTypeFamilyInfo{family: family, generation: generation}
 	return family, generation
 }
