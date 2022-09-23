@@ -113,7 +113,7 @@ func Test_instance_handleInstanceStates(t *testing.T) {
 			i := &instance{
 				Instance:  tt.instance.Instance,
 				typeInfo:  tt.instance.typeInfo,
-				price:     tt.instance.price,
+				odPrice:   tt.instance.odPrice,
 				region:    tt.instance.region,
 				protected: tt.instance.protected,
 				asg:       tt.instance.asg,
@@ -160,7 +160,7 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 						onDemand: 1.2,
 					},
 				},
-				price: 0.75,
+				odPrice: 0.75,
 				asg: &autoScalingGroup{
 					Group: &autoscaling.Group{
 						DesiredCapacity: aws.Int64(4),
@@ -268,7 +268,7 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 			i := &instance{
 				Instance:  tt.instance.Instance,
 				typeInfo:  tt.instance.typeInfo,
-				price:     tt.instance.price,
+				odPrice:   tt.instance.odPrice,
 				region:    tt.instance.region,
 				protected: tt.instance.protected,
 				asg:       tt.instance.asg,

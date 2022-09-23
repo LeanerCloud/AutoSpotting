@@ -1074,7 +1074,7 @@ func TestScanInstances(t *testing.T) {
 							},
 						},
 					},
-					price:     0.1,
+					odPrice:   0.1,
 					protected: false,
 				},
 				"2": {
@@ -1094,7 +1094,7 @@ func TestScanInstances(t *testing.T) {
 							},
 						},
 					},
-					price:     0.8,
+					odPrice:   0.8,
 					protected: true,
 				},
 			},
@@ -2018,7 +2018,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 								Name: aws.String(ec2.InstanceStateNameRunning),
 							},
 						},
-						price: 30.3,
+						odPrice: 30.3,
 						typeInfo: instanceTypeInformation{
 							pricing: prices{
 								onDemand: 30.3,

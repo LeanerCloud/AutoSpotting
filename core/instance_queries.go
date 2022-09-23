@@ -29,7 +29,7 @@ func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64
 	}
 
 	debug.Println("\tSpot price: ", spotPrice)
-	debug.Println("\tInstance price: ", i.price)
+	debug.Println("\tInstance price: ", i.odPrice)
 	return spotPrice
 }
 
@@ -122,7 +122,7 @@ func (i *instance) belongsToEnabledASG() bool {
 			asg.loadLaunchConfiguration()
 			asg.loadLaunchTemplate()
 			i.asg = &asg
-			i.price = i.typeInfo.pricing.onDemand
+			i.odPrice = i.typeInfo.pricing.onDemand
 			log.Printf("%s instace %s belongs to enabled ASG %s", i.region.name,
 				*i.InstanceId, i.asg.name)
 			return true
@@ -160,7 +160,7 @@ func (i *instance) isPriceCompatible(spotPrice float64) bool {
 		return false
 	}
 
-	if spotPrice <= i.price {
+	if spotPrice <= i.odPrice {
 		return true
 	}
 
@@ -229,12 +229,12 @@ func (i *instance) isEBSCompatible(spotCandidate *instanceTypeInformation) bool 
 
 // Here we check the storage compatibility, with the following evaluation
 // criteria:
-// - speed: don't accept spinning disks when we used to have SSDs
-// - number of volumes: the new instance should have enough volumes to be
-//   able to attach all the instance store device mappings defined on the
-//   original instance
-// - volume size: each of the volumes should be at least as big as the
-//   original instance's volumes
+//   - speed: don't accept spinning disks when we used to have SSDs
+//   - number of volumes: the new instance should have enough volumes to be
+//     able to attach all the instance store device mappings defined on the
+//     original instance
+//   - volume size: each of the volumes should be at least as big as the
+//     original instance's volumes
 func (i *instance) isStorageCompatible(spotCandidate *instanceTypeInformation, attachedVolumes int) bool {
 	existing := i.typeInfo
 
@@ -332,7 +332,7 @@ func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string,
 		candidate := i.region.instanceTypeInformation[k]
 
 		candidatePrice := i.calculatePrice(candidate)
-		debug.Println("Comparing current type", current.instanceType, "with price", i.price,
+		debug.Println("Comparing current type", current.instanceType, "with price", i.odPrice,
 			"with candidate", candidate.instanceType, "with price", candidatePrice)
 
 		if i.isAllowed(candidate.instanceType, allowedList, disallowedList) && i.isCompatible(&candidate, candidatePrice, attachedVolumesNumber) {
