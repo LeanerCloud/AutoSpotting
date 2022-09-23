@@ -437,7 +437,7 @@ func (i *instance) createLaunchTemplateData() (*ec2.RequestLaunchTemplateData, e
 	ltData.InstanceMarketOptions = &ec2.LaunchTemplateInstanceMarketOptionsRequest{
 		MarketType: aws.String(Spot),
 		SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
-			MaxPrice: aws.String(strconv.FormatFloat(i.price, 'g', 10, 64)),
+			MaxPrice: aws.String(strconv.FormatFloat(i.odPrice, 'g', 10, 64)),
 		},
 	}
 

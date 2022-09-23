@@ -55,6 +55,7 @@ func (a *autoScalingGroup) loadLaunchConfiguration() (*launchConfiguration, erro
 	a.launchConfiguration = &launchConfiguration{
 		LaunchConfiguration: resp.LaunchConfigurations[0],
 	}
+
 	return a.launchConfiguration, nil
 }
 
@@ -206,9 +207,9 @@ func (a *autoScalingGroup) scanInstances() instances {
 		}
 
 		if i.isSpot() {
-			i.price = i.typeInfo.pricing.spot[*i.Placement.AvailabilityZone]
+			i.odPrice = i.typeInfo.pricing.spot[*i.Placement.AvailabilityZone]
 		} else {
-			i.price = i.typeInfo.pricing.onDemand + i.typeInfo.pricing.premium
+			i.odPrice = i.typeInfo.pricing.onDemand + i.typeInfo.pricing.premium
 		}
 
 		// Avoid adding instance in Terminating (Wait|Proceed) Lifecycle State
