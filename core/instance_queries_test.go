@@ -182,7 +182,7 @@ func TestIsPriceCompatible(t *testing.T) {
 				Placement: &ec2.Placement{
 					AvailabilityZone: tt.availabilityZone,
 				}},
-				price: tt.instancePrice,
+				odPrice: tt.instancePrice,
 			}
 			candidate := instanceTypeInformation{pricing: prices{}}
 			candidate.pricing = tt.spotPrices
@@ -542,8 +542,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					instanceStoreDeviceSize:  50.0,
 					instanceStoreIsSSD:       false,
 				},
-				price:  0.75,
-				region: &region{},
+				odPrice: 0.75,
+				region:  &region{},
 			},
 			asg: &autoScalingGroup{
 				name: "test-asg",
@@ -620,8 +620,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					instanceStoreDeviceSize:  50.0,
 					instanceStoreIsSSD:       false,
 				},
-				price:  0.75,
-				region: &region{},
+				odPrice: 0.75,
+				region:  &region{},
 			},
 			asg: &autoScalingGroup{
 				name: "test-asg",
@@ -702,8 +702,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					instanceStoreDeviceSize:  50.0,
 					instanceStoreIsSSD:       false,
 				},
-				price:  0.75,
-				region: &region{},
+				odPrice: 0.75,
+				region:  &region{},
 			},
 			asg: &autoScalingGroup{
 				name: "test-asg",
@@ -781,8 +781,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					instanceStoreDeviceSize:  50.0,
 					instanceStoreIsSSD:       false,
 				},
-				price:  0.75,
-				region: &region{},
+				odPrice: 0.75,
+				region:  &region{},
 			},
 			asg: &autoScalingGroup{
 				name: "test-asg",
@@ -861,8 +861,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					instanceStoreDeviceSize:  50.0,
 					instanceStoreIsSSD:       false,
 				},
-				price:  0.45,
-				region: &region{},
+				odPrice: 0.45,
+				region:  &region{},
 			},
 			asg: &autoScalingGroup{
 				name: "test-asg",
