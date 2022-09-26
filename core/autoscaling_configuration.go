@@ -114,6 +114,10 @@ const (
 	// PrioritizedInstanceTypesBiasTag is the name of the tag set on the AutoScaling Group that
 	// can override the global value of the PrioritizedInstanceTypesBias parameter
 	PrioritizedInstanceTypesBiasTag = "autospotting_prioritized_instance_types_bias"
+
+	// ConsiderEBSBandwidthTag is the name of the tag set on the AutoScaling Group that
+	// can override the global value of the ConsiderEBSBandwidth parameter
+	ConsiderEBSBandwidthTag = "autospotting_consider_ebs_bandwidth"
 )
 
 // AutoScalingConfig stores some group-specific configurations that can override
@@ -159,6 +163,9 @@ type AutoScalingConfig struct {
 	// PrioritizedInstanceTypesBias can be used to tweak the ordering of the instance types when using the
 	//"capacity-optimized-prioritized" allocation strategy, biasing towards newer instance types.
 	PrioritizedInstanceTypesBias string
+
+	// ConsiderEBSBandwidth controls whether to consider the EBS bandwidth when comparing instance types.
+	ConsiderEBSBandwidth bool
 }
 
 func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
@@ -306,6 +313,28 @@ func (a *autoScalingGroup) loadPrioritizedInstanceTypesBiasTag() bool {
 	}
 
 	debug.Println("Couldn't find tag", PrioritizedInstanceTypesBiasTag, "on the group", a.name, "using the default configuration")
+	return false
+}
+
+func (a *autoScalingGroup) loadConsiderEBSBandwidth() bool {
+
+	tagValue := a.getTagValue(ConsiderEBSBandwidthTag)
+
+	if tagValue != nil {
+		log.Printf("Loaded ConsiderEBSBandwidthTag value %v from tag %v\n", *tagValue, ConsiderEBSBandwidthTag)
+		val, err := strconv.ParseBool(*tagValue)
+
+		if err != nil {
+			log.Printf("Failed to parse %v value %v as a boolean", ConsiderEBSBandwidthTag, *tagValue)
+			return false
+		}
+
+		a.config.ConsiderEBSBandwidth = val
+		return true
+	}
+
+	debug.Println("Couldn't find tag", ConsiderEBSBandwidthTag, "on the group", a.name, "using the default configuration")
+	a.config.ConsiderEBSBandwidth = a.region.conf.ConsiderEBSBandwidth
 	return false
 }
 
@@ -472,6 +501,11 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 
 	if a.loadPatchBeanstalkUserdata() {
 		log.Println("Found and applied configuration for Beanstalk Userdata")
+		ret = true
+	}
+
+	if a.loadConsiderEBSBandwidth() {
+		log.Println("Found and applied configuration for EBS Bandwidth")
 		ret = true
 	}
 

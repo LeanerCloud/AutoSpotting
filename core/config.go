@@ -270,6 +270,11 @@ func ParseConfig(conf *Config) {
 			"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html\n"+
 			"\tExample: ./AutoSpotting --spot_allocation_strategy capacity-optimized-prioritized\n")
 
+	flagSet.BoolVar(&conf.ConsiderEBSBandwidth, "consider_ebs_bandwidth", false,
+		"\n\tConsider EBS Bandwidth when comparing instance types. This reduces instance type diversification, "+
+			"only enable it if you really need it.\n"+
+			"\tExample: ./AutoSpotting --consider_ebs_bandwidth=true\n")
+
 	flagSet.BoolVar(&conf.BillingOnly, "billing_only", false,
 		"\n\tControls whether AutoSpotting only does the Marketplace billing without taking any further\n"+
 			"replacement actions when executed in cron mode\n"+
