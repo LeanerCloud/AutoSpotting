@@ -1,5 +1,18 @@
-# AutoSpotting #
+# IMPORTANT #
+
+As of 26 Sep 2022 I decided to postpone publishing further code changes to this repo until I reach my sustainability goals.
+
+Further changes will be closed source and only available to my Marketplace subscribers until further notice.
+
+See [here](https://github.com/cloudutil/AutoSpotting/discussions/489) for further information about this change and what can you do about it.
+
+Thank you for your understanding and your support on this matter.
+
+Cristian
+
 <!-- markdownlint-disable MD003 MD026 MD033 -->
+
+## AutoSpotting ##
 
 <img src="logo.png" width="150" align="right">
 
@@ -9,7 +22,6 @@
 [![CodeClimate](https://codeclimate.com/github/AutoSpotting/AutoSpotting/badges/gpa.svg)](https://codeclimate.com/github/AutoSpotting/AutoSpotting)
 [![IssueCount](https://codeclimate.com/github/AutoSpotting/AutoSpotting/badges/issue_count.svg)](https://codeclimate.com/github/AutoSpotting/AutoSpotting)
 [![ChatOnGitter](https://badges.gitter.im/AutoSpotting/AutoSpotting.svg)](https://gitter.im/cristim/autospotting)
-[![Open Source Helpers](https://www.codetriage.com/AutoSpotting/AutoSpotting/badges/users.svg)](https://www.codetriage.com/AutoSpotting/AutoSpotting)
 [![Patreon](https://img.shields.io/badge/patreon-donate-yellow.svg)](https://www.patreon.com/cristim/overview)
 
 AutoSpotting is the leading open source spot market automation tool, optimized
