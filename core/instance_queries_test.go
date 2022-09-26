@@ -66,6 +66,11 @@ func TestIsEBSCompatible(t *testing.T) {
 				typeInfo: instanceTypeInformation{
 					EBSThroughput: 0,
 				},
+				asg: &autoScalingGroup{
+					config: AutoScalingConfig{
+						ConsiderEBSBandwidth: true,
+					},
+				},
 			},
 			expected: true,
 		},
@@ -76,6 +81,11 @@ func TestIsEBSCompatible(t *testing.T) {
 			instanceInfo: instance{
 				typeInfo: instanceTypeInformation{
 					EBSThroughput: 100,
+				},
+				asg: &autoScalingGroup{
+					config: AutoScalingConfig{
+						ConsiderEBSBandwidth: true,
+					},
 				},
 			},
 			expected: true,
@@ -88,6 +98,11 @@ func TestIsEBSCompatible(t *testing.T) {
 				typeInfo: instanceTypeInformation{
 					EBSThroughput: 100,
 				},
+				asg: &autoScalingGroup{
+					config: AutoScalingConfig{
+						ConsiderEBSBandwidth: true,
+					},
+				},
 			},
 			expected: true,
 		},
@@ -99,6 +114,11 @@ func TestIsEBSCompatible(t *testing.T) {
 				typeInfo: instanceTypeInformation{
 					EBSThroughput: 100,
 				},
+				asg: &autoScalingGroup{
+					config: AutoScalingConfig{
+						ConsiderEBSBandwidth: true,
+					},
+				},
 			},
 			expected: false,
 		},
@@ -109,6 +129,11 @@ func TestIsEBSCompatible(t *testing.T) {
 			instanceInfo: instance{
 				typeInfo: instanceTypeInformation{
 					EBSThroughput: 0,
+				},
+				asg: &autoScalingGroup{
+					config: AutoScalingConfig{
+						ConsiderEBSBandwidth: true,
+					},
 				},
 			},
 			expected: true,
