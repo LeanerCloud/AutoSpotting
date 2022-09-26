@@ -56,10 +56,10 @@ type prices struct {
 type spotPriceMap map[string]float64
 
 type instanceTypeFamilyInfo struct {
-	family     string
-	generation int64
+	family          string
+	generation      int64
+	generationDelta int64
 }
-
 type instanceTypeFamilyInfoCache map[string]*instanceTypeFamilyInfo
 
 // Stores the maximum generation for each instance type
