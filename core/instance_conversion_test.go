@@ -49,6 +49,10 @@ func TestGenerateTagList(t *testing.T) {
 							Key:   aws.String("launched-for-replacing-instance"),
 							Value: aws.String("foo"),
 						},
+						{
+							Key:   aws.String("odPrice"),
+							Value: aws.String("0"),
+						},
 					},
 				},
 			},
@@ -82,6 +86,10 @@ func TestGenerateTagList(t *testing.T) {
 						{
 							Key:   aws.String("launched-for-replacing-instance"),
 							Value: aws.String("bar"),
+						},
+						{
+							Key:   aws.String("odPrice"),
+							Value: aws.String("0"),
 						},
 						{
 							Key:   aws.String("launched-for-asg"),
@@ -517,6 +525,10 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 							Key:   aws.String("launched-for-replacing-instance"),
 							Value: aws.String("i-foo"),
 						},
+						{
+							Key:   aws.String("odPrice"),
+							Value: aws.String("1.5"),
+						},
 					},
 				},
 				},
@@ -635,6 +647,10 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 							Key:   aws.String("launched-for-replacing-instance"),
 							Value: aws.String("i-foo"),
 						},
+						{
+							Key:   aws.String("odPrice"),
+							Value: aws.String("1.5"),
+						},
 					},
 				},
 				},
@@ -747,6 +763,10 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 						}, {
 							Key:   aws.String("launched-for-replacing-instance"),
 							Value: aws.String("i-foo"),
+						},
+						{
+							Key:   aws.String("odPrice"),
+							Value: aws.String("1.5"),
 						},
 					},
 				},
@@ -887,6 +907,10 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 							Key:   aws.String("launched-for-replacing-instance"),
 							Value: aws.String("i-foo"),
 						},
+						{
+							Key:   aws.String("odPrice"),
+							Value: aws.String("1.5"),
+						},
 					},
 				},
 				},
@@ -1022,6 +1046,10 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 						},
 						{
 							Key: aws.String("launched-for-replacing-instance"),
+						},
+						{
+							Key:   aws.String("odPrice"),
+							Value: aws.String("1.5"),
 						},
 					},
 				},
