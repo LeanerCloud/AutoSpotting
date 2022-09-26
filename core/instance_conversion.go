@@ -527,6 +527,10 @@ func (i *instance) generateTagsList() []*ec2.LaunchTemplateTagSpecificationReque
 				Key:   aws.String("launched-for-replacing-instance"),
 				Value: i.InstanceId,
 			},
+			{
+				Key:   aws.String("odPrice"),
+				Value: aws.String(strconv.FormatFloat(i.odPrice, 'f', -1, 32)),
+			},
 		},
 	}
 
