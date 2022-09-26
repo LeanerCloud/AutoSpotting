@@ -220,6 +220,12 @@ func isARM(cpuName string) bool {
 }
 
 func (i *instance) isEBSCompatible(spotCandidate *instanceTypeInformation) bool {
+
+	if !i.asg.config.ConsiderEBSBandwidth {
+		debug.Printf("Ignoring EBS Bandwidth when comparing instance type %v with %v \n ", i.InstanceType, spotCandidate.instanceType)
+		return true
+	}
+
 	if spotCandidate.EBSThroughput < i.typeInfo.EBSThroughput {
 		debug.Println("\tEBS throughput insufficient:", spotCandidate.EBSThroughput, "<", i.typeInfo.EBSThroughput)
 		return false
