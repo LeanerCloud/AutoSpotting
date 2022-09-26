@@ -6,8 +6,10 @@
 package autospotting
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"math"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -39,11 +41,19 @@ func (i *instance) isSpot() bool {
 }
 
 func (i *instance) getSavings() float64 {
-	odPrice := i.typeInfo.pricing.onDemand
+	odPrice := i.getODPrice()
 	spotPrice := i.typeInfo.pricing.spot[*i.Placement.AvailabilityZone]
 
-	log.Printf("Calculating savings for instance %s with OD price %f and Spot price %f\n", *i.InstanceId, odPrice, spotPrice)
-	return odPrice - spotPrice
+	log.Printf("Calculating savings for instance %s with base OnDemand price %f and Spot price %f\n", *i.InstanceId, odPrice, spotPrice)
+	return math.Abs(odPrice - spotPrice)
+}
+
+func (i *instance) getODPrice() float64 {
+	if price, err := i.getODPriceFromTag(); err == nil {
+		return price
+	} else {
+		return i.typeInfo.pricing.onDemand
+	}
 }
 
 func (i *instance) isProtectedFromTermination() (bool, error) {
@@ -138,6 +148,17 @@ func (i *instance) belongsToAnASG() (bool, *string) {
 		}
 	}
 	return false, nil
+}
+
+func (i *instance) getODPriceFromTag() (float64, error) {
+	for _, tag := range i.Tags {
+		if *tag.Key == "odPrice" {
+			if price, err := strconv.ParseFloat(*tag.Value, 64); err == nil {
+				return price, nil
+			}
+		}
+	}
+	return 0, errors.New("failed to find/parse the odPrice tag")
 }
 
 func (i *instance) getReplacementTargetASGName() *string {
