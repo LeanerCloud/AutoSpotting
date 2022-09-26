@@ -257,7 +257,7 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, ins
 		}
 		a.handleNewInstanceLaunch(region, *instanceID, *instanceState)
 	} else if eventType == SpotInstanceInterruptionWarningCode || eventType == InstanceRebalanceRecommendationCode {
-		if eventType == InstanceRebalanceRecommendationCode && a.config.DisableInstanceRebalanceRecommendation {
+		if eventType == InstanceRebalanceRecommendationCode && !a.config.EnableInstanceRebalanceRecommendation {
 			log.Println("Handling of instance rebalance recommendation events is disabled, exiting...")
 			return nil
 		}
