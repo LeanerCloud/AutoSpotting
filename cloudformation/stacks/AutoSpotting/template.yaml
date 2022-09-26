@@ -325,6 +325,17 @@ Parameters:
       AutoSpotting's ElasticBeanstalk managed policy to your Beanstalk
       instance profile/role if you turn this option to On"
     Type: "String"
+  ConsiderEBSBandwidth:
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: >
+      "Controls whether AutoSpotting considers EBS Bandwidth when comparing
+      instance types in order to determine compatibility with other instance
+      types. Enabling this flag will reduce diversfication to only instance
+      types offering at least as much EBS bandwidth."
+    Type: "String"
   DeployRegionalResourcesStackSet:
     AllowedValues:
       - "false"
@@ -443,6 +454,8 @@ Resources:
             Ref: "TerminationNotificationAction"
           PATCH_BEANSTALK_USERDATA:
             Ref: "PatchBeanstalkUserdata"
+          CONSIDER_EBS_BANDWIDTH:
+            Ref: "ConsiderEBSBandwidth"
           SQS_QUEUE_URL:
             Ref: "SQSQueue"
       MemorySize:
