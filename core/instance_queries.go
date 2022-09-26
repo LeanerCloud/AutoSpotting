@@ -479,7 +479,7 @@ func calculateGenerationDelta(data *ec2instancesinfo.InstanceData,
 			maxGeneration = g
 		}
 	}
-	log.Println("Caching maxgeneration", maxGeneration, "for family", family,
+	debug.Println("Caching maxgeneration", maxGeneration, "for family", family,
 		"while processing instance type", instanceType, "of generation", generation)
 	(*itmgc)[family] = maxGeneration
 	delta := maxGeneration - generation
