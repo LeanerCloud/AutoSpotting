@@ -106,6 +106,43 @@ func TestIsEBSCompatible(t *testing.T) {
 			},
 			expected: true,
 		},
+		{name: "EBS Optimized Spot Optimized with less throughput",
+			spotInfo: &instanceTypeInformation{
+				EBSThroughput: 100,
+			},
+			instanceInfo: instance{
+				typeInfo: instanceTypeInformation{
+					EBSThroughput: 200,
+				},
+				asg: &autoScalingGroup{
+					config: AutoScalingConfig{
+						ConsiderEBSBandwidth: true,
+					},
+				},
+			},
+			expected: false,
+		},
+
+		{name: "EBS Optimized Spot Optimized with less throughput but ignoring EBS bandwidth",
+			spotInfo: &instanceTypeInformation{
+				EBSThroughput: 100,
+			},
+			instanceInfo: instance{
+				Instance: &ec2.Instance{
+					InstanceType: aws.String("c3.foo"),
+				},
+				typeInfo: instanceTypeInformation{
+					EBSThroughput: 200,
+				},
+				asg: &autoScalingGroup{
+					config: AutoScalingConfig{
+						ConsiderEBSBandwidth: false,
+					},
+				},
+			},
+			expected: true,
+		},
+
 		{name: "EBS Optimized Spot not Optimized",
 			spotInfo: &instanceTypeInformation{
 				EBSThroughput: 0,
