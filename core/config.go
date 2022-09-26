@@ -118,8 +118,8 @@ type Config struct {
 	// DisableEventBasedInstanceReplacement forces execution in cron mode only
 	DisableEventBasedInstanceReplacement bool
 
-	// DisableInstanceRebalanceRecommendation disable the handling of Instance Rebalance Recommendation events.
-	DisableInstanceRebalanceRecommendation bool
+	// EnableInstanceRebalanceRecommendation disable the handling of Instance Rebalance Recommendation events.
+	EnableInstanceRebalanceRecommendation bool
 
 	// BillingOnly - only billing related actions will be taken, no instance replacement will be performed.
 	BillingOnly bool
@@ -259,9 +259,9 @@ func ParseConfig(conf *Config) {
 		"\n\tDisables the event based instance replacement, forcing the legacy cron mode.\n"+
 			"\tExample: ./AutoSpotting --disable_event_based_instance_replacement=true\n")
 
-	flagSet.BoolVar(&conf.DisableInstanceRebalanceRecommendation, "disable_instance_rebalance_recommendation", false,
-		"\n\tDisables handling of instance rebalance recommendation events.\n"+
-			"\tExample: ./AutoSpotting --disable_instance_rebalance_recommendation=true\n")
+	flagSet.BoolVar(&conf.EnableInstanceRebalanceRecommendation, "enable_instance_rebalance_recommendation", false,
+		"\n\tEnables handling of instance rebalance recommendation events.\n"+
+			"\tExample: ./AutoSpotting --enable_instance_rebalance_recommendation=true\n")
 
 	flagSet.StringVar(&conf.SpotAllocationStrategy, "spot_allocation_strategy", "capacity-optimized-prioritized",
 		"\n\tControls the Spot allocation strategy for launching Spot instances. Allowed options: \n"+
