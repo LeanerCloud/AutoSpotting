@@ -51,9 +51,9 @@ func (i *instance) getSavings() float64 {
 func (i *instance) getODPrice() float64 {
 	if price, err := i.getODPriceFromTag(); err == nil {
 		return price
-	} else {
-		return i.typeInfo.pricing.onDemand
 	}
+	return i.typeInfo.pricing.onDemand
+
 }
 
 func (i *instance) isProtectedFromTermination() (bool, error) {
