@@ -5,11 +5,11 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling"
 Parameters:
   AllowedInstanceTypes:
-    Default: "*"
+    Default: ""
     Description: >
       "Comma separated list of allowed instance types for spot, in case you
       may want to limit it to a smaller set of instance types (supports
-      globs). Example: 'm4.xlarge,r4.xlarge,m5.*'. If using the default or
+      globs). Example: 'm4.xlarge,r4.xlarge,m5.*'. If using the default of
       leaving it unset, instances will be chosen by AutoSpotting's instance
       compatibility algorithm based on CPU, memory, disk, etc., basically
       getting you the cheapest available instances that are at least as big as

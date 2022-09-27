@@ -305,31 +305,52 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 	return false
 }
 
-func (i *instance) isAllowed(instanceType string, allowedList []string, disallowedList []string) bool {
-	debug.Println("Checking allowed/disallowed list")
+func (i *instance) isAllowed(instanceType string, allowed string, disallowed string) bool {
+	log.Println("Checking allowed/disallowed list")
+
+	if allowed == "current" {
+		return instanceType == *i.InstanceType
+	}
+
+	allowed = strings.Replace(allowed, " ", ",", -1)
+	disallowed = strings.Replace(disallowed, " ", ",", -1)
+
+	allowedList := strings.FieldsFunc(allowed, func(c rune) bool {
+		return c == ','
+	})
+
+	disallowedList := strings.FieldsFunc(disallowed, func(c rune) bool {
+		return c == ','
+	})
 
 	if len(allowedList) > 0 {
 		for _, a := range allowedList {
 			if match, _ := filepath.Match(a, instanceType); match {
+				debug.Printf("\t Instance type %v matches the list of allowed instance types %v\n",
+					instanceType, allowed)
 				return true
 			}
 		}
-		debug.Println("\tNot in the list of allowed instance types")
+		debug.Printf("\t Instance type %v doesn't match the list of allowed instance types, skipping %v\n",
+			instanceType, allowed)
 		return false
 	} else if len(disallowedList) > 0 {
 		for _, a := range disallowedList {
 			// glob matching
 			if match, _ := filepath.Match(a, instanceType); match {
-				debug.Println("\tIn the list of disallowed instance types")
+				debug.Printf("\t Instance type %v is in the list of disallowed instance types %v, skipping it\n",
+					instanceType, disallowed)
 				return false
 			}
 		}
 	}
+	debug.Printf("\t Instance type %v doesn't match any allowed (%v) or disallowed (%v) instance types, allowing\n",
+		instanceType, allowed, disallowed)
 	return true
 }
 
-func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string, allowedList []string,
-	disallowedList []string) ([]*string, error) {
+func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string, allowedList string,
+	disallowedList string) ([]*string, error) {
 	current := i.typeInfo
 	var acceptableInstanceTypes []acceptableInstance
 

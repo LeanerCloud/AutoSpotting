@@ -56,8 +56,8 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 	defer i.deleteLaunchTemplate(lt)
 	instanceTypes, err := i.getCompatibleSpotInstanceTypesList(
 		i.asg.config.PrioritizedInstanceTypesBias,
-		i.asg.getAllowedInstanceTypes(i),
-		i.asg.getDisallowedInstanceTypes(i))
+		i.asg.config.AllowedInstanceTypes,
+		i.asg.config.DisallowedInstanceTypes)
 
 	if err != nil {
 		log.Println("Couldn't determine the list of compatible spot instance types")

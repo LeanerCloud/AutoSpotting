@@ -426,6 +426,34 @@ func (a *autoScalingGroup) loadConfSpot() bool {
 	return false
 }
 
+func (a *autoScalingGroup) loadAllowedInstanceTypes() bool {
+
+	if tagValue := a.getTagValue(AllowedInstanceTypesTag); tagValue != nil {
+		log.Printf("Loaded AllowedInstanceTypesTag value %v from tag %v\n", *tagValue, AllowedInstanceTypesTag)
+		a.config.AllowedInstanceTypes = *tagValue
+		return true
+	}
+
+	debug.Println("Couldn't find tag", AllowedInstanceTypesTag, "on the group", a.name, "using the default configuration")
+	a.config.AllowedInstanceTypes = a.region.conf.AllowedInstanceTypes
+
+	return false
+}
+
+func (a *autoScalingGroup) loadDisallowedInstanceTypes() bool {
+	if tagValue := a.getTagValue(DisallowedInstanceTypesTag); tagValue != nil {
+		log.Printf("Loaded DisallowedInstanceTypesTag value %v from tag %v\n", *tagValue, DisallowedInstanceTypesTag)
+		a.config.DisallowedInstanceTypes = *tagValue
+
+		return true
+	}
+
+	debug.Println("Couldn't find tag", DisallowedInstanceTypesTag, "on the group", a.name, "using the default configuration")
+	a.config.DisallowedInstanceTypes = a.region.conf.DisallowedInstanceTypes
+
+	return false
+}
+
 func (a *autoScalingGroup) loadConfSpotPrice() bool {
 
 	tagValue := a.getTagValue(SpotPriceBufferPercentageTag)
@@ -521,6 +549,16 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 
 	if a.loadPrioritizedInstanceTypesBiasTag() {
 		log.Println("Found and applied configuration for Prioritized Instance Types Bias")
+		ret = true
+	}
+
+	if a.loadAllowedInstanceTypes() {
+		log.Println("Found and applied configuration for Allowed Instance Types")
+		ret = true
+	}
+
+	if a.loadDisallowedInstanceTypes() {
+		log.Println("Found and applied configuration for Disallowed Instance Types")
 		ret = true
 	}
 

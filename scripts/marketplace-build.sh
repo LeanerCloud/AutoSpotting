@@ -1,4 +1,4 @@
-export VERSION=1.1.0-rc4
+export VERSION=1.1.0-rc5
 
 export SAVINGS_CUT=$1
 export DOCKER_IMAGE_VERSION=$VERSION
