@@ -336,56 +336,6 @@ func (a *autoScalingGroup) findUnattachedInstanceLaunchedForThisASG() *instance 
 	return nil
 }
 
-func (a *autoScalingGroup) getAllowedInstanceTypes(baseInstance *instance) []string {
-	var allowedInstanceTypesTag string
-
-	// By default take the command line parameter
-	allowed := strings.Replace(a.region.conf.AllowedInstanceTypes, " ", ",", -1)
-
-	// Check option of allowed instance types
-	// If we have that option we don't need to calculate the compatible instance type.
-	if tagValue := a.getTagValue(AllowedInstanceTypesTag); tagValue != nil {
-		allowedInstanceTypesTag = strings.Replace(*tagValue, " ", ",", -1)
-	}
-
-	// ASG Tag config has a priority to override
-	if allowedInstanceTypesTag != "" {
-		allowed = allowedInstanceTypesTag
-	}
-
-	if allowed == "current" {
-		return []string{baseInstance.typeInfo.instanceType}
-	}
-
-	// Simple trick to avoid returning list with empty elements
-	return strings.FieldsFunc(allowed, func(c rune) bool {
-		return c == ','
-	})
-}
-
-func (a *autoScalingGroup) getDisallowedInstanceTypes(baseInstance *instance) []string {
-	var disallowedInstanceTypesTag string
-
-	// By default take the command line parameter
-	disallowed := strings.Replace(a.region.conf.DisallowedInstanceTypes, " ", ",", -1)
-
-	// Check option of disallowed instance types
-	// If we have that option we don't need to calculate the compatible instance type.
-	if tagValue := a.getTagValue(DisallowedInstanceTypesTag); tagValue != nil {
-		disallowedInstanceTypesTag = strings.Replace(*tagValue, " ", ",", -1)
-	}
-
-	// ASG Tag config has a priority to override
-	if disallowedInstanceTypesTag != "" {
-		disallowed = disallowedInstanceTypesTag
-	}
-
-	// Simple trick to avoid returning list with empty elements
-	return strings.FieldsFunc(disallowed, func(c rune) bool {
-		return c == ','
-	})
-}
-
 func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 	svc := a.region.services.autoScaling
 

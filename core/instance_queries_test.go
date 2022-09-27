@@ -530,8 +530,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 		asg                   *autoScalingGroup
 		expectedCandidateList []string
 		expectedError         error
-		allowedList           []string
-		disallowedList        []string
+		allowedList           string
+		disallowedList        string
 	}{
 		{name: "better/cheaper spot instance found",
 			spotInfos: map[string]instanceTypeInformation{
@@ -706,7 +706,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			disallowedList:        []string{"type*"},
+			disallowedList:        "type*",
 			expectedCandidateList: nil,
 			expectedError:         errors.New("no cheaper spot instance types could be found"),
 		},
@@ -785,7 +785,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					DesiredCapacity: aws.Int64(4),
 				},
 			},
-			allowedList:           []string{"asdf*"},
+			allowedList:           "asdf*",
 			expectedCandidateList: nil,
 			expectedError:         errors.New("no cheaper spot instance types could be found"),
 		},
@@ -865,7 +865,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				},
 			},
 
-			allowedList:           []string{"ty*"},
+			allowedList:           "ty*",
 			expectedCandidateList: []string{"type1"},
 			expectedError:         nil,
 		},
