@@ -79,6 +79,11 @@ Parameters:
     Description: >
       "Disables the event based instance replacement, forcing AutoSpotting to run in legacy cron mode".
     Type: "String"
+  EmailAddress:
+    Description: >
+      "Address to receive notifications for AutoSpotting actions and savings reports".
+    Type: "String"
+    # AllowedPattern: '/[^\s@]+@[^\s@]+\.[^\s@]+/'
   EnableInstanceRebalanceRecommendation:
     AllowedValues:
       - "true"
@@ -458,6 +463,8 @@ Resources:
             Ref: "ConsiderEBSBandwidth"
           SQS_QUEUE_URL:
             Ref: "SQSQueue"
+          NOTIFICATION_SNS_TOPIC:
+            Ref: "EmailNotification"
       MemorySize:
         Ref: "LambdaMemorySize"
       Role:
@@ -516,6 +523,7 @@ Resources:
               - "logs:CreateLogGroup"
               - "logs:CreateLogStream"
               - "logs:PutLogEvents"
+              - "sns:Publish"
             Effect: "Allow"
             Resource: "*"
           - Action:
@@ -531,13 +539,14 @@ Resources:
           - Action:
               - "ssm:GetParameter"
               - "ssm:PutParameter"
+              - "ssm:GetParameterHistory"
             Effect: "Allow"
             Resource:
               Fn::Join:
                 - ":"
                 - - arn:aws:ssm:us-east-1
                   - Ref: AWS::AccountId
-                  - parameter/autospotting-metering
+                  - parameter/autospotting*
 
       PolicyName: "LambdaPolicy"
       Roles:
@@ -1030,8 +1039,8 @@ Resources:
 
   ECSCluster:
     Type: AWS::ECS::Cluster
-    DependsOn:
-      - ECSServiceLinkedRole
+    # DependsOn:
+    #   - ECSServiceLinkedRole
     Properties:
       CapacityProviders:
         - FARGATE
@@ -1120,6 +1129,9 @@ Resources:
           Environment:
             - Name: BILLING_ONLY
               Value: "true"
+            - Name: NOTIFICATION_SNS_TOPIC
+              Value:
+                Ref: "EmailNotification"
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -1205,7 +1217,16 @@ Resources:
                 Resource: "*"
           PolicyName: "TaskSchedulerPolicy"
 
-  ECSServiceLinkedRole:
-    Type: AWS::IAM::ServiceLinkedRole
+  # ECSServiceLinkedRole:
+  #   Type: AWS::IAM::ServiceLinkedRole
+  #   Properties:
+  #     AWSServiceName: ecs.amazonaws.com
+
+  EmailNotification:
+    Type: AWS::SNS::Topic
     Properties:
-      AWSServiceName: ecs.amazonaws.com
+      Subscription:
+        - Endpoint:
+            Ref: EmailAddress
+          Protocol: email
+      TopicName: AutoSpotting_email_notifications

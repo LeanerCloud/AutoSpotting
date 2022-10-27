@@ -19,8 +19,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
+	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/aws/aws-sdk-go/service/sns/snsiface"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 )
 
 type connections struct {
@@ -31,6 +35,8 @@ type connections struct {
 	lambda         lambdaiface.LambdaAPI
 	sqs            sqsiface.SQSAPI
 	codedeploy     codedeployiface.CodeDeployAPI
+	ssm            ssmiface.SSMAPI
+	sns            snsiface.SNSAPI
 	region         string
 }
 
@@ -53,6 +59,8 @@ func (c *connections) connect(region, mainRegion string) {
 	lambdaConn := make(chan *lambda.Lambda)
 	sqsConn := make(chan *sqs.SQS)
 	codedeployConn := make(chan *codedeploy.CodeDeploy)
+	ssmConn := make(chan *ssm.SSM)
+	snsConn := make(chan *sns.SNS)
 
 	go func() { asConn <- autoscaling.New(c.session) }()
 	go func() { ec2Conn <- ec2.New(c.session) }()
@@ -60,8 +68,11 @@ func (c *connections) connect(region, mainRegion string) {
 	go func() { cloudformationConn <- cloudformation.New(c.session) }()
 	go func() { codedeployConn <- codedeploy.New(c.session) }()
 	go func() { sqsConn <- sqs.New(c.session, aws.NewConfig().WithRegion(mainRegion)) }()
+	go func() { ssmConn <- ssm.New(c.session, aws.NewConfig().WithRegion(mainRegion)) }()
+	go func() { snsConn <- sns.New(c.session, aws.NewConfig().WithRegion(mainRegion)) }()
 
-	c.autoScaling, c.ec2, c.cloudFormation, c.lambda, c.sqs, c.codedeploy, c.region = <-asConn, <-ec2Conn, <-cloudformationConn, <-lambdaConn, <-sqsConn, <-codedeployConn, region
+	c.autoScaling, c.ec2, c.cloudFormation, c.lambda, c.sqs, c.codedeploy, c.ssm, c.region =
+		<-asConn, <-ec2Conn, <-cloudformationConn, <-lambdaConn, <-sqsConn, <-codedeployConn, <-ssmConn, region
 
 	debug.Println("Created service connections in", region)
 }

@@ -555,6 +555,8 @@ func (r *region) sqsDeleteMessage(instanceID *string, instanceLifecycle string) 
 
 func (r *region) calculateSavings() float64 {
 	savings := 0.0
+	asgSavings := make(map[string]float64)
+
 	r.services.connect(r.name, r.conf.MainRegion)
 
 	log.Println("Scanning full instance information in", r.name)
@@ -575,8 +577,20 @@ func (r *region) calculateSavings() float64 {
 			log.Printf("Found AutoSpotting instance %s(%s) in %s with hourly savings %f\n",
 				*inst.InstanceId, *inst.InstanceType, r.name, is)
 			savings += is
+			if belongs, asg := inst.belongsToAnASG(); belongs {
+				asgSavings[*asg] += is
+			}
 		}
 	}
 	log.Printf("Total savings in %s: %f\n", r.name, savings)
+
+	ss := savingsStats{
+		sns:   r.services.sns,
+		topic: r.conf.NotificationSNSTopic,
+		ps: parameterStore{
+			svc: r.services.ssm,
+		},
+	}
+	ss.persistHourlyASGSavings(r.name, asgSavings)
 	return savings
 }

@@ -286,6 +286,9 @@ func ParseConfig(conf *Config) {
 			"\tAlternatively, you can bias towards newer instance types by using the 'prefer_newer_generations' bias\n"+
 			"\tExample: ./AutoSpotting --prioritized_instance_types_bias lower_cost\n")
 
+	flagSet.StringVar(&conf.NotificationSNSTopic, "notification_sns_topic", "",
+		"\n\tSNS topic with email subscription target to be used for notificationst\n")
+
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {

@@ -15,6 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 )
 
 func CheckErrors(t *testing.T, err error, expected error) {
@@ -259,4 +261,25 @@ func errorMatches(got error, wanted error) bool {
 		return false
 	}
 	return strings.Contains(got.Error(), wanted.Error())
+}
+
+type mockSSM struct {
+	ssmiface.SSMAPI
+
+	gpo    *ssm.GetParameterOutput
+	gpoerr error
+
+	gpho    *ssm.GetParameterHistoryOutput
+	gphoerr error
+
+	// unused so far
+	//poo *ssm.PutParameterOutput
+
+}
+
+func (m mockSSM) GetParameter(*ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+	return m.gpo, m.gpoerr
+}
+func (m mockSSM) GetParameterHistory(*ssm.GetParameterHistoryInput) (*ssm.GetParameterHistoryOutput, error) {
+	return m.gpho, m.gphoerr
 }
