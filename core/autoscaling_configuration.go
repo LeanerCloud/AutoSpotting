@@ -164,6 +164,9 @@ type AutoScalingConfig struct {
 	//"capacity-optimized-prioritized" allocation strategy, biasing towards newer instance types.
 	PrioritizedInstanceTypesBias string
 
+	// NotificationSNSTopic can be used to send email notifications for AutoSpotting actions and saving reports.
+	NotificationSNSTopic string
+
 	// ConsiderEBSBandwidth controls whether to consider the EBS bandwidth when comparing instance types.
 	ConsiderEBSBandwidth bool
 }

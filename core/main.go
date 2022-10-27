@@ -19,6 +19,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/marketplacemetering"
+	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/aws/aws-sdk-go/service/ssm"
 	ec2instancesinfo "github.com/cristim/ec2-instances-info"
 )
 
@@ -139,10 +142,22 @@ func (a *AutoSpotting) processRegions(regions []string) {
 	}
 	wg.Wait()
 
-	log.Println("Total hourly savings:", totalSavings)
+	session := session.Must(session.NewSession(&aws.Config{Region: aws.String("us-east-1")}))
+	ps := parameterStore{svc: ssm.New(session, aws.NewConfig().WithRegion("us-east-1"))}
+	mp := marketplaceMetering{
+		mpSvc: marketplacemetering.New(session, aws.NewConfig().WithRegion("us-east-1")),
+		ps:    ps,
+		svs: savingsStats{
+			ps:    ps,
+			sns:   sns.New(session, aws.NewConfig().WithRegion("us-east-1")),
+			topic: a.config.NotificationSNSTopic,
+		},
+	}
+
+	log.Printf("Total hourly savings: %f", totalSavings)
 	if strings.Contains(as.config.Version, "stable") {
 		log.Println("Running a stable build, submitting AWS marketplace metering data")
-		if err := meterMarketplaceUsage(totalSavings); err != nil {
+		if err := mp.meterMarketplaceUsage(totalSavings); err != nil {
 			log.Println("Failed marketplace metering, exiting... Encountered error:", err.Error())
 			return
 		}

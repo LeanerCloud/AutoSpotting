@@ -6,20 +6,25 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/marketplacemetering"
-	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/marketplacemetering/marketplacemeteringiface"
 )
 
-// SSMParameterName stores the name of the SSM parameter that stores the success status of the latest metering call
-const SSMParameterName = "autospotting-metering"
+// MeteringSSMParameterName stores the name of the SSM parameter that stores the success status of the latest metering call
+const MeteringSSMParameterName = "autospotting-metering"
 
-func meterMarketplaceUsage(savings float64) error {
+type marketplaceMetering struct {
+	mpSvc marketplacemeteringiface.MarketplaceMeteringAPI
+	ps    parameterStore
+	svs   savingsStats
+}
+
+func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
 
 	// Metering is supposed to be done from Fargate, but we check it here and return an error in case it failed before
 	if RunningFromLambda() {
 		log.Println("Running from Lambda")
-		if failedFromFargate() {
+		if m.failedFromFargate() {
 			log.Println("Metering failed previously, exiting...")
 			return errors.New("metering previously failed")
 		}
@@ -27,18 +32,19 @@ func meterMarketplaceUsage(savings float64) error {
 		return nil
 	}
 
-	mySession := session.Must(session.NewSession())
-
-	// Create a MarketplaceMetering client with additional configuration
-	svc := marketplacemetering.New(mySession, aws.NewConfig())
+	m.svs.updateAndReportSavingsStats(savings)
 
 	charge := savings * 0.01 * as.config.SavingsCut
 	units := int64(charge * 1000)
 
-	log.Printf("Billing %v units for $%v saved/hour (%v%% of the generated savings of $%v/hour)",
+	if units == 0 {
+		log.Printf("Your usage is within the free tier, yay!")
+	}
+
+	log.Printf("Billing %v units for $%f saved/hour (%v%% of the generated savings of $%f/hour)",
 		units, charge, as.config.SavingsCut, savings)
 
-	res, err := svc.MeterUsage(&marketplacemetering.MeterUsageInput{
+	res, err := m.mpSvc.MeterUsage(&marketplacemetering.MeterUsageInput{
 		ProductCode:    aws.String("9e5m3z5f5hlwdqcrv16xdi040"),
 		Timestamp:      aws.Time(time.Now()),
 		UsageDimension: aws.String("SavingsCut"),
@@ -47,58 +53,26 @@ func meterMarketplaceUsage(savings float64) error {
 
 	if err != nil {
 		log.Printf("Error submitting AWS Marketplace metering data: %v, received response: %v\n", err.Error(), res.String())
-		markAsFailingFromFargate()
+		m.markAsFailingFromFargate()
 		return err
 	}
 
-	markAsSuccessfulFromFargate()
+	m.markAsSuccessfulFromFargate()
 	return nil
 }
 
-func putSSMParameter(status string) {
-	mySession := session.Must(session.NewSession())
-
-	// Create a SSM client
-	svc := ssm.New(mySession, aws.NewConfig().WithRegion("us-east-1"))
-
-	_, err := svc.PutParameter(&ssm.PutParameterInput{
-		Name:      aws.String(SSMParameterName),
-		Overwrite: aws.Bool(true),
-		Type:      aws.String("String"),
-		Value:     aws.String(status),
-	})
-	if err != nil {
-		log.Printf("Error persisting marketplace metering status(%s) to SSM: %s", status, err.Error())
-	}
+func (m *marketplaceMetering) markAsSuccessfulFromFargate() {
+	m.ps.putSSMParameter(MeteringSSMParameterName, "success")
 }
 
-func markAsSuccessfulFromFargate() {
-	putSSMParameter("success")
+func (m *marketplaceMetering) markAsFailingFromFargate() {
+	m.ps.putSSMParameter(MeteringSSMParameterName, "failure")
 }
 
-func markAsFailingFromFargate() {
-	putSSMParameter("failure")
-}
-
-func failedFromFargate() bool {
-	mySession := session.Must(session.NewSession())
-	// Create a SSM client
-	svc := ssm.New(mySession, aws.NewConfig().WithRegion("us-east-1"))
-	res, err := svc.GetParameter(&ssm.GetParameterInput{
-		Name: aws.String(SSMParameterName),
-	})
-
-	if err != nil {
-		log.Printf("Error reading marketplace metering status from SSM")
-		if _, ok := err.(*ssm.ParameterNotFound); ok {
-			log.Printf("Parameter not found: %v", err.Error())
-			return false
-		}
-		log.Printf("Encountered error: %v", err.Error())
+func (m *marketplaceMetering) failedFromFargate() bool {
+	val, _, err := m.ps.getSSMParameter(MeteringSSMParameterName)
+	if err != nil && *val == "failure" {
 		return true
 	}
-
-	status := *res.Parameter.Value
-	log.Printf("Retrieved marketplace metering status from SSM: %s", status)
-	return status == "failure"
+	return false
 }
