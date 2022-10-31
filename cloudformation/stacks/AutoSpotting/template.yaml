@@ -359,6 +359,16 @@ Parameters:
       flag is disabled, otherwise AutoSpotting will fallback to the legacy
       cron execution mode.
     Type: "String"
+  SavingsReportsFrequency:
+    Description: >
+      "Controls the frequency of the saving reports. Defaults to sending them daily."
+    Type: String
+    AllowedValues:
+      - daily
+      - weekly
+      - monthly
+      - never
+    Default: daily
 Conditions:
   DeployRegionalResourcesStackSet:
     Fn::Equals:
@@ -1131,7 +1141,10 @@ Resources:
               Value: "true"
             - Name: NOTIFICATION_SNS_TOPIC
               Value:
-                Ref: "EmailNotification"
+                Ref: EmailNotification
+            - Name: SAVINGS_REPORTS_FREQUENCY
+              Value:
+                Ref: SavingsReportsFrequency
           LogConfiguration:
             LogDriver: awslogs
             Options:

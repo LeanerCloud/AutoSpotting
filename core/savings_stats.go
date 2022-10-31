@@ -13,8 +13,9 @@ import (
 
 // MeteringSSMParameterName stores the name of the SSM parameter that stores the success status of the latest metering call
 const (
-	SSMParameterNameTotalFormat = "/autospotting/savings/%s/total"
-	SSMParameterNameByASGFormat = "/autospotting/savings/%s/%s/%s" // time_interval/region/asg_name, eg hourly/us-east1-1/my_asg
+	SSMParameterNameTotalFormat    = "/autospotting/savings/%s/total"
+	SSMParameterNameByASGFormat    = "/autospotting/savings/%s/%s/%s" // time_interval/region/asg_name, eg hourly/us-east1-1/my_asg
+	SSMParameterNameLastReportName = "/autospotting/savings/report_timestamp"
 
 	hourly = "hourly"
 
@@ -25,9 +26,10 @@ const (
 )
 
 type savingsStats struct {
-	ps    parameterStore
-	sns   snsiface.SNSAPI
-	topic string
+	ps              parameterStore
+	sns             snsiface.SNSAPI
+	topic           string
+	reportFrequency string
 }
 
 func (s *savingsStats) calculateSavingsFromParameterHistory(key string, matchesTimeFilter func(t *time.Time) bool) float64 {
@@ -168,8 +170,8 @@ func (s *savingsStats) existingCurrentHourTotalSavings() bool {
 		return false
 	}
 
-	log.Printf("Retrieved last hourly savings from SSM: %s, with timestamp hour %d and current hour %d",
-		*val, timestamp.Local().Hour(), time.Now().Hour())
+	log.Printf("Retrieved last hourly savings from SSM: %s, with timestamp %v",
+		*val, timestamp)
 
 	return timestamp.Local().Hour() == time.Now().Hour()
 }
@@ -284,27 +286,106 @@ func (s *savingsStats) persistPreviousYearTotalSavings() {
 	s.ps.putSSMParameter(param, fmt.Sprintf("%f", savings))
 }
 
-func (s *savingsStats) updateAndReportSavingsStats(savings float64) {
+func (s *savingsStats) updateSavingsStats(savings float64) {
 	s.persistTotalHourlySavings(savings)
 	s.persistPreviousDayTotalSavings()
 	s.persistPreviousWeekTotalSavings()
 	s.persistPreviousMonthTotalSavings()
 	s.persistPreviousYearTotalSavings()
 
+	s.reportSavingsStats()
+}
+
+func (s *savingsStats) shouldReportSavingsStats() bool {
+
+	if s.reportFrequency == "never" {
+		log.Println("Savings Reports are disabled.")
+		return false
+	}
+
+	_, lastReportTimestamp, err := s.ps.getSSMParameter(SSMParameterNameLastReportName)
+	if err != nil {
+		s.ps.putSSMParameter(SSMParameterNameLastReportName, time.Now().Format("Mon, 2 Jan 2006 15:04"))
+		return false
+	}
+
+	if s.reportFrequency == "daily" {
+		if lastReportTimestamp.YearDay() == time.Now().Local().YearDay() {
+			log.Println("Using daily frequency and already sent a savings report today")
+			return false
+		}
+		return true
+
+	} else if s.reportFrequency == "weekly" {
+		lry, lrw := lastReportTimestamp.ISOWeek()
+		cy, cw := time.Now().Local().ISOWeek()
+		if lry == cy && lrw == cw {
+			log.Println("Using weekly frequency and already sent a savings report this week")
+			return false
+		}
+		return true
+
+	} else if s.reportFrequency == "monthly" {
+		if lastReportTimestamp.Month() == time.Now().Local().Month() {
+			log.Println("Using monthly frequency and already sent a savings report this month")
+			return false
+		}
+		return true
+	}
+
+	log.Println("Report frequency misconfigured, exiting...")
+	return false
+}
+
+func (s *savingsStats) reportSavingsStats() {
+
+	if !s.shouldReportSavingsStats() {
+		return
+	}
+
 	log.Println("SNS Topic:", s.topic)
 
-	msg := fmt.Sprintf(`AutoSpotting Savings report:
-    - saved today so far: %f
-    - saved this week so far: %f
-    - saved this month so far: %f
-    - saved this year so far: %f,
-    - saved all time %f
+	msg := fmt.Sprintf(`
+  Hi there,
 
-    Please feel free to reach out to us at https://join.slack.com/t/cloudutil/shared_invite/zt-xodcoi9j-1IcxNozXx1OW0gh_N08sjg
-    if you have any issues, questions or feedback about AutoSpotting.`,
+  Here's your %s AutoSpotting Savings Report.
+
+  Savings...
+  - today so far: $%.2f
+  - yesterday: $%.2f
+  - this week so far: $%.2f
+  - last week: $%.2f
+  - this month so far: $%.2f
+  - last month: $%.2f
+  - this year so far: $%.2f
+  - all time $%.2f
+
+  You may share these results freely within your company by forwarding this email, since
+  management tends to love such reports. Also feel free to share such reports with
+  us or post them on social media, it makes my day when I see those :-)
+
+  I'd also love to hear from you if you have any questions, issues or feedback about AutoSpotting:
+   - slack: https://join.slack.com/t/cloudutil/shared_invite/zt-xodcoi9j-1IcxNozXx1OW0gh_N08sjg
+   - email: contact@autospotting.io
+
+  Cheers,
+  Cristian - the author of AutoSpotting
+
+  PS:
+  - You may also want to check out the other tools from our CloudUtil portfolio:
+  https://aws.amazon.com/marketplace/seller-profile?id=a7ef2f5c-28b4-4dc2-90f5-ce4da9127c7f
+
+  - We can also help you expand your AutoSpotting rollout or in general with cost optimization work
+  unrelated to AutoSpotting.
+
+    `,
+		s.reportFrequency,
 		s.calculateDaySoFarTotalSavings(),
+		s.calculatePreviousDayTotalSavings(),
 		s.calculateWeekSoFarTotalSavings(),
+		s.calculatePreviousWeekTotalSavings(),
 		s.calculateMonthSoFarTotalSavings(),
+		s.calculatePreviousMonthTotalSavings(),
 		s.calculateYearSoFarTotalSavings(),
 		s.calculateAllTotalSavings())
 
@@ -315,5 +396,5 @@ func (s *savingsStats) updateAndReportSavingsStats(savings float64) {
 			TopicArn: aws.String(s.topic),
 		},
 	)
-
+	s.ps.putSSMParameter(SSMParameterNameLastReportName, time.Now().Format("Mon, 2 Jan 2006 15:04"))
 }
