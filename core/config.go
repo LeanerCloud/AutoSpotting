@@ -123,6 +123,9 @@ type Config struct {
 
 	// BillingOnly - only billing related actions will be taken, no instance replacement will be performed.
 	BillingOnly bool
+
+	// SavingsReportsFrequency configures the frequency of the savings reports sent be email
+	SavingsReportsFrequency string
 }
 
 // ParseConfig loads configuration from command line flags, environments variables, and config files.
@@ -287,7 +290,10 @@ func ParseConfig(conf *Config) {
 			"\tExample: ./AutoSpotting --prioritized_instance_types_bias lower_cost\n")
 
 	flagSet.StringVar(&conf.NotificationSNSTopic, "notification_sns_topic", "",
-		"\n\tSNS topic with email subscription target to be used for notificationst\n")
+		"\n\tSNS topic with email subscription target to be used for notifications, such as sending savings reports\n")
+
+	flagSet.StringVar(&conf.SavingsReportsFrequency, "savings_reports_frequency", "daily",
+		"\n\tSNS The frequency to send the savings reports. Allowes values: 'daily', 'weekly', 'monthly', default: 'daily'\n")
 
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 

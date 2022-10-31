@@ -148,9 +148,10 @@ func (a *AutoSpotting) processRegions(regions []string) {
 		mpSvc: marketplacemetering.New(session, aws.NewConfig().WithRegion("us-east-1")),
 		ps:    ps,
 		svs: savingsStats{
-			ps:    ps,
-			sns:   sns.New(session, aws.NewConfig().WithRegion("us-east-1")),
-			topic: a.config.NotificationSNSTopic,
+			ps:              ps,
+			sns:             sns.New(session, aws.NewConfig().WithRegion("us-east-1")),
+			topic:           a.config.NotificationSNSTopic,
+			reportFrequency: a.config.SavingsReportsFrequency,
 		},
 	}
 

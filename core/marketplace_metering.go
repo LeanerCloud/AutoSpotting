@@ -32,7 +32,7 @@ func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
 		return nil
 	}
 
-	m.svs.updateAndReportSavingsStats(savings)
+	m.svs.updateSavingsStats(savings)
 
 	charge := savings * 0.01 * as.config.SavingsCut
 	units := int64(charge * 1000)
