@@ -485,6 +485,8 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 		return nil
 	}
 
+	i.waitForBeanstalkDeployments()
+
 	// In case we're not triggered by SQS event we generate such an event and send it to the queue.
 	// We want to delay the further below code for until we're processing it through the SQS queue,
 	// in order to avoid launching Spot instances too early and having them run outside their ASG
