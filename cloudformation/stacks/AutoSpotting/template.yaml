@@ -581,6 +581,8 @@ Resources:
   # Using a name is not a problem for SQSQueue cause the only property that if changed replace
   # the resource is FifoQueue itself.
   SQSQueue:
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
     Type: AWS::SQS::Queue
     Properties:
       ContentBasedDeduplication: true
@@ -705,10 +707,10 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       LogGroupName:
-        Fn::Join:
-          - ""
-          - - "/aws/lambda/"
-            - Ref: "LambdaFunction"
+        Fn::Sub:
+          - "/aws/lambda/${Function}"
+          - Function:
+              Ref: "LambdaFunction"
       RetentionInDays:
         Ref: "LogRetentionPeriod"
     Type: "AWS::Logs::LogGroup"
@@ -1049,8 +1051,6 @@ Resources:
 
   ECSCluster:
     Type: AWS::ECS::Cluster
-    # DependsOn:
-    #   - ECSServiceLinkedRole
     Properties:
       CapacityProviders:
         - FARGATE
@@ -1180,6 +1180,8 @@ Resources:
                   - Ref: PublicSubnetTwo
 
   FargateLogGroup:
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName:
@@ -1229,11 +1231,6 @@ Resources:
                   - "iam:PassRole"
                 Resource: "*"
           PolicyName: "TaskSchedulerPolicy"
-
-  # ECSServiceLinkedRole:
-  #   Type: AWS::IAM::ServiceLinkedRole
-  #   Properties:
-  #     AWSServiceName: ecs.amazonaws.com
 
   EmailNotification:
     Type: AWS::SNS::Topic

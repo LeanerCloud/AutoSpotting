@@ -170,6 +170,20 @@ func (i *instance) getReplacementTargetASGName() *string {
 	return nil
 }
 
+func (i *instance) getBesnstalkDeploymentInformation() (*string, *string) {
+	var envName, envId *string
+
+	for _, tag := range i.Tags {
+		if *tag.Key == "elasticbeanstalk:environment-name" {
+			envName = tag.Value
+		}
+		if *tag.Key == "elasticbeanstalk:environment-id" {
+			envId = tag.Value
+		}
+	}
+	return envName, envId
+}
+
 func (i *instance) asgNeedsReplacement() bool {
 	ret, _ := i.asg.needReplaceOnDemandInstances()
 	return ret

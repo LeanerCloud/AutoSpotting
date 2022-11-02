@@ -9,6 +9,7 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/elasticbeanstalk"
 )
 
 // instance_actions.go contains functions that act on instances, altering their state.
@@ -184,4 +185,21 @@ func (i *instance) deleteLaunchTemplate(ltName *string) {
 	if err != nil {
 		log.Printf("Issue while deleting launch template %v, error: %v", *ltName, err.Error())
 	}
+}
+
+func (i *instance) waitForBeanstalkDeployments() {
+	envName, envId := i.getBesnstalkDeploymentInformation()
+	if envName == nil || envId == nil {
+		log.Printf("Instance %s is not provisioned by ElasticBeanstalk, skipping deployment wait logic", *i.InstanceId)
+		return
+	}
+
+	log.Printf("Instance %s is provisioned by Beanstalk for the environment %s with ID %s, waiting for any ongoing deployments to complete",
+		*i.InstanceId, *envName, *envId)
+	i.region.services.beanstalk.WaitUntilEnvironmentUpdated(&elasticbeanstalk.DescribeEnvironmentsInput{
+		EnvironmentNames: []*string{envName},
+		EnvironmentIds:   []*string{envId},
+	})
+	log.Printf("Instance %s provisioned by Beanstalk for the environment %s with ID %s, wait done",
+		*i.InstanceId, *envName, *envId)
 }
