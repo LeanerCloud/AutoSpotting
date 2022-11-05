@@ -293,7 +293,14 @@ func (s *savingsStats) updateSavingsStats(savings float64) {
 	s.persistPreviousMonthTotalSavings()
 	s.persistPreviousYearTotalSavings()
 
-	s.reportSavingsStats()
+	s.reportSavingsStats(s.reportFrequency,
+		s.calculatePreviousDayTotalSavings(),
+		s.calculateWeekSoFarTotalSavings(),
+		s.calculatePreviousWeekTotalSavings(),
+		s.calculateMonthSoFarTotalSavings(),
+		s.calculatePreviousMonthTotalSavings(),
+		s.calculateYearSoFarTotalSavings(),
+		s.calculateAllTotalSavings())
 }
 
 func (s *savingsStats) shouldReportSavingsStats() bool {
@@ -337,7 +344,61 @@ func (s *savingsStats) shouldReportSavingsStats() bool {
 	return false
 }
 
-func (s *savingsStats) reportSavingsStats() {
+func (s *savingsStats) formatSavings(frequency string,
+	previousDay, currentWeek, previousWeek, currentMonth, previousMonth, currentYear, allTime float64) string {
+
+	savings := fmt.Sprintf("- yesterday: $%.2f\n", previousDay)
+	if frequency == "daily" {
+		savings += fmt.Sprintf("- this week so far: $%.2f\n", currentWeek)
+	}
+
+	savings += fmt.Sprintf("- last week: $%.2f\n", previousWeek)
+
+	if frequency != "monthly" {
+		savings += fmt.Sprintf("- this month so far: $%.2f\n", currentMonth)
+	}
+
+	savings += fmt.Sprintf("- last month: $%.2f\n- this year so far: $%.2f\n- all time $%.2f\n",
+		previousMonth, currentYear, allTime)
+
+	return savings
+}
+
+func (s *savingsStats) formatSavingsMessage(frequency string,
+	previousDay, currentWeek, previousWeek, currentMonth, previousMonth, currentYear, allTime float64) string {
+
+	preamble := fmt.Sprintf(`
+  Hi there,
+
+  Here's your %s AutoSpotting Savings Report.
+
+  Savings... \n`, frequency)
+
+	ctas := `
+  If you like these results it would be great if you could spread the word, even if just within
+  your company by forwarding this email to your management or peers. You may notify multiple people
+  by adding SNS topic subscriptions at https://go.aws/3FLGGC2 or just using a group email address.
+  I also like it a lot when people share good results with me and give a short testimonial or post
+  them on social media.
+
+  If you think there's room for more, I'd love to help you expand your AutoSpotting rollout (free of charge!)
+  or in general with cost optimization work unrelated to AutoSpotting or also with ongoing FinOps services.
+
+  I'd also love to hear from you for any questions, issues or feedback about AutoSpotting.
+  You can reach out on Slack at https://bit.ly/CloudUtilSlack or by email at contact@autospotting.io.
+
+  Cheers,
+  Cristian - the author of AutoSpotting
+
+  PS:
+  - You may also want to check out the other tools from my CloudUtil portfolio: https://go.aws/3h7l7S9`
+
+	return preamble + s.formatSavings(frequency,
+		previousDay, currentWeek, previousWeek, currentMonth, previousMonth, currentYear, allTime) + ctas
+}
+
+func (s *savingsStats) reportSavingsStats(frequency string,
+	previousDay, currentWeek, previousWeek, currentMonth, previousMonth, currentYear, allTime float64) {
 
 	if !s.shouldReportSavingsStats() {
 		return
@@ -345,53 +406,10 @@ func (s *savingsStats) reportSavingsStats() {
 
 	log.Println("SNS Topic:", s.topic)
 
-	msg := fmt.Sprintf(`
-  Hi there,
-
-  Here's your %s AutoSpotting Savings Report.
-
-  Savings...
-  - today so far: $%.2f
-  - yesterday: $%.2f
-  - this week so far: $%.2f
-  - last week: $%.2f
-  - this month so far: $%.2f
-  - last month: $%.2f
-  - this year so far: $%.2f
-  - all time $%.2f
-
-  You may share these results freely within your company by forwarding this email, since
-  management tends to love such reports. Also feel free to share such reports with
-  us or post them on social media, it makes my day when I see those :-)
-
-  I'd also love to hear from you if you have any questions, issues or feedback about AutoSpotting:
-   - slack: https://join.slack.com/t/cloudutil/shared_invite/zt-xodcoi9j-1IcxNozXx1OW0gh_N08sjg
-   - email: contact@autospotting.io
-
-  Cheers,
-  Cristian - the author of AutoSpotting
-
-  PS:
-  - You may also want to check out the other tools from our CloudUtil portfolio:
-  https://aws.amazon.com/marketplace/seller-profile?id=a7ef2f5c-28b4-4dc2-90f5-ce4da9127c7f
-
-  - We can also help you expand your AutoSpotting rollout or in general with cost optimization work
-  unrelated to AutoSpotting.
-
-    `,
-		s.reportFrequency,
-		s.calculateDaySoFarTotalSavings(),
-		s.calculatePreviousDayTotalSavings(),
-		s.calculateWeekSoFarTotalSavings(),
-		s.calculatePreviousWeekTotalSavings(),
-		s.calculateMonthSoFarTotalSavings(),
-		s.calculatePreviousMonthTotalSavings(),
-		s.calculateYearSoFarTotalSavings(),
-		s.calculateAllTotalSavings())
-
 	s.sns.Publish(
 		&sns.PublishInput{
-			Message:  aws.String(msg),
+			Message: aws.String(s.formatSavingsMessage(frequency,
+				previousDay, currentWeek, previousWeek, currentMonth, previousMonth, currentYear, allTime)),
 			Subject:  aws.String("AutoSpotting savings report - " + time.Now().Format("Mon, 2 Jan 2006 15:04")),
 			TopicArn: aws.String(s.topic),
 		},
