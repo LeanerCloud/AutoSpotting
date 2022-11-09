@@ -159,7 +159,7 @@ func (s *savingsStats) existingPreviousWeekTotalSavings() bool {
 	log.Printf("Retrieved last week savings from SSM: %s", *val)
 	_, pw := timestamp.Local().ISOWeek()
 	_, w := time.Now().ISOWeek()
-	return pw == w-1 || pw > w
+	return pw == w
 
 }
 
