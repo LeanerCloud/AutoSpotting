@@ -599,7 +599,8 @@ Resources:
       - StackSetExecutionRole
     Type: AWS::CloudFormation::StackSet
     Properties:
-      TemplateURL: https://s3.amazonaws.com/cloudprowess/nightly/regional_template.yaml
+      TemplateURL:
+          Fn::Sub: https://s3.amazonaws.com/cloudprowess/stable/${SourceImageTag}/regional_template.yaml
       Capabilities:
         - CAPABILITY_IAM
       Description: "StackSet that deploys regional resources required by AutoSpotting for capturing events."
@@ -710,10 +711,7 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       LogGroupName:
-        Fn::Sub:
-          - "/aws/lambda/${Function}"
-          - Function:
-              Ref: "LambdaFunction"
+        Fn::Sub: /aws/lambda/${LambdaFunction}
       RetentionInDays:
         Ref: "LogRetentionPeriod"
     Type: "AWS::Logs::LogGroup"
