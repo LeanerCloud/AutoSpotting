@@ -290,7 +290,7 @@ func ParseConfig(conf *Config) {
 			"\tExample: ./AutoSpotting --prioritized_instance_types_bias lower_cost\n")
 
 	flagSet.StringVar(&conf.NotificationSNSTopic, "notification_sns_topic", "",
-		"\n\tSNS topic with email subscription target to be used for notifications, such as sending savings reports\n")
+		"\n\tARN of a SNS topic with email subscription target to be used for notifications, such as sending savings reports\n")
 
 	flagSet.StringVar(&conf.SavingsReportsFrequency, "savings_reports_frequency", "daily",
 		"\n\tSNS The frequency to send the savings reports. Allowes values: 'daily', 'weekly', 'monthly', default: 'daily'\n")
