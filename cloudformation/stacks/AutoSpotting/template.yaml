@@ -619,6 +619,9 @@ Resources:
             Fn::GetAtt:
               - LambdaRegionalStackExecutionRole
               - Arn
+        - ParameterKey: LogRetentionPeriod
+          ParameterValue:
+            Ref: LogRetentionPeriod
       StackSetName: AutoSpottingRegionalResources
       StackInstancesGroup:
         - DeploymentTargets:
