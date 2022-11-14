@@ -13,6 +13,10 @@
     LambdaRegionalExecutionRoleARN:
       Description: "Execution Role ARN for Regional Lambda"
       Type: "String"
+    LogRetentionPeriod:
+      Default: 7
+      Description: Number of days to keep the Lambda function logs in CloudWatch.
+      Type: Number
   Resources:
     EventHandler:
       Type: AWS::Lambda::Function
@@ -157,3 +161,15 @@
               Fn::GetAtt:
                 - "EventHandler"
                 - "Arn"
+    LogGroup:
+      UpdateReplacePolicy: Retain
+      DeletionPolicy: Retain
+      Properties:
+        LogGroupName:
+          Fn::Sub:
+            - /aws/lambda/${Function}
+            - Function:
+                Ref: EventHandler
+        RetentionInDays:
+          Ref: LogRetentionPeriod
+      Type: AWS::Logs::LogGroup
