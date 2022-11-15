@@ -9,6 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sns/snsiface"
+	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/jinzhu/now"
 )
 
 // MeteringSSMParameterName stores the name of the SSM parameter that stores the success status of the latest metering call
@@ -30,163 +32,203 @@ type savingsStats struct {
 	sns             snsiface.SNSAPI
 	topic           string
 	reportFrequency string
+	history         *savingsHistory
 }
 
-func (s *savingsStats) calculateSavingsFromParameterHistory(key string, matchesTimeFilter func(t *time.Time) bool) float64 {
+type savingsHistory struct {
+	hourlyHistory, dailyHistory, weeklyHistory, monthlyHistory, yearlyHistory []*ssm.ParameterHistory
+}
+
+func (s *savingsStats) loadHistory(timeline string) []*ssm.ParameterHistory {
+	history, err := s.ps.getSSMParameterHistory(fmt.Sprintf(SSMParameterNameTotalFormat, timeline))
+	if err != nil {
+		debug.Printf("Couldn't get %s history: %v", timeline, err)
+	}
+	return history
+}
+
+func (s *savingsStats) loadAllHistory() {
+
+	s.history = &savingsHistory{
+		hourlyHistory:  s.loadHistory(hourly),
+		dailyHistory:   s.loadHistory(previousDay),
+		weeklyHistory:  s.loadHistory(previousWeek),
+		monthlyHistory: s.loadHistory(previousMonth),
+		yearlyHistory:  s.loadHistory(previousYear),
+	}
+}
+
+func (s *savingsStats) calculateSavingsFromHistory(history []*ssm.ParameterHistory, matchesTimeFilter func(t *time.Time) bool) float64 {
 
 	var savings float64
 
-	res, err := s.ps.getSSMParameterHistory(key)
-	if err != nil {
-		debug.Printf("Couldn't calculate daily savings so far: %v", err)
-		return 0
-	}
-
-	for _, item := range res {
+	for _, item := range history {
+		debug.Printf("Processing Savings from History item of timestamp %v with value %v",
+			item.LastModifiedDate, *item.Value)
 
 		if matchesTimeFilter(item.LastModifiedDate) {
+
 			s, err := strconv.ParseFloat(*item.Value, 64)
 
 			if err != nil {
-				log.Printf("Encountered error: %v while parsing parameter value '%s' to float64", err.Error(), *item.Value)
+				debug.Printf("Encountered error: %v while parsing parameter value '%s' to float64", err.Error(), *item.Value)
 				return 0
 			}
 			savings += s
+			debug.Printf("Savings History item: %v matches the time filter, added to savings, current savings figure %v",
+				*item.Value, savings)
+
+		} else {
+			debug.Printf("Savings History item: %v does not match the time filter", *item.Value)
 		}
 	}
 	return savings
 }
 
 func (s *savingsStats) calculateDaySoFarTotalSavings() float64 {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, hourly)
-
-	return s.calculateSavingsFromParameterHistory(param, func(t *time.Time) bool {
-
-		return t.Local().YearDay() == time.Now().YearDay()
+	return s.calculateSavingsFromHistory(s.history.hourlyHistory, func(t *time.Time) bool {
+		ret := t.Local().After(now.BeginningOfDay())
+		debug.Printf("Checking if timestamp %v is from today: %v\n", t.Local(), ret)
+		return ret
 	})
 }
 
 func (s *savingsStats) calculatePreviousDayTotalSavings() float64 {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, hourly)
-
-	return s.calculateSavingsFromParameterHistory(param, func(t *time.Time) bool {
-		return t.Local().YearDay() == time.Now().YearDay()-1 || t.Local().YearDay() > time.Now().YearDay()
+	return s.calculateSavingsFromHistory(s.history.hourlyHistory, func(t *time.Time) bool {
+		ret := t.Local().After(now.BeginningOfDay().AddDate(0, 0, -1)) &&
+			t.Local().Before(now.BeginningOfDay())
+		debug.Printf("Checking if timestamp %v is from yesterday: %v\n", t.Local(), ret)
+		return ret
 	})
 }
 
 func (s *savingsStats) calculateWeekSoFarTotalSavings() float64 {
-
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousDay)
-
 	return s.calculateDaySoFarTotalSavings() +
-		s.calculateSavingsFromParameterHistory(param, func(t *time.Time) bool {
-			_, pw := t.Local().ISOWeek()
-			_, w := time.Now().ISOWeek()
-			return pw == w
+		s.calculateSavingsFromHistory(s.history.dailyHistory, func(t *time.Time) bool {
+			ret := t.Local().After(now.BeginningOfWeek())
+			debug.Printf("Checking if timestamp %v is from this week: %v\n", t.Local(), ret)
+			return ret
 		})
 }
 
 func (s *savingsStats) calculatePreviousWeekTotalSavings() float64 {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousDay)
-
-	return s.calculateSavingsFromParameterHistory(param, func(t *time.Time) bool {
-		_, pw := t.Local().ISOWeek()
-		_, w := time.Now().ISOWeek()
-		return pw == w-1 || pw > w
+	return s.calculateSavingsFromHistory(s.history.dailyHistory, func(t *time.Time) bool {
+		ret := t.Local().After(now.BeginningOfWeek().AddDate(0, 0, -7)) &&
+			t.Local().Before(now.BeginningOfWeek())
+		debug.Printf("Checking if timestamp %v is from last week: %v\n", t.Local(), ret)
+		return ret
 	})
 }
 
 func (s *savingsStats) calculateMonthSoFarTotalSavings() float64 {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousDay)
-
 	return s.calculateDaySoFarTotalSavings() +
-		s.calculateSavingsFromParameterHistory(param, func(t *time.Time) bool {
-			return t.Local().Month() == time.Now().Month()
+		s.calculateSavingsFromHistory(s.history.dailyHistory, func(t *time.Time) bool {
+			ret := t.Local().After(now.BeginningOfMonth())
+			debug.Printf("Checking if timestamp %v is from this month: %v\n", t.Local(), ret)
+			return ret
 		})
 }
-func (s *savingsStats) calculatePreviousMonthTotalSavings() float64 {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousDay)
 
-	return s.calculateSavingsFromParameterHistory(param, func(t *time.Time) bool {
-		return t.Local().Month() == time.Now().Month()-1 || t.Local().Month() > time.Now().Month()
+func (s *savingsStats) calculatePreviousMonthTotalSavings() float64 {
+	return s.calculateSavingsFromHistory(s.history.dailyHistory, func(t *time.Time) bool {
+		ret := t.Local().After(now.BeginningOfMonth().AddDate(0, -1, 0)) &&
+			t.Local().Before(now.BeginningOfMonth())
+		debug.Printf("Checking if timestamp %v is from last month: %v\n", t.Local(), ret)
+		return ret
 	})
 }
 
 func (s *savingsStats) calculateYearSoFarTotalSavings() float64 {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousMonth)
-
 	return s.calculateMonthSoFarTotalSavings() +
-		s.calculateSavingsFromParameterHistory(param, func(t *time.Time) bool {
-			return t.Local().Year() == time.Now().Year()
+		s.calculateSavingsFromHistory(s.history.monthlyHistory, func(t *time.Time) bool {
+			ret := t.Local().Year() == time.Now().Year()
+			debug.Printf("Checking if timestamp %v is from this year: %v\n", t.Local(), ret)
+			return ret
 		})
 }
 
 func (s *savingsStats) calculatePreviousYearTotalSavings() float64 {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousMonth)
-
-	return s.calculateSavingsFromParameterHistory(param, func(t *time.Time) bool {
-		return t.Local().Year() == time.Now().Year()-1 || t.Local().Year() > time.Now().Year()
+	return s.calculateSavingsFromHistory(s.history.monthlyHistory, func(t *time.Time) bool {
+		ret := t.Local().Year() == time.Now().Year()-1
+		debug.Printf("Checking if timestamp %v is from last year: %v\n", t.Local(), ret)
+		return ret
 	})
 }
 
 func (s *savingsStats) calculateAllTotalSavings() float64 {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousYear)
-
 	return s.calculateYearSoFarTotalSavings() +
-		s.calculateSavingsFromParameterHistory(param, func(t *time.Time) bool {
+		s.calculateSavingsFromHistory(s.history.yearlyHistory, func(t *time.Time) bool {
 			return true
 		})
 }
 
-func (s *savingsStats) existingPreviousDayTotalSavings() bool {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousDay)
+func (s *savingsStats) existingTotalSavings(timeline string, matchesTimeFilter func(t *time.Time) bool) bool {
+	param := fmt.Sprintf(SSMParameterNameTotalFormat, timeline)
+	debug.Printf("Checking total savings for path %s\n", param)
 	val, timestamp, err := s.ps.getSSMParameter(param)
 	if err != nil {
+		debug.Printf("Missing parameter for path %s, %s\n", param, err.Error())
 		return false
 	}
 
-	log.Printf("Retrieved daily savings from SSM: %s", *val)
-	return timestamp.Local().YearDay() == time.Now().YearDay()
-}
-
-func (s *savingsStats) existingPreviousWeekTotalSavings() bool {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousWeek)
-	val, timestamp, err := s.ps.getSSMParameter(param)
-	if err != nil {
-		return false
-	}
-
-	log.Printf("Retrieved last week savings from SSM: %s", *val)
-	_, pw := timestamp.Local().ISOWeek()
-	_, w := time.Now().ISOWeek()
-	return pw == w
-
+	recentEnough := matchesTimeFilter(timestamp)
+	log.Printf("Retrieved %s savings from SSM: %s, ignore: %v", timeline, *val, !recentEnough)
+	return recentEnough
 }
 
 func (s *savingsStats) existingCurrentHourTotalSavings() bool {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, hourly)
-	val, timestamp, err := s.ps.getSSMParameter(param)
-	if err != nil {
-		return false
+	return s.existingTotalSavings(hourly, func(t *time.Time) bool {
+		return t.Local().Hour() == time.Now().Hour()
+	})
+}
+
+func (s *savingsStats) existingPreviousDayTotalSavings() bool {
+	return s.existingTotalSavings(previousDay, func(t *time.Time) bool {
+		return t.Local().YearDay() == time.Now().YearDay()
+	})
+}
+
+func (s *savingsStats) existingPreviousWeekTotalSavings() bool {
+	return s.existingTotalSavings(previousWeek, func(t *time.Time) bool {
+		_, pw := t.Local().ISOWeek()
+		_, w := time.Now().ISOWeek()
+		return pw == w
+	})
+}
+
+func (s *savingsStats) existingPreviousMonthTotalSavings() bool {
+	return s.existingTotalSavings(previousMonth, func(t *time.Time) bool {
+		return t.Local().Month() == time.Now().Month()
+	})
+}
+
+func (s *savingsStats) existingPreviousYearTotalSavings() bool {
+	return s.existingTotalSavings(previousYear, func(t *time.Time) bool {
+		return t.Local().Year() == time.Now().Year()
+	})
+}
+
+func (s *savingsStats) persistSavings(exists bool, timeline string, savingsCalculation func() float64) {
+
+	if exists {
+		log.Printf("Current %s saving figure was already set, skipping calculation\n", timeline)
+		return
 	}
+	savings := savingsCalculation()
 
-	log.Printf("Retrieved last hourly savings from SSM: %s, with timestamp %v",
-		*val, timestamp)
-
-	return timestamp.Local().Hour() == time.Now().Hour()
+	log.Printf("Calculated %s savings %f", timeline, savings)
+	if savings < 0.00001 {
+		log.Printf("Calculated %s savings %f are negligible, we won't persit them in SSM", timeline, savings)
+		return
+	}
+	param := fmt.Sprintf(SSMParameterNameTotalFormat, timeline)
+	s.ps.putSSMParameter(param, fmt.Sprintf("%f", savings))
 }
 
 func (s *savingsStats) persistTotalHourlySavings(savings float64) {
-	if s.existingCurrentHourTotalSavings() {
-		log.Println("Current hour saving figure was already set, skipping calculation")
-		return
-	}
-	log.Printf("Calculated hourly savings %f", savings)
-	if savings < 0.00001 {
-		return
-	}
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, hourly)
-	s.ps.putSSMParameter(param, fmt.Sprintf("%f", savings))
+	s.persistSavings(s.existingCurrentHourTotalSavings(), hourly, func() float64 {
+		return savings
+	})
 }
 
 func (s *savingsStats) persistHourlyASGSavings(region string, asgSavings map[string]float64) {
@@ -205,93 +247,30 @@ func (s *savingsStats) persistHourlyASGSavings(region string, asgSavings map[str
 	//	}
 }
 func (s *savingsStats) persistPreviousDayTotalSavings() {
-
-	if s.existingPreviousDayTotalSavings() {
-		log.Println("Daily savings was already set today, skipping calculation")
-		return
-	}
-	savings := s.calculatePreviousDayTotalSavings()
-	log.Printf("Calculated previous day total savings %f", savings)
-	if savings == 0 {
-		return
-	}
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousDay)
-	s.ps.putSSMParameter(param, fmt.Sprintf("%f", savings))
+	s.persistSavings(s.existingPreviousDayTotalSavings(), previousDay, s.calculatePreviousDayTotalSavings)
 }
 
 func (s *savingsStats) persistPreviousWeekTotalSavings() {
-
-	if s.existingPreviousWeekTotalSavings() {
-		log.Println("Previous week savings was already set, skipping calculation")
-		return
-	}
-	savings := s.calculatePreviousWeekTotalSavings()
-	log.Printf("Calculated previous week total savings %f", savings)
-	if savings == 0 {
-		return
-	}
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousWeek)
-	s.ps.putSSMParameter(param, fmt.Sprintf("%f", savings))
-}
-
-func (s *savingsStats) existingPreviousMonthTotalSavings() bool {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousMonth)
-	val, timestamp, err := s.ps.getSSMParameter(param)
-	if err != nil {
-		return false
-	}
-
-	log.Printf("Retrieved previous month savings from SSM: %s", *val)
-	return timestamp.Local().Month() == time.Now().Month()
+	s.persistSavings(s.existingPreviousWeekTotalSavings(), previousWeek, s.calculatePreviousWeekTotalSavings)
 }
 
 func (s *savingsStats) persistPreviousMonthTotalSavings() {
-
-	if s.existingPreviousMonthTotalSavings() {
-		log.Println("Previous month savings was already set this month, skipping calculation")
-		return
-	}
-	savings := s.calculatePreviousMonthTotalSavings()
-	log.Printf("Calculated previous month total savings %f", savings)
-	if savings == 0 {
-		return
-	}
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousMonth)
-	s.ps.putSSMParameter(param, fmt.Sprintf("%f", savings))
-}
-
-func (s *savingsStats) existingPreviousYearTotalSavings() bool {
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousYear)
-	val, timestamp, err := s.ps.getSSMParameter(param)
-	if err != nil {
-		return false
-	}
-
-	log.Printf("Retrieved previous year savings from SSM: %s", *val)
-	return timestamp.Local().Year() == time.Now().Year()
+	s.persistSavings(s.existingPreviousMonthTotalSavings(), previousMonth, s.calculatePreviousMonthTotalSavings)
 }
 
 func (s *savingsStats) persistPreviousYearTotalSavings() {
-
-	if s.existingPreviousYearTotalSavings() {
-		log.Println("Previous month savings was already set this month, skipping calculation")
-		return
-	}
-	savings := s.calculatePreviousYearTotalSavings()
-	log.Printf("Calculated previous year total savings %f", savings)
-	if savings == 0 {
-		return
-	}
-	param := fmt.Sprintf(SSMParameterNameTotalFormat, previousYear)
-	s.ps.putSSMParameter(param, fmt.Sprintf("%f", savings))
+	s.persistSavings(s.existingPreviousYearTotalSavings(), previousYear, s.calculatePreviousYearTotalSavings)
 }
 
 func (s *savingsStats) updateSavingsStats(savings float64) {
 	s.persistTotalHourlySavings(savings)
+	s.loadAllHistory()
 	s.persistPreviousDayTotalSavings()
 	s.persistPreviousWeekTotalSavings()
 	s.persistPreviousMonthTotalSavings()
 	s.persistPreviousYearTotalSavings()
+
+	s.loadAllHistory() // load again after updating totals
 
 	s.reportSavingsStats(s.reportFrequency,
 		s.calculatePreviousDayTotalSavings(),
@@ -322,7 +301,6 @@ func (s *savingsStats) shouldReportSavingsStats() bool {
 			return false
 		}
 		return true
-
 	} else if s.reportFrequency == "weekly" {
 		lry, lrw := lastReportTimestamp.ISOWeek()
 		cy, cw := time.Now().Local().ISOWeek()
@@ -331,7 +309,6 @@ func (s *savingsStats) shouldReportSavingsStats() bool {
 			return false
 		}
 		return true
-
 	} else if s.reportFrequency == "monthly" {
 		if lastReportTimestamp.Month() == time.Now().Local().Month() {
 			log.Println("Using monthly frequency and already sent a savings report this month")
@@ -339,7 +316,6 @@ func (s *savingsStats) shouldReportSavingsStats() bool {
 		}
 		return true
 	}
-
 	log.Println("Report frequency misconfigured, exiting...")
 	return false
 }
@@ -372,7 +348,7 @@ func (s *savingsStats) formatSavingsMessage(frequency string,
 
   Here's your %s AutoSpotting Savings Report.
 
-  Savings... \n`, frequency)
+  Savings...`, frequency)
 
 	ctas := `
   If you like these results it would be great if you could spread the word, even if just within
@@ -404,7 +380,7 @@ func (s *savingsStats) reportSavingsStats(frequency string,
 		return
 	}
 
-	log.Println("SNS Topic:", s.topic)
+	log.Println("Sending Savings Report to SNS Topic:", s.topic)
 
 	s.sns.Publish(
 		&sns.PublishInput{
