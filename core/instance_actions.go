@@ -188,18 +188,18 @@ func (i *instance) deleteLaunchTemplate(ltName *string) {
 }
 
 func (i *instance) waitForBeanstalkDeployments() {
-	envName, envId := i.getBesnstalkDeploymentInformation()
-	if envName == nil || envId == nil {
+	envName, envID := i.getBesnstalkDeploymentInformation()
+	if envName == nil || envID == nil {
 		log.Printf("Instance %s is not provisioned by ElasticBeanstalk, skipping deployment wait logic", *i.InstanceId)
 		return
 	}
 
 	log.Printf("Instance %s is provisioned by Beanstalk for the environment %s with ID %s, waiting for any ongoing deployments to complete",
-		*i.InstanceId, *envName, *envId)
+		*i.InstanceId, *envName, *envID)
 	i.region.services.beanstalk.WaitUntilEnvironmentUpdated(&elasticbeanstalk.DescribeEnvironmentsInput{
 		EnvironmentNames: []*string{envName},
-		EnvironmentIds:   []*string{envId},
+		EnvironmentIds:   []*string{envID},
 	})
 	log.Printf("Instance %s provisioned by Beanstalk for the environment %s with ID %s, wait done",
-		*i.InstanceId, *envName, *envId)
+		*i.InstanceId, *envName, *envID)
 }
