@@ -44,11 +44,19 @@ func (ps *parameterStore) getSSMParameter(key string) (*string, *time.Time, erro
 }
 
 func (ps *parameterStore) getSSMParameterHistory(key string) ([]*ssm.ParameterHistory, error) {
-
-	res, err := ps.svc.GetParameterHistory(&ssm.GetParameterHistoryInput{
+	input := &ssm.GetParameterHistoryInput{
 		Name:       aws.String(key),
 		MaxResults: aws.Int64(50),
-	})
+	}
+	var history []*ssm.ParameterHistory
+
+	err := ps.svc.GetParameterHistoryPages(input,
+		func(page *ssm.GetParameterHistoryOutput, lastPage bool) bool {
+			for _, value := range page.Parameters {
+				history = append(history, value)
+			}
+			return true
+		})
 
 	if err != nil {
 		debug.Printf("Error reading parameter history for SSM parameter '%s'", key)
@@ -59,5 +67,5 @@ func (ps *parameterStore) getSSMParameterHistory(key string) ([]*ssm.ParameterHi
 		debug.Printf("Encountered error: %v", err.Error())
 		return nil, err
 	}
-	return res.Parameters, nil
+	return history, nil
 }
