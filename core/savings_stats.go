@@ -351,14 +351,11 @@ func (s *savingsStats) formatSavingsMessage(frequency string,
   Savings...`, frequency)
 
 	ctas := `
-  If you like these results it would be great if you could spread the word, even if just within
-  your company by forwarding this email to your management or peers. You may notify multiple people
-  by adding SNS topic subscriptions at https://go.aws/3FLGGC2 or just using a group email address.
-  I also like it a lot when people share good results with me and give a short testimonial or post
-  them on social media.
+  If you like these results it would be great if you could spread the word, even if just within your company by forwarding this email to your management or peers.
 
-  If you think there's room for more, I'd love to help you expand your AutoSpotting rollout (free of charge!)
-  or in general with cost optimization work unrelated to AutoSpotting or also with ongoing FinOps services.
+  I also like it a lot when people share good results with me and give a short testimonial or post them on social media.
+
+  If you think there's room for more, I'd love to help you expand your AutoSpotting rollout (free of charge!) or in general with cost optimization work unrelated to AutoSpotting or also with ongoing FinOps services.
 
   I'd also love to hear from you for any questions, issues or feedback about AutoSpotting.
   You can reach out on Slack at https://bit.ly/CloudUtilSlack or by email at contact@autospotting.io.
