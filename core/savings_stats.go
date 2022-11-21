@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sns/snsiface"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/jinzhu/now"
 )
 
 // MeteringSSMParameterName stores the name of the SSM parameter that stores the success status of the latest metering call
@@ -21,10 +20,8 @@ const (
 
 	hourly = "hourly"
 
-	previousDay   = "previous_day"
-	previousWeek  = "previous_week"
-	previousMonth = "previous_month"
-	previousYear  = "previous_year"
+	daily   = "daily"
+	monthly = "monthly"
 )
 
 type savingsStats struct {
@@ -36,7 +33,7 @@ type savingsStats struct {
 }
 
 type savingsHistory struct {
-	hourlyHistory, dailyHistory, weeklyHistory, monthlyHistory, yearlyHistory []*ssm.ParameterHistory
+	hourlyHistory, dailyHistory, monthlyHistory []*ssm.ParameterHistory
 }
 
 func (s *savingsStats) loadHistory(timeline string) []*ssm.ParameterHistory {
@@ -51,10 +48,8 @@ func (s *savingsStats) loadAllHistory() {
 
 	s.history = &savingsHistory{
 		hourlyHistory:  s.loadHistory(hourly),
-		dailyHistory:   s.loadHistory(previousDay),
-		weeklyHistory:  s.loadHistory(previousWeek),
-		monthlyHistory: s.loadHistory(previousMonth),
-		yearlyHistory:  s.loadHistory(previousYear),
+		dailyHistory:   s.loadHistory(daily),
+		monthlyHistory: s.loadHistory(monthly),
 	}
 }
 
@@ -85,81 +80,36 @@ func (s *savingsStats) calculateSavingsFromHistory(history []*ssm.ParameterHisto
 	return savings
 }
 
-func (s *savingsStats) calculateDaySoFarTotalSavings() float64 {
+func (s *savingsStats) calculateLast24HoursTotalSavings() float64 {
 	return s.calculateSavingsFromHistory(s.history.hourlyHistory, func(t *time.Time) bool {
-		ret := t.Local().After(now.BeginningOfDay())
-		debug.Printf("Checking if timestamp %v is from today: %v\n", t.Local(), ret)
+		ret := t.Local().After(time.Now().AddDate(0, 0, -1))
+		debug.Printf("Checking if timestamp %v is from the last 24h: %v\n", t.Local(), ret)
 		return ret
 	})
 }
 
-func (s *savingsStats) calculatePreviousDayTotalSavings() float64 {
-	return s.calculateSavingsFromHistory(s.history.hourlyHistory, func(t *time.Time) bool {
-		ret := t.Local().After(now.BeginningOfDay().AddDate(0, 0, -1)) &&
-			t.Local().Before(now.BeginningOfDay())
-		debug.Printf("Checking if timestamp %v is from yesterday: %v\n", t.Local(), ret)
-		return ret
-	})
-}
-
-func (s *savingsStats) calculateWeekSoFarTotalSavings() float64 {
-	return s.calculateDaySoFarTotalSavings() +
-		s.calculateSavingsFromHistory(s.history.dailyHistory, func(t *time.Time) bool {
-			ret := t.Local().After(now.BeginningOfWeek())
-			debug.Printf("Checking if timestamp %v is from this week: %v\n", t.Local(), ret)
-			return ret
-		})
-}
-
-func (s *savingsStats) calculatePreviousWeekTotalSavings() float64 {
+func (s *savingsStats) calculateLast7DaysTotalSavings() float64 {
 	return s.calculateSavingsFromHistory(s.history.dailyHistory, func(t *time.Time) bool {
-		ret := t.Local().After(now.BeginningOfWeek().AddDate(0, 0, -7)) &&
-			t.Local().Before(now.BeginningOfWeek())
-		debug.Printf("Checking if timestamp %v is from last week: %v\n", t.Local(), ret)
+		ret := t.Local().After(time.Now().AddDate(0, 0, -7))
+		debug.Printf("Checking if timestamp %v is from last 7 days: %v\n", t.Local(), ret)
 		return ret
 	})
 }
 
-func (s *savingsStats) calculateMonthSoFarTotalSavings() float64 {
-	return s.calculateDaySoFarTotalSavings() +
-		s.calculateSavingsFromHistory(s.history.dailyHistory, func(t *time.Time) bool {
-			ret := t.Local().After(now.BeginningOfMonth())
-			debug.Printf("Checking if timestamp %v is from this month: %v\n", t.Local(), ret)
-			return ret
-		})
-}
-
-func (s *savingsStats) calculatePreviousMonthTotalSavings() float64 {
+func (s *savingsStats) calculateLast30DaysTotalSavings() float64 {
 	return s.calculateSavingsFromHistory(s.history.dailyHistory, func(t *time.Time) bool {
-		ret := t.Local().After(now.BeginningOfMonth().AddDate(0, -1, 0)) &&
-			t.Local().Before(now.BeginningOfMonth())
-		debug.Printf("Checking if timestamp %v is from last month: %v\n", t.Local(), ret)
+		ret := t.Local().After(time.Now().AddDate(0, -1, 0))
+		debug.Printf("Checking if timestamp %v is from last 30 days: %v\n", t.Local(), ret)
 		return ret
 	})
 }
 
-func (s *savingsStats) calculateYearSoFarTotalSavings() float64 {
-	return s.calculateMonthSoFarTotalSavings() +
-		s.calculateSavingsFromHistory(s.history.monthlyHistory, func(t *time.Time) bool {
-			ret := t.Local().Year() == time.Now().Year()
-			debug.Printf("Checking if timestamp %v is from this year: %v\n", t.Local(), ret)
-			return ret
-		})
-}
-
-func (s *savingsStats) calculatePreviousYearTotalSavings() float64 {
+func (s *savingsStats) calculateLast12MonthsTotalSavings() float64 {
 	return s.calculateSavingsFromHistory(s.history.monthlyHistory, func(t *time.Time) bool {
-		ret := t.Local().Year() == time.Now().Year()-1
-		debug.Printf("Checking if timestamp %v is from last year: %v\n", t.Local(), ret)
+		ret := t.Local().After(time.Now().AddDate(-1, 0, 0))
+		debug.Printf("Checking if timestamp %v is from last 12 months: %v\n", t.Local(), ret)
 		return ret
 	})
-}
-
-func (s *savingsStats) calculateAllTotalSavings() float64 {
-	return s.calculateYearSoFarTotalSavings() +
-		s.calculateSavingsFromHistory(s.history.yearlyHistory, func(t *time.Time) bool {
-			return true
-		})
 }
 
 func (s *savingsStats) existingTotalSavings(timeline string, matchesTimeFilter func(t *time.Time) bool) bool {
@@ -176,35 +126,21 @@ func (s *savingsStats) existingTotalSavings(timeline string, matchesTimeFilter f
 	return recentEnough
 }
 
-func (s *savingsStats) existingCurrentHourTotalSavings() bool {
+func (s *savingsStats) updatedHourlyTotalSavings() bool {
 	return s.existingTotalSavings(hourly, func(t *time.Time) bool {
 		return t.Local().Hour() == time.Now().Hour()
 	})
 }
 
-func (s *savingsStats) existingPreviousDayTotalSavings() bool {
-	return s.existingTotalSavings(previousDay, func(t *time.Time) bool {
+func (s *savingsStats) updatedDailyTotalSavings() bool {
+	return s.existingTotalSavings(daily, func(t *time.Time) bool {
 		return t.Local().YearDay() == time.Now().YearDay()
 	})
 }
 
-func (s *savingsStats) existingPreviousWeekTotalSavings() bool {
-	return s.existingTotalSavings(previousWeek, func(t *time.Time) bool {
-		_, pw := t.Local().ISOWeek()
-		_, w := time.Now().ISOWeek()
-		return pw == w
-	})
-}
-
-func (s *savingsStats) existingPreviousMonthTotalSavings() bool {
-	return s.existingTotalSavings(previousMonth, func(t *time.Time) bool {
+func (s *savingsStats) updatedMonthlyTotalSavings() bool {
+	return s.existingTotalSavings(monthly, func(t *time.Time) bool {
 		return t.Local().Month() == time.Now().Month()
-	})
-}
-
-func (s *savingsStats) existingPreviousYearTotalSavings() bool {
-	return s.existingTotalSavings(previousYear, func(t *time.Time) bool {
-		return t.Local().Year() == time.Now().Year()
 	})
 }
 
@@ -226,7 +162,7 @@ func (s *savingsStats) persistSavings(exists bool, timeline string, savingsCalcu
 }
 
 func (s *savingsStats) persistTotalHourlySavings(savings float64) {
-	s.persistSavings(s.existingCurrentHourTotalSavings(), hourly, func() float64 {
+	s.persistSavings(s.updatedHourlyTotalSavings(), hourly, func() float64 {
 		return savings
 	})
 }
@@ -247,39 +183,25 @@ func (s *savingsStats) persistHourlyASGSavings(region string, asgSavings map[str
 	//	}
 }
 func (s *savingsStats) persistPreviousDayTotalSavings() {
-	s.persistSavings(s.existingPreviousDayTotalSavings(), previousDay, s.calculatePreviousDayTotalSavings)
-}
-
-func (s *savingsStats) persistPreviousWeekTotalSavings() {
-	s.persistSavings(s.existingPreviousWeekTotalSavings(), previousWeek, s.calculatePreviousWeekTotalSavings)
+	s.persistSavings(s.updatedDailyTotalSavings(), daily, s.calculateLast24HoursTotalSavings)
 }
 
 func (s *savingsStats) persistPreviousMonthTotalSavings() {
-	s.persistSavings(s.existingPreviousMonthTotalSavings(), previousMonth, s.calculatePreviousMonthTotalSavings)
-}
-
-func (s *savingsStats) persistPreviousYearTotalSavings() {
-	s.persistSavings(s.existingPreviousYearTotalSavings(), previousYear, s.calculatePreviousYearTotalSavings)
+	s.persistSavings(s.updatedMonthlyTotalSavings(), monthly, s.calculateLast30DaysTotalSavings)
 }
 
 func (s *savingsStats) updateSavingsStats(savings float64) {
 	s.persistTotalHourlySavings(savings)
 	s.loadAllHistory()
 	s.persistPreviousDayTotalSavings()
-	s.persistPreviousWeekTotalSavings()
 	s.persistPreviousMonthTotalSavings()
-	s.persistPreviousYearTotalSavings()
-
 	s.loadAllHistory() // load again after updating totals
 
 	s.reportSavingsStats(s.reportFrequency,
-		s.calculatePreviousDayTotalSavings(),
-		s.calculateWeekSoFarTotalSavings(),
-		s.calculatePreviousWeekTotalSavings(),
-		s.calculateMonthSoFarTotalSavings(),
-		s.calculatePreviousMonthTotalSavings(),
-		s.calculateYearSoFarTotalSavings(),
-		s.calculateAllTotalSavings())
+		s.calculateLast24HoursTotalSavings(),
+		s.calculateLast7DaysTotalSavings(),
+		s.calculateLast30DaysTotalSavings(),
+		s.calculateLast12MonthsTotalSavings())
 }
 
 func (s *savingsStats) shouldReportSavingsStats() bool {
@@ -320,35 +242,26 @@ func (s *savingsStats) shouldReportSavingsStats() bool {
 	return false
 }
 
-func (s *savingsStats) formatSavings(frequency string,
-	previousDay, currentWeek, previousWeek, currentMonth, previousMonth, currentYear, allTime float64) string {
+func (s *savingsStats) formatSavings(
+	last24hours, last7days, last30days, last12months float64) string {
 
-	savings := fmt.Sprintf("- yesterday: $%.2f\n", previousDay)
-	if frequency == "daily" {
-		savings += fmt.Sprintf("- this week so far: $%.2f\n", currentWeek)
-	}
-
-	savings += fmt.Sprintf("- last week: $%.2f\n", previousWeek)
-
-	if frequency != "monthly" {
-		savings += fmt.Sprintf("- this month so far: $%.2f\n", currentMonth)
-	}
-
-	savings += fmt.Sprintf("- last month: $%.2f\n- this year so far: $%.2f\n- all time $%.2f\n",
-		previousMonth, currentYear, allTime)
+	savings := fmt.Sprintf("- last 24 hours: $%.2f\n", last24hours)
+	savings += fmt.Sprintf("- last 7 days: $%.2f\n", last7days)
+	savings += fmt.Sprintf("- last 30 days: $%.2f\n", last30days)
+	savings += fmt.Sprintf("- last 12 months: $%.2f\n", last12months)
 
 	return savings
 }
 
 func (s *savingsStats) formatSavingsMessage(frequency string,
-	previousDay, currentWeek, previousWeek, currentMonth, previousMonth, currentYear, allTime float64) string {
+	last24hours, last7days, last30days, last12months float64) string {
 
 	preamble := fmt.Sprintf(`
   Hi there,
 
   Here's your %s AutoSpotting Savings Report.
 
-  Savings...`, frequency)
+  Savings...\n`, frequency)
 
 	ctas := `
   If you like these results it would be great if you could spread the word, even if just within your company by forwarding this email to your management or peers.
@@ -366,12 +279,12 @@ func (s *savingsStats) formatSavingsMessage(frequency string,
   PS:
   - You may also want to check out the other tools from my CloudUtil portfolio: https://go.aws/3h7l7S9`
 
-	return preamble + s.formatSavings(frequency,
-		previousDay, currentWeek, previousWeek, currentMonth, previousMonth, currentYear, allTime) + ctas
+	return preamble + s.formatSavings(
+		last24hours, last7days, last30days, last12months) + ctas
 }
 
 func (s *savingsStats) reportSavingsStats(frequency string,
-	previousDay, currentWeek, previousWeek, currentMonth, previousMonth, currentYear, allTime float64) {
+	last24hours, last7days, last30days, last12months float64) {
 
 	if !s.shouldReportSavingsStats() {
 		return
@@ -382,7 +295,7 @@ func (s *savingsStats) reportSavingsStats(frequency string,
 	s.sns.Publish(
 		&sns.PublishInput{
 			Message: aws.String(s.formatSavingsMessage(frequency,
-				previousDay, currentWeek, previousWeek, currentMonth, previousMonth, currentYear, allTime)),
+				last24hours, last7days, last30days, last12months)),
 			Subject:  aws.String("AutoSpotting savings report - " + time.Now().Format("Mon, 2 Jan 2006 15:04")),
 			TopicArn: aws.String(s.topic),
 		},
