@@ -20,7 +20,7 @@ DOCKER_IMAGE ?= cloudutil/autospotting
 DOCKER_IMAGE_TAG ?= $(DOCKER_ECR)/$(DOCKER_IMAGE):$(DOCKER_IMAGE_VERSION)
 
 DOCKER_IMAGE_VERSION ?= 1.0
-LOCAL_PATH := build/s3/$(FLAVOR)/$(DOCKER_IMAGE_VERSION)
+LOCAL_PATH := build/s3/$(DOCKER_IMAGE_VERSION)
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(DOCKER_IMAGE_VERSION)-$(FLAVOR)-$(SHA)
@@ -87,7 +87,7 @@ docker-push-artifacts: docker artifacts
 .PHONY: docker-push-artifacts
 
 docker-marketplace:
-	docker build -f Dockerfile.marketplace --platform=linux/$(GOARCH) --load -t $(DOCKER_IMAGE_TAG) --build-arg savings_cut=${SAVINGS_CUT} .
+	docker build -f Dockerfile.marketplace --platform=linux/$(GOARCH) --load -t $(DOCKER_IMAGE_TAG) --build-arg savings_cut=${SAVINGS_CUT} --build-arg flavor=${FLAVOR} --build-arg promotion_days=${PROMOTION_DAYS} .
 	docker push $(DOCKER_IMAGE_TAG)
 .PHONY: docker-marketplace
 

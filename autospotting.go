@@ -62,8 +62,9 @@ func init() {
 	}
 
 	conf = autospotting.Config{
-		Version:    Version,
-		SavingsCut: sc,
+		Version:           Version,
+		SavingsCut:        sc,
+		PromotionDeadline: PromotionDeadline,
 	}
 
 	autospotting.ParseConfig(&conf)

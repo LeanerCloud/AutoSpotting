@@ -320,7 +320,7 @@ func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) 
 }
 
 func (i *instance) isAllowed(instanceType string, allowed string, disallowed string) bool {
-	log.Println("Checking allowed/disallowed list")
+	debug.Println("Checking allowed/disallowed list")
 
 	if allowed == "current" {
 		return instanceType == *i.InstanceType

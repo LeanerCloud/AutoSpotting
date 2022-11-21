@@ -261,7 +261,8 @@ func (s *savingsStats) formatSavingsMessage(frequency string,
 
   Here's your %s AutoSpotting Savings Report.
 
-  Savings...\n`, frequency)
+  Savings...
+  `, frequency)
 
 	ctas := `
   If you like these results it would be great if you could spread the word, even if just within your company by forwarding this email to your management or peers.

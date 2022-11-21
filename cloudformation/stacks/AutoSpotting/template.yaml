@@ -600,7 +600,7 @@ Resources:
     Type: AWS::CloudFormation::StackSet
     Properties:
       TemplateURL:
-          Fn::Sub: https://s3.amazonaws.com/cloudprowess/stable/${SourceImageTag}/regional_template.yaml
+          Fn::Sub: https://s3.amazonaws.com/cloudprowess/${SourceImageTag}/regional_template.yaml
       Capabilities:
         - CAPABILITY_IAM
       Description: "StackSet that deploys regional resources required by AutoSpotting for capturing events."
@@ -708,7 +708,7 @@ Resources:
 
   LogGroup:
     UpdateReplacePolicy: Retain
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Properties:
       LogGroupName:
         Fn::Sub: /aws/lambda/${LambdaFunction}
@@ -1182,14 +1182,16 @@ Resources:
 
   FargateLogGroup:
     UpdateReplacePolicy: Retain
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName:
         Fn::Join:
           - "/"
           - - /ecs/fargate
-            - Ref: AWS::StackName
+              # using the Task Definition or AutoSpottingBillingTaskSchedule would look better
+              # but they cause circular dependency issues.
+            - Ref: ECSCluster
             - Billing
       RetentionInDays:
         Ref: "LogRetentionPeriod"

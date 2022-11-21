@@ -26,12 +26,6 @@ func TestParseConfig(t *testing.T) {
 				"AWS_REGION": "us-west-2",
 			},
 		},
-		{
-			name: "with LICENSE set",
-			environment: map[string]string{
-				"LICENSE": "I_built_it_from_source_code",
-			},
-		},
 	}
 
 	// save copy of environment before we run any tests
@@ -57,10 +51,6 @@ func TestParseConfig(t *testing.T) {
 					assert.Equal(t, config.MainRegion, tt.environment["AWS_REGION"])
 				} else {
 					assert.Equal(t, config.MainRegion, "us-east-1", "MainRegion should default to us-east-1")
-				}
-
-				if tt.environment["LICENSE"] != "" {
-					assert.Equal(t, config.LicenseType, tt.environment["LICENSE"])
 				}
 			}
 

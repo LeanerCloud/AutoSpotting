@@ -31,10 +31,16 @@ func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
 		log.Println("Metering succeeded previously from Fargate, moving on...")
 		return nil
 	}
+	cut := as.config.SavingsCut
+
+	if !isExpired(as.config.PromotionDeadline) {
+		log.Println("Still within the promotion, your usage of AutoSpotting at 50% off")
+		cut = cut / 2
+	}
 
 	m.svs.updateSavingsStats(savings)
 
-	charge := savings * 0.01 * as.config.SavingsCut
+	charge := savings * 0.01 * cut
 	units := int64(charge * 1000)
 
 	if units == 0 {
@@ -42,7 +48,7 @@ func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
 	}
 
 	log.Printf("Billing %v units for $%f saved/hour (%v%% of the generated savings of $%f/hour)",
-		units, charge, as.config.SavingsCut, savings)
+		units, charge, cut, savings)
 
 	res, err := m.mpSvc.MeterUsage(&marketplacemetering.MeterUsageInput{
 		ProductCode:    aws.String("9e5m3z5f5hlwdqcrv16xdi040"),
