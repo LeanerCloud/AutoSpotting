@@ -1551,8 +1551,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 					CronSchedule:      DefaultCronSchedule,
 					CronScheduleState: "on",
 				},
-				LicenseType: "evaluation",
-				Version:     "custom",
+				Version: "custom",
 			},
 			instances: makeInstancesWithCatalog(
 				instanceMap{}),
@@ -1577,8 +1576,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 					CronScheduleState: "on",
 					MinOnDemandNumber: 1,
 				},
-				LicenseType: "custom",
-				Version:     "nightly",
+				Version: "nightly",
 			},
 			instances: makeInstancesWithCatalog(
 				instanceMap{

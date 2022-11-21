@@ -4,12 +4,12 @@ RUN apk add -U --no-cache ca-certificates git make
 COPY go.mod go.sum /src/
 # Download dependencies
 WORKDIR /src
-RUN GOPROXY=direct go mod download
+RUN go mod download
 
 COPY . /src
 
 ARG flavor=custom
-RUN FLAVOR="$flavor" CGO_ENABLED=0 GOPROXY=direct make
+RUN FLAVOR="$flavor" CGO_ENABLED=0 make
 
 FROM scratch
 COPY LICENSE BINARY_LICENSE THIRDPARTY /

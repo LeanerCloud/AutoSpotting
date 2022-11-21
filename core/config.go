@@ -95,8 +95,8 @@ type Config struct {
 	// The percentage of the savings
 	SavingsCut float64
 
-	// The license of this AutoSpotting build - obsolete
-	LicenseType string
+	// The promotion deadline
+	PromotionDeadline string
 
 	// Controls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use
 	// the instance role when calling CloudFormation helpers instead of the standard CloudFormation
@@ -232,9 +232,6 @@ func ParseConfig(conf *Config) {
 	flagSet.StringVar(&conf.CronScheduleState, "cron_schedule_state", "on", "\n\tControls whether to take actions "+
 		"inside or outside the schedule defined by cron_schedule. Allowed values: on|off\n"+
 		"\tExample: ./AutoSpotting --cron_schedule_state='off' --cron_schedule '9-18 1-5'  # would only take action outside the defined schedule\n")
-
-	flagSet.StringVar(&conf.LicenseType, "license", "evaluation", "\n\t - obsoleted, kept for compatibility only\n"+
-		"\tExample: ./AutoSpotting --license evaluation\n")
 
 	flagSet.StringVar(&conf.EventFile, "event_file", "", "\n\tJSON file containing event data, "+
 		"used for locally simulating execution from Lambda. AutoSpotting now expects to be "+
