@@ -7,20 +7,15 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/jinzhu/now"
 )
 
 func Test_savingsStats_formatSavings(t *testing.T) {
 
 	type args struct {
-		frequency     string
-		previousDay   float64
-		currentWeek   float64
-		previousWeek  float64
-		currentMonth  float64
-		previousMonth float64
-		currentYear   float64
-		allTime       float64
+		last24Hours  float64
+		last7Days    float64
+		last30Days   float64
+		last12Months float64
 	}
 
 	tests := []struct {
@@ -31,82 +26,34 @@ func Test_savingsStats_formatSavings(t *testing.T) {
 		{
 			name: "daily report",
 			args: args{
-				frequency:     "daily",
-				previousDay:   1,
-				currentWeek:   2,
-				previousWeek:  3,
-				currentMonth:  4,
-				previousMonth: 5,
-				currentYear:   6,
-				allTime:       7,
+				last24Hours:  1,
+				last7Days:    3,
+				last30Days:   5,
+				last12Months: 6,
 			},
-			want: `- yesterday: $1.00
-- this week so far: $2.00
-- last week: $3.00
-- this month so far: $4.00
-- last month: $5.00
-- this year so far: $6.00
-- all time $7.00
-`,
-		},
-
-		{
-			name: "weekly report",
-			args: args{
-				frequency:     "weekly",
-				previousDay:   1,
-				currentWeek:   2,
-				previousWeek:  3,
-				currentMonth:  4,
-				previousMonth: 5,
-				currentYear:   6,
-				allTime:       7,
-			},
-			want: `- yesterday: $1.00
-- last week: $3.00
-- this month so far: $4.00
-- last month: $5.00
-- this year so far: $6.00
-- all time $7.00
-`,
-		},
-
-		{
-			name: "monthly report",
-			args: args{
-				frequency:     "monthly",
-				previousDay:   1,
-				currentWeek:   2,
-				previousWeek:  3,
-				currentMonth:  4,
-				previousMonth: 5,
-				currentYear:   6,
-				allTime:       7,
-			},
-			want: `- yesterday: $1.00
-- last week: $3.00
-- last month: $5.00
-- this year so far: $6.00
-- all time $7.00
+			want: `- last 24 hours: $1.00
+- last 7 days: $3.00
+- last 30 days: $5.00
+- last 12 months: $6.00
 `,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &savingsStats{}
-			if got := s.formatSavings(tt.args.frequency, tt.args.previousDay, tt.args.currentWeek,
-				tt.args.previousWeek, tt.args.currentMonth, tt.args.previousMonth,
-				tt.args.currentYear, tt.args.allTime); got != tt.want {
+			if got := s.formatSavings(tt.args.last24Hours,
+				tt.args.last7Days, tt.args.last30Days,
+				tt.args.last12Months); got != tt.want {
 				t.Errorf("savingsStats.formatSavings() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_savingsStats_calculateDaySoFarTotalSavings(t *testing.T) {
+func Test_savingsStats_calculateLast24HoursTotalSavings(t *testing.T) {
 
-	today1 := now.BeginningOfDay().Add(time.Hour)
-	today2 := now.BeginningOfDay().Add(2 * time.Hour)
+	today1 := time.Now().Add(-1 * time.Hour)
+	today2 := time.Now().Add(-2 * time.Hour)
 	yesterday1 := today1.Add(-24 * time.Hour)
 	yesterday2 := today2.Add(-24 * time.Hour)
 
@@ -146,65 +93,16 @@ func Test_savingsStats_calculateDaySoFarTotalSavings(t *testing.T) {
 
 				history: tt.history,
 			}
-			if got := s.calculateDaySoFarTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
-				t.Errorf("savingsStats.calculateDaySoFarTotalSavings() = %v, want %v", got, tt.want)
+			if got := s.calculateLast24HoursTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
+				t.Errorf("savingsStats.calculateLast24HoursTotalSavings() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_savingsStats_calculatePreviousDayTotalSavings(t *testing.T) {
-	today1 := now.BeginningOfDay().Add(time.Hour)
-	today2 := now.BeginningOfDay().Add(2 * time.Hour)
-	yesterday1 := today1.Add(-24 * time.Hour)
-	yesterday2 := today2.Add(-24 * time.Hour)
-
-	tests := []struct {
-		name    string
-		history *savingsHistory
-		want    float64
-	}{
-		{
-			name: "2 dollar today and 0.3 dollar yesterday",
-			history: &savingsHistory{
-				hourlyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &today1,
-						Value:            aws.String("0.5"),
-					},
-					{
-						LastModifiedDate: &today2,
-						Value:            aws.String("1.5"),
-					},
-					{
-						LastModifiedDate: &yesterday1,
-						Value:            aws.String("0.1"),
-					},
-					{
-						LastModifiedDate: &yesterday2,
-						Value:            aws.String("0.2"),
-					},
-				},
-			},
-			want: 0.3,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &savingsStats{
-
-				history: tt.history,
-			}
-			if got := s.calculatePreviousDayTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
-				t.Errorf("savingsStats.calculatePreviousDayTotalSavings() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_savingsStats_calculateWeekSoFarTotalSavings(t *testing.T) {
-	day1 := now.BeginningOfWeek().Add(time.Hour)
-	day2 := now.BeginningOfWeek().Add(25 * time.Hour)
+func Test_savingsStats_calculateLast7DaysTotalSavings(t *testing.T) {
+	day1 := time.Now().Add(-1 * time.Hour)
+	day2 := time.Now().Add(-25 * time.Hour)
 	lastWeekDay1 := day1.Add(-24 * 7 * time.Hour)
 	lastWeekDay2 := day2.Add(-24 * 7 * time.Hour)
 
@@ -251,11 +149,11 @@ func Test_savingsStats_calculateWeekSoFarTotalSavings(t *testing.T) {
 					},
 					{
 						LastModifiedDate: &lastWeekDay1,
-						Value:            aws.String("0.1"),
+						Value:            aws.String("0.1"), //ignored in the calculation
 					},
 					{
 						LastModifiedDate: &lastWeekDay2,
-						Value:            aws.String("0.2"),
+						Value:            aws.String("0.2"), //ignored in the calculation
 					},
 				},
 			},
@@ -267,90 +165,18 @@ func Test_savingsStats_calculateWeekSoFarTotalSavings(t *testing.T) {
 			s := &savingsStats{
 				history: tt.history,
 			}
-			if got := s.calculateWeekSoFarTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
-				t.Errorf("savingsStats.calculateWeekSoFarTotalSavings() = %v, want %v", got, tt.want)
+			if got := s.calculateLast7DaysTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
+				t.Errorf("savingsStats.calculateLast7DaysTotalSavings() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_savingsStats_calculatePreviousWeekTotalSavings(t *testing.T) {
-	day1 := now.BeginningOfWeek().Add(time.Hour)
-	day2 := now.BeginningOfWeek().Add(25 * time.Hour)
-	lastWeekDay1 := day1.Add(-24 * 7 * time.Hour)
-	lastWeekDay2 := day2.Add(-24 * 7 * time.Hour)
-
-	tests := []struct {
-		name    string
-		history *savingsHistory
-		want    float64
-	}{
-		{
-			name: "2 dollar this week and 0.3 dollar last week hourly",
-			history: &savingsHistory{
-				hourlyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &day1,
-						Value:            aws.String("0.5"),
-					},
-					{
-						LastModifiedDate: &day2,
-						Value:            aws.String("1.5"),
-					},
-					{
-						LastModifiedDate: &lastWeekDay1,
-						Value:            aws.String("0.1"),
-					},
-					{
-						LastModifiedDate: &lastWeekDay2,
-						Value:            aws.String("0.2"),
-					},
-				},
-			},
-			want: 0,
-		},
-		{
-			name: "2 dollar this week and 0.3 dollar last week daily",
-			history: &savingsHistory{
-				dailyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &day1,
-						Value:            aws.String("0.5"),
-					},
-					{
-						LastModifiedDate: &day2,
-						Value:            aws.String("1.5"),
-					},
-					{
-						LastModifiedDate: &lastWeekDay1,
-						Value:            aws.String("0.1"),
-					},
-					{
-						LastModifiedDate: &lastWeekDay2,
-						Value:            aws.String("0.2"),
-					},
-				},
-			},
-			want: 0.3,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &savingsStats{
-				history: tt.history,
-			}
-			if got := s.calculatePreviousWeekTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
-				t.Errorf("savingsStats.calculatePreviousWeekTotalSavings() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_savingsStats_calculateMonthSoFarTotalSavings(t *testing.T) {
-	day1 := now.BeginningOfMonth().Add(time.Hour)
-	day2 := now.BeginningOfMonth().Add(25 * time.Hour)
-	lastMonthDay1 := day1.Add(-20 * 24 * time.Hour)
-	lastMonthDay2 := day2.Add(-20 * 24 * time.Hour)
+func Test_savingsStats_calculateLast30DaysTotalSavings(t *testing.T) {
+	day1 := time.Now().Add(-1 * time.Hour)
+	day2 := day1.Add(-25 * time.Hour)
+	lastMonthDay1 := day1.Add(-30 * 24 * time.Hour)
+	lastMonthDay2 := day2.Add(-30 * 24 * time.Hour)
 
 	tests := []struct {
 		name    string
@@ -360,7 +186,7 @@ func Test_savingsStats_calculateMonthSoFarTotalSavings(t *testing.T) {
 		{
 			name: "2 dollar this month and 0.3 dollar last month hourly",
 			history: &savingsHistory{
-				hourlyHistory: []*ssm.ParameterHistory{
+				hourlyHistory: []*ssm.ParameterHistory{ // all these will be ignored in the calculation
 					{
 						LastModifiedDate: &day1,
 						Value:            aws.String("0.5"),
@@ -399,84 +225,11 @@ func Test_savingsStats_calculateMonthSoFarTotalSavings(t *testing.T) {
 					},
 					{
 						LastModifiedDate: &lastMonthDay2,
-						Value:            aws.String("0.3"),
+						Value:            aws.String("0.3"), // more than 30 days ago and would be ignored
 					},
 				},
 			},
-			want: 2.5,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &savingsStats{
-
-				history: tt.history,
-			}
-			if got := s.calculateMonthSoFarTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
-				t.Errorf("savingsStats.calculateMonthSoFarTotalSavings() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_savingsStats_calculatePreviousMonthTotalSavings(t *testing.T) {
-	day1 := now.BeginningOfMonth().Add(time.Hour)
-	day2 := now.BeginningOfMonth().Add(25 * time.Hour)
-	lastMonthDay1 := day1.Add(-20 * 24 * time.Hour)
-	lastMonthDay2 := day2.Add(-20 * 24 * time.Hour)
-
-	tests := []struct {
-		name    string
-		history *savingsHistory
-		want    float64
-	}{
-		{
-			name: "2 dollar this month and 0.3 dollar last month hourly",
-			history: &savingsHistory{
-				hourlyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &day1,
-						Value:            aws.String("0.5"),
-					},
-					{
-						LastModifiedDate: &day2,
-						Value:            aws.String("1.5"),
-					},
-					{
-						LastModifiedDate: &lastMonthDay1,
-						Value:            aws.String("0.1"),
-					},
-					{
-						LastModifiedDate: &lastMonthDay2,
-						Value:            aws.String("0.2"),
-					},
-				},
-			},
-			want: 0,
-		},
-		{
-			name: "2.5 dollar this month and 0.4 dollar last month daily",
-			history: &savingsHistory{
-				dailyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &day1,
-						Value:            aws.String("1"),
-					},
-					{
-						LastModifiedDate: &day2,
-						Value:            aws.String("1.5"),
-					},
-					{
-						LastModifiedDate: &lastMonthDay1,
-						Value:            aws.String("0.1"),
-					},
-					{
-						LastModifiedDate: &lastMonthDay2,
-						Value:            aws.String("0.3"),
-					},
-				},
-			},
-			want: 0.4,
+			want: 2.6,
 		},
 	}
 	for _, tt := range tests {
@@ -484,19 +237,19 @@ func Test_savingsStats_calculatePreviousMonthTotalSavings(t *testing.T) {
 			s := &savingsStats{
 				history: tt.history,
 			}
-			if got := s.calculatePreviousMonthTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
-				t.Errorf("savingsStats.calculatePreviousMonthTotalSavings() = %v, want %v", got, tt.want)
+			if got := s.calculateLast30DaysTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
+				t.Errorf("savingsStats.calculateLast30DaysTotalSavings() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_savingsStats_calculateYearSoFarTotalSavings(t *testing.T) {
-	day1 := now.BeginningOfYear().Add(time.Hour)
-	day2 := now.BeginningOfYear().Add(40 * 24 * time.Hour)
+func Test_savingsStats_calculateLast12MonthsTotalSavings(t *testing.T) {
+	day1 := time.Now().Add(-1 * time.Hour)
+	day2 := day1.Add(-40 * 24 * time.Hour)
 	lastYearDay1 := day1.Add(-150 * 24 * time.Hour)
-	lastYearDay2 := day2.Add(-120 * 24 * time.Hour)
-	yesterday := now.BeginningOfDay().Add(24 * time.Hour)
+	lastYearDay2 := day2.Add(-365 * 24 * time.Hour) //older than a year
+	yesterday := day1.Add(-24 * time.Hour)
 
 	tests := []struct {
 		name    string
@@ -504,7 +257,7 @@ func Test_savingsStats_calculateYearSoFarTotalSavings(t *testing.T) {
 		want    float64
 	}{
 		{
-			name: "2 dollar this month and 0.3 dollar last month hourly",
+			name: "2 dollar this month and 0.3 dollar last month hourly", //ignored in the calculation
 			history: &savingsHistory{
 				hourlyHistory: []*ssm.ParameterHistory{
 					{
@@ -528,7 +281,7 @@ func Test_savingsStats_calculateYearSoFarTotalSavings(t *testing.T) {
 			want: 0,
 		},
 		{
-			name: "2.5 dollar this month and 0.4 dollar last month daily",
+			name: "2.5 dollar this month and 0.4 dollar last month daily", //ignored in the calculation
 			history: &savingsHistory{
 				dailyHistory: []*ssm.ParameterHistory{
 					{
@@ -557,7 +310,7 @@ func Test_savingsStats_calculateYearSoFarTotalSavings(t *testing.T) {
 				dailyHistory: []*ssm.ParameterHistory{
 					{
 						LastModifiedDate: &yesterday,
-						Value:            aws.String("3"),
+						Value:            aws.String("3"), //ignored in the calculation
 					},
 				},
 				monthlyHistory: []*ssm.ParameterHistory{
@@ -571,118 +324,15 @@ func Test_savingsStats_calculateYearSoFarTotalSavings(t *testing.T) {
 					},
 					{
 						LastModifiedDate: &lastYearDay1,
-						Value:            aws.String("0.1"),
-					},
-					{
-						LastModifiedDate: &lastYearDay2,
-						Value:            aws.String("0.3"),
-					},
-				},
-			},
-			want: 5.5,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &savingsStats{
-				history: tt.history,
-			}
-			if got := s.calculateYearSoFarTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
-				t.Errorf("savingsStats.calculateYearSoFarTotalSavings() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_savingsStats_calculatePreviousYearTotalSavings(t *testing.T) {
-	day1 := now.BeginningOfYear().Add(time.Hour)
-	day2 := now.BeginningOfYear().Add(40 * 24 * time.Hour)
-	lastYearDay1 := day1.Add(-150 * 24 * time.Hour)
-	lastYearDay2 := day2.Add(-120 * 24 * time.Hour)
-	yesterday := now.BeginningOfDay().Add(24 * time.Hour)
-
-	tests := []struct {
-		name    string
-		history *savingsHistory
-		want    float64
-	}{
-		{
-			name: "2 dollar this month and 0.3 dollar last month hourly",
-			history: &savingsHistory{
-				hourlyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &day1,
-						Value:            aws.String("0.5"),
-					},
-					{
-						LastModifiedDate: &day2,
-						Value:            aws.String("1.5"),
-					},
-					{
-						LastModifiedDate: &lastYearDay1,
-						Value:            aws.String("0.1"),
-					},
-					{
-						LastModifiedDate: &lastYearDay2,
 						Value:            aws.String("0.2"),
 					},
-				},
-			},
-			want: 0,
-		},
-		{
-			name: "2.5 dollar this month and 0.4 dollar last month daily",
-			history: &savingsHistory{
-				dailyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &day1,
-						Value:            aws.String("1"),
-					},
-					{
-						LastModifiedDate: &day2,
-						Value:            aws.String("1.5"),
-					},
-					{
-						LastModifiedDate: &lastYearDay1,
-						Value:            aws.String("0.1"),
-					},
 					{
 						LastModifiedDate: &lastYearDay2,
-						Value:            aws.String("0.3"),
+						Value:            aws.String("0.3"), //ignored in the calculation
 					},
 				},
 			},
-			want: 0,
-		},
-		{
-			name: "2.5 dollar this year and 0.4 dollar last year monthly",
-			history: &savingsHistory{
-				dailyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &yesterday,
-						Value:            aws.String("3"),
-					},
-				},
-				monthlyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &day1,
-						Value:            aws.String("1"),
-					},
-					{
-						LastModifiedDate: &day2,
-						Value:            aws.String("1.5"),
-					},
-					{
-						LastModifiedDate: &lastYearDay1,
-						Value:            aws.String("0.1"),
-					},
-					{
-						LastModifiedDate: &lastYearDay2,
-						Value:            aws.String("0.3"),
-					},
-				},
-			},
-			want: 0.4,
+			want: 2.7,
 		},
 	}
 	for _, tt := range tests {
@@ -690,111 +340,8 @@ func Test_savingsStats_calculatePreviousYearTotalSavings(t *testing.T) {
 			s := &savingsStats{
 				history: tt.history,
 			}
-			if got := s.calculatePreviousYearTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
-				t.Errorf("savingsStats.calculatePreviousYearTotalSavings() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_savingsStats_calculateAllTotalSavings(t *testing.T) {
-	day1 := now.BeginningOfYear().Add(time.Hour)
-	day2 := now.BeginningOfYear().Add(40 * 24 * time.Hour)
-	lastYearDay1 := day1.Add(-150 * 24 * time.Hour)
-	lastYearDay2 := day2.Add(-120 * 24 * time.Hour)
-	yesterday := now.BeginningOfDay().Add(24 * time.Hour)
-
-	tests := []struct {
-		name    string
-		history *savingsHistory
-		want    float64
-	}{
-		{
-			name: "2 dollar this month and 0.3 dollar last month hourly",
-			history: &savingsHistory{
-				hourlyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &day1,
-						Value:            aws.String("0.5"),
-					},
-					{
-						LastModifiedDate: &day2,
-						Value:            aws.String("1.5"),
-					},
-					{
-						LastModifiedDate: &lastYearDay1,
-						Value:            aws.String("0.1"),
-					},
-					{
-						LastModifiedDate: &lastYearDay2,
-						Value:            aws.String("0.2"),
-					},
-				},
-			},
-			want: 0,
-		},
-		{
-			name: "2.5 dollar this month and 0.4 dollar last month daily",
-			history: &savingsHistory{
-				dailyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &day1,
-						Value:            aws.String("1"),
-					},
-					{
-						LastModifiedDate: &day2,
-						Value:            aws.String("1.5"),
-					},
-					{
-						LastModifiedDate: &lastYearDay1,
-						Value:            aws.String("0.1"),
-					},
-					{
-						LastModifiedDate: &lastYearDay2,
-						Value:            aws.String("0.3"),
-					},
-				},
-			},
-			want: 0,
-		},
-		{
-			name: "2.5 dollar this year and 0.4 dollar last year monthly",
-			history: &savingsHistory{
-				dailyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &yesterday,
-						Value:            aws.String("3"),
-					},
-				},
-				monthlyHistory: []*ssm.ParameterHistory{
-					{
-						LastModifiedDate: &day1,
-						Value:            aws.String("1"),
-					},
-					{
-						LastModifiedDate: &day2,
-						Value:            aws.String("1.5"),
-					},
-					{
-						LastModifiedDate: &lastYearDay1,
-						Value:            aws.String("0.1"),
-					},
-					{
-						LastModifiedDate: &lastYearDay2,
-						Value:            aws.String("0.3"),
-					},
-				},
-			},
-			want: 5.5,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &savingsStats{
-				history: tt.history,
-			}
-			if got := s.calculateAllTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
-				t.Errorf("savingsStats.calculateAllTotalSavings() = %v, want %v", got, tt.want)
+			if got := s.calculateLast12MonthsTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
+				t.Errorf("savingsStats.calculateLast12MonthsTotalSavings() = %v, want %v", got, tt.want)
 			}
 		})
 	}
