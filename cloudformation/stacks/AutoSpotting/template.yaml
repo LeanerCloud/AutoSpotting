@@ -1,8 +1,74 @@
 # Copyright (c) 2016-2022 Cristian Măgherușan-Stanciu
-# Licensed under the Open Software License version 3.0
 
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "AutoSpotting: automated EC2 Spot market bidder integrated with AutoScaling"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: Savings Reports
+        Parameters:
+          - EmailAddress
+          - SavingsReportsFrequency
+
+      -
+        Label:
+          default: Basic Instance Replacement
+        Parameters:
+          - Regions
+          - AllowedInstanceTypes
+          - DisallowedInstanceTypes
+          - MinOnDemandNumber
+          - MinOnDemandPercentage
+          - SpotAllocationStrategy
+          - ConsiderEBSBandwidth
+          - TagFilteringMode
+          - FilterByTags
+          - PrioritizedInstanceTypesBias
+
+      -
+        Label:
+          default: Advanced Instance Replacement (few people need to change these)
+        Parameters:
+          - BiddingPolicy
+          - DisableEventBasedInstanceReplacement
+          - EnableInstanceRebalanceRecommendation
+          - ExecutionFrequency
+          - GP2ConversionThreshold
+          - InstanceTerminationMethod
+          - OnDemandPriceMultiplier
+          - PatchBeanstalkUserdata
+          - SpotPricePercentageBuffer
+          - SpotProductDescription
+          - SpotProductPremium
+          - TerminationNotificationAction
+          - CronSchedule
+          - CronTimezone
+          - CronScheduleState
+
+      -
+        Label:
+          default: AutoSpotting Deployment Internals (changes for most of these are not recommended unless you know what you are doing!)
+        Parameters:
+          - SourceECR
+          - SourceImage
+          - SourceImageTag
+          - CpuArchitecture
+          - DeployRegionalResourcesStackSet
+          - LambdaFunctionTagKey
+          - LambdaFunctionTagValue
+          - LambdaMemorySize
+          - SQSQueueName
+          - LogRetentionPeriod
+
+    ParameterLabels:
+      Regions:
+        default: In which Regions are your AutoScaling groups?
+      SavingsReportsFrequency:
+        default: How often do you want to get savings reports?
+
 Parameters:
   AllowedInstanceTypes:
     Default: ""
@@ -83,7 +149,7 @@ Parameters:
     Description: >
       "Address to receive notifications for AutoSpotting actions and savings reports".
     Type: "String"
-    # AllowedPattern: '/[^\s@]+@[^\s@]+\.[^\s@]+/'
+    Default: user@example.com
   EnableInstanceRebalanceRecommendation:
     AllowedValues:
       - "true"
@@ -158,7 +224,7 @@ Parameters:
     Default: "AutoSpotting"
     Type: "String"
   LambdaMemorySize:
-    Default: 1024
+    Default: 512
     Description: >
       "Memory allocated to the Lambda function, setting this lower will slow
       down the execution a bit"
@@ -222,15 +288,14 @@ Parameters:
       AutoScaling group."
     Type: "Number"
   Regions:
-    Default: "ap-northeast-1,ap-northeast-2,ap-south-1,ap-southeast-1,ap-southeast-2,ca-central-1,eu-central-1,eu-north-1,eu-west-1,eu-west-2,eu-west-3,sa-east-1,us-east-1,us-east-2,us-west-1,us-west-2"
+    Default: "ap-northeast-1,ap-northeast-2,ap-northeast-3,ap-south-1,ap-southeast-1,ap-southeast-2,ca-central-1,eu-central-1,eu-north-1,eu-west-1,eu-west-2,eu-west-3,sa-east-1,us-east-1,us-east-2,us-west-1,us-west-2"
     Description: >
       "Comma-separated list of regions where AutoSpotting should run and also
       where it install the regional resources StackSet. It defaults to all
-      supported commercially available AWS regions as of Oct 2020. Because of
-      a Lambda limitation, the main AutoSpotting Lambda function can currently
-      only be installed in "us-east-1" unless you host it yourself in an S3
-      bucket stored on another region, but it can process AutoScaling groups
-      from any other regions. Example: 'us-east-1,eu-west-1'"
+      commercially available AWS regions that require no opt-in as of November
+      2022. Currently the main AutoSpotting Lambda function can only be installed
+      in "us-east-1", but it can process AutoScaling groups from any other regions.
+      Example: 'us-east-1,eu-west-1'"
     Type: CommaDelimitedList
   SpotAllocationStrategy:
     Type: "String"
@@ -238,8 +303,11 @@ Parameters:
       "Controls the Spot allocation strategy for
       launching Spot instances. Allowed options:
       'capacity-optimized-prioritized' (default), 'capacity-optimized',
-      'lowest-price'. Further information on this is available at
-      https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html"
+      'lowest-price'. The default 'capacity-optimized-prioritize' allocation
+      strategy provisions spot instances prioritized by lowest cost but by
+      default also biased towards the newer generations, controlled by the
+      PrioritizedInstanceTypesBias. Further information on this is available
+      at https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html"
     AllowedValues:
       - "capacity-optimized-prioritized"
       - "capacity-optimized"
@@ -338,8 +406,9 @@ Parameters:
     Description: >
       "Controls whether AutoSpotting considers EBS Bandwidth when comparing
       instance types in order to determine compatibility with other instance
-      types. Enabling this flag will reduce diversfication to only instance
-      types offering at least as much EBS bandwidth."
+      types, default: false. Enabling this flag will reduce diversfication
+      to only instance types offering at least as much EBS bandwidth as the
+      initial instance type."
     Type: "String"
   DeployRegionalResourcesStackSet:
     AllowedValues:
