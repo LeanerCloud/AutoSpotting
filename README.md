@@ -7,8 +7,8 @@
 [![BuildStatus](https://travis-ci.org/LeanerCloud/AutoSpotting.svg?branch=master)](https://travis-ci.org/LeanerCloud/AutoSpotting)
 [![GoReportCard](https://goreportcard.com/badge/github.com/LeanerCloud/AutoSpotting)](https://goreportcard.com/report/github.com/LeanerCloud/AutoSpotting)
 [![CoverageStatus](https://coveralls.io/repos/github/LeanerCloud/AutoSpotting/badge.svg?branch=master)](https://coveralls.io/github/LeanerCloud/AutoSpotting?branch=master)
-[![CodeClimate](https://codeclimate.com/github/LeanerCloud/AutoSpotting/badges/gpa.svg)](https://codeclimate.com/github/LeanerCloud/AutoSpotting)
-[![IssueCount](https://codeclimate.com/github/LeanerCloud/AutoSpotting/badges/issue_count.svg)](https://codeclimate.com/github/LeanerCloud/AutoSpotting)
+[![CodeClimate](https://codeclimate.com/github/LeanerCloud/AutoSpotting/badges/gpa.svg)](https://codeclimate.com/github/AutoSpotting/AutoSpotting)
+[![IssueCount](https://codeclimate.com/github/LeanerCloud/AutoSpotting/badges/issue_count.svg)](https://codeclimate.com/github/AutoSpotting/AutoSpotting)
 [![ChatOnGitter](https://badges.gitter.im/LeanerCloud/AutoSpotting.svg)](https://gitter.im/cristim/autospotting)
 [![Patreon](https://img.shields.io/badge/patreon-donate-yellow.svg)](https://www.patreon.com/cristim/overview)
 
