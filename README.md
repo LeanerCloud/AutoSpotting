@@ -1,42 +1,30 @@
-# IMPORTANT #
-
-As of 26 Sep 2022 I decided to postpone publishing further code changes to this repo until I reach my sustainability goals.
-
-Further changes will be closed source and only available to my Marketplace subscribers until further notice.
-
-See [here](https://github.com/cloudutil/AutoSpotting/discussions/489) for further information about this change and what can you do about it.
-
-Thank you for your understanding and your support on this matter.
-
-Cristian
-
 <!-- markdownlint-disable MD003 MD026 MD033 -->
 
-## AutoSpotting ##
+## AutoSpotting - Community Edition ##
 
 <img src="logo.png" width="150" align="right">
 
-[![BuildStatus](https://travis-ci.org/AutoSpotting/AutoSpotting.svg?branch=master)](https://travis-ci.org/AutoSpotting/AutoSpotting)
-[![GoReportCard](https://goreportcard.com/badge/github.com/AutoSpotting/AutoSpotting)](https://goreportcard.com/report/github.com/AutoSpotting/AutoSpotting)
-[![CoverageStatus](https://coveralls.io/repos/github/AutoSpotting/AutoSpotting/badge.svg?branch=master)](https://coveralls.io/github/AutoSpotting/AutoSpotting?branch=master)
-[![CodeClimate](https://codeclimate.com/github/AutoSpotting/AutoSpotting/badges/gpa.svg)](https://codeclimate.com/github/AutoSpotting/AutoSpotting)
-[![IssueCount](https://codeclimate.com/github/AutoSpotting/AutoSpotting/badges/issue_count.svg)](https://codeclimate.com/github/AutoSpotting/AutoSpotting)
-[![ChatOnGitter](https://badges.gitter.im/AutoSpotting/AutoSpotting.svg)](https://gitter.im/cristim/autospotting)
+[![BuildStatus](https://travis-ci.org/LeanerCloud/AutoSpotting.svg?branch=master)](https://travis-ci.org/LeanerCloud/AutoSpotting)
+[![GoReportCard](https://goreportcard.com/badge/github.com/LeanerCloud/AutoSpotting)](https://goreportcard.com/report/github.com/LeanerCloud/AutoSpotting)
+[![CoverageStatus](https://coveralls.io/repos/github/LeanerCloud/AutoSpotting/badge.svg?branch=master)](https://coveralls.io/github/LeanerCloud/AutoSpotting?branch=master)
+[![CodeClimate](https://codeclimate.com/github/LeanerCloud/AutoSpotting/badges/gpa.svg)](https://codeclimate.com/github/LeanerCloud/AutoSpotting)
+[![IssueCount](https://codeclimate.com/github/LeanerCloud/AutoSpotting/badges/issue_count.svg)](https://codeclimate.com/github/LeanerCloud/AutoSpotting)
+[![ChatOnGitter](https://badges.gitter.im/LeanerCloud/AutoSpotting.svg)](https://gitter.im/cristim/autospotting)
 [![Patreon](https://img.shields.io/badge/patreon-donate-yellow.svg)](https://www.patreon.com/cristim/overview)
 
 AutoSpotting is the leading open source spot market automation tool, optimized
-towards quick/easy/frictionless adoption of the EC2 spot market at any scale.
+towards quick/easy/frictionless adoption of EC2 Spot instances at any scale.
 
-It's being used by thousands of users around the world, from companies of all
-shapes and sizes, in aggregate probably saving them in the tens of millions of
-dollars monthly as per our current estimations.
+Since its launch in 2016, it's being used by thousands of users around the world,
+companies of all shapes and sizes, in aggregate saved them in the 
+hundreds of millions of dollars so far as per our current estimations.
 
 It is usually set up to monitor existing long-running AutoScaling groups,
-replacing their instances with Spot instances with minimal configuration
+replacing their instances with Spot instances, with minimal configuration
 changes.
 
-Often all it needs is just tagging them with `spot-enabled=true`, (in some cases
-even that can be avoided), yielding the usual 70%-90% Spot cost
+Often all it needs is just tagging the AutoScaling groups with `spot-enabled=true`,
+(in some cases even that can be avoided), yielding the usual 60%-90% Spot cost
 savings but in a better integrated and easier to adopt way
 than other alternative tools and solutions.
 
@@ -49,7 +37,8 @@ changes.
 - Customer-focused, designed to maximize user benefits and reduce adoption friction
 - Safe and secure, hosted in your AWS account and with minimal required set of IAM permissions
 - Auditable OSS code base developed in the open
-- Inexpensive, easy to install and supported builds offered through the AWS Marketplace
+- Inexpensive, easy to install and supported builds offered through the AWS Marketplace,
+with comprehensive support and additional features geared towards production usage at scale.
 - Simple, minimalist implementation
 
 ## How does it work? ##
@@ -78,10 +67,6 @@ configuration offers a good tradeoff between low cost and significantly reduced
 interruption rates. The lowest-price allocation strategy is still available as a
 configuration option.
 
-This process can partly be seen in action below, you can click to expand the animation:
-
-![Workflow](https://autospotting.org/img/autospotting.gif)
-
 A single installation can handle all enabled groups from an entire AWS account in
 parallel across all available AWS regions, but it can be restricted to fewer
 regions if desired in certain situations.
@@ -90,6 +75,9 @@ Your groups will then monitor and use these Spot instances just like they would
 do with your on-demand instances. They will automatically join their respective
 load balancer and start receiving traffic once passing the health checks, and
 the traffic would automatically be drained on termination.
+
+See this video for more imformation on AutoSpotting.
+https://youtu.be/foobAmWpexI
 
 ## What savings can I expect? ##
 
@@ -124,19 +112,17 @@ details.
 
 ## FAQs ##
 
-Frequently asked questions about the project are answered in the
-[FAQ](https://autospotting.org/faq/index.html), *please read this first before
+Many Frequently Asked Questions about the project are answered in the
+[FAQ](https://autospotting.io/faq), *please read this first before
 asking for support*.
 
-If you have additional questions not covered there, they can be easily added to
-the
-[source](https://github.com/AutoSpotting/autospotting.org/blob/master/content/faq.md)
-of the FAQ by editing in the browser and creating a pull request, and we'll
-answer them while reviewing the pull request.
+If you have additional questions not covered there, reach out to us on 
+[Slack](https://join.slack.com/t/leanercloud/shared_invite/zt-xodcoi9j-1IcxNozXx1OW0gh_N08sjg)
+and we're happy to help.
 
 ## Getting Started ##
 
-Just like in the above animation, it's as easy as launching a CloudFormation (or
+It's usually as easy as launching a CloudFormation (or
 [Terraform](https://github.com/AutoSpotting/terraform-aws-autospotting)) stack
 and setting the (configurable) `spot-enabled` tag on the AutoScaling groups
 where you want it enabled to `true`.
@@ -152,7 +138,7 @@ For more detailed information on how to get started you can also read this
 
 ## Support ##
 
-Marketplace subscribers can get support from [here](mailto:contact@cloudutil.io)
+Marketplace subscribers can get support on [Slack](https://join.slack.com/t/leanercloud/shared_invite/zt-xodcoi9j-1IcxNozXx1OW0gh_N08sjg)
 and any feature requests or issues raised via this communication channel
 will be prioritized.
 
@@ -168,39 +154,33 @@ tools/solutions get in touch on [gitter](https://gitter.im/cristim).
 
 ## Contributing ##
 
-AutoSpotting is fully open source and developed in the open by a vibrant
+AutoSpotting is open source and developed in the open by a vibrant
 community of dozens of contributors.
 
-If it helps you save any significant amount of money, it would be
-greatly appreciated if you could support further development on [Github
-Sponsors](https://github.com/sponsors/cristim) or would purchase it from the AWS
-[Marketplace](https://aws.amazon.com/marketplace/pp/prodview-6uj4pruhgmun6).
+The Community Edition is open for contributions, submitted according to the contribution
+[guidelines](CONTRIBUTING.md).
 
-Note: Non-trivial code should be submitted according to the contribution
-[guidelines](CONTRIBUTING.md). Individuals and companies supporting the
-development of the open source code get free of charge support in getting their
-code merged upstream.
+Individuals and companies supporting the development of the open source code
+get free of charge support in getting their code merged upstream.
 
 ### Official binaries ###
 
 The source code is and will always be open source, so you can build and run
 it yourself, see how it works and even enhance it if you want.
 
-As of August 2021, fully functional, stable official binaries are only offered
-through Docker images available on the AWS
+Additional Enterprise features are made available on the commercial version of AutoSpotting, available on the AWS
 [Marketplace](https://aws.amazon.com/marketplace/pp/prodview-6uj4pruhgmun6).
 
-Evaluation binaries built from trunk after each commit and meant to help the
-development process are also available from the Docker Hub but they expire after
-a month since compilation.
+Currently most new features developed by the main author are only made available
+in the commercial offering, but bug fixes and occasionally also new features are
+also made available in the Community Edition.
 
-Proven referrals towards a subscription to the Marketplace will be compensated
-over Paypal with 50% of the first charge of the new subscriber. You can request
-them on [gitter](https://gitter.im/cristim).
+Any external contributions to the Community Edition will be remain available to all
+Community Edition users, but also included in future versions of the commercial edition.
 
 ### Subscriptions ###
 
-A free low traffic mailing list is available on <https://autospotting.io>, where
+A free low traffic mailing list is available on [Beehiiv](https://leanercloud.beehiiv.com/), where
 you can sign up for occasional emails related to the project, mainly related to
 major changes in the open source code, savings tips or announcements about other
 tools I've been working on.
@@ -222,24 +202,19 @@ provide additional value to my community.
 
 ## Compiling and Installing ##
 
-It is recommended to use the evaluation or stable Docker images available on the
-AWS marketplace, which are easy to install, support further development of the
-software and allow you to get some support.
+It is recommended to use the commercial offering available on the
+AWS marketplace, which is more feature-complete, easier to install, supports
+further development of the software and includes comprehensive support.
 
-But if you have some special needs that require some customizations or you don't
-want to rely on the author's infrastructure or contribute anything for longer
-term use of the software, you can always build and run your customized binaries
-that you maintain on your own, just keep in mind that those won't be supported
-in any way.
+But if you have some special needs that require some customizations,
+you can always build and run your customized binaries
+that you maintain on your own.
 
 More details are available [here](CUSTOM_BUILDS.md)
 
 ## License ##
 
 This software is distributed under the terms of the OSL-3.0 [license](LICENSE).
-
-The evaluation images available on Docker Hub are licensed under this proprietary
-[license](BINARY_LICENSE).
 
 The AWS Marketplace offering is made available under the standard AWS
 Marketplace EULA.
