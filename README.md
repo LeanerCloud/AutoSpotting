@@ -41,6 +41,12 @@ changes.
 with comprehensive support and additional features geared towards production usage at scale.
 - Simple, minimalist implementation
 
+## Benefits compared to alternatives ##
+
+- automated failover to OnDemand instances in the event of lost Spot capacity
+- automated instance type selection for Spot diversification without configuration changes from a standard OnDemand setup, and no vendor lock-in
+- bias towards cheapest AND newest instance types
+
 ## How does it work? ##
 
 Once installed and enabled to run against existing on-demand
@@ -173,7 +179,8 @@ Additional Enterprise features are made available on the commercial version of A
 
 Currently most new features developed by the main author are only made available
 in the commercial offering, but bug fixes and occasionally also new features are
-also made available in the Community Edition.
+also made available in the Community Edition. The list of changes is documented
+in detail [here](https://github.com/LeanerCloud/AutoSpotting/discussions/489).
 
 Any external contributions to the Community Edition will be remain available to all
 Community Edition users, but also included in future versions of the commercial edition.
