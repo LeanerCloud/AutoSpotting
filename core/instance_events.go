@@ -53,8 +53,8 @@ const (
 	ScheduledEventCode = "SCE"
 )
 
-//InstanceData represents JSON structure of the Detail property of CloudWatch event when a spot instance is terminated
-//Reference = https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-interruptions.html#spot-instance-termination-notices
+// InstanceData represents JSON structure of the Detail property of CloudWatch event when a spot instance is terminated
+// Reference = https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-interruptions.html#spot-instance-termination-notices
 type instanceData struct {
 	InstanceID     *string `json:"instance-id"`
 	InstanceAction *string `json:"instance-action"`

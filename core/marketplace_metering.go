@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 )
 
-//SSMParameterName stores the name of the SSM parameter that stores the success status of the latest metering call
+// SSMParameterName stores the name of the SSM parameter that stores the success status of the latest metering call
 const SSMParameterName = "autospotting-metering"
 
 func meterMarketplaceUsage(savings float64) error {

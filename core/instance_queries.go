@@ -229,12 +229,12 @@ func (i *instance) isEBSCompatible(spotCandidate *instanceTypeInformation) bool 
 
 // Here we check the storage compatibility, with the following evaluation
 // criteria:
-// - speed: don't accept spinning disks when we used to have SSDs
-// - number of volumes: the new instance should have enough volumes to be
-//   able to attach all the instance store device mappings defined on the
-//   original instance
-// - volume size: each of the volumes should be at least as big as the
-//   original instance's volumes
+//   - speed: don't accept spinning disks when we used to have SSDs
+//   - number of volumes: the new instance should have enough volumes to be
+//     able to attach all the instance store device mappings defined on the
+//     original instance
+//   - volume size: each of the volumes should be at least as big as the
+//     original instance's volumes
 func (i *instance) isStorageCompatible(spotCandidate *instanceTypeInformation, attachedVolumes int) bool {
 	existing := i.typeInfo
 

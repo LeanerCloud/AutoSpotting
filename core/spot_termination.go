@@ -23,7 +23,7 @@ const (
 	DefaultTerminationNotificationAction = AutoTerminationNotificationAction
 )
 
-//SpotTermination is used to detach an instance, used when a spot instance is due for termination
+// SpotTermination is used to detach an instance, used when a spot instance is due for termination
 type SpotTermination struct {
 	asSvc           autoscalingiface.AutoScalingAPI
 	ec2Svc          ec2iface.EC2API
@@ -45,8 +45,8 @@ func newSpotTermination(region string) SpotTermination {
 	}
 }
 
-//DetachInstance detaches the instance from autoscaling group without decrementing the desired capacity
-//This makes sure that the autoscaling group spawns a new instance as soon as this instance is detached
+// DetachInstance detaches the instance from autoscaling group without decrementing the desired capacity
+// This makes sure that the autoscaling group spawns a new instance as soon as this instance is detached
 func (s *SpotTermination) detachInstance(instanceID *string, asgName string, eventType string) error {
 
 	log.Println(asgName,
@@ -96,8 +96,8 @@ func (s *SpotTermination) delayedTermination(instanceID *string, minutes time.Du
 	return nil
 }
 
-//TerminateInstance terminate the instance from autoscaling group without decrementing the desired capacity
-//This makes sure that any LifeCycle Hook configured is triggered and the autoscaling group spawns a new instance
+// TerminateInstance terminate the instance from autoscaling group without decrementing the desired capacity
+// This makes sure that any LifeCycle Hook configured is triggered and the autoscaling group spawns a new instance
 // as soon as this instance begin terminating.
 func (s *SpotTermination) terminateInstance(instanceID *string, asgName string) error {
 
