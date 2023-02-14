@@ -23,7 +23,6 @@ DOCKER_IMAGE_VERSION ?= 1.0
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(DOCKER_IMAGE_VERSION)-$(FLAVOR)-$(SHA)
-EXPIRATION := $(shell go run ./scripts/expiration_date.go)
 SAVINGS_CUT ?= 5
 
 GOARCH ?= arm64
@@ -32,7 +31,7 @@ ifneq ($(FLAVOR), custom)
     LICENSE_FILES += BINARY_LICENSE
 endif
 
-LDFLAGS="-X main.Version=$(BUILD) -X main.ExpirationDate=$(EXPIRATION) -X main.SavingsCut=$(SAVINGS_CUT) -s -w"
+LDFLAGS="-X main.Version=$(BUILD) -X main.SavingsCut=$(SAVINGS_CUT) -s -w"
 
 all: fmt-check vet-check build test                          ## Build the code
 .PHONY: all
