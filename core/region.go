@@ -511,6 +511,9 @@ func (r *region) sqsSendMessageOnInstanceLaunch(asgName, instanceID, instanceSta
 	// truncate to 125 characters, fixing #470
 	groupID = groupID[0:min(len(groupID), 125)]
 
+	// replace whitespaces with dashes, fixing #494
+	groupID = strings.ReplaceAll(groupID, " ", "-")
+
 	_, err := svc.SendMessage(
 		&sqs.SendMessageInput{
 			MessageBody:    &inputJSON,
