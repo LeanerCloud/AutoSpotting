@@ -126,6 +126,8 @@ type Config struct {
 
 	// SavingsReportsFrequency configures the frequency of the savings reports sent be email
 	SavingsReportsFrequency string
+
+	AutomatedInstanceDataUpdate bool
 }
 
 // ParseConfig loads configuration from command line flags, environments variables, and config files.
@@ -292,6 +294,12 @@ func ParseConfig(conf *Config) {
 	flagSet.StringVar(&conf.SavingsReportsFrequency, "savings_reports_frequency", "daily",
 		"\n\tSNS The frequency to send the savings reports. Allowes values: 'daily', 'weekly', 'monthly', default: 'daily'\n")
 
+	flagSet.BoolVar(&conf.AutomatedInstanceDataUpdate, "automated_instance_data_update", false,
+		"\n\tControls whether AutoSpotting should automatically update its instance type data."+
+			"This is slowing down the Lambda execution and is only recommended if you need to add support"+
+			"for newer instance types\n"+
+			"\tExample: ./AutoSpotting --automated_instance_data_update true\n")
+
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
@@ -302,12 +310,6 @@ func ParseConfig(conf *Config) {
 		fmt.Println("AutoSpotting build:", conf.Version)
 		os.Exit(0)
 	}
-
-	data, err := ec2instancesinfo.Data()
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	conf.InstanceData = data
 
 	conf.FinalRecap = make(map[string][]string)
 }

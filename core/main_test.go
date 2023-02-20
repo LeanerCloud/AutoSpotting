@@ -20,7 +20,8 @@ func TestMain(m *testing.M) {
 	a := &AutoSpotting{}
 
 	a.Init(&Config{
-		MainRegion: "us-east-1",
+		MainRegion:                  "us-east-1",
+		AutomatedInstanceDataUpdate: false,
 	})
 
 	var logOutput io.Writer
