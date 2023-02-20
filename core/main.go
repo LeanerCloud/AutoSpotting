@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	ec2instancesinfo "github.com/LeanerCloud/ec2-instances-info"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -22,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/marketplacemetering"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	ec2instancesinfo "github.com/cristim/ec2-instances-info"
 )
 
 var debug *log.Logger

@@ -16,9 +16,9 @@ import (
 	"strconv"
 	"strings"
 
+	ec2instancesinfo "github.com/LeanerCloud/ec2-instances-info"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	ec2instancesinfo "github.com/cristim/ec2-instances-info"
 )
 
 func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64 {
