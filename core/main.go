@@ -39,6 +39,15 @@ var as *AutoSpotting
 
 // Init initializes some data structures reusable across multiple event runs
 func (a *AutoSpotting) Init(cfg *Config) {
+
+	if cfg.AutomatedInstanceDataUpdate {
+		key := "d29c10d16cd9b9050ccdc790e24ddfd55547e274cc9800b08067b649d4b151f3"
+		err := ec2instancesinfo.UpdateData(nil, &key)
+		if err != nil {
+			fmt.Println("Couldn't update instance type data, reverting to static compile-time data", err.Error())
+		}
+	}
+
 	data, err := ec2instancesinfo.Data()
 	if err != nil {
 		log.Fatal(err.Error())

@@ -85,6 +85,17 @@ Parameters:
       the 'autospotting_allowed_instance_types' tag set on the AutoScaling
       group, which accepts the same configuration values."
     Type: "String"
+
+  AutomatedInstanceDataUpdate:
+    Description: >
+      "Controls whether AutoSpotting should automatically update its instance type data.
+      This is slowing down the Lambda execution and is only recommended if you need to
+      add support for newer instance types"
+    Type: "String"
+    AllowedValues:
+      - "true"
+      - "false"
+    Default: "false"
   BiddingPolicy:
     AllowedValues:
       - "normal"
@@ -492,6 +503,8 @@ Resources:
         Variables:
           ALLOWED_INSTANCE_TYPES:
             Ref: "AllowedInstanceTypes"
+          AUTOMATED_INSTANCE_DATA_UPDATE:
+            Ref: "AutomatedInstanceDataUpdate"
           BIDDING_POLICY:
             Ref: "BiddingPolicy"
           CRON_SCHEDULE:
@@ -1196,7 +1209,7 @@ Resources:
             - ARM64
             - X86_64
       ExecutionRoleArn:
-        Ref: ECSTaskExecutionRole
+        Fn::GetAtt: ECSTaskExecutionRole.Arn
       TaskRoleArn:
         Ref: ECSTaskExecutionRole
       ContainerDefinitions:
@@ -1207,6 +1220,9 @@ Resources:
               - - Fn::GetAtt: ECRRepository.RepositoryUri
                 - Ref: SourceImageTag
           Environment:
+            - Name: AUTOMATED_INSTANCE_DATA_UPDATE
+              Value:
+                Ref: AutomatedInstanceDataUpdate
             - Name: BILLING_ONLY
               Value: "true"
             - Name: NOTIFICATION_SNS_TOPIC
