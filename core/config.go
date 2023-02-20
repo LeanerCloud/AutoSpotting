@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
+	ec2instancesinfo "github.com/LeanerCloud/ec2-instances-info"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
-	ec2instancesinfo "github.com/cristim/ec2-instances-info"
 	"github.com/namsral/flag"
 )
 

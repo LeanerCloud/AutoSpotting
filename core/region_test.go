@@ -8,11 +8,11 @@ import (
 	"reflect"
 	"testing"
 
+	ec2instancesinfo "github.com/LeanerCloud/ec2-instances-info"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	ec2instancesinfo "github.com/cristim/ec2-instances-info"
 	"github.com/davecgh/go-spew/spew"
 )
 

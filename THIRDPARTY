@@ -1,6 +1,6 @@
 This software builds upon the following components:
 
-- github.com/cristim/ec2-instances-info
+- github.com/LeanerCloud/ec2-instances-info
 
 The non-generated source code from this repo can be considered under the public domain.
 
