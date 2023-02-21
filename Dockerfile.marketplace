@@ -1,7 +1,6 @@
 FROM golang:1.18-alpine as golang
 ARG savings_cut
 ARG flavor=stable
-ARG promotion_days=0
 
 RUN apk add -U --no-cache ca-certificates git make
 
@@ -12,7 +11,7 @@ RUN go mod download
 
 COPY . /src
 
-RUN FLAVOR=$flavor CGO_ENABLED=0 SAVINGS_CUT=$savings_cut PROMOTION_DAYS=$promotion_days make
+RUN FLAVOR=$flavor CGO_ENABLED=0 SAVINGS_CUT=$savings_cut make
 
 FROM alpine:latest
 COPY LICENSE BINARY_LICENSE THIRDPARTY /
