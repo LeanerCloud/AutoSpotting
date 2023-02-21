@@ -33,11 +33,6 @@ func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
 	}
 	cut := as.config.SavingsCut
 
-	if !isExpired(as.config.PromotionDeadline) {
-		log.Println("Still within the promotion, your usage of AutoSpotting at 50% off")
-		cut = cut / 2
-	}
-
 	m.svs.updateSavingsStats(savings)
 
 	charge := savings * 0.01 * cut

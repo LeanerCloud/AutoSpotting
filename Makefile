@@ -87,7 +87,7 @@ docker-push-artifacts: docker artifacts
 .PHONY: docker-push-artifacts
 
 docker-marketplace:
-	docker build -f Dockerfile.marketplace --platform=linux/$(GOARCH) --load -t $(DOCKER_IMAGE_TAG) --build-arg savings_cut=${SAVINGS_CUT} --build-arg flavor=${FLAVOR} --build-arg promotion_days=${PROMOTION_DAYS} .
+	docker build -f Dockerfile.marketplace --platform=linux/$(GOARCH) --load -t $(DOCKER_IMAGE_TAG) --build-arg savings_cut=${SAVINGS_CUT} --build-arg flavor=${FLAVOR} .
 	docker push $(DOCKER_IMAGE_TAG)
 .PHONY: docker-marketplace
 
