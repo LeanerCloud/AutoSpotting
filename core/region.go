@@ -479,7 +479,7 @@ func (r *region) processEnabledAutoScalingGroups() {
 		go func(a autoScalingGroup) {
 			action := a.cronEventAction()
 			action.run()
-			a.resumeProcesses()
+			a.resumeProcesses(2 * time.Minute)
 			r.wg.Done()
 		}(asg)
 	}

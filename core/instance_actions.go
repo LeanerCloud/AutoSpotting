@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elasticbeanstalk"
@@ -92,6 +93,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error)
 	}
 
 	asg.suspendProcesses()
+	defer asg.resumeProcesses(2 * time.Minute)
 
 	desiredCapacity, maxSize := *asg.DesiredCapacity, *asg.MaxSize
 

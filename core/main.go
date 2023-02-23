@@ -503,31 +503,24 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 	if len(a.config.sqsReceiptHandle) == 0 {
 		return i.region.sqsSendMessageOnInstanceLaunch(&i.asg.name, i.InstanceId, i.State.Name, "on-demand-instance-launch")
 	}
+
+	// we anyway need to delete the message, but if we delete it now,
+	// the queue will allow us to process more instances in parallel
+	if a.config.AllowParallelInstanceReplacements {
+		i.region.sqsDeleteMessage(i.InstanceId, OnDemand)
+	}
+
 	defer i.region.sqsDeleteMessage(i.InstanceId, OnDemand)
 
 	log.Printf("%s instance %s belongs to an enabled ASG and should be "+
 		"replaced with spot", i.region.name, *i.InstanceId)
 
-	// Search if there is already a spot instance that we can re-use.
-	log.Println("Scanning instances in", r.name)
-	if err := r.scanInstances(); err != nil {
-		log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
-	}
-	spotInstance := i.asg.findUnattachedInstanceLaunchedForThisASG()
-
-	if spotInstance != nil {
-		spotInstanceID = spotInstance.InstanceId
-		log.Println("Found unattached spot instance", *spotInstanceID)
-	} else {
-		log.Printf("Attempting to launch spot replacement")
-		if spotInstanceID, err = i.launchSpotReplacement(); err != nil {
-			log.Printf("%s Couldn't launch spot replacement for %s",
-				i.region.name, *i.InstanceId)
-			return err
-		}
-	}
-	if spotInstanceID == nil {
-		return errors.New("no spot instance found")
+	log.Printf("Attempting to launch spot replacement")
+	spotInstanceID, err = i.launchSpotReplacement()
+	if err != nil {
+		log.Printf("%s Couldn't launch spot replacement for %s",
+			i.region.name, *i.InstanceId)
+		return err
 	}
 
 	log.Printf("Waiting for spot instance %s to be in status running", *spotInstanceID)
@@ -545,7 +538,8 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 			*spotInstanceID, err.Error())
 		return err
 	}
-	spotInstance = r.instances.get(*spotInstanceID)
+
+	spotInstance := r.instances.get(*spotInstanceID)
 	if _, err := spotInstance.swapWithGroupMember(i.asg); err != nil {
 		log.Printf("%s, couldn't perform spot replacement of %s ",
 			i.region.name, *i.InstanceId)

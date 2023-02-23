@@ -507,9 +507,11 @@ func (a *autoScalingGroup) suspendProcesses() {
 	time.Sleep(30 * time.Second * a.region.conf.SleepMultiplier)
 }
 
-func (a *autoScalingGroup) resumeProcesses() {
+func (a *autoScalingGroup) resumeProcesses(delay time.Duration) {
 	AutoScalingProcessesToResume := []*string{aws.String("Terminate"), aws.String("AZRebalance")}
-	log.Printf("Resuming processes on ASG %s", a.name)
+	log.Printf("Resuming processes on ASG %s, waiting for %f minutes", a.name, delay.Minutes())
+	time.Sleep(delay * a.region.conf.SleepMultiplier)
+	log.Printf("Resuming processes on ASG %s, waiting complete, performing API call", a.name)
 
 	_, err := a.region.services.autoScaling.ResumeProcesses(
 		&autoscaling.ScalingProcessQuery{

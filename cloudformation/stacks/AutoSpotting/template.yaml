@@ -18,6 +18,8 @@ Metadata:
           default: Basic Instance Replacement
         Parameters:
           - Regions
+          - AllowParallelInstanceReplacements
+          - AutomatedInstanceDataUpdate
           - AllowedInstanceTypes
           - DisallowedInstanceTypes
           - MinOnDemandNumber
@@ -86,11 +88,26 @@ Parameters:
       group, which accepts the same configuration values."
     Type: "String"
 
+  AllowParallelInstanceReplacements:
+    Type: "String"
+    AllowedValues:
+      - "true"
+      - "false"
+    Default: "false"
+    Description: >
+      Controls whether AutoSpotting should allow parallel instance replacements
+      or force them to happen in sequence. This is by default disabled because
+      it may require the increase of the Maximum capacity of the autoscaling
+      group to double the desired capacity, and/or service quota increases for
+      EC2 instances.
+
   AutomatedInstanceDataUpdate:
     Description: >
-      "Controls whether AutoSpotting should automatically update its instance type data.
-      This is slowing down the Lambda execution and is only recommended if you need to
-      add support for newer instance types"
+      Controls whether AutoSpotting should automatically update its embedded
+      instance type data. This doesn't bring benefits for recently released
+      builds and is slowing down the Lambda execution, but it may be useful
+      later if you want to add support for newer instance types without
+      updating AutoSpotting.
     Type: "String"
     AllowedValues:
       - "true"
@@ -503,6 +520,8 @@ Resources:
         Variables:
           ALLOWED_INSTANCE_TYPES:
             Ref: "AllowedInstanceTypes"
+          ALLOW_PARALLEL_INSTANCE_REPLACEMENTS:
+            Ref: AllowParallelInstanceReplacements
           AUTOMATED_INSTANCE_DATA_UPDATE:
             Ref: "AutomatedInstanceDataUpdate"
           BIDDING_POLICY:

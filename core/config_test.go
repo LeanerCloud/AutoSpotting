@@ -56,7 +56,6 @@ func TestParseConfig(t *testing.T) {
 
 			assert.Equal(t, config.LogFile, os.Stdout)
 			assert.Equal(t, config.SleepMultiplier, time.Duration(1))
-			assert.Assert(t, config.InstanceData != nil, "expected InstanceData to be initialized")
 		})
 
 		// reset environment variables
