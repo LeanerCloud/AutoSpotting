@@ -93,7 +93,7 @@ Parameters:
     AllowedValues:
       - "true"
       - "false"
-    Default: "false"
+    Default: "true"
     Description: >
       Controls whether AutoSpotting should allow parallel instance replacements
       or force them to happen in sequence. This is by default disabled because
@@ -701,7 +701,7 @@ Resources:
     Type: AWS::CloudFormation::StackSet
     Properties:
       TemplateURL:
-          Fn::Sub: https://s3.amazonaws.com/cloudprowess/${SourceImageTag}/regional_template.yaml
+          Fn::Sub: https://s3.amazonaws.com/autospotting-builds/${SourceImageTag}/regional_template.yaml
       Capabilities:
         - CAPABILITY_IAM
       Description: "StackSet that deploys regional resources required by AutoSpotting for capturing events."
