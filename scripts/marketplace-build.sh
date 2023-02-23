@@ -1,4 +1,4 @@
-export VERSION=1.1.1-1
+export VERSION=1.1.2-1
 
 export FLAVOR=$1
 export SAVINGS_CUT=$2
