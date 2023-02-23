@@ -3,7 +3,7 @@ DEPS := "wget git go docker golint"
 BINARY := AutoSpotting
 
 COVER_PROFILE := /tmp/coverage.out
-BUCKET_NAME ?= cloudprowess
+BUCKET_NAME ?= autospotting-builds
 FLAVOR ?= custom
 
 LICENSE_FILES := LICENSE THIRDPARTY
