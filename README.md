@@ -30,6 +30,12 @@ It is particularly useful if you have a large footprint that you want to migrate
 to Spot quickly due to management pressure but with minimal effort and configuration
 changes.
 
+## Demo
+
+Here's a demo of AutoSpotting and the way it integrates with the new [Spot Savings Estimator GUI](https://github.com/LeanerCloud/savings-estimator).
+
+[![Demo of AutoSpotting with the Savings Estimator](https://yt-embed.live/embed?v=VXfCOXXtLwA)](https://youtu.be/VXfCOXXtLwA "AutoSpotting and Savings Estimator demo")
+
 ## Guiding principles ##
 
 - Customer-focused, designed to maximize user benefits and reduce adoption friction
