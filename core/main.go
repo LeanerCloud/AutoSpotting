@@ -272,10 +272,6 @@ func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) 
 // parse instance events and execute the relative methods
 func (a *AutoSpotting) processEventInstance(eventType string, region string, instanceID *string, instanceState *string) error {
 	if eventType == InstanceStateChangeNotificationCode {
-		if a.config.DisableEventBasedInstanceReplacement {
-			log.Println("Event-based instance replacement is disabled, exiting...")
-			return nil
-		}
 		// If event is Instance state change
 		if len(a.config.sqsReceiptHandle) != 0 {
 			log.SetPrefix(fmt.Sprintf("SQS:%s ", *instanceID))
@@ -518,8 +514,8 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 	log.Printf("Attempting to launch spot replacement")
 	spotInstanceID, err = i.launchSpotReplacement()
 	if err != nil {
-		log.Printf("%s Couldn't launch spot replacement for %s",
-			i.region.name, *i.InstanceId)
+		log.Printf("%s Couldn't launch spot replacement for %s: %s",
+			i.region.name, *i.InstanceId, err.Error())
 		return err
 	}
 
@@ -541,8 +537,8 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 
 	spotInstance := r.instances.get(*spotInstanceID)
 	if _, err := spotInstance.swapWithGroupMember(i.asg); err != nil {
-		log.Printf("%s, couldn't perform spot replacement of %s ",
-			i.region.name, *i.InstanceId)
+		log.Printf("%s, couldn't perform spot replacement of %s: %s ",
+			i.region.name, *i.InstanceId, err.Error())
 		return err
 	}
 	return nil
