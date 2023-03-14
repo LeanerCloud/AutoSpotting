@@ -1,4 +1,4 @@
-export VERSION=1.1.2-1
+export VERSION=1.1.3-1
 
 export FLAVOR=$1
 export SAVINGS_CUT=$2
@@ -6,13 +6,11 @@ export PROMOTION_DAYS=$3
 
 export DOCKER_IMAGE_VERSION=$FLAVOR-$VERSION
 
-export GOARCH=amd64
+export GOARCH=arm64
 
 make docker-marketplace
 make artifacts
 
-export AWS_PROFILE=personal
-unset AWS_SESSION_TOKEN AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 make upload
 
 export TEMPLATE_URL="https://s3.amazonaws.com/cloudprowess/${FLAVOR}-$VERSION/template.yaml"
