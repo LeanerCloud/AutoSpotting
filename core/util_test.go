@@ -1,6 +1,7 @@
 package autospotting
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -106,4 +107,48 @@ func Test_itemInSlice(t *testing.T) {
 			}
 		})
 	}
+}
+func TestRemoveDuplicateStr(t *testing.T) {
+	// Test cases
+	testCases := []struct {
+		name   string
+		input  []*string
+		output []*string
+	}{
+		{
+			name:   "Remove duplicates from input with multiple duplicates",
+			input:  []*string{newString("foo"), newString("bar"), newString("baz"), newString("foo"), newString("qux"), newString("baz")},
+			output: []*string{newString("foo"), newString("bar"), newString("baz"), newString("qux")},
+		},
+		{
+			name:   "Remove duplicates from input with some duplicates",
+			input:  []*string{newString("hello"), newString("world"), newString("hello"), newString("gopher"), newString("world"), newString("gopher")},
+			output: []*string{newString("hello"), newString("world"), newString("gopher")},
+		},
+		{
+			name:   "Input with no duplicates",
+			input:  []*string{newString("a"), newString("b"), newString("c")},
+			output: []*string{newString("a"), newString("b"), newString("c")},
+		},
+		{
+			name:   "Empty input slice",
+			input:  []*string{},
+			output: []*string{},
+		},
+	}
+
+	// Run test cases
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output := removeDuplicateStr(tc.input)
+
+			if !reflect.DeepEqual(output, tc.output) {
+				t.Errorf("Expected %v but got %v", tc.output, output)
+			}
+		})
+	}
+}
+
+func newString(s string) *string {
+	return &s
 }

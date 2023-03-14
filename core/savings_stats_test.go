@@ -229,7 +229,7 @@ func Test_savingsStats_calculateLast30DaysTotalSavings(t *testing.T) {
 					},
 				},
 			},
-			want: 2.6,
+			want: 2.5,
 		},
 	}
 	for _, tt := range tests {

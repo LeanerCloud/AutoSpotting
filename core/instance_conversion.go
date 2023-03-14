@@ -234,6 +234,7 @@ func (i *instance) convertSecurityGroups() []*string {
 	for _, sg := range i.SecurityGroups {
 		groupIDs = append(groupIDs, sg.GroupId)
 	}
+
 	return groupIDs
 }
 
@@ -324,6 +325,13 @@ func (i *instance) processLaunchTemplate(retval *ec2.RequestLaunchTemplateData) 
 		retval.NetworkInterfaces = nil
 		retval.SecurityGroupIds = append(retval.SecurityGroupIds, ltData.SecurityGroupIds...)
 		retval.SecurityGroups = append(retval.SecurityGroups, ltData.SecurityGroups...)
+	}
+
+	if retval.SecurityGroupIds != nil {
+		retval.SecurityGroupIds = removeDuplicateStr(retval.SecurityGroupIds)
+	}
+	if retval.SecurityGroups != nil {
+		retval.SecurityGroups = removeDuplicateStr(retval.SecurityGroups)
 	}
 
 	if i.asg.config.PatchBeanstalkUserdata {
