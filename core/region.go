@@ -372,6 +372,7 @@ func (r *region) isStackUpdating(stackName *string) (string, bool) {
 		"CREATE_COMPLETE":          {},
 		"UPDATE_COMPLETE":          {},
 		"UPDATE_ROLLBACK_COMPLETE": {},
+		"UPDATE_ROLLBACK_FAILED":   {},
 	}
 
 	svc := r.services.cloudFormation
