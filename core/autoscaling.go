@@ -312,11 +312,7 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 					*instanceID, status)
 			}
 
-			sleepTime := 10 - (2 * retry)
-			if sleepTime <= 0 {
-				sleepTime = 1
-			}
-			time.Sleep(time.Duration(sleepTime) * time.Second)
+			time.Sleep(time.Duration(10) * time.Second)
 		}
 	}
 
@@ -385,7 +381,7 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		return err
 	}
 	log.Printf("Waiting for instance %s to become in service", spotInstanceID)
-	if err := a.waitForInstanceStatus(&spotInstanceID, "InService", 5); err != nil {
+	if err := a.waitForInstanceStatus(&spotInstanceID, "InService", 80); err != nil {
 		log.Printf("Spot instance %s couldn't be attached to the group %s: %v",
 			spotInstanceID, a.name, err.Error())
 		return err
@@ -414,7 +410,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 				*instanceID, err.Error())
 		}
 
-		if err = a.waitForInstanceStatus(instanceID, "InService", 5); err != nil {
+		if err = a.waitForInstanceStatus(instanceID, "InService", 80); err != nil {
 			log.Printf("Instance %s is still not InService, trying to terminate it anyway.",
 				*instanceID)
 		}
