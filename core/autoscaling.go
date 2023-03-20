@@ -26,6 +26,7 @@ type autoScalingGroup struct {
 	autospotting        *AutoSpotting
 	instances           instances
 	config              AutoScalingConfig
+	spotProduct         *string
 }
 
 func (a *autoScalingGroup) loadLaunchConfiguration() (*launchConfiguration, error) {
@@ -637,4 +638,58 @@ func (a *autoScalingGroup) triggerDeployment(appName, deploymentGroupName *strin
 	}
 
 	return nil
+}
+
+// Returns the Spot product set on the ASG tags, and if it doesn't exist, determines it
+// from the AMI of one of the instances and persists it in the same tag.
+func (a *autoScalingGroup) loadSpotProduct() *string {
+	// Check if the Spot product is already set in a tag on the Auto Scaling group
+	spotProductTag := "autospotting_spot_product"
+	for _, tag := range a.Tags {
+		if *tag.Key == spotProductTag {
+			log.Printf("Found Spot product '%s' set in tag on Auto Scaling group '%s'", *tag.Value, a.name)
+			return tag.Value
+		}
+	}
+
+	// Determine the Spot product based on the AMI ID of an instance in the Auto Scaling group
+	instance := a.getInstance(nil, false, false)
+	if instance == nil {
+		log.Printf("Could not find any Spot instances in Auto Scaling group '%s', cannot set Spot product", a.name)
+		instance = a.getInstance(nil, true, false)
+		if instance == nil {
+			log.Printf("Also couldn't find OnDemand instances in Auto Scaling group '%s', cannot set Spot product", a.name)
+			return nil
+		}
+	}
+
+	log.Printf("Determining Spot product for Auto Scaling group '%s' based on instance '%s'", a.name, *instance.InstanceId)
+	spotProduct := instance.getSpotProductFromAMI()
+
+	if spotProduct == nil {
+		log.Printf("Couldn't determinine Spot product for Auto Scaling group '%s'", a.name)
+		return nil
+	}
+
+	// Set the Spot product in a tag on the Auto Scaling group
+
+	_, err := a.region.services.autoScaling.CreateOrUpdateTags(&autoscaling.CreateOrUpdateTagsInput{
+		Tags: []*autoscaling.Tag{
+			{
+				ResourceId:        aws.String(a.name),
+				ResourceType:      aws.String("auto-scaling-group"),
+				Key:               aws.String(spotProductTag),
+				Value:             spotProduct,
+				PropagateAtLaunch: aws.Bool(true),
+			},
+		},
+	})
+	if err != nil {
+		log.Printf("Error setting Spot product '%s' in tag on Auto Scaling group '%s': %v", *spotProduct, a.name, err)
+		return nil
+	}
+	log.Printf("Set Spot product '%s' in tag on Auto Scaling group '%s'", *spotProduct, a.name)
+
+	a.spotProduct = spotProduct
+	return spotProduct
 }
