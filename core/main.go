@@ -151,14 +151,14 @@ func (a *AutoSpotting) processRegions(regions []string) {
 	}
 	wg.Wait()
 
-	session := session.Must(session.NewSession(&aws.Config{Region: aws.String("us-east-1")}))
-	ps := parameterStore{svc: ssm.New(session, aws.NewConfig().WithRegion("us-east-1"))}
+	session := session.Must(session.NewSession(&aws.Config{Region: aws.String(a.config.MainRegion)}))
+	ps := parameterStore{svc: ssm.New(session, aws.NewConfig().WithRegion(a.config.MainRegion))}
 	mp := marketplaceMetering{
-		mpSvc: marketplacemetering.New(session, aws.NewConfig()),
+		mpSvc: marketplacemetering.New(session, aws.NewConfig().WithRegion(a.config.MainRegion)),
 		ps:    ps,
 		svs: savingsStats{
 			ps:              ps,
-			sns:             sns.New(session, aws.NewConfig().WithRegion("us-east-1")),
+			sns:             sns.New(session, aws.NewConfig().WithRegion(a.config.MainRegion)),
 			topic:           a.config.NotificationSNSTopic,
 			reportFrequency: a.config.SavingsReportsFrequency,
 		},
