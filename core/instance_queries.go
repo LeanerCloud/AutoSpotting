@@ -131,6 +131,7 @@ func (i *instance) belongsToEnabledASG() bool {
 			asg.loadConfigFromTags()
 			asg.loadLaunchConfiguration()
 			asg.loadLaunchTemplate()
+			asg.loadSpotProduct()
 			i.asg = &asg
 			i.odPrice = i.typeInfo.pricing.onDemand
 			log.Printf("%s instace %s belongs to enabled ASG %s", i.region.name,
@@ -541,4 +542,30 @@ func calculateInstanceTypeGeneration(InstanceType string, itfic *instanceTypeFam
 
 	(*itfic)[InstanceType] = &instanceTypeFamilyInfo{family: family, generation: generation}
 	return family, generation
+}
+
+// Retrieves the Spot product associated with the instance's AMI ID.
+func (i *instance) getSpotProductFromAMI() *string {
+	// Retrieve the image details for the AMI ID of the instance
+	ec2Svc := i.region.services.ec2
+	resp, err := ec2Svc.DescribeImages(&ec2.DescribeImagesInput{
+		ImageIds: []*string{i.ImageId},
+	})
+	if err != nil {
+		log.Printf("Error describing AMI '%s': %v", *i.ImageId, err)
+		return nil
+	}
+
+	if len(resp.Images) == 0 {
+		log.Printf("No AMIs found with ID '%s'", *i.ImageId)
+		return nil
+	}
+
+	image := resp.Images[0]
+	if image.PlatformDetails != nil {
+		log.Printf("Detected '%s' product for AMI '%s'", *image.PlatformDetails, *i.ImageId)
+		return image.PlatformDetails
+	}
+
+	return nil
 }
