@@ -13,7 +13,7 @@ COPY . /src
 
 RUN FLAVOR=$flavor CGO_ENABLED=0 SAVINGS_CUT=$savings_cut make
 
-FROM alpine:latest
+FROM alpine:3.16
 COPY LICENSE BINARY_LICENSE THIRDPARTY /
 COPY --from=golang /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=golang /src/AutoSpotting .
