@@ -682,6 +682,27 @@ Resources:
         Ref: SQSQueueName
       VisibilityTimeout: 900
 
+
+  SQSQueuePolicy:
+    Type: "AWS::SQS::QueuePolicy"
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "events.amazonaws.com"
+            Action: "sqs:SendMessage"
+            Resource: !GetAtt SQSQueue.Arn
+            Condition:
+              ArnEquals:
+                "aws:SourceArn":
+                  - !GetAtt SpotTerminationEventRule.Arn
+                  - !GetAtt InstanceRunningEventRule.Arn
+                  - !GetAtt LifecycleHookEventRule.Arn
+      Queues:
+        - !Ref SQSQueue
+
   RegionalStackSet:
     Condition: DeployRegionalResourcesStackSet
     DependsOn:
@@ -700,19 +721,15 @@ Resources:
         RegionConcurrencyType: PARALLEL
       PermissionModel: SELF_MANAGED
       Parameters:
-        - ParameterKey: AutoSpottingLambdaARN
+        - ParameterKey: MainRegion
+          ParameterValue:
+            Ref:
+              AWS::Region
+        - ParameterKey: EventsRoleArn
           ParameterValue:
             Fn::GetAtt:
-              - LambdaFunction
+              - EventBridgeRole
               - Arn
-        - ParameterKey: LambdaRegionalExecutionRoleARN
-          ParameterValue:
-            Fn::GetAtt:
-              - LambdaRegionalStackExecutionRole
-              - Arn
-        - ParameterKey: LogRetentionPeriod
-          ParameterValue:
-            Ref: LogRetentionPeriod
       StackSetName: AutoSpottingRegionalResources
       StackInstancesGroup:
         - DeploymentTargets:
@@ -1336,3 +1353,97 @@ Resources:
             Ref: EmailAddress
           Protocol: email
       TopicName: AutoSpotting_email_notifications
+
+  EventBridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: MyEventBridgePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: events:PutEvents
+                Resource: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:event-bus/default"
+
+  SpotTerminationEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: >
+        "This rule is triggered 2 minutes before AWS terminates a spot
+        instance or when AWS sends a Rebalance Recommendation"
+      EventPattern:
+        detail-type:
+          - "EC2 Spot Instance Interruption Warning"
+          - "EC2 Instance Rebalance Recommendation"
+        source:
+          - "aws.ec2"
+      State: "ENABLED"
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - SQSQueue
+              - Arn
+          Id: "Target0"
+          SqsParameters:
+            MessageGroupId: AutoSpotting
+
+  InstanceRunningEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: >
+        "This rule is triggered after EC2 launches a new instance"
+      EventPattern:
+        detail-type:
+          - "EC2 Instance State-change Notification"
+        source:
+          - "aws.ec2"
+        detail:
+          state:
+            - "running"
+      State: "ENABLED"
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - SQSQueue
+              - Arn
+          Id: "Target0"
+          SqsParameters:
+            MessageGroupId: AutoSpotting
+
+  LifecycleHookEventRule:
+
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: >
+        "This rule is triggered after we failed to complete a lifecycle hook"
+      EventPattern:
+        detail-type:
+          - "AWS API Call via CloudTrail"
+        source:
+          - "aws.autoscaling"
+        detail:
+          eventName:
+            - "CompleteLifecycleAction"
+          errorCode:
+            - "ValidationException"
+          requestParameters:
+            lifecycleActionResult:
+              - "CONTINUE"
+      State: "ENABLED"
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - SQSQueue
+              - Arn
+          Id: "Target0"
+          SqsParameters:
+            MessageGroupId: AutoSpotting
