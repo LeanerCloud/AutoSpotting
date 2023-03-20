@@ -96,6 +96,12 @@ func (r *region) processRegion() {
 	// setup the filters for asg matching
 	r.setupAsgFilters()
 
+	log.Println("Scanning instances in", r.name)
+	err := r.scanInstances()
+	if err != nil {
+		log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
+	}
+
 	log.Println("Scanning for enabled AutoScaling groups in ", r.name)
 	r.scanForEnabledAutoScalingGroups()
 
@@ -105,17 +111,12 @@ func (r *region) processRegion() {
 		log.Println("Scanning full instance information in", r.name)
 		r.determineInstanceTypeInformation(r.conf)
 
-		log.Println("Scanning instances in", r.name)
-		err := r.scanInstances()
-		if err != nil {
-			log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
-		}
-
 		log.Println("Processing enabled AutoScaling groups in", r.name)
 		r.processEnabledAutoScalingGroups()
 	} else {
 		log.Println(r.name, "has no enabled AutoScaling groups")
 	}
+	r.reapUnattachedSpotInstances()
 }
 
 func (r *region) setupAsgFilters() {
@@ -595,4 +596,25 @@ func (r *region) calculateSavings() float64 {
 	}
 	ss.persistHourlyASGSavings(r.name, asgSavings)
 	return savings
+}
+
+func (r *region) reapUnattachedSpotInstances() {
+	for inst := range r.instances.instances() {
+		debug.Printf("Looking at instance %s", *inst.InstanceId)
+		if inst.isSpot() && inst.isLaunchedByAutoSpotting() {
+			debug.Printf("instance %s is Spot and launched by AutoSpotting", *inst.InstanceId)
+			if belongs, asg := inst.belongsToAnASG(); !belongs {
+				debug.Printf("instance %s doesn't belong to any ASG", *inst.InstanceId)
+				if inst.LaunchTime.Before(time.Now().Add(-15 * time.Minute)) {
+					log.Printf("Reaping Spot instance %s launched by AutoSpotting but not attached to any ASG after more than 15min (%s), terminating it",
+						*inst.InstanceId, time.Since(*inst.LaunchTime))
+					inst.terminate()
+				} else {
+					debug.Printf("instance %s has recently been launched", *inst.InstanceId)
+				}
+			} else {
+				debug.Printf("instance %s belongs to ASG %s", *inst.InstanceId, *asg)
+			}
+		}
+	}
 }
