@@ -72,7 +72,7 @@ func (m *marketplaceMetering) markAsFailingFromFargate() {
 
 func (m *marketplaceMetering) failedFromFargate() bool {
 	val, _, err := m.ps.getSSMParameter(MeteringSSMParameterName)
-	if err != nil && *val == "failure" {
+	if err != nil && val != nil && *val == "failure" {
 		return true
 	}
 	return false
