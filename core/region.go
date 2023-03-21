@@ -45,11 +45,11 @@ type region struct {
 	wg sync.WaitGroup
 }
 
-type prices struct {
-	onDemand     float64
-	spot         spotPriceMap
-	ebsSurcharge float64
-	premium      float64
+// the key in this map is the Spot product (or OS)
+type prices map[string]instancePrice
+type instancePrice struct {
+	onDemand float64
+	spot     spotPriceMap
 }
 
 // The key in this map is the availability zone
@@ -239,19 +239,34 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 
 	for _, it := range *cfg.InstanceData {
 
-		var price prices
+		price := make(prices)
 
 		// populate on-demand information
-		price.onDemand = it.Pricing[r.name].Linux.OnDemand * cfg.OnDemandPriceMultiplier
-		price.spot = make(spotPriceMap)
-		price.ebsSurcharge = it.Pricing[r.name].EBSSurcharge
-		price.premium = r.conf.SpotProductPremium
+		price[LinuxSpotProduct] = instancePrice{
+			onDemand: it.Pricing[r.name].Linux.OnDemand * cfg.OnDemandPriceMultiplier,
+			spot:     make(spotPriceMap),
+		}
+
+		price[WindowsSpotProduct] = instancePrice{
+			onDemand: it.Pricing[r.name].MSWin.OnDemand * cfg.OnDemandPriceMultiplier,
+			spot:     make(spotPriceMap),
+		}
+
+		price[RHELSpotProduct] = instancePrice{
+			onDemand: it.Pricing[r.name].RHEL.OnDemand * cfg.OnDemandPriceMultiplier,
+			spot:     make(spotPriceMap),
+		}
+
+		price[SLESSpotProduct] = instancePrice{
+			onDemand: it.Pricing[r.name].SLES.OnDemand * cfg.OnDemandPriceMultiplier,
+			spot:     make(spotPriceMap),
+		}
 
 		// if at this point the instance price is still zero, then that
 		// particular instance type doesn't even exist in the current
 		// region, so we don't even need to create an empty spot pricing
 		// data structure for it
-		if price.onDemand > 0 {
+		if price[LinuxSpotProduct].onDemand > 0 {
 			// for each instance type populate the HW spec information
 			info = instanceTypeInformation{
 				instanceType:        it.InstanceType,
@@ -291,7 +306,7 @@ func (r *region) requestSpotPrices() error {
 
 	// Retrieve all current spot prices from the current region.
 	// TODO: add support for other OSes
-	err := s.fetch(r.conf.SpotProductDescription, 0, nil, nil)
+	err := s.fetch(0, nil, nil)
 
 	if err != nil {
 		return errors.New("Couldn't fetch spot prices in " + r.name)
@@ -312,13 +327,13 @@ func (r *region) requestSpotPrices() error {
 			continue
 		}
 
-		if r.instanceTypeInformation[instType].pricing.spot == nil {
+		if r.instanceTypeInformation[instType].pricing[*priceInfo.ProductDescription].spot == nil {
 			debug.Println(r.name, "Instance data missing for", instType, "in", az,
 				"skipping because this region is currently not supported")
 			continue
 		}
 
-		r.instanceTypeInformation[instType].pricing.spot[az] = price
+		r.instanceTypeInformation[instType].pricing[*priceInfo.ProductDescription].spot[az] = price
 
 	}
 
@@ -481,7 +496,6 @@ func (r *region) processEnabledAutoScalingGroups() {
 		go func(a autoScalingGroup) {
 			action := a.cronEventAction()
 			action.run()
-			a.resumeProcesses(2 * time.Minute)
 			r.wg.Done()
 		}(asg)
 	}
@@ -574,7 +588,8 @@ func (r *region) calculateSavings() float64 {
 
 	for inst := range r.instances.instances() {
 
-		if inst.isSpot() && inst.isLaunchedByAutoSpotting() {
+		if inst.isSpot() || inst.isLaunchedByAutoSpotting() {
+
 			is := inst.getSavings()
 			log.Printf("Found AutoSpotting instance %s(%s) in %s with hourly savings %f\n",
 				*inst.InstanceId, *inst.InstanceType, r.name, is)

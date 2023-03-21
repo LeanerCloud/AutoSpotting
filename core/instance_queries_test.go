@@ -199,10 +199,12 @@ func TestIsPriceCompatible(t *testing.T) {
 	}{
 		{name: "No spot price for such availability zone",
 			spotPrices: prices{
-				spot: map[string]float64{
-					"eu-central-1": 0.5,
-					"eu-west-1":    1.0,
-					"eu-west-2":    2.0,
+				LinuxSpotProduct: {
+					spot: map[string]float64{
+						"eu-central-1": 0.5,
+						"eu-west-1":    1.0,
+						"eu-west-2":    2.0,
+					},
 				},
 			},
 			availabilityZone: aws.String("eu-west-42"),
@@ -212,10 +214,12 @@ func TestIsPriceCompatible(t *testing.T) {
 		},
 		{name: "Spot price is 0.0",
 			spotPrices: prices{
-				spot: map[string]float64{
-					"eu-central-1": 0.0,
-					"eu-west-1":    0.0,
-					"eu-west-2":    0.0,
+				LinuxSpotProduct: {
+					spot: map[string]float64{
+						"eu-central-1": 0.0,
+						"eu-west-1":    0.0,
+						"eu-west-2":    0.0,
+					},
 				},
 			},
 			availabilityZone: aws.String("eu-west-1"),
@@ -225,10 +229,12 @@ func TestIsPriceCompatible(t *testing.T) {
 		},
 		{name: "Spot price is higher than instance price",
 			spotPrices: prices{
-				spot: map[string]float64{
-					"eu-central-1": 0.5,
-					"eu-west-1":    1.0,
-					"eu-west-2":    2.0,
+				LinuxSpotProduct: {
+					spot: map[string]float64{
+						"eu-central-1": 0.5,
+						"eu-west-1":    1.0,
+						"eu-west-2":    2.0,
+					},
 				},
 			},
 			availabilityZone: aws.String("eu-west-1"),
@@ -240,10 +246,14 @@ func TestIsPriceCompatible(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := &instance{Instance: &ec2.Instance{
-				Placement: &ec2.Placement{
-					AvailabilityZone: tt.availabilityZone,
-				}},
+			i := &instance{
+				asg: &autoScalingGroup{
+					spotProduct: aws.String(LinuxSpotProduct),
+				},
+				Instance: &ec2.Instance{
+					Placement: &ec2.Placement{
+						AvailabilityZone: tt.availabilityZone,
+					}},
 				odPrice: tt.instancePrice,
 			}
 			candidate := instanceTypeInformation{pricing: prices{}}
@@ -538,10 +548,12 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				"1": {
 					instanceType: "type1", // cheapest, cheaper than ondemand
 					pricing: prices{
-						spot: map[string]float64{
-							"eu-central-1": 0.5,
-							"eu-west-1":    1.0,
-							"eu-west-2":    2.0,
+						LinuxSpotProduct: {
+							spot: map[string]float64{
+								"eu-central-1": 0.5,
+								"eu-west-1":    1.0,
+								"eu-west-2":    2.0,
+							},
 						},
 					},
 					vCPU:                     10,
@@ -555,10 +567,12 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				"2": {
 					instanceType: "type2", // less cheap, but cheaper than ondemand
 					pricing: prices{
-						spot: map[string]float64{
-							"eu-central-1": 0.7,
-							"eu-west-1":    1.0,
-							"eu-west-2":    2.0,
+						LinuxSpotProduct: {
+							spot: map[string]float64{
+								"eu-central-1": 0.7,
+								"eu-west-1":    1.0,
+								"eu-west-2":    2.0,
+							},
 						},
 					},
 					vCPU:                     10,
@@ -572,10 +586,12 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				"3": {
 					instanceType: "type3", // more expensive than ondemand
 					pricing: prices{
-						spot: map[string]float64{
-							"eu-central-1": 0.8,
-							"eu-west-1":    1.0,
-							"eu-west-2":    2.0,
+						LinuxSpotProduct: {
+							spot: map[string]float64{
+								"eu-central-1": 0.8,
+								"eu-west-1":    1.0,
+								"eu-west-2":    2.0,
+							},
 						},
 					},
 					vCPU:                     10,
@@ -608,7 +624,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				region:  &region{},
 			},
 			asg: &autoScalingGroup{
-				name: "test-asg",
+				spotProduct: aws.String(LinuxSpotProduct),
+				name:        "test-asg",
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"id-1": {
@@ -633,10 +650,12 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				"1": {
 					instanceType: "type1",
 					pricing: prices{
-						spot: map[string]float64{
-							"eu-central-1": 0.5,
-							"eu-west-1":    1.0,
-							"eu-west-2":    2.0,
+						LinuxSpotProduct: {
+							spot: map[string]float64{
+								"eu-central-1": 0.5,
+								"eu-west-1":    1.0,
+								"eu-west-2":    2.0,
+							},
 						},
 					},
 					vCPU:                     10,
@@ -650,10 +669,12 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				"2": {
 					instanceType: "type2",
 					pricing: prices{
-						spot: map[string]float64{
-							"eu-central-1": 0.8,
-							"eu-west-1":    1.0,
-							"eu-west-2":    2.0,
+						LinuxSpotProduct: {
+							spot: map[string]float64{
+								"eu-central-1": 0.8,
+								"eu-west-1":    1.0,
+								"eu-west-2":    2.0,
+							},
 						},
 					},
 					vCPU:                     10,
@@ -686,7 +707,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				region:  &region{},
 			},
 			asg: &autoScalingGroup{
-				name: "test-asg",
+				spotProduct: aws.String(LinuxSpotProduct),
+				name:        "test-asg",
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"id-1": {
@@ -715,10 +737,12 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				"1": {
 					instanceType: "type1",
 					pricing: prices{
-						spot: map[string]float64{
-							"eu-central-1": 0.5,
-							"eu-west-1":    1.0,
-							"eu-west-2":    2.0,
+						LinuxSpotProduct: {
+							spot: map[string]float64{
+								"eu-central-1": 0.5,
+								"eu-west-1":    1.0,
+								"eu-west-2":    2.0,
+							},
 						},
 					},
 					vCPU:                     10,
@@ -732,10 +756,12 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				"2": {
 					instanceType: "type2",
 					pricing: prices{
-						spot: map[string]float64{
-							"eu-central-1": 0.8,
-							"eu-west-1":    1.0,
-							"eu-west-2":    2.0,
+						LinuxSpotProduct: {
+							spot: map[string]float64{
+								"eu-central-1": 0.8,
+								"eu-west-1":    1.0,
+								"eu-west-2":    2.0,
+							},
 						},
 					},
 					vCPU:                     10,
@@ -768,7 +794,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				region:  &region{},
 			},
 			asg: &autoScalingGroup{
-				name: "test-asg",
+				spotProduct: aws.String(LinuxSpotProduct),
+				name:        "test-asg",
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"id-1": {
@@ -794,10 +821,12 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				"1": {
 					instanceType: "type1",
 					pricing: prices{
-						spot: map[string]float64{
-							"eu-central-1": 0.5,
-							"eu-west-1":    1.0,
-							"eu-west-2":    2.0,
+						LinuxSpotProduct: {
+							spot: map[string]float64{
+								"eu-central-1": 0.5,
+								"eu-west-1":    1.0,
+								"eu-west-2":    2.0,
+							},
 						},
 					},
 					vCPU:                     10,
@@ -811,10 +840,12 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				"2": {
 					instanceType: "type2",
 					pricing: prices{
-						spot: map[string]float64{
-							"eu-central-1": 0.8,
-							"eu-west-1":    1.0,
-							"eu-west-2":    2.0,
+						LinuxSpotProduct: {
+							spot: map[string]float64{
+								"eu-central-1": 0.8,
+								"eu-west-1":    1.0,
+								"eu-west-2":    2.0,
+							},
 						},
 					},
 					vCPU:                     10,
@@ -847,7 +878,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				region:  &region{},
 			},
 			asg: &autoScalingGroup{
-				name: "test-asg",
+				name:        "test-asg",
+				spotProduct: aws.String(LinuxSpotProduct),
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"id-1": {
@@ -874,10 +906,12 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				"1": {
 					instanceType: "type1",
 					pricing: prices{
-						spot: map[string]float64{
-							"eu-central-1": 0.5,
-							"eu-west-1":    1.0,
-							"eu-west-2":    2.0,
+						LinuxSpotProduct: {
+							spot: map[string]float64{
+								"eu-central-1": 0.5,
+								"eu-west-1":    1.0,
+								"eu-west-2":    2.0,
+							},
 						},
 					},
 					vCPU:                     10,
@@ -891,10 +925,12 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				"2": {
 					instanceType: "type2",
 					pricing: prices{
-						spot: map[string]float64{
-							"eu-central-1": 0.8,
-							"eu-west-1":    1.0,
-							"eu-west-2":    2.0,
+						LinuxSpotProduct: {
+							spot: map[string]float64{
+								"eu-central-1": 0.8,
+								"eu-west-1":    1.0,
+								"eu-west-2":    2.0,
+							},
 						},
 					},
 					vCPU:                     10,
@@ -927,7 +963,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				region:  &region{},
 			},
 			asg: &autoScalingGroup{
-				name: "test-asg",
+				name:        "test-asg",
+				spotProduct: aws.String(LinuxSpotProduct),
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"id-1": {

@@ -16,7 +16,6 @@ func Test_fetch(t *testing.T) {
 	tests := []struct {
 		name             string
 		config           *spotPrices
-		product          string
 		duration         time.Duration
 		availabilityZone *string
 		instanceTypes    []*string
@@ -93,7 +92,7 @@ func Test_fetch(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.config.fetch(tc.product, tc.duration, tc.availabilityZone, tc.instanceTypes)
+			err := tc.config.fetch(tc.duration, tc.availabilityZone, tc.instanceTypes)
 			if len(tc.data) != len(tc.config.data) {
 				t.Errorf("Price data actual: %v\nexpected: %v", tc.config.data, tc.data)
 			}

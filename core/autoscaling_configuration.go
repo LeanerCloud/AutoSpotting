@@ -133,7 +133,6 @@ type AutoScalingConfig struct {
 	SpotPriceBufferPercentage float64
 
 	SpotProductDescription string
-	SpotProductPremium     float64
 
 	BiddingPolicy string
 

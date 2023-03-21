@@ -57,6 +57,18 @@ const (
 	OnDemand = "on-demand"
 	// DefaultGP2ConversionThreshold is the size under which GP3 is more performant than GP2 for both throughput and IOPS
 	DefaultGP2ConversionThreshold = 170
+
+	// LinuxSpotProduct stores the Linux/UNIX spot product name to avoid typos as it's used in various places
+	LinuxSpotProduct = "Linux/UNIX"
+
+	//WindowsSpotProduct stores the Windows spot product name to avoid typos as it's used in various places
+	WindowsSpotProduct = "Windows"
+
+	// RHELSpotProduct stores the RHEL spot product name to avoid typos as it's used in various places
+	RHELSpotProduct = "Red Hat Enterprise Linux"
+
+	// SLESSpotProduct stores the SLES spot product name to avoid typos as it's used in various places
+	SLESSpotProduct = "SUSE Linux"
 )
 
 // Config extends the AutoScalingConfig struct and in addition contains a
@@ -205,15 +217,6 @@ func ParseConfig(conf *Config) {
 			"instances that got significantly more expensive than when they were initially launched\n"+
 			"\tThe tag "+SpotPriceBufferPercentageTag+" can be used to override this on a group level.\n"+
 			"\tIf the bid exceeds the on-demand price, we place a bid at on-demand price itself.\n")
-
-	flagSet.StringVar(&conf.SpotProductDescription, "spot_product_description", DefaultSpotProductDescription,
-		"\n\tThe Spot Product to use when looking up spot price history in the market.\n"+
-			"\tValid choices: Linux/UNIX | SUSE Linux | Windows | Linux/UNIX (Amazon VPC) | \n"+
-			"\tSUSE Linux (Amazon VPC) | Windows (Amazon VPC) | Red Hat Enterprise Linux\n\tDefault value: "+DefaultSpotProductDescription+"\n")
-
-	flagSet.Float64Var(&conf.SpotProductPremium, "spot_product_premium", DefaultSpotProductPremium,
-		"\n\tThe Product Premium to apply to the on demand price to improve spot selection and savings calculations\n"+
-			"\twhen using a premium instance type such as RHEL.")
 
 	flagSet.StringVar(&conf.TagFilteringMode, "tag_filtering_mode", "opt-in", "\n\tControls the behavior of the tag_filters option.\n"+
 		"\tValid choices: opt-in | opt-out\n\tDefault value: 'opt-in'\n\tExample: ./AutoSpotting --tag_filtering_mode opt-out\n")

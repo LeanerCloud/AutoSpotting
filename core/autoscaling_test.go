@@ -991,6 +991,14 @@ func TestScanInstances(t *testing.T) {
 				services: connections{
 					ec2: &mockEC2{
 						dio: &ec2.DescribeInstancesOutput{},
+						damio: &ec2.DescribeImagesOutput{
+							Images: []*ec2.Image{
+								{
+									PlatformDetails: aws.String(LinuxSpotProduct),
+									ImageId:         aws.String("ami-12345"),
+								},
+							},
+						},
 					},
 				},
 				instances: makeInstancesWithCatalog(
@@ -1005,12 +1013,13 @@ func TestScanInstances(t *testing.T) {
 							},
 							typeInfo: instanceTypeInformation{
 								pricing: prices{
-									onDemand: 0.5,
-									premium:  0.0,
-									spot: map[string]float64{
-										"az-1": 0.1,
-										"az-2": 0.2,
-										"az-3": 0.3,
+									LinuxSpotProduct: {
+										onDemand: 0.5,
+										spot: map[string]float64{
+											"az-1": 0.1,
+											"az-2": 0.2,
+											"az-3": 0.3,
+										},
 									},
 								},
 							},
@@ -1024,12 +1033,13 @@ func TestScanInstances(t *testing.T) {
 							},
 							typeInfo: instanceTypeInformation{
 								pricing: prices{
-									onDemand: 0.8,
-									premium:  0.0,
-									spot: map[string]float64{
-										"az-1": 0.4,
-										"az-2": 0.5,
-										"az-3": 0.6,
+									LinuxSpotProduct: {
+										onDemand: 0.8,
+										spot: map[string]float64{
+											"az-1": 0.4,
+											"az-2": 0.5,
+											"az-3": 0.6,
+										},
 									},
 								},
 							},
@@ -1066,11 +1076,13 @@ func TestScanInstances(t *testing.T) {
 					},
 					typeInfo: instanceTypeInformation{
 						pricing: prices{
-							onDemand: 0.5,
-							spot: map[string]float64{
-								"az-1": 0.1,
-								"az-2": 0.2,
-								"az-3": 0.3,
+							LinuxSpotProduct: {
+								onDemand: 0.5,
+								spot: map[string]float64{
+									"az-1": 0.1,
+									"az-2": 0.2,
+									"az-3": 0.3,
+								},
 							},
 						},
 					},
@@ -1086,11 +1098,13 @@ func TestScanInstances(t *testing.T) {
 					},
 					typeInfo: instanceTypeInformation{
 						pricing: prices{
-							onDemand: 0.8,
-							spot: map[string]float64{
-								"az-1": 0.4,
-								"az-2": 0.5,
-								"az-3": 0.6,
+							LinuxSpotProduct: {
+								onDemand: 0.8,
+								spot: map[string]float64{
+									"az-1": 0.4,
+									"az-2": 0.5,
+									"az-3": 0.6,
+								},
 							},
 						},
 					},
@@ -1104,9 +1118,10 @@ func TestScanInstances(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &autoScalingGroup{
-				name:   "testASG",
-				Group:  tt.ec2ASG,
-				region: tt.regionInstances,
+				name:        "testASG",
+				Group:       tt.ec2ASG,
+				region:      tt.regionInstances,
+				spotProduct: aws.String(LinuxSpotProduct),
 			}
 			loadedInstances := a.scanInstances()
 			for _, v := range tt.expectedInstances {
@@ -1544,7 +1559,8 @@ func Test_autoScalingGroup_needReplaceOnDemandInstances(t *testing.T) {
 
 func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 	asgNoInstances := autoScalingGroup{
-		Group: &autoscaling.Group{},
+		spotProduct: aws.String(LinuxSpotProduct),
+		Group:       &autoscaling.Group{},
 		region: &region{
 			conf: &Config{
 				AutoScalingConfig: AutoScalingConfig{
@@ -1559,7 +1575,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 	}
 
 	asgCantTerminateOnDemandInstance := autoScalingGroup{
-
+		spotProduct: aws.String(LinuxSpotProduct),
 		Group: &autoscaling.Group{
 			Instances: []*autoscaling.Instance{
 				{
@@ -1594,9 +1610,11 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 						odPrice: 30.3,
 						typeInfo: instanceTypeInformation{
 							pricing: prices{
-								onDemand: 30.3,
-								spot: spotPriceMap{
-									"us-east-1a": 0.2,
+								LinuxSpotProduct: {
+									onDemand: 30.3,
+									spot: spotPriceMap{
+										"us-east-1a": 0.2,
+									},
 								},
 							},
 						},
@@ -1672,7 +1690,8 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 		{name: "should not run",
 
 			asg: &autoScalingGroup{
-				Group: &autoscaling.Group{},
+				spotProduct: aws.String(LinuxSpotProduct),
+				Group:       &autoscaling.Group{},
 				region: &region{
 					conf: &Config{
 						AutoScalingConfig: AutoScalingConfig{

@@ -77,11 +77,27 @@ func (i *instance) launchSpotReplacement() (*string, error) {
 		return nil, err
 	}
 
+	log.Printf("CreateFleet() response: %#v", resp)
+
 	if resp != nil && len(resp.Instances) > 0 && resp.Instances[0] != nil && len(resp.Instances[0].InstanceIds) > 0 {
+
 		return resp.Instances[0].InstanceIds[0], nil
 	}
 
-	return nil, fmt.Errorf("couldn't launch spot instance replacement")
+	if resp.Errors != nil {
+		errors := getInstanceTypesAndErrorCodes(resp.Errors)
+		return nil, fmt.Errorf("couldn't launch spot instance, encountered errors: %#s", errors)
+	}
+
+	return nil, fmt.Errorf("couldn't launch spot instance because of unknown errors (this code should never be reached)")
+}
+
+func getInstanceTypesAndErrorCodes(errors []*ec2.CreateFleetError) map[string]string {
+	instanceTypesAndErrorCodes := make(map[string]string)
+	for _, e := range errors {
+		instanceTypesAndErrorCodes[*e.LaunchTemplateAndOverrides.Overrides.InstanceType] = *e.ErrorCode
+	}
+	return instanceTypesAndErrorCodes
 }
 
 func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error) {
@@ -184,7 +200,7 @@ func (i *instance) getSwapCandidate() (*instance, error) {
 
 func (i *instance) terminate() error {
 	var err error
-	log.Printf("Instance: %v\n", i)
+	debug.Printf("Instance: %v\n", i)
 
 	log.Printf("Terminating %v", *i.InstanceId)
 	svc := i.region.services.ec2
