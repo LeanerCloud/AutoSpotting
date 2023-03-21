@@ -1574,7 +1574,9 @@ func Test_instance_createFleetInput(t *testing.T) {
 				region: &region{},
 				typeInfo: instanceTypeInformation{
 					pricing: prices{
-						onDemand: 1,
+						LinuxSpotProduct: {
+							onDemand: 1,
+						},
 					},
 				},
 			},
@@ -1629,7 +1631,9 @@ func Test_instance_createFleetInput(t *testing.T) {
 				region: &region{},
 				typeInfo: instanceTypeInformation{
 					pricing: prices{
-						onDemand: 1,
+						LinuxSpotProduct: {
+							onDemand: 1,
+						},
 					},
 				},
 			},

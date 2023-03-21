@@ -17,7 +17,7 @@ type spotPrices struct {
 }
 
 // fetch queries all spot prices in the current region
-func (s *spotPrices) fetch(product string,
+func (s *spotPrices) fetch(
 	duration time.Duration,
 	availabilityZone *string,
 	instanceTypes []*string) error {
@@ -26,9 +26,6 @@ func (s *spotPrices) fetch(product string,
 
 	ec2Conn := s.conn.ec2
 	params := &ec2.DescribeSpotPriceHistoryInput{
-		ProductDescriptions: []*string{
-			aws.String(product),
-		},
 		StartTime:        aws.Time(time.Now().Add(-1 * duration)),
 		EndTime:          aws.Time(time.Now()),
 		AvailabilityZone: availabilityZone,

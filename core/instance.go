@@ -7,9 +7,10 @@ import "github.com/aws/aws-sdk-go/service/ec2"
 
 type instance struct {
 	*ec2.Instance
-	typeInfo  instanceTypeInformation
-	odPrice   float64
-	region    *region
-	protected bool
-	asg       *autoScalingGroup
+	typeInfo    instanceTypeInformation
+	odPrice     float64
+	region      *region
+	protected   bool
+	asg         *autoScalingGroup
+	SpotProduct *string
 }

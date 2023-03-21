@@ -49,6 +49,7 @@ type instanceTypeInformation struct {
 	hasEBSOptimization       bool
 	EBSThroughput            float32
 	generationDelta          int64
+	ebsSurcharge             float64
 }
 
 func makeInstances() instances {

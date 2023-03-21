@@ -207,10 +207,21 @@ func (a *autoScalingGroup) scanInstances() instances {
 			i.protected = i.protected || *inst.ProtectedFromScaleIn
 		}
 
+		spotProduct := a.getSpotProduct()
+
+		if spotProduct == nil {
+			log.Printf("Couldn't find spot product from the ASG when processing instance %s, attempting to get it from its AMI", *inst.InstanceId)
+			spotProduct = i.getSpotProductFromAMI()
+			if spotProduct == nil {
+				log.Printf("Couldn't find spot product from the ASG when processing instance %s", *inst.InstanceId)
+				continue
+			}
+		}
+
 		if i.isSpot() {
-			i.odPrice = i.typeInfo.pricing.spot[*i.Placement.AvailabilityZone]
+			i.odPrice = i.typeInfo.pricing[*spotProduct].spot[*i.Placement.AvailabilityZone]
 		} else {
-			i.odPrice = i.typeInfo.pricing.onDemand + i.typeInfo.pricing.premium
+			i.odPrice = i.typeInfo.pricing[*spotProduct].onDemand
 		}
 
 		// Avoid adding instance in Terminating (Wait|Proceed) Lifecycle State
@@ -304,6 +315,10 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 				if instanceStatus := *autoScalingInstances[0].LifecycleState; instanceStatus != status {
 					log.Printf("Waiting for instance %s to be in status %s [%s]",
 						*instanceID, status, instanceStatus)
+					if instanceStatus == "Terminating" {
+						log.Printf("Instance %s is terminating, no need to wait further", *instanceID)
+						return nil
+					}
 				} else {
 					isInstanceInStatus = true
 					return nil
@@ -642,12 +657,17 @@ func (a *autoScalingGroup) triggerDeployment(appName, deploymentGroupName *strin
 
 // Returns the Spot product set on the ASG tags, and if it doesn't exist, determines it
 // from the AMI of one of the instances and persists it in the same tag.
-func (a *autoScalingGroup) loadSpotProduct() *string {
+func (a *autoScalingGroup) getSpotProduct() *string {
+
+	if a.spotProduct != nil {
+		return a.spotProduct
+	}
+
 	// Check if the Spot product is already set in a tag on the Auto Scaling group
 	spotProductTag := "autospotting_spot_product"
 	for _, tag := range a.Tags {
 		if *tag.Key == spotProductTag {
-			log.Printf("Found Spot product '%s' set in tag on Auto Scaling group '%s'", *tag.Value, a.name)
+			debug.Printf("Found Spot product '%s' set in tag on Auto Scaling group '%s'", *tag.Value, a.name)
 			return tag.Value
 		}
 	}

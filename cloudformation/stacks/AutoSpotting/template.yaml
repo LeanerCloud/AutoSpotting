@@ -42,8 +42,6 @@ Metadata:
           - OnDemandPriceMultiplier
           - PatchBeanstalkUserdata
           - SpotPricePercentageBuffer
-          - SpotProductDescription
-          - SpotProductPremium
           - TerminationNotificationAction
           - CronSchedule
           - CronTimezone
@@ -359,29 +357,6 @@ Parameters:
       'autospotting_spot_price_buffer_percentage' tag set on the AutoScaling
       group. Warning: multiple spot instances may be terminated suddenly once
       the price was reached, use with care!"
-    Type: "Number"
-  SpotProductDescription:
-    AllowedValues:
-      - "Linux/UNIX"
-      - "SUSE Linux"
-      - "Windows"
-      - "Linux/UNIX (Amazon VPC)"
-      - "SUSE Linux (Amazon VPC)"
-      - "Windows (Amazon VPC)"
-      - "Red Hat Enterprise Linux"
-    Default: "Linux/UNIX (Amazon VPC)"
-    Description: >
-      "The Spot Product or operating system to use when looking up spot price
-      history in the market. Valid choices: 'Linux/UNIX | SUSE Linux | Windows
-      | Linux/UNIX (Amazon VPC) | SUSE Linux (Amazon VPC) | Windows (Amazon
-      VPC) | Red Hat Enterprise Linux'"
-    Type: "String"
-  SpotProductPremium:
-    Default: 0.0
-    Description: >
-      "The Product Premium to apply to the on demand price to improve spot
-      selection and savings calculations when using a premium instance type
-      such as RHEL."
     Type: "Number"
   SQSQueueName:
     Default: AutoSpotting.fifo

@@ -157,11 +157,14 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 					instanceStoreDeviceSize:  50.0,
 					instanceStoreIsSSD:       false,
 					pricing: prices{
-						onDemand: 1.2,
+						LinuxSpotProduct: {
+							onDemand: 1.2,
+						},
 					},
 				},
 				odPrice: 0.75,
 				asg: &autoScalingGroup{
+					spotProduct: aws.String(LinuxSpotProduct),
 					Group: &autoscaling.Group{
 						DesiredCapacity: aws.Int64(4),
 					},
@@ -193,10 +196,12 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 						"1": {
 							instanceType: "type1", // cheapest, cheaper than ondemand
 							pricing: prices{
-								spot: map[string]float64{
-									"eu-central-1": 0.5,
-									"eu-west-1":    1.0,
-									"eu-west-2":    2.0,
+								LinuxSpotProduct: {
+									spot: map[string]float64{
+										"eu-central-1": 0.5,
+										"eu-west-1":    1.0,
+										"eu-west-2":    2.0,
+									},
 								},
 							},
 							vCPU:                     10,
@@ -210,10 +215,12 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 						"2": {
 							instanceType: "type2", // less cheap, but cheaper than ondemand
 							pricing: prices{
-								spot: map[string]float64{
-									"eu-central-1": 0.7,
-									"eu-west-1":    1.0,
-									"eu-west-2":    2.0,
+								LinuxSpotProduct: {
+									spot: map[string]float64{
+										"eu-central-1": 0.7,
+										"eu-west-1":    1.0,
+										"eu-west-2":    2.0,
+									},
 								},
 							},
 							vCPU:                     10,
@@ -227,10 +234,12 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 						"3": {
 							instanceType: "type3", // more expensive than ondemand
 							pricing: prices{
-								spot: map[string]float64{
-									"eu-central-1": 0.8,
-									"eu-west-1":    1.0,
-									"eu-west-2":    2.0,
+								LinuxSpotProduct: {
+									spot: map[string]float64{
+										"eu-central-1": 0.8,
+										"eu-west-1":    1.0,
+										"eu-west-2":    2.0,
+									},
 								},
 							},
 							vCPU:                     10,

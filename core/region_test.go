@@ -206,7 +206,7 @@ func TestOnDemandPriceMultiplier(t *testing.T) {
 			}}
 		r.determineInstanceTypeInformation(cfg)
 
-		actualPrice := r.instanceTypeInformation["m1.small"].pricing.onDemand
+		actualPrice := r.instanceTypeInformation["m1.small"].pricing[LinuxSpotProduct].onDemand
 		if math.Abs(actualPrice-tt.want) > 0.000001 {
 			t.Errorf("multiplier = %.2f, pricing.onDemand = %.5f, want %.5f",
 				tt.multiplier, actualPrice, tt.want)

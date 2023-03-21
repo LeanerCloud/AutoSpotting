@@ -22,12 +22,20 @@ import (
 )
 
 func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64 {
-	spotPrice := spotCandidate.pricing.spot[*i.Placement.AvailabilityZone]
+
+	spotProduct := i.asg.getSpotProduct()
+
+	if spotProduct == nil {
+		log.Printf("Couldn't get Spot product for instance: %s", *i.InstanceId)
+		return 0
+	}
+
+	spotPrice := spotCandidate.pricing[*spotProduct].spot[*i.Placement.AvailabilityZone]
 	debug.Println("Comparing price spot/instance:")
 
 	if i.EbsOptimized != nil && *i.EbsOptimized {
-		spotPrice += spotCandidate.pricing.ebsSurcharge
-		debug.Println("\tEBS Surcharge : ", spotCandidate.pricing.ebsSurcharge)
+		spotPrice += spotCandidate.ebsSurcharge
+		debug.Println("\tEBS Surcharge : ", spotCandidate.ebsSurcharge)
 	}
 
 	debug.Println("\tSpot price: ", spotPrice)
@@ -41,8 +49,20 @@ func (i *instance) isSpot() bool {
 }
 
 func (i *instance) getSavings() float64 {
+	var spotProduct *string
+	if i.belongsToEnabledASG() {
+		spotProduct = i.asg.getSpotProduct()
+	} else {
+		spotProduct = i.getSpotProductFromAMI()
+	}
+
+	if spotProduct == nil {
+		log.Printf("Couldn't get Spot product for instance: %s", *i.InstanceId)
+		return 0
+	}
+
 	odPrice := i.getODPrice()
-	spotPrice := i.typeInfo.pricing.spot[*i.Placement.AvailabilityZone]
+	spotPrice := i.typeInfo.pricing[*spotProduct].spot[*i.Placement.AvailabilityZone]
 
 	log.Printf("Calculating savings for instance %s with base OnDemand price %f and Spot price %f\n", *i.InstanceId, odPrice, spotPrice)
 	return math.Abs(odPrice - spotPrice)
@@ -52,7 +72,20 @@ func (i *instance) getODPrice() float64 {
 	if price, err := i.getODPriceFromTag(); err == nil {
 		return price
 	}
-	return i.typeInfo.pricing.onDemand
+
+	var spotProduct *string
+	if i.belongsToEnabledASG() {
+		spotProduct = i.asg.getSpotProduct()
+	} else {
+		spotProduct = i.getSpotProductFromAMI()
+	}
+
+	if spotProduct == nil {
+		log.Printf("Couldn't get Spot product for instance: %s", *i.InstanceId)
+		return 0
+	}
+
+	return i.typeInfo.pricing[*spotProduct].onDemand
 
 }
 
@@ -118,7 +151,7 @@ func (i *instance) shouldBeReplacedWithSpot() bool {
 func (i *instance) belongsToEnabledASG() bool {
 	belongs, asgName := i.belongsToAnASG()
 	if !belongs {
-		log.Printf("%s instane %s doesn't belong to any ASG",
+		log.Printf("%s instance %s doesn't belong to any ASG",
 			i.region.name, *i.InstanceId)
 		return false
 	}
@@ -131,9 +164,17 @@ func (i *instance) belongsToEnabledASG() bool {
 			asg.loadConfigFromTags()
 			asg.loadLaunchConfiguration()
 			asg.loadLaunchTemplate()
-			asg.loadSpotProduct()
+			asg.getSpotProduct()
 			i.asg = &asg
-			i.odPrice = i.typeInfo.pricing.onDemand
+
+			spotProduct := i.asg.getSpotProduct()
+
+			if spotProduct == nil {
+				log.Printf("Couldn't get Spot product for instance: %s", *i.InstanceId)
+				continue
+			}
+
+			i.odPrice = i.typeInfo.pricing[*spotProduct].onDemand
 			log.Printf("%s instace %s belongs to enabled ASG %s", i.region.name,
 				*i.InstanceId, i.asg.name)
 			return true
@@ -425,7 +466,7 @@ func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string,
 			return acceptableInstanceTypes[i].price < acceptableInstanceTypes[j].price
 
 		})
-		log.Println("List of cheapest compatible spot instances found, sorted ascending by price/bias: ",
+		log.Printf("List of cheapest compatible spot instances found, sorted ascending by price/bias: %#v",
 			acceptableInstanceTypes)
 		var result []*string
 		for _, ai := range acceptableInstanceTypes {
@@ -546,6 +587,11 @@ func calculateInstanceTypeGeneration(InstanceType string, itfic *instanceTypeFam
 
 // Retrieves the Spot product associated with the instance's AMI ID.
 func (i *instance) getSpotProductFromAMI() *string {
+
+	if i.SpotProduct != nil {
+		return i.SpotProduct
+	}
+
 	// Retrieve the image details for the AMI ID of the instance
 	ec2Svc := i.region.services.ec2
 	resp, err := ec2Svc.DescribeImages(&ec2.DescribeImagesInput{
@@ -563,7 +609,9 @@ func (i *instance) getSpotProductFromAMI() *string {
 
 	image := resp.Images[0]
 	if image.PlatformDetails != nil {
-		log.Printf("Detected '%s' product for AMI '%s'", *image.PlatformDetails, *i.ImageId)
+		log.Printf("Detected '%s' product for AMI '%s'",
+			*image.PlatformDetails,
+			*i.ImageId)
 		return image.PlatformDetails
 	}
 
