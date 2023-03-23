@@ -2,6 +2,20 @@
 
 ## AutoSpotting - Community Edition ##
 
+Additional features for increased reliability and better performance are 
+released in the commercial version of AutoSpotting, available on the AWS 
+[Marketplace](https://aws.amazon.com/marketplace/pp/prodview-6uj4pruhgmun6).
+
+Most new features and bug fixes developed by the main author after July 2022 are
+only made available in the commercial offering. The only exception are security
+fixes, which will be patched in the Community Edition on a best effort basis.
+
+Bug fixes and occasionally also new features contributed by the community will
+remain available in the Community Edition indefinitely.
+
+The list of ehnancements in the Commercial edition is documented in detail 
+[here](https://github.com/LeanerCloud/AutoSpotting/discussions/489).
+
 <img src="logo.png" width="150" align="right">
 
 [![BuildStatus](https://travis-ci.org/LeanerCloud/AutoSpotting.svg?branch=master)](https://travis-ci.org/LeanerCloud/AutoSpotting)
@@ -173,18 +187,10 @@ The Community Edition is open for contributions, submitted according to the cont
 Individuals and companies supporting the development of the open source code
 get free of charge support in getting their code merged upstream.
 
-### Official binaries ###
+### Community Edition ###
 
-The source code is and will always be open source, so you can build and run
+The source code from this repo is and will always be open source, so you can build and run
 it yourself, see how it works and even enhance it if you want.
-
-Additional Enterprise features are made available on the commercial version of AutoSpotting, available on the AWS
-[Marketplace](https://aws.amazon.com/marketplace/pp/prodview-6uj4pruhgmun6).
-
-Currently most new features developed by the main author are only made available
-in the commercial offering, but bug fixes and occasionally also new features are
-also made available in the Community Edition. The list of changes is documented
-in detail [here](https://github.com/LeanerCloud/AutoSpotting/discussions/489).
 
 Any external contributions to the Community Edition will be remain available to all
 Community Edition users, but also included in future versions of the commercial edition.
