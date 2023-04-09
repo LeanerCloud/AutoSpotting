@@ -13,7 +13,7 @@ make artifacts
 
 make upload
 
-export TEMPLATE_URL="https://s3.amazonaws.com/cloudprowess/${FLAVOR}-$VERSION/template.yaml"
+export TEMPLATE_URL="https://s3.amazonaws.com/autospotting-builds/${FLAVOR}-$VERSION/template.yaml"
 export CFN_INSTALL_PREFIX="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/template?stackName=AutoSpotting&templateURL"
 
 echo CloudFormation template URL: $TEMPLATE_URL
