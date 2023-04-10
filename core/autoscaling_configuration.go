@@ -136,11 +136,6 @@ type AutoScalingConfig struct {
 
 	BiddingPolicy string
 
-	TerminationMethod string
-
-	// Instance termination method
-	InstanceTerminationMethod string
-
 	// Termination Notification action
 	TerminationNotificationAction string
 

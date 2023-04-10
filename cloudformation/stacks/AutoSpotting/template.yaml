@@ -37,7 +37,6 @@ Metadata:
           - BiddingPolicy
           - EnableInstanceRebalanceRecommendation
           - ExecutionFrequency
-          - InstanceTerminationMethod
           - OnDemandPriceMultiplier
           - SpotPricePercentageBuffer
           - TerminationNotificationAction
@@ -193,13 +192,6 @@ Parameters:
       suddenly replace all your AutoScaling group members, especially if you
       don't have a grace period configured. Only change this if you really
       know what you're doing!"
-    Type: "String"
-  InstanceTerminationMethod:
-    Default: "autoscaling"
-    Description: >
-      "Instance termination method. Must be one of 'autoscaling' (default) or
-      'detach' - compatibility mode, not recommended because it won't execute
-      the termination lifecycle hooks"
     Type: "String"
   TerminationNotificationAction:
     AllowedValues:
@@ -478,8 +470,6 @@ Resources:
             Ref: "EnableInstanceRebalanceRecommendation"
           DISALLOWED_INSTANCE_TYPES:
             Ref: "DisallowedInstanceTypes"
-          INSTANCE_TERMINATION_METHOD:
-            Ref: "InstanceTerminationMethod"
           MIN_ON_DEMAND_NUMBER:
             Ref: "MinOnDemandNumber"
           MIN_ON_DEMAND_PERCENTAGE:
@@ -758,7 +748,7 @@ Resources:
 
   LogGroup:
     UpdateReplacePolicy: Retain
-    DeletionPolicy: Delete
+    DeletionPolicy: Retain
     Properties:
       LogGroupName:
         Fn::Sub: /aws/lambda/${LambdaFunction}
@@ -1219,7 +1209,7 @@ Resources:
 
   FargateLogGroup:
     UpdateReplacePolicy: Retain
-    DeletionPolicy: Delete
+    DeletionPolicy: Retain
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName:

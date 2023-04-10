@@ -176,10 +176,6 @@ func ParseConfig(conf *Config) {
 			"\tAccepts a list of comma or whitespace separated instance types (supports globs).\n"+
 			"\tExample: ./AutoSpotting -disallowed_instance_types 't2.*,c4.xlarge'\n")
 
-	flagSet.StringVar(&conf.InstanceTerminationMethod, "instance_termination_method", DefaultInstanceTerminationMethod,
-		"\n\tInstance termination method.  Must be one of '"+DefaultInstanceTerminationMethod+"' (default),\n"+
-			"\t or 'detach' (compatibility mode, not recommended)\n")
-
 	flagSet.Int64Var(&conf.MinOnDemandNumber, "min_on_demand_number", DefaultMinOnDemandValue,
 		"\n\tNumber of on-demand nodes to be kept running in each of the groups.\n\t"+
 			"Can be overridden on a per-group basis using the tag "+OnDemandNumberLong+".\n")
