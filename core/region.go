@@ -5,7 +5,6 @@ package autospotting
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"path/filepath"
 	"strconv"
@@ -508,43 +507,6 @@ func (r *region) findEnabledASGByName(name string) *autoScalingGroup {
 			return &asg
 		}
 	}
-	return nil
-}
-
-func (r *region) sqsSendMessageOnInstanceLaunch(asgName, instanceID, instanceState *string, instanceLifecycle string) error {
-	inputJSON := "{\"version\":\"0\",\"id\":\"890abcde-f123-4567-890a-bcdef1234567\"," +
-		"\"detail-type\":\"EC2 Instance State-change Notification\",\"source\":\"aws.events\"," +
-		"\"account\":\"\",\"time\":\"" + time.Now().Format(time.RFC3339) + "\"," +
-		"\"region\":\"" + r.name + "\"," +
-		"\"resources\":[\"arn:aws:events:us-east-1:123456789012:rule/SampleRule\"]," +
-		"\"detail\":" +
-		"{\"instance-id\":\"" + *instanceID + "\",\"state\":\"" + *instanceState + "\"}" + "}"
-
-	svc := r.services.sqs
-
-	groupID := fmt.Sprintf("%s-%s", r.name, *asgName)
-	// truncate to 125 characters, fixing #470
-	groupID = groupID[0:min(len(groupID), 125)]
-
-	// replace whitespaces with dashes, fixing #494
-	groupID = strings.ReplaceAll(groupID, " ", "-")
-
-	_, err := svc.SendMessage(
-		&sqs.SendMessageInput{
-			MessageBody:    &inputJSON,
-			MessageGroupId: aws.String(groupID),
-			QueueUrl:       &r.conf.SQSQueueURL,
-		})
-
-	if err != nil {
-		log.Printf("%s Error sending %s instance %s launch event message "+
-			"to the SQS Queue %s: %s", r.name, instanceLifecycle, *instanceID, r.conf.SQSQueueURL, err)
-		return err
-	}
-
-	log.Printf("%s Successfully sent %s instance %s launch event message "+
-		"to the SQS Queue %s", r.name, instanceLifecycle, *instanceID, r.conf.SQSQueueURL)
-
 	return nil
 }
 

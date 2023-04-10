@@ -421,8 +421,6 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 		"attempting to swap it against a running on-demand instance",
 		i.region.name, *i.InstanceId)
 
-	i.region.sqsSendMessageOnInstanceLaunch(asgName, i.InstanceId, i.State.Name, "lifecycle-hook-handling")
-
 	return nil
 }
 
@@ -480,7 +478,11 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) error {
 	var spotInstanceID *string
 	var err error
+	lifecycle := "on-demand"
 
+	if i.InstanceLifecycle != nil {
+		lifecycle = *i.InstanceLifecycle
+	}
 	if i.isSpot() {
 		log.Printf("%s skipping Spot instance %s: only replacing new On Demand instances",
 			i.region.name, *i.InstanceId)
@@ -491,20 +493,12 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 	if !i.shouldBeReplacedWithNewSpotInstance() {
 		log.Printf("%s skipping %s instance %s: either doesn't belong to an "+
 			"enabled ASG or should not be replaced with spot, ",
-			i.region.name, *i.InstanceLifecycle, *i.InstanceId)
+			i.region.name, lifecycle, *i.InstanceId)
 		debug.Printf("%#v", i)
 		return nil
 	}
 
 	i.waitForBeanstalkDeployments()
-
-	// In case we're not triggered by SQS event we generate such an event and send it to the queue.
-	// We want to delay the further below code for until we're processing it through the SQS queue,
-	// in order to avoid launching Spot instances too early and having them run outside their ASG
-	// for too long.
-	if len(a.config.sqsReceiptHandle) == 0 {
-		return i.region.sqsSendMessageOnInstanceLaunch(&i.asg.name, i.InstanceId, i.State.Name, "on-demand-instance-launch")
-	}
 
 	// we anyway need to delete the message, but if we delete it now,
 	// the queue will allow us to process more instances in parallel
