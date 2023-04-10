@@ -66,50 +66,12 @@ func (i *instance) convertLaunchConfigurationBlockDeviceMappings(BDMs []*autosca
 				Iops:                BDM.Ebs.Iops,
 				SnapshotId:          BDM.Ebs.SnapshotId,
 				VolumeSize:          BDM.Ebs.VolumeSize,
-				VolumeType:          convertLaunchConfigurationEBSVolumeType(BDM.Ebs, i.asg),
+				VolumeType:          BDM.Ebs.VolumeType,
 			}
 		}
 
 		// handle the noDevice field directly by skipping the device if set to true
 		if BDM.NoDevice != nil && *BDM.NoDevice {
-			continue
-		}
-		bds = append(bds, ec2BDM)
-	}
-
-	if len(bds) == 0 {
-		return nil
-	}
-	return bds
-}
-
-func (i *instance) convertLaunchTemplateBlockDeviceMappings(BDMs []*ec2.LaunchTemplateBlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
-
-	bds := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
-	if len(BDMs) == 0 {
-		log.Println("Missing LT block device mappings")
-	}
-
-	for _, BDM := range BDMs {
-
-		ec2BDM := &ec2.LaunchTemplateBlockDeviceMappingRequest{
-			DeviceName:  BDM.DeviceName,
-			VirtualName: BDM.VirtualName,
-		}
-
-		if BDM.Ebs != nil {
-			ec2BDM.Ebs = &ec2.LaunchTemplateEbsBlockDeviceRequest{
-				DeleteOnTermination: BDM.Ebs.DeleteOnTermination,
-				Encrypted:           BDM.Ebs.Encrypted,
-				Iops:                BDM.Ebs.Iops,
-				SnapshotId:          BDM.Ebs.SnapshotId,
-				VolumeSize:          BDM.Ebs.VolumeSize,
-				VolumeType:          convertLaunchTemplateEBSVolumeType(BDM.Ebs, i.asg),
-			}
-		}
-
-		// handle the noDevice field directly by skipping the device if set to true, apparently NoDevice is here a string instead of a bool.
-		if BDM.NoDevice != nil && *BDM.NoDevice == "true" {
 			continue
 		}
 		bds = append(bds, ec2BDM)
@@ -142,7 +104,7 @@ func (i *instance) convertImageBlockDeviceMappings(BDMs []*ec2.BlockDeviceMappin
 				Iops:                BDM.Ebs.Iops,
 				SnapshotId:          BDM.Ebs.SnapshotId,
 				VolumeSize:          BDM.Ebs.VolumeSize,
-				VolumeType:          convertImageEBSVolumeType(BDM.Ebs, i.asg),
+				VolumeType:          BDM.Ebs.VolumeType,
 			}
 		}
 
@@ -157,76 +119,6 @@ func (i *instance) convertImageBlockDeviceMappings(BDMs []*ec2.BlockDeviceMappin
 		return nil
 	}
 	return bds
-}
-
-func convertLaunchConfigurationEBSVolumeType(ebs *autoscaling.Ebs, a *autoScalingGroup) *string {
-	// convert IO1 to IO2 in supported regions
-	r := a.region.name
-	asg := a.name
-
-	if ebs.VolumeType == nil {
-		log.Println(r, ": Empty EBS VolumeType while converting LC volume for ASG", asg)
-		return nil
-	}
-
-	if *ebs.VolumeType == "io1" && supportedIO2region(r) {
-		log.Println(r, ": Converting IO1 volume to IO2 for new instance launched for", asg)
-		return aws.String("io2")
-	}
-
-	// convert GP2 to GP3 below the threshold where GP2 becomes more performant. The Threshold is configurable
-	if *ebs.VolumeType == "gp2" && *ebs.VolumeSize <= a.config.GP2ConversionThreshold {
-		log.Println(r, ": Converting GP2 EBS volume to GP3 for new instance launched for", asg)
-		return aws.String("gp3")
-	}
-	log.Println(r, ": No EBS volume conversion could be done for", asg)
-	return ebs.VolumeType
-}
-
-func convertLaunchTemplateEBSVolumeType(ebs *ec2.LaunchTemplateEbsBlockDevice, a *autoScalingGroup) *string {
-	// convert IO1 to IO2 in supported regions
-	r := a.region.name
-	asg := a.name
-	if *ebs.VolumeType == "io1" && supportedIO2region(r) {
-		log.Println(r, ": Converting IO1 volume to IO2 for new instance launched for", asg)
-		return aws.String("io2")
-	}
-
-	// convert GP2 to GP3 below the threshold where GP2 becomes more performant. The Threshold is configurable
-	if *ebs.VolumeType == "gp2" && *ebs.VolumeSize <= a.config.GP2ConversionThreshold {
-		log.Println(r, ": Converting GP2 EBS volume to GP3 for new instance launched for", asg)
-		return aws.String("gp3")
-	}
-	log.Println(r, ": No EBS volume conversion could be done for", asg)
-	return ebs.VolumeType
-}
-
-func convertImageEBSVolumeType(ebs *ec2.EbsBlockDevice, a *autoScalingGroup) *string {
-	// convert IO1 to IO2 in supported regions
-	r := a.region.name
-	asg := a.name
-	if *ebs.VolumeType == "io1" && supportedIO2region(r) {
-		log.Println(r, ": Converting IO1 volume to IO2 for new instance launched for", asg)
-		return aws.String("io2")
-	}
-
-	// convert GP2 to GP3 below the threshold where GP2 becomes more performant. The Threshold is configurable
-	if *ebs.VolumeType == "gp2" && *ebs.VolumeSize <= a.config.GP2ConversionThreshold {
-		log.Println(r, ": Converting GP2 EBS volume to GP3 for new instance launched for", asg)
-		return aws.String("gp3")
-	}
-	log.Println(r, ": No EBS volume conversion could be done for", asg)
-	return ebs.VolumeType
-}
-
-func supportedIO2region(region string) bool {
-	for _, r := range unsupportedIO2Regions {
-		if region == r {
-			log.Println("IO2 EBS volumes are not available in", region)
-			return false
-		}
-	}
-	return true
 }
 
 func (i *instance) convertSecurityGroups() []*string {
@@ -257,97 +149,15 @@ func (i *instance) getlaunchTemplate(id, ver *string) (*ec2.ResponseLaunchTempla
 	return nil, fmt.Errorf("missing launch template version information")
 }
 
-func (i *instance) processLaunchTemplate(retval *ec2.RequestLaunchTemplateData) error {
-	ver := i.asg.LaunchTemplate.Version
-	id := i.asg.LaunchTemplate.LaunchTemplateId
-
-	ltData, err := i.getlaunchTemplate(id, ver)
-	if err != nil {
-		return err
-	}
-
-	// see https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#RequestLaunchTemplateData for the attributes we need to copy over to the new LT
-
-	// currently omitted fields:
-	// ElasticGpuSpecifications - not sure about the use case for this, but I'm open to add it later
-	// ElasticInferenceAccelerators - not sure about the use case for this, but I'm open to add it later
-	// EnclaveOptions - not sure about the use case for this, but I'm open to add it later
-	// HibernationOptions - not sure about the use case for this, but I'm open to add it later
-	// InstanceMarketOptions - needs to be set to Spot anyway
-	// InstanceType - not needed because we pass more instance types
-	// KernelId - probably not needed, should be determined from the AMI
-	// LicenseSpecifications - probably not needed, should be determined from the AMI
-	// MetadataOptions - not sure what's the use case for changing this
-	// Placement - determined dynamically when launching each Spot instance
-	// RamDiskId probably not needed, should be determined from the AMI
-
-	retval.BlockDeviceMappings = i.convertLaunchTemplateBlockDeviceMappings(ltData.BlockDeviceMappings)
-
-	if ltData.CapacityReservationSpecification != nil {
-		retval.CapacityReservationSpecification = &ec2.LaunchTemplateCapacityReservationSpecificationRequest{
-			CapacityReservationPreference: ltData.CapacityReservationSpecification.CapacityReservationPreference,
-			CapacityReservationTarget:     (*ec2.CapacityReservationTarget)(ltData.CapacityReservationSpecification.CapacityReservationTarget),
-		}
-	}
-
-	retval.CpuOptions = (*ec2.LaunchTemplateCpuOptionsRequest)(ltData.CpuOptions)
-
-	retval.CreditSpecification = (*ec2.CreditSpecificationRequest)(ltData.CreditSpecification)
-
-	retval.DisableApiTermination = ltData.DisableApiTermination
-
-	retval.EbsOptimized = ltData.EbsOptimized
-
-	retval.IamInstanceProfile = (*ec2.LaunchTemplateIamInstanceProfileSpecificationRequest)(ltData.IamInstanceProfile)
-
-	retval.ImageId = ltData.ImageId
-
-	retval.InstanceInitiatedShutdownBehavior = ltData.InstanceInitiatedShutdownBehavior
-
-	retval.KeyName = ltData.KeyName
-
-	retval.Monitoring = (*ec2.LaunchTemplatesMonitoringRequest)(ltData.Monitoring)
-
-	if having, nis := i.launchTemplateHasNetworkInterfaces(ltData); having {
-		for _, ni := range nis {
-			retval.NetworkInterfaces = append(retval.NetworkInterfaces,
-				&ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
-					AssociatePublicIpAddress: ni.AssociatePublicIpAddress,
-					SubnetId:                 i.SubnetId,
-					DeviceIndex:              ni.DeviceIndex,
-					Groups:                   i.convertSecurityGroups(),
-				},
-			)
-		}
-		retval.SecurityGroupIds = nil
-		retval.SecurityGroups = nil
-	} else {
-		retval.NetworkInterfaces = nil
-		retval.SecurityGroupIds = append(retval.SecurityGroupIds, ltData.SecurityGroupIds...)
-		retval.SecurityGroups = append(retval.SecurityGroups, ltData.SecurityGroups...)
-	}
-
-	if retval.SecurityGroupIds != nil {
-		retval.SecurityGroupIds = removeDuplicateStr(retval.SecurityGroupIds)
-	}
-	if retval.SecurityGroups != nil {
-		retval.SecurityGroups = removeDuplicateStr(retval.SecurityGroups)
-	}
-
-	if i.asg.config.PatchBeanstalkUserdata {
-		retval.UserData = getPatchedUserDataForBeanstalk(ltData.UserData)
-	} else {
-		retval.UserData = ltData.UserData
-	}
-
-	return nil
-}
-
 func (i *instance) processLaunchConfiguration(retval *ec2.RequestLaunchTemplateData) {
 	lc := i.asg.launchConfiguration
 
 	if lc.KeyName != nil && *lc.KeyName != "" {
 		retval.KeyName = lc.KeyName
+	}
+
+	if lc.SecurityGroups != nil {
+		retval.SecurityGroupIds = lc.SecurityGroups
 	}
 
 	if lc.IamInstanceProfile != nil {
@@ -363,11 +173,7 @@ func (i *instance) processLaunchConfiguration(retval *ec2.RequestLaunchTemplateD
 	}
 	retval.ImageId = lc.ImageId
 
-	if i.asg.config.PatchBeanstalkUserdata {
-		retval.UserData = getPatchedUserDataForBeanstalk(lc.UserData)
-	} else {
-		retval.UserData = lc.UserData
-	}
+	retval.UserData = lc.UserData
 
 	BDMs := i.convertLaunchConfigurationBlockDeviceMappings(lc.BlockDeviceMappings)
 
@@ -387,7 +193,7 @@ func (i *instance) processLaunchConfiguration(retval *ec2.RequestLaunchTemplateD
 				AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
 				DeviceIndex:              aws.Int64(0),
 				SubnetId:                 i.SubnetId,
-				Groups:                   i.convertSecurityGroups(),
+				Groups:                   lc.SecurityGroups,
 			},
 		}
 		retval.SecurityGroupIds = nil
@@ -433,17 +239,13 @@ func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2.Requ
 	// be set first because they may also be set in the network configuration of
 	// the LT or LC, in which case the below initialization will be reverted.
 
-	ltData.SecurityGroupIds = i.convertSecurityGroups()
+	sgs := i.convertSecurityGroups()
+	if len(sgs) > 0 {
+		ltData.SecurityGroupIds = sgs
+	}
 
 	i.processImageBlockDevices(&ltData)
 
-	if i.asg.LaunchTemplate != nil {
-		err := i.processLaunchTemplate(&ltData)
-		if err != nil {
-			log.Println("failed to process launch template, the resulting instance configuration may be incomplete", err.Error())
-			return nil, err
-		}
-	}
 	if i.asg.launchConfiguration != nil {
 		i.processLaunchConfiguration(&ltData)
 	}
@@ -461,15 +263,13 @@ func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2.Requ
 
 	ltData.Placement = &placement
 
-	ltData.TagSpecifications = i.generateTagsList()
-
-	debug.Printf("ltData: %+#v\n", ltData)
+	log.Printf("ltData: %+#v\n", ltData)
 
 	return &ltData, nil
 }
 
-func (i *instance) createFleetLaunchTemplate(ltData *ec2.RequestLaunchTemplateData) (*string, error) {
-	ltName := "AutoSpotting-Temporary-LaunchTemplate-for-" + *i.Instance.InstanceId
+func (i *instance) createFleetLaunchTemplate(ltData *ec2.RequestLaunchTemplateData) (*string, *string, error) {
+	ltName := "AutoSpotting-Converted-LaunchTemplate-for-" + i.asg.name
 
 	_, err := i.region.services.ec2.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(ltName),
@@ -480,16 +280,16 @@ func (i *instance) createFleetLaunchTemplate(ltData *ec2.RequestLaunchTemplateDa
 		log.Println("failed to create LaunchTemplate,", err.Error())
 		// if the LT already exists maybe from a previous failed run we take it and use it
 		if !strings.Contains(err.Error(), "AlreadyExistsException") {
-			return nil, err
+			return nil, nil, err
 		}
 		log.Println("Reusing existing LaunchTemplate ", ltName)
 		err = nil
 	}
 
-	return &ltName, err
+	return &ltName, aws.String("$Latest"), err
 }
 
-func (i *instance) createFleetInput(ltName *string, instanceTypes []*string, lifeCycle string) *ec2.CreateFleetInput {
+func (i *instance) createFleetInput(ltName *string, ltVersion *string, instanceTypes []*string, lifeCycle string) *ec2.CreateFleetInput {
 
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 
@@ -511,13 +311,14 @@ func (i *instance) createFleetInput(ltName *string, instanceTypes []*string, lif
 			{
 				LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 					LaunchTemplateName: ltName,
-					Version:            aws.String("$Latest"),
+					Version:            ltVersion,
 				},
 				Overrides: overrides,
 			},
 		},
 		SpotOptions: &ec2.SpotOptionsRequest{
 			AllocationStrategy: aws.String(i.asg.config.SpotAllocationStrategy),
+			MaxTotalPrice:      aws.String(strconv.FormatFloat(i.odPrice, 'g', 10, 64)),
 		},
 		OnDemandOptions: &ec2.OnDemandOptionsRequest{
 			AllocationStrategy: aws.String("prioritized"),
@@ -528,6 +329,7 @@ func (i *instance) createFleetInput(ltName *string, instanceTypes []*string, lif
 			TotalTargetCapacity:       aws.Int64(1),
 			DefaultTargetCapacityType: aws.String("spot"),
 		},
+		TagSpecifications: i.generateTagsList(),
 	}
 	if lifeCycle != "spot" {
 		log.Printf("Overriding default capacity type to ondemand\n")
@@ -538,8 +340,8 @@ func (i *instance) createFleetInput(ltName *string, instanceTypes []*string, lif
 	return retval
 }
 
-func (i *instance) generateTagsList() []*ec2.LaunchTemplateTagSpecificationRequest {
-	tags := ec2.LaunchTemplateTagSpecificationRequest{
+func (i *instance) generateTagsList() []*ec2.TagSpecification {
+	tags := ec2.TagSpecification{
 		ResourceType: aws.String("instance"),
 		Tags: []*ec2.Tag{
 			{
@@ -579,7 +381,9 @@ func (i *instance) generateTagsList() []*ec2.LaunchTemplateTagSpecificationReque
 
 	tags.Tags = append(tags.Tags, filterTags(i.Tags)...)
 
-	return []*ec2.LaunchTemplateTagSpecificationRequest{&tags}
+	tags.Tags = deduplicateTags(tags.Tags)
+
+	return []*ec2.TagSpecification{&tags}
 }
 
 func filterTags(tags []*ec2.Tag) []*ec2.Tag {
@@ -601,4 +405,19 @@ func filterTags(tags []*ec2.Tag) []*ec2.Tag {
 		}
 	}
 	return tl
+}
+
+func deduplicateTags(tags []*ec2.Tag) []*ec2.Tag {
+	seen := make(map[string]bool)
+	deduplicatedTags := make([]*ec2.Tag, 0)
+
+	for _, tag := range tags {
+		key := *tag.Key
+		if _, ok := seen[key]; !ok {
+			seen[key] = true
+			deduplicatedTags = append(deduplicatedTags, tag)
+		}
+	}
+
+	return deduplicatedTags
 }
