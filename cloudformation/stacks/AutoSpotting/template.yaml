@@ -37,10 +37,8 @@ Metadata:
           - BiddingPolicy
           - EnableInstanceRebalanceRecommendation
           - ExecutionFrequency
-          - GP2ConversionThreshold
           - InstanceTerminationMethod
           - OnDemandPriceMultiplier
-          - PatchBeanstalkUserdata
           - SpotPricePercentageBuffer
           - TerminationNotificationAction
           - CronSchedule
@@ -184,15 +182,6 @@ Parameters:
       'autospotting_disallowed_instance_types' tag set on the AutoScaling
       group. It also supports globs, such as 't2.*,m4.large'"
     Type: "String"
-  GP2ConversionThreshold:
-    Default: 170
-    Description: >
-      "The EBS volume size below which to automatically replace GP2 EBS volumes
-      to the newer GP3 volume type, that's 20% cheaper and more performant than
-      GP2 for smaller sizes, but it's not getting more performant wth size as
-      GP2 does. Over 170 GB GP2 gets better throughput, and at 1TB GP2 also has
-      better IOPS than a baseline GP3 volume."
-    Type: Number
   ExecutionFrequency:
     Default: "rate(30 minutes)"
     Description: >
@@ -379,19 +368,6 @@ Parameters:
       groups except for those tagged with 'spot-enabled=false' or other values
       configured in the same 'FilterByTags' option"
     Type: "String"
-  PatchBeanstalkUserdata:
-    Default: "false"
-    AllowedValues:
-      - "false"
-      - "true"
-    Description: >
-      "Controls whether AutoSpotting patches Elastic Beanstalk UserData
-      scripts to use the instance role when calling CloudFormation helpers
-      instead of the standard CloudFormation authentication method.
-      After creating this CloudFormation stack, you must add the
-      AutoSpotting's ElasticBeanstalk managed policy to your Beanstalk
-      instance profile/role if you turn this option to On"
-    Type: "String"
   ConsiderEBSBandwidth:
     Default: "false"
     AllowedValues:
@@ -502,8 +478,6 @@ Resources:
             Ref: "EnableInstanceRebalanceRecommendation"
           DISALLOWED_INSTANCE_TYPES:
             Ref: "DisallowedInstanceTypes"
-          EBS_GP2_CONVERSION_THRESHOLD:
-            Ref: "GP2ConversionThreshold"
           INSTANCE_TERMINATION_METHOD:
             Ref: "InstanceTerminationMethod"
           MIN_ON_DEMAND_NUMBER:
@@ -528,8 +502,6 @@ Resources:
             Ref: "FilterByTags"
           TERMINATION_NOTIFICATION_ACTION:
             Ref: "TerminationNotificationAction"
-          PATCH_BEANSTALK_USERDATA:
-            Ref: "PatchBeanstalkUserdata"
           CONSIDER_EBS_BANDWIDTH:
             Ref: "ConsiderEBSBandwidth"
           SQS_QUEUE_URL:
@@ -828,22 +800,6 @@ Resources:
               - "Arn"
           Id: "AutoSpottingEventGenerator"
     Type: "AWS::Events::Rule"
-
-  ElasticBeanstalkPolicy:
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      Description: "Allow instances to get initialization information from CloudFormation when they are a part of a Beanstalk cluster. Add this policy to your Elastic Beanstalk instance profile (role) when enabling patch_beanstalk_userdata in AutoSpotting. (Managed policy created by AutoSpotting)"
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Action:
-              - "cloudformation:DescribeStackResource"
-              - "cloudformation:DescribeStackResources"
-              - "cloudformation:SignalResource"
-              - "cloudformation:RegisterListener"
-              - "cloudformation:GetListenerCredentials"
-            Effect: "Allow"
-            Resource: "*"
 
   # As per https://docs.aws.amazon.com/lambda/latest/dg/images-create.html
   # Lambda functions using Docker images currently require an ECR repository

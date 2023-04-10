@@ -148,12 +148,6 @@ type AutoScalingConfig struct {
 	CronTimezone      string
 	CronScheduleState string // "on" or "off", dictate whether to run inside the CronSchedule or not
 
-	PatchBeanstalkUserdata bool
-
-	// Threshold for converting EBS volumes from GP2 to GP3, since after a certain
-	// size GP2 may be more performant than GP3.
-	GP2ConversionThreshold int64
-
 	// Controls the instance type selection when launching new Spot instances.
 	// Further information about this is available at
 	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-fleet-allocation-strategy.html
@@ -269,25 +263,6 @@ func (a *autoScalingGroup) loadConfOnDemand() bool {
 	return foundLimit
 }
 
-func (a *autoScalingGroup) loadPatchBeanstalkUserdata() bool {
-	tagValue := a.getTagValue(PatchBeanstalkUserdataTag)
-
-	if tagValue != nil {
-		log.Printf("Loaded PatchBeanstalkUserdata value %v from tag %v\n", *tagValue, PatchBeanstalkUserdataTag)
-		val, err := strconv.ParseBool(*tagValue)
-
-		if err != nil {
-			log.Printf("Failed to parse PatchBeanstalkUserdata value %v as a boolean", *tagValue)
-			return false
-		}
-		a.config.PatchBeanstalkUserdata = val
-		return true
-	}
-	debug.Println("Couldn't find tag", PatchBeanstalkUserdataTag, "on the group", a.name, "using the default configuration")
-	a.config.PatchBeanstalkUserdata = a.region.conf.PatchBeanstalkUserdata
-	return false
-}
-
 func (a *autoScalingGroup) loadSpotAllocationStrategy() bool {
 	a.config.SpotAllocationStrategy = a.region.conf.SpotAllocationStrategy
 
@@ -338,29 +313,6 @@ func (a *autoScalingGroup) loadConsiderEBSBandwidth() bool {
 	debug.Println("Couldn't find tag", ConsiderEBSBandwidthTag, "on the group", a.name, "using the default configuration")
 	a.config.ConsiderEBSBandwidth = a.region.conf.ConsiderEBSBandwidth
 	return false
-}
-
-func (a *autoScalingGroup) loadGP2ConversionThreshold() bool {
-	// setting the default value
-	a.config.GP2ConversionThreshold = a.region.conf.GP2ConversionThreshold
-
-	tagValue := a.getTagValue(GP2ConversionThresholdTag)
-	if tagValue == nil {
-		log.Printf("Couldn't load the GP2ConversionThreshold from tag %v, using the globally configured value of %v\n", GP2ConversionThresholdTag, a.config.GP2ConversionThreshold)
-		return false
-	}
-
-	log.Printf("Loaded GP2ConversionThreshold value %v from tag %v\n", *tagValue, GP2ConversionThresholdTag)
-
-	threshold, err := strconv.Atoi(*tagValue)
-	if err != nil {
-		log.Printf("Error parsing %v qs integer: %s\n", *tagValue, err.Error())
-		return false
-	}
-
-	debug.Println("Successfully parsed", GP2ConversionThresholdTag, "on the group", a.name, "overriding the default configuration")
-	a.config.GP2ConversionThreshold = int64(threshold)
-	return true
 }
 
 func (a *autoScalingGroup) loadBiddingPolicy(tagValue *string) (string, bool) {
@@ -529,18 +481,8 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 		ret = true
 	}
 
-	if a.loadPatchBeanstalkUserdata() {
-		log.Println("Found and applied configuration for Beanstalk Userdata")
-		ret = true
-	}
-
 	if a.loadConsiderEBSBandwidth() {
 		log.Println("Found and applied configuration for EBS Bandwidth")
-		ret = true
-	}
-
-	if a.loadGP2ConversionThreshold() {
-		log.Println("Found and applied configuration for GP2 Conversion Threshold")
 		ret = true
 	}
 
