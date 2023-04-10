@@ -1,4 +1,4 @@
-export VERSION=1.1.3-1
+export VERSION=1.2.0-rc2
 
 export FLAVOR=$1
 export SAVINGS_CUT=$2
@@ -6,7 +6,7 @@ export PROMOTION_DAYS=$3
 
 export DOCKER_IMAGE_VERSION=$FLAVOR-$VERSION
 
-export GOARCH=arm64
+export GOARCH=amd64
 
 make docker-marketplace
 make artifacts

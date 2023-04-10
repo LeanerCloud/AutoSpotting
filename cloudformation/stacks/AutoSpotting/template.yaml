@@ -124,7 +124,7 @@ Parameters:
     AllowedValues:
       - arm64
       - x86_64
-    Default: arm64
+    Default: x86_64
     Description: >
       "The CPU architecture to use for running the AutoSpotting Docker image"
   CronSchedule:
