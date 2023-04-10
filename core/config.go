@@ -107,11 +107,6 @@ type Config struct {
 	// The percentage of the savings
 	SavingsCut float64
 
-	// Controls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use
-	// the instance role when calling CloudFormation helpers instead of the standard CloudFormation
-	// authentication method
-	PatchBeanstalkUserdata bool
-
 	// JSON file containing event data used for locally simulating execution from Lambda.
 	EventFile string
 
@@ -239,19 +234,6 @@ func ParseConfig(conf *Config) {
 	flagSet.StringVar(&conf.SQSQueueURL, "sqs_queue_url", "", "\n\tThe Url of the SQS fifo queue used to manage spot replacement actions. "+
 		"This needs to exist in the same region as the main AutoSpotting Lambda function"+
 		"\tExample: ./AutoSpotting --sqs_queue_url https://sqs.{AwsRegion}.amazonaws.com/{AccountId}/AutoSpotting.fifo\n")
-
-	flagSet.BoolVar(&conf.PatchBeanstalkUserdata, "patch_beanstalk_userdata", false,
-		"\n\tControls whether AutoSpotting patches Elastic Beanstalk UserData scripts to use the "+
-			"instance role when calling CloudFormation helpers instead of the standard CloudFormation "+
-			"authentication method\n"+
-			"\tExample: ./AutoSpotting --patch_beanstalk_userdata true\n")
-
-	flagSet.Int64Var(&conf.GP2ConversionThreshold, "ebs_gp2_conversion_threshold", DefaultGP2ConversionThreshold,
-		"\n\tThe EBS volume size below which to automatically replace GP2 EBS volumes to the newer GP3 "+
-			"volume type, that's 20% cheaper and more performant than GP2 for smaller sizes, but it's not "+
-			"getting more performant wth size as GP2 does. Over 170 GB GP2 gets better throughput, and at "+
-			"1TB GP2 also has better IOPS than a baseline GP3 volume.\n"+
-			"\tExample: ./AutoSpotting --ebs_gp2_conversion_threshold 170\n")
 
 	flagSet.BoolVar(&conf.EnableInstanceRebalanceRecommendation, "enable_instance_rebalance_recommendation", false,
 		"\n\tEnables handling of instance rebalance recommendation events.\n"+
