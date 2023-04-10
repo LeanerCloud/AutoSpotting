@@ -42,7 +42,14 @@ func (i *instance) launchOnDemandReplacement() (*string, error) {
 	return i.launchReplacement("")
 }
 
-func (i *instance) launchReplacement(replacementLifecycle string) (*string, error) {
+// reuse the Launch Template of the ASG if the ASG is using a launch template or
+// clone Launch Configuration into a new temporary Launch Template for this ASG
+func (i *instance) createOrReuseLaunchTemplate(replacementLifecycle string) (*string, *string, error) {
+
+	if i.asg.LaunchTemplate != nil {
+		log.Printf("Reusing the Launch template from the ASG %s", i.asg.name)
+		return i.asg.LaunchTemplate.LaunchTemplateName, i.asg.LaunchTemplate.Version, nil
+	}
 
 	ltData, err := i.createLaunchTemplateData(replacementLifecycle)
 
@@ -50,19 +57,22 @@ func (i *instance) launchReplacement(replacementLifecycle string) (*string, erro
 
 	if err != nil {
 		log.Println("failed to create LaunchTemplate data,", err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 
-	lt, err := i.createFleetLaunchTemplate(ltData)
+	ltName, ltVersion, err := i.createFleetLaunchTemplate(ltData)
 
-	debug.Printf("Fleet Launch Template: %+#v", lt)
+	log.Printf("Using Launch Template: %s with version %s", *ltName, *ltVersion)
 
 	if err != nil {
 		log.Println(i.region, i.asg.name, "createFleetLaunchTemplate() failure:", err.Error())
-		return nil, err
+		return nil, nil, err
 	}
+	return ltName, ltVersion, nil
+}
 
-	defer i.deleteLaunchTemplate(lt)
+func (i *instance) launchReplacement(replacementLifecycle string) (*string, error) {
+
 	instanceTypes, err := i.getCompatibleSpotInstanceTypesList(
 		i.asg.config.PrioritizedInstanceTypesBias,
 		i.asg.config.AllowedInstanceTypes,
@@ -73,7 +83,13 @@ func (i *instance) launchReplacement(replacementLifecycle string) (*string, erro
 		return nil, err
 	}
 
-	cfi := i.createFleetInput(lt, instanceTypes, replacementLifecycle)
+	ltName, ltVersion, err := i.createOrReuseLaunchTemplate(replacementLifecycle)
+	if err != nil {
+		log.Println("Couldn't create or determine the Launch Template")
+		return nil, err
+	}
+
+	cfi := i.createFleetInput(ltName, ltVersion, instanceTypes, replacementLifecycle)
 
 	debug.Printf("Fleet Input: %+#v", cfi)
 
@@ -143,7 +159,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 			return nil, fmt.Errorf("couldn't attach spot instance: %w", err)
 		}
 
-		if err := i.terminateInstanceInAutoScalingGroup(asg); err != nil {
+		if err := odInstance.terminateInstanceInAutoScalingGroup(asg); err != nil {
 			return nil, fmt.Errorf("couldn't terminate on-demand instance: %w", err)
 		}
 
@@ -152,8 +168,9 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 
 	} else if desiredCapacity > minSize {
 		// we can terminate on-demand instance first and then attach the spot instance.
-		if err := i.terminateInstanceInAutoScalingGroup(asg); err != nil {
-			return nil, fmt.Errorf("couldn't terminate on-demand instance: %w", err)
+
+		if err := odInstance.terminateInstanceInAutoScalingGroup(asg); err != nil {
+			return nil, fmt.Errorf("couldn't terminate instance %s: %w", *i.InstanceId, err)
 		}
 
 		log.Printf("%s: Terminated on-demand instance %s", asg.name, *odInstance.InstanceId)

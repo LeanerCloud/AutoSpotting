@@ -4,9 +4,7 @@
 package autospotting
 
 import (
-	"encoding/base64"
 	"errors"
-	"io/ioutil"
 	"reflect"
 	"sort"
 	"testing"
@@ -181,166 +179,6 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 				},
 			},
 		},
-
-		{
-			name: "GP2 EBS to be converted to GP3 when size it below the configured threshold",
-			BDMs: []*autoscaling.BlockDeviceMapping{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &autoscaling.Ebs{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(10),
-						VolumeType:          aws.String("gp2"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "not-blacklisted",
-					},
-					config: AutoScalingConfig{
-						GP2ConversionThreshold: 100,
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(10),
-						VolumeType:          aws.String("gp3"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-		},
-		{
-			name: "GP2 EBS to be kept as it is when size it above the configured threshold",
-			BDMs: []*autoscaling.BlockDeviceMapping{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &autoscaling.Ebs{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(150),
-						VolumeType:          aws.String("gp2"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "not-blacklisted",
-					},
-					config: AutoScalingConfig{
-						GP2ConversionThreshold: 100,
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(150),
-						VolumeType:          aws.String("gp2"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-		},
-		{
-			name: "Provision IO2 EBS volume instead of IO1 in a supported region",
-			BDMs: []*autoscaling.BlockDeviceMapping{
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &autoscaling.Ebs{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io1"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "supported",
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io2"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-		},
-		{
-			name: "Provision IO1 EBS volume instead of replacing to IO2 in an unsupported region",
-			BDMs: []*autoscaling.BlockDeviceMapping{
-
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &autoscaling.Ebs{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io1"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "us-gov-west-1",
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io1"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -409,270 +247,13 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 }
 
 func Test_instance_createLaunchTemplateData(t *testing.T) {
-	beanstalkUserDataExample, err := ioutil.ReadFile("../test_data/beanstalk_userdata_example.txt")
-	if err != nil {
-		t.Errorf("Unable to read Beanstalk UserData example")
-	}
-
-	beanstalkUserDataWrappedExample, err := ioutil.ReadFile("../test_data/beanstalk_userdata_wrapped_example.txt")
-	if err != nil {
-		t.Errorf("Unable to read Beanstalk UserData wrapped example")
-	}
 
 	tests := []struct {
 		name string
 		inst instance
 		want *ec2.RequestLaunchTemplateData
 	}{
-		{
-			name: "createLaunchTemplateData() with basic launch template",
-			inst: instance{
-				spotProduct: aws.String(LinuxSpotProduct),
-				typeInfo: instanceTypeInformation{
-					pricing: prices{
-						LinuxSpotProduct: {
-							onDemand: 1.5,
-						},
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: mockEC2{
-							dltverr: nil,
-							damio: &ec2.DescribeImagesOutput{
-								Images: []*ec2.Image{},
-							},
-							dltvo: &ec2.DescribeLaunchTemplateVersionsOutput{
-								LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{
-									{
-										LaunchTemplateData: &ec2.ResponseLaunchTemplateData{},
-									},
-								},
-							},
-						},
-					},
-				},
-				asg: &autoScalingGroup{
-					name:        "mygroup",
-					spotProduct: aws.String(LinuxSpotProduct),
-					Group: &autoscaling.Group{
-						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
-							LaunchTemplateId: aws.String("lt-id"),
-							Version:          aws.String("v1"),
-						},
-					},
-					config: AutoScalingConfig{
-						OnDemandPriceMultiplier: 1,
-					},
-				},
-				Instance: &ec2.Instance{
-					EbsOptimized: aws.Bool(true),
 
-					IamInstanceProfile: &ec2.IamInstanceProfile{
-						Arn: aws.String("profile-arn"),
-					}, InstanceId: aws.String("i-foo"),
-
-					InstanceType: aws.String("t2.medium"),
-
-					Placement: &ec2.Placement{
-						Affinity: aws.String("foo"),
-					},
-
-					SecurityGroups: []*ec2.GroupIdentifier{
-						{
-							GroupName: aws.String("foo"),
-							GroupId:   aws.String("sg-123"),
-						},
-						{
-							GroupName: aws.String("bar"),
-							GroupId:   aws.String("sg-456"),
-						},
-					},
-
-					SubnetId: aws.String("subnet-123"),
-				},
-			},
-			want: &ec2.RequestLaunchTemplateData{
-				EbsOptimized: aws.Bool(true),
-				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
-					MarketType: aws.String(Spot),
-					SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
-						MaxPrice: aws.String("1.5"),
-					},
-				},
-
-				Placement: &ec2.LaunchTemplatePlacementRequest{
-					Affinity: aws.String("foo"),
-				},
-
-				SecurityGroupIds: []*string{
-					aws.String("sg-123"),
-					aws.String("sg-456"),
-				},
-
-				TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
-					ResourceType: aws.String("instance"),
-					Tags: []*ec2.Tag{
-						{
-							Key:   aws.String("LaunchTemplateID"),
-							Value: aws.String("lt-id"),
-						},
-						{
-							Key:   aws.String("LaunchTemplateVersion"),
-							Value: aws.String("v1"),
-						},
-						{
-							Key:   aws.String("launched-by-autospotting"),
-							Value: aws.String("true"),
-						},
-						{
-							Key:   aws.String("launched-for-asg"),
-							Value: aws.String("mygroup"),
-						},
-						{
-							Key:   aws.String("launched-for-replacing-instance"),
-							Value: aws.String("i-foo"),
-						},
-						{
-							Key:   aws.String("odPrice"),
-							Value: aws.String("1.5"),
-						},
-					},
-				},
-				},
-			},
-		},
-		{
-			name: "createLaunchTemplateData() with launch template containing advanced network configuration",
-			inst: instance{
-				spotProduct: aws.String(LinuxSpotProduct),
-				typeInfo: instanceTypeInformation{
-					pricing: prices{
-						LinuxSpotProduct: {
-							onDemand: 1.5,
-						},
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: mockEC2{
-							damio: &ec2.DescribeImagesOutput{
-								Images: []*ec2.Image{},
-							},
-							dltverr: nil,
-							dltvo: &ec2.DescribeLaunchTemplateVersionsOutput{
-								LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{
-									{
-										LaunchTemplateData: &ec2.ResponseLaunchTemplateData{
-											KeyName: aws.String("mykey"),
-											NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecification{
-												{
-													Description: aws.String("dummy network interface definition"),
-												},
-											},
-											UserData: aws.String("dummy"),
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-				asg: &autoScalingGroup{
-					name:        "mygroup",
-					spotProduct: aws.String(LinuxSpotProduct),
-					config: AutoScalingConfig{
-						OnDemandPriceMultiplier: 1,
-					},
-					Group: &autoscaling.Group{
-						LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
-							LaunchTemplateId: aws.String("lt-id"),
-							Version:          aws.String("v1"),
-						},
-					},
-				},
-				Instance: &ec2.Instance{
-					EbsOptimized: aws.Bool(true),
-
-					IamInstanceProfile: &ec2.IamInstanceProfile{
-						Arn: aws.String("profile-arn"),
-					},
-					InstanceId:   aws.String("i-foo"),
-					InstanceType: aws.String("t2.medium"),
-					KeyName:      aws.String("mykey"),
-
-					Placement: &ec2.Placement{
-						Affinity: aws.String("foo"),
-					},
-
-					SecurityGroups: []*ec2.GroupIdentifier{
-						{
-							GroupName: aws.String("foo"),
-							GroupId:   aws.String("sg-123"),
-						},
-						{
-							GroupName: aws.String("bar"),
-							GroupId:   aws.String("sg-456"),
-						},
-					},
-
-					SubnetId: aws.String("subnet-123"),
-				},
-			},
-			want: &ec2.RequestLaunchTemplateData{
-				EbsOptimized: aws.Bool(true),
-
-				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
-					MarketType: aws.String(Spot),
-					SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
-						MaxPrice: aws.String("1.5"),
-					},
-				},
-				KeyName: aws.String("mykey"),
-				NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
-					{
-						Groups:   []*string{aws.String("sg-123"), aws.String("sg-456")},
-						SubnetId: aws.String("subnet-123"),
-					},
-				},
-
-				Placement: &ec2.LaunchTemplatePlacementRequest{
-					Affinity: aws.String("foo"),
-				},
-
-				TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
-					ResourceType: aws.String("instance"),
-					Tags: []*ec2.Tag{
-						{
-							Key:   aws.String("LaunchTemplateID"),
-							Value: aws.String("lt-id"),
-						},
-						{
-							Key:   aws.String("LaunchTemplateVersion"),
-							Value: aws.String("v1"),
-						},
-						{
-							Key:   aws.String("launched-by-autospotting"),
-							Value: aws.String("true"),
-						},
-						{
-							Key:   aws.String("launched-for-asg"),
-							Value: aws.String("mygroup"),
-						},
-						{
-							Key:   aws.String("launched-for-replacing-instance"),
-							Value: aws.String("i-foo"),
-						},
-						{
-							Key:   aws.String("odPrice"),
-							Value: aws.String("1.5"),
-						},
-					},
-				},
-				},
-				UserData: aws.String("dummy"),
-			},
-		},
 		{
 			name: "createLaunchTemplateData() with simple LC",
 			inst: instance{
@@ -769,32 +350,6 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					aws.String("sg-123"),
 					aws.String("sg-456"),
 				},
-
-				TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
-					ResourceType: aws.String("instance"),
-					Tags: []*ec2.Tag{
-						{
-							Key:   aws.String("LaunchConfigurationName"),
-							Value: aws.String("myLC"),
-						},
-						{
-							Key:   aws.String("launched-by-autospotting"),
-							Value: aws.String("true"),
-						},
-						{
-							Key:   aws.String("launched-for-asg"),
-							Value: aws.String("mygroup"),
-						}, {
-							Key:   aws.String("launched-for-replacing-instance"),
-							Value: aws.String("i-foo"),
-						},
-						{
-							Key:   aws.String("odPrice"),
-							Value: aws.String("1.5"),
-						},
-					},
-				},
-				},
 				UserData: aws.String("userdata"),
 			},
 		},
@@ -843,6 +398,10 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 							},
 							AssociatePublicIpAddress: aws.Bool(true),
 							UserData:                 aws.String("userdata"),
+							SecurityGroups: []*string{
+								aws.String("sg-123"),
+								aws.String("sg-456"),
+							},
 						},
 					},
 				},
@@ -920,181 +479,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					},
 				},
 
-				TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
-					ResourceType: aws.String("instance"),
-					Tags: []*ec2.Tag{
-						{
-							Key:   aws.String("LaunchConfigurationName"),
-							Value: aws.String("myLC"),
-						},
-						{
-							Key:   aws.String("launched-by-autospotting"),
-							Value: aws.String("true"),
-						},
-						{
-							Key:   aws.String("launched-for-asg"),
-							Value: aws.String("mygroup"),
-						},
-						{
-							Key:   aws.String("launched-for-replacing-instance"),
-							Value: aws.String("i-foo"),
-						},
-						{
-							Key:   aws.String("odPrice"),
-							Value: aws.String("1.5"),
-						},
-					},
-				},
-				},
 				UserData: aws.String("userdata"),
-			},
-		},
-		{
-			name: "createLaunchTemplateData() with customized UserData for Beanstalk",
-			inst: instance{
-				spotProduct: aws.String(LinuxSpotProduct),
-				typeInfo: instanceTypeInformation{
-					pricing: prices{
-						LinuxSpotProduct: {
-							onDemand: 1.5,
-						},
-					},
-				},
-				region: &region{
-					services: connections{
-						ec2: mockEC2{
-							damio: &ec2.DescribeImagesOutput{
-								Images: []*ec2.Image{},
-							},
-						},
-					},
-				},
-				asg: &autoScalingGroup{
-					name:        "mygroup",
-					spotProduct: aws.String(LinuxSpotProduct),
-					Group: &autoscaling.Group{
-						LaunchConfigurationName: aws.String("myLC"),
-					},
-					launchConfiguration: &launchConfiguration{
-						LaunchConfiguration: &autoscaling.LaunchConfiguration{
-							IamInstanceProfile: aws.String("profile-name"),
-							ImageId:            aws.String("ami-12345"),
-							InstanceMonitoring: &autoscaling.InstanceMonitoring{
-								Enabled: aws.Bool(true),
-							},
-							KeyName: aws.String("current-key"),
-							BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
-								{
-									DeviceName: aws.String("foo"),
-								},
-							},
-							AssociatePublicIpAddress: aws.Bool(true),
-							UserData:                 aws.String(string(beanstalkUserDataExample)),
-						},
-					},
-					config: AutoScalingConfig{
-						PatchBeanstalkUserdata:  true,
-						OnDemandPriceMultiplier: 1,
-					},
-				},
-				Instance: &ec2.Instance{
-					EbsOptimized: aws.Bool(true),
-
-					IamInstanceProfile: &ec2.IamInstanceProfile{
-						Arn: aws.String("profile-arn"),
-					},
-					ImageId:      aws.String("ami-123"),
-					InstanceType: aws.String("t2.medium"),
-					KeyName:      aws.String("older-key"),
-
-					Placement: &ec2.Placement{
-						Affinity: aws.String("foo"),
-					},
-
-					SecurityGroups: []*ec2.GroupIdentifier{
-						{
-							GroupName: aws.String("foo"),
-							GroupId:   aws.String("sg-123"),
-						},
-						{
-							GroupName: aws.String("bar"),
-							GroupId:   aws.String("sg-456"),
-						},
-					},
-
-					SubnetId: aws.String("subnet-123"),
-				},
-			},
-			want: &ec2.RequestLaunchTemplateData{
-				BlockDeviceMappings: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-					{
-						DeviceName: aws.String("foo"),
-					},
-				},
-
-				EbsOptimized: aws.Bool(true),
-
-				IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
-					Name: aws.String("profile-name"),
-				},
-
-				ImageId: aws.String("ami-12345"),
-
-				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
-					MarketType: aws.String(Spot),
-					SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
-						MaxPrice: aws.String("1.5"),
-					},
-				},
-
-				KeyName: aws.String("current-key"),
-
-				Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
-					Enabled: aws.Bool(true),
-				},
-
-				Placement: &ec2.LaunchTemplatePlacementRequest{
-					Affinity: aws.String("foo"),
-				},
-
-				NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
-					{
-						AssociatePublicIpAddress: aws.Bool(true),
-						DeviceIndex:              aws.Int64(0),
-						SubnetId:                 aws.String("subnet-123"),
-						Groups: []*string{
-							aws.String("sg-123"),
-							aws.String("sg-456"),
-						},
-					},
-				},
-
-				TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{{
-					ResourceType: aws.String("instance"),
-					Tags: []*ec2.Tag{
-						{
-							Key:   aws.String("LaunchConfigurationName"),
-							Value: aws.String("myLC"),
-						},
-						{
-							Key:   aws.String("launched-by-autospotting"),
-							Value: aws.String("true"),
-						},
-						{
-							Key:   aws.String("launched-for-asg"),
-							Value: aws.String("mygroup"),
-						},
-						{
-							Key: aws.String("launched-for-replacing-instance"),
-						},
-						{
-							Key:   aws.String("odPrice"),
-							Value: aws.String("1.5"),
-						},
-					},
-				},
-				},
-				UserData: aws.String(base64.StdEncoding.EncodeToString(beanstalkUserDataWrappedExample)),
 			},
 		},
 	}
@@ -1103,224 +488,8 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 
 			got, _ := tt.inst.createLaunchTemplateData("spot")
 
-			// make sure the lists of tags are sorted, otherwise the comparison fails
-			sort.Slice(got.TagSpecifications[0].Tags, func(i, j int) bool {
-				return *got.TagSpecifications[0].Tags[i].Key < *got.TagSpecifications[0].Tags[j].Key
-			})
-			sort.Slice(tt.want.TagSpecifications[0].Tags, func(i, j int) bool {
-				return *tt.want.TagSpecifications[0].Tags[i].Key < *tt.want.TagSpecifications[0].Tags[j].Key
-			})
-
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Instance.createLaunchTemplateData() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_instance_convertLaunchTemplateBlockDeviceMappings(t *testing.T) {
-	tests := []struct {
-		name string
-		BDMs []*ec2.LaunchTemplateBlockDeviceMapping
-		i    *instance
-		want []*ec2.LaunchTemplateBlockDeviceMappingRequest
-	}{
-		{
-			name: "nil block device mapping",
-			BDMs: nil,
-			i:    &instance{},
-			want: nil,
-		},
-		{
-			name: "instance-store only, skipping one of the volumes from the BDMs",
-			BDMs: []*ec2.LaunchTemplateBlockDeviceMapping{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					NoDevice:    aws.String("true"),
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName:  aws.String("/dev/ephemeral1"),
-					Ebs:         nil,
-					VirtualName: aws.String("bar"),
-				},
-			},
-			i: &instance{},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName:  aws.String("/dev/ephemeral1"),
-					Ebs:         nil,
-					VirtualName: aws.String("bar"),
-				},
-			},
-		},
-
-		{
-			name: "GP2 EBS to be converted to GP3 when size it below the configured threshold",
-			BDMs: []*ec2.LaunchTemplateBlockDeviceMapping{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDevice{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(10),
-						VolumeType:          aws.String("gp2"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "not-blacklisted",
-					},
-					config: AutoScalingConfig{
-						GP2ConversionThreshold: 100,
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(10),
-						VolumeType:          aws.String("gp3"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-		},
-		{
-			name: "GP2 EBS to be kept as it is when size it above the configured threshold",
-			BDMs: []*ec2.LaunchTemplateBlockDeviceMapping{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDevice{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(150),
-						VolumeType:          aws.String("gp2"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "not-blacklisted",
-					},
-					config: AutoScalingConfig{
-						GP2ConversionThreshold: 100,
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(150),
-						VolumeType:          aws.String("gp2"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-		},
-		{
-			name: "Provision IO2 EBS volume instead of IO1 in a supported region",
-			BDMs: []*ec2.LaunchTemplateBlockDeviceMapping{
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDevice{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io1"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "supported",
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io2"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-		},
-		{
-			name: "Provision IO1 EBS volume instead of replacing to IO2 in an unsupported region",
-			BDMs: []*ec2.LaunchTemplateBlockDeviceMapping{
-
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDevice{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io1"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "us-gov-west-1",
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io1"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.i.convertLaunchTemplateBlockDeviceMappings(tt.BDMs); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("instance.convertLaunchTemplateBlockDeviceMappings() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1363,224 +532,11 @@ func Test_instance_convertImageBlockDeviceMappings(t *testing.T) {
 				},
 			},
 		},
-
-		{
-			name: "GP2 EBS to be converted to GP3 when size it below the configured threshold",
-			BDMs: []*ec2.BlockDeviceMapping{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.EbsBlockDevice{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(10),
-						VolumeType:          aws.String("gp2"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "not-blacklisted",
-					},
-					config: AutoScalingConfig{
-						GP2ConversionThreshold: 100,
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(10),
-						VolumeType:          aws.String("gp3"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-		},
-		{
-			name: "GP2 EBS to be kept as it is when size it above the configured threshold",
-			BDMs: []*ec2.BlockDeviceMapping{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.EbsBlockDevice{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(150),
-						VolumeType:          aws.String("gp2"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "not-blacklisted",
-					},
-					config: AutoScalingConfig{
-						GP2ConversionThreshold: 100,
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName:  aws.String("/dev/ephemeral0"),
-					Ebs:         nil,
-					VirtualName: aws.String("foo"),
-				},
-				{
-					DeviceName: aws.String("/dev/xvda"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(false),
-						VolumeSize:          aws.Int64(150),
-						VolumeType:          aws.String("gp2"),
-					},
-					VirtualName: aws.String("bar"),
-				},
-			},
-		},
-		{
-			name: "Provision IO2 EBS volume instead of IO1 in a supported region",
-			BDMs: []*ec2.BlockDeviceMapping{
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.EbsBlockDevice{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io1"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "supported",
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io2"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-		},
-		{
-			name: "Provision IO1 EBS volume instead of replacing to IO2 in an unsupported region",
-			BDMs: []*ec2.BlockDeviceMapping{
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.EbsBlockDevice{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io1"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-			i: &instance{
-				asg: &autoScalingGroup{
-					name: "asg-with",
-					region: &region{
-						name: "us-gov-west-1",
-					},
-				},
-			},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-				{
-					DeviceName: aws.String("/dev/xvdb"),
-					Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
-						DeleteOnTermination: aws.Bool(true),
-						VolumeSize:          aws.Int64(20),
-						VolumeType:          aws.String("io1"),
-					},
-					VirtualName: aws.String("baz"),
-				},
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.i.convertImageBlockDeviceMappings(tt.BDMs); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("instance.convertImageBlockDeviceMappings() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_convertLaunchConfigurationEBSVolumeType(t *testing.T) {
-	tests := []struct {
-		name string
-		ebs  *autoscaling.Ebs
-		a    *autoScalingGroup
-		want *string
-	}{
-		{
-			name: "nil volume type",
-			a: &autoScalingGroup{
-				region: &region{
-					name: "us-east-1",
-				},
-			},
-			ebs: &autoscaling.Ebs{
-				VolumeType: nil,
-			},
-			want: nil,
-		},
-
-		{
-			name: "IO1 in region supported by IO2",
-			a: &autoScalingGroup{
-				region: &region{
-					name: "us-east-1",
-				},
-			},
-			ebs: &autoscaling.Ebs{
-				VolumeType: aws.String("io1"),
-			},
-			want: aws.String("io2"),
-		},
-		{
-			name: "IO1 in region not supported by IO2",
-			a: &autoScalingGroup{
-				region: &region{
-					name: "cn-northwest-1",
-				},
-			},
-			ebs: &autoscaling.Ebs{
-				VolumeType: aws.String("io1"),
-			},
-			want: aws.String("io1"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := convertLaunchConfigurationEBSVolumeType(tt.ebs, tt.a); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("convertLaunchConfigurationEBSVolumeType() = %v, want %v", spew.Sdump(got), spew.Sdump(tt.want))
 			}
 		})
 	}
@@ -1592,24 +548,48 @@ func Test_instance_createFleetInput(t *testing.T) {
 		name          string
 		i             *instance
 		ltName        *string
+		ltVersion     *string
 		instanceTypes []*string
 		want          *ec2.CreateFleetInput
 	}{
 		{
-			name:   "test generating list of overrides with capacity-optimized-prioritized",
-			ltName: aws.String("testLT"),
+			name:      "test generating list of overrides with capacity-optimized-prioritized",
+			ltName:    aws.String("testLT"),
+			ltVersion: aws.String("$Latest"),
 			instanceTypes: []*string{
 				aws.String("instance-type1"),
 				aws.String("instance-type2"),
 			},
 			i: &instance{
 				spotProduct: aws.String(LinuxSpotProduct),
+				odPrice:     2,
 				Instance: &ec2.Instance{
 					SubnetId: aws.String("subnet-id"),
 				},
 				asg: &autoScalingGroup{
 					config: AutoScalingConfig{
 						SpotAllocationStrategy: "capacity-optimized-prioritized",
+					},
+
+					Group: &autoscaling.Group{
+						LaunchConfigurationName: aws.String("myLC"),
+					},
+					launchConfiguration: &launchConfiguration{
+						LaunchConfiguration: &autoscaling.LaunchConfiguration{
+							IamInstanceProfile: aws.String("profile-name"),
+							ImageId:            aws.String("ami-12345"),
+							InstanceMonitoring: &autoscaling.InstanceMonitoring{
+								Enabled: aws.Bool(true),
+							},
+							KeyName: aws.String("current-key"),
+							BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+								{
+									DeviceName: aws.String("foo"),
+								},
+							},
+							AssociatePublicIpAddress: aws.Bool(true),
+							UserData:                 aws.String("userdata"),
+						},
 					},
 				},
 				region: &region{},
@@ -1647,6 +627,33 @@ func Test_instance_createFleetInput(t *testing.T) {
 				},
 				SpotOptions: &ec2.SpotOptionsRequest{
 					AllocationStrategy: aws.String("capacity-optimized-prioritized"),
+					MaxTotalPrice:      aws.String("2"),
+				},
+				TagSpecifications: []*ec2.TagSpecification{
+					{
+						ResourceType: aws.String("instance"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("launched-by-autospotting"),
+								Value: aws.String("true"),
+							},
+							{
+								Key:   aws.String("launched-for-asg"),
+								Value: aws.String(""),
+							},
+							{
+								Key: aws.String("launched-for-replacing-instance"),
+							},
+							{
+								Key:   aws.String("odPrice"),
+								Value: aws.String("2"),
+							},
+							{
+								Key:   aws.String("LaunchConfigurationName"),
+								Value: aws.String("myLC"),
+							},
+						},
+					},
 				},
 				TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 					DefaultTargetCapacityType: aws.String("spot"),
@@ -1657,14 +664,16 @@ func Test_instance_createFleetInput(t *testing.T) {
 			},
 		},
 		{
-			name:   "test generating list of overrides with capacity-optimized",
-			ltName: aws.String("testLT"),
+			name:      "test generating list of overrides with capacity-optimized",
+			ltName:    aws.String("testLT"),
+			ltVersion: aws.String("$Latest"),
 			instanceTypes: []*string{
 				aws.String("instance-type1"),
 				aws.String("instance-type2"),
 			},
 			i: &instance{
 				spotProduct: aws.String(LinuxSpotProduct),
+				odPrice:     2,
 				Instance: &ec2.Instance{
 					SubnetId: aws.String("subnet-id"),
 				},
@@ -1672,7 +681,28 @@ func Test_instance_createFleetInput(t *testing.T) {
 					config: AutoScalingConfig{
 						SpotAllocationStrategy: "capacity-optimized",
 					},
+					Group: &autoscaling.Group{
+						LaunchConfigurationName: aws.String("myLC"),
+					},
+					launchConfiguration: &launchConfiguration{
+						LaunchConfiguration: &autoscaling.LaunchConfiguration{
+							IamInstanceProfile: aws.String("profile-name"),
+							ImageId:            aws.String("ami-12345"),
+							InstanceMonitoring: &autoscaling.InstanceMonitoring{
+								Enabled: aws.Bool(true),
+							},
+							KeyName: aws.String("current-key"),
+							BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+								{
+									DeviceName: aws.String("foo"),
+								},
+							},
+							AssociatePublicIpAddress: aws.Bool(true),
+							UserData:                 aws.String("userdata"),
+						},
+					},
 				},
+
 				region: &region{},
 				typeInfo: instanceTypeInformation{
 					pricing: prices{
@@ -1706,6 +736,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 				},
 				SpotOptions: &ec2.SpotOptionsRequest{
 					AllocationStrategy: aws.String("capacity-optimized"),
+					MaxTotalPrice:      aws.String("2"),
 				},
 				TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
 					DefaultTargetCapacityType: aws.String("spot"),
@@ -1713,6 +744,32 @@ func Test_instance_createFleetInput(t *testing.T) {
 					TotalTargetCapacity:       aws.Int64(1),
 				},
 				Type: aws.String("instant"),
+				TagSpecifications: []*ec2.TagSpecification{
+					{
+						ResourceType: aws.String("instance"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("launched-by-autospotting"),
+								Value: aws.String("true"),
+							},
+							{
+								Key:   aws.String("launched-for-asg"),
+								Value: aws.String(""),
+							},
+							{
+								Key: aws.String("launched-for-replacing-instance"),
+							},
+							{
+								Key:   aws.String("odPrice"),
+								Value: aws.String("2"),
+							},
+							{
+								Key:   aws.String("LaunchConfigurationName"),
+								Value: aws.String("myLC"),
+							},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -1720,7 +777,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got := tt.i.createFleetInput(tt.ltName, tt.instanceTypes, "spot")
+			got := tt.i.createFleetInput(tt.ltName, tt.ltVersion, tt.instanceTypes, "spot")
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("instance.createFleetInput() = %v, want %v", got, tt.want)
@@ -1731,37 +788,38 @@ func Test_instance_createFleetInput(t *testing.T) {
 
 func Test_instance_createFleetLaunchTemplate(t *testing.T) {
 	tests := []struct {
-		name       string
-		ltData     *ec2.RequestLaunchTemplateData
-		instanceID string
-		cltErr     error
-		want       *string
-		wantErr    bool
+		name          string
+		ltData        *ec2.RequestLaunchTemplateData
+		asgName       string
+		cltErr        error
+		wantLTName    *string
+		wantLTVersion *string
+		wantErr       bool
 	}{
 		{
-			name:       "dummy instance, no errors",
-			instanceID: "i-dummy",
-			want:       aws.String("AutoSpotting-Temporary-LaunchTemplate-for-i-dummy"),
+			name:       "dummy asg, no errors",
+			asgName:    "dummy-asg",
+			wantLTName: aws.String("AutoSpotting-Converted-LaunchTemplate-for-dummy-asg"),
 		},
 		{
-			name:       "dummy instance, AlreadyExistsException error",
-			instanceID: "i-dummy",
+			name:       "dummy asg, AlreadyExistsException error",
+			asgName:    "dummy-asg",
 			cltErr:     errors.New("AlreadyExistsException"),
-			want:       aws.String("AutoSpotting-Temporary-LaunchTemplate-for-i-dummy"),
+			wantLTName: aws.String("AutoSpotting-Converted-LaunchTemplate-for-dummy-asg"),
 		},
 		{
-			name:       "dummy instance, another error",
-			instanceID: "i-dummy",
+			name:       "dummy asg, another error",
+			asgName:    "dummy-asg",
 			cltErr:     errors.New("randomError"),
-			want:       nil,
+			wantLTName: nil,
 			wantErr:    true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			i := &instance{
-				Instance: &ec2.Instance{
-					InstanceId: aws.String(tt.instanceID),
+				asg: &autoScalingGroup{
+					name: tt.asgName,
 				},
 				region: &region{
 					services: connections{
@@ -1772,19 +830,47 @@ func Test_instance_createFleetLaunchTemplate(t *testing.T) {
 				},
 			}
 
-			got, err := i.createFleetLaunchTemplate(tt.ltData)
+			name, version, err := i.createFleetLaunchTemplate(tt.ltData)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("instance.createFleetLaunchTemplate() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if got == nil && tt.want != nil {
-				t.Errorf("instance.createFleetLaunchTemplate() = nil, want %v", tt.want)
+			if name == nil && tt.wantLTName != nil {
+				t.Errorf("instance.createFleetLaunchTemplate() = nil, want LaunchTemplate Name %v", tt.wantLTName)
 			}
 
-			if got != nil && tt.want != nil && *got != *tt.want {
-				t.Errorf("instance.createFleetLaunchTemplate() = %v, want %v", *got, tt.want)
+			if name != nil && tt.wantLTName != nil && *name != *tt.wantLTName {
+				t.Errorf("instance.createFleetLaunchTemplate() = %v, want LaunchTemplate Name %v", *name, *tt.wantLTName)
 			}
+
+			if version != nil && tt.wantLTVersion != nil && *version != *tt.wantLTVersion {
+				t.Errorf("instance.createFleetLaunchTemplate() = %v, want LaunchTemplate Version %v", *name, *tt.wantLTVersion)
+			}
+
 		})
+	}
+}
+
+func TestDeduplicateTags(t *testing.T) {
+	inputTags := []*ec2.Tag{
+		{Key: aws.String("Name"), Value: aws.String("Server1")},
+		{Key: aws.String("Environment"), Value: aws.String("Production")},
+		{Key: aws.String("Name"), Value: aws.String("Server2")},
+		{Key: aws.String("Environment"), Value: aws.String("Staging")},
+		{Key: aws.String("Owner"), Value: aws.String("Alice")},
+		{Key: aws.String("Owner"), Value: aws.String("Bob")},
+	}
+
+	expectedTags := []*ec2.Tag{
+		{Key: aws.String("Name"), Value: aws.String("Server1")},
+		{Key: aws.String("Environment"), Value: aws.String("Production")},
+		{Key: aws.String("Owner"), Value: aws.String("Alice")},
+	}
+
+	deduplicatedTags := deduplicateTags(inputTags)
+
+	if !reflect.DeepEqual(deduplicatedTags, expectedTags) {
+		t.Errorf("deduplicateTags() = %v, want %v", deduplicatedTags, expectedTags)
 	}
 }
