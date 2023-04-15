@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -160,7 +161,7 @@ func (a *autoScalingGroup) cronEventAction() runer {
 		return skipRun{reason: "outside-cron-schedule"}
 	}
 
-	onDemandInstance := a.getAnyUnprotectedOnDemandInstance()
+	onDemandInstance := a.getInstance(nil, true)
 
 	if need, total := a.needReplaceOnDemandInstances(); !need {
 		log.Printf("Not allowed to replace any more of the running OD instances in %s, currently running %d on-demand instances", a.name, total)
@@ -240,7 +241,6 @@ func (a *autoScalingGroup) scanInstances() instances {
 func (a *autoScalingGroup) getInstance(
 	availabilityZone *string,
 	onDemand bool,
-	considerInstanceProtection bool,
 ) *instance {
 
 	for i := range a.instances.instances() {
@@ -257,16 +257,6 @@ func (a *autoScalingGroup) getInstance(
 				continue
 			}
 
-			protT, err := i.isProtectedFromTermination()
-			if err != nil {
-				debug.Println(a.name, "failed to determine termination protection for", *i.InstanceId)
-			}
-
-			if considerInstanceProtection && (i.isProtectedFromScaleIn() || protT) {
-				debug.Println(a.name, "skipping protected instance", *i.InstanceId)
-				continue
-			}
-
 			if (availabilityZone != nil) && (*availabilityZone != *i.Placement.AvailabilityZone) {
 				debug.Println(a.name, "skipping instance", *i.InstanceId,
 					"placed in a different AZ than what we're looking for")
@@ -276,10 +266,6 @@ func (a *autoScalingGroup) getInstance(
 		}
 	}
 	return nil
-}
-
-func (a *autoScalingGroup) getAnyUnprotectedOnDemandInstance() *instance {
-	return a.getInstance(nil, true, true)
 }
 
 func (a *autoScalingGroup) hasMemberInstance(inst *instance) bool {
@@ -333,19 +319,6 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 	}
 
 	return errors.New("")
-}
-
-func (a *autoScalingGroup) findUnattachedInstanceLaunchedForThisASG() *instance {
-	for inst := range a.region.instances.instances() {
-		for _, tag := range inst.Tags {
-			if *tag.Key == "launched-for-asg" && *tag.Value == a.name {
-				if !a.hasMemberInstance(inst) {
-					return inst
-				}
-			}
-		}
-	}
-	return nil
 }
 
 func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
@@ -415,6 +388,13 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	i *instance, wait bool, decreaseCapacity bool) error {
 
+	//return if we can't terminate the instance
+	if !i.canTerminate() {
+		log.Printf("%s %s Not terminating instance: %s because it is already terminated or terminating\n",
+			a.region.name, a.name, *i.InstanceId)
+		return nil
+	}
+
 	if wait {
 		err := a.region.services.ec2.WaitUntilInstanceRunning(
 			&ec2.DescribeInstancesInput{
@@ -431,6 +411,8 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 				*i.InstanceId)
 		}
 	}
+
+	a.deregisterInstancesFromAllLoadBalancers(i)
 
 	log.Println(a.region.name,
 		a.name,
@@ -475,6 +457,54 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	}
 
 	return nil
+}
+
+func (a *autoScalingGroup) deregisterInstancesFromAllLoadBalancers(i *instance) {
+	// Create wait group
+	var wg sync.WaitGroup
+
+	if a.LoadBalancerNames != nil {
+		for _, alb := range a.LoadBalancerNames {
+			wg.Add(1)
+			go func(alb *string) {
+				defer wg.Done()
+				log.Printf("%s %s Deregistering instance: %s from load balancer %s", a.region.name, a.name, *i.InstanceId, *alb)
+				err := i.deregisterInstanceFromClasicLoadBalancer(*alb)
+				if err != nil {
+					log.Fatalf("failed to deregister instance: %v", err)
+				}
+			}(alb)
+		}
+	}
+
+	if a.TargetGroupARNs != nil {
+		for _, tg := range a.TargetGroupARNs {
+			wg.Add(1)
+			go func(tg *string) {
+				defer wg.Done()
+				log.Printf("%s %s Deregistering instance: %s from target group %s", a.region.name, a.name, *i.InstanceId, *tg)
+				err := i.deregisterInstanceFromTargetGroup(*tg)
+				if err != nil {
+					log.Fatalf("failed to deregister instance: %v", err)
+				}
+			}(tg)
+		}
+	}
+
+	if i.isManagedByECSCapacityProvider() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			log.Printf("%s %s Deregistering ECS managed instance %s from all Target groups", a.region.name, a.name, *i.InstanceId)
+			err := i.deregisterInstanceFromAllTargetGroups()
+			if err != nil {
+				log.Fatalf("failed to deregister instance: %v", err)
+			}
+		}()
+	}
+
+	log.Println("Waiting for all deregistration actions to complete")
+	wg.Wait()
 }
 
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.
@@ -673,10 +703,10 @@ func (a *autoScalingGroup) getSpotProduct() *string {
 	}
 
 	// Determine the Spot product based on the AMI ID of an instance in the Auto Scaling group
-	instance := a.getInstance(nil, false, false)
+	instance := a.getInstance(nil, false)
 	if instance == nil {
 		log.Printf("Could not find any Spot instances in Auto Scaling group '%s', cannot set Spot product", a.name)
-		instance = a.getInstance(nil, true, false)
+		instance = a.getInstance(nil, true)
 		if instance == nil {
 			log.Printf("Also couldn't find OnDemand instances in Auto Scaling group '%s', cannot set Spot product", a.name)
 			return nil

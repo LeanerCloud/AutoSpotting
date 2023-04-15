@@ -593,6 +593,8 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	i.asg.loadLaunchConfiguration()
 	i.asg.loadLaunchTemplate()
 
+	i.asg.deregisterInstancesFromAllLoadBalancers(i)
+
 	newInstanceID, err := i.launchSpotReplacement()
 	if err != nil {
 		fmt.Printf("Spot Instance launch failed while replacing %s, error: %s, falling back to on-demand\n", *i.InstanceId, err.Error())

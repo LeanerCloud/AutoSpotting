@@ -90,51 +90,6 @@ func (i *instance) getODPrice() float64 {
 
 }
 
-func (i *instance) isProtectedFromTermination() (bool, error) {
-	debug.Println("\tChecking termination protection for instance: ", *i.InstanceId)
-
-	// determine and set the API termination protection field
-	diaRes, err := i.region.services.ec2.DescribeInstanceAttribute(
-		&ec2.DescribeInstanceAttributeInput{
-			Attribute:  aws.String("disableApiTermination"),
-			InstanceId: i.InstanceId,
-		})
-
-	if err != nil {
-		// better safe than sorry!
-		log.Printf("Couldn't describe instance attributes, assuming instance %v is protected: %v\n",
-			*i.InstanceId, err.Error())
-		return true, err
-	}
-
-	if diaRes != nil &&
-		diaRes.DisableApiTermination != nil &&
-		diaRes.DisableApiTermination.Value != nil &&
-		*diaRes.DisableApiTermination.Value {
-		log.Printf("\t: %v Instance, %v is protected from termination\n",
-			*i.Placement.AvailabilityZone, *i.InstanceId)
-		return true, nil
-	}
-	return false, nil
-}
-
-func (i *instance) isProtectedFromScaleIn() bool {
-	if i.asg == nil {
-		return false
-	}
-
-	for _, inst := range i.asg.Instances {
-		if *inst.InstanceId == *i.InstanceId &&
-			*inst.ProtectedFromScaleIn {
-			log.Printf("\t: %v Instance, %v is protected from scale-in\n",
-				*inst.AvailabilityZone,
-				*inst.InstanceId)
-			return true
-		}
-	}
-	return false
-}
-
 func (i *instance) canTerminate() bool {
 	return *i.State.Name != ec2.InstanceStateNameTerminated &&
 		*i.State.Name != ec2.InstanceStateNameShuttingDown
@@ -153,12 +108,6 @@ func (i *instance) shouldBeReplacedWithNewSpotInstance() bool {
 	// instance is not in an enabled ASG
 	if belongs, _ := i.belongsToEnabledASG(); !belongs {
 		log.Printf("Instance %s does not belong to an enabled ASG, will not be replaced with a new Spot instance", *i.InstanceId)
-		return false
-	}
-
-	// instance is protected from termination or scale-in
-	if protTerm, _ := i.isProtectedFromTermination(); protTerm || i.isProtectedFromScaleIn() {
-		log.Printf("Instance %s is protected from termination or scale-in, will not be replaced with a new Spot instance", *i.InstanceId)
 		return false
 	}
 
@@ -530,17 +479,13 @@ func (i *instance) isLaunchedByAutoSpotting() bool {
 	return false
 }
 
-func (i *instance) launchTemplateHasNetworkInterfaces(ltData *ec2.ResponseLaunchTemplateData) (bool, []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecification) {
-	if ltData == nil {
-		log.Println("Missing launch template data for ", *i.InstanceId)
-		return false, nil
+func (i *instance) isManagedByECSCapacityProvider() bool {
+	for _, tag := range i.Tags {
+		if *tag.Key == "AmazonECSManaged" {
+			return true
+		}
 	}
-
-	nis := ltData.NetworkInterfaces
-	if len(nis) > 0 {
-		return true, nis
-	}
-	return false, nil
+	return false
 }
 
 func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {

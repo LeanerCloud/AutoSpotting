@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elasticbeanstalk"
+	"github.com/aws/aws-sdk-go/service/elb"
+	"github.com/aws/aws-sdk-go/service/elbv2"
 )
 
 // instance_actions.go contains functions that act on instances, altering their state.
@@ -283,4 +286,121 @@ func (i *instance) waitForBeanstalkDeployments() {
 	})
 	log.Printf("Instance %s provisioned by Beanstalk for the environment %s with ID %s, wait done",
 		*i.InstanceId, *envName, *envID)
+}
+
+// DeRegisterInstanceFromLoadBalancer de-registers an EC2 instance from a classic Elastic Load Balancer
+// named `lbName`. The instance is identified by its `instanceID`.
+func (i *instance) deregisterInstanceFromClasicLoadBalancer(lbName string) error {
+	// Get the Load Balancer description
+	output, err := i.region.services.elb.DescribeLoadBalancers(&elb.DescribeLoadBalancersInput{
+		LoadBalancerNames: []*string{&lbName},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to describe Load Balancer %s: %v", lbName, err)
+	}
+	if len(output.LoadBalancerDescriptions) == 0 {
+		return fmt.Errorf("Load Balancer %s not found", lbName)
+	}
+	lb := output.LoadBalancerDescriptions[0]
+
+	// Check if the instance is already registered with the Load Balancer
+	var registered bool
+	for _, instance := range lb.Instances {
+		if *instance.InstanceId == *i.InstanceId {
+			registered = true
+			break
+		}
+	}
+	if !registered {
+		log.Printf("Instance %s is not registered with Load Balancer %s", *i.InstanceId, lbName)
+		return nil
+	}
+
+	// Deregister the instance from the Load Balancer
+	_, err = i.region.services.elb.DeregisterInstancesFromLoadBalancer(&elb.DeregisterInstancesFromLoadBalancerInput{
+		LoadBalancerName: &lbName,
+		Instances:        []*elb.Instance{{InstanceId: i.InstanceId}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to deregister instance %s from Load Balancer %s: %v", *i.InstanceId, lbName, err)
+	}
+
+	log.Printf("Triggered deregistration of instance %s from Load Balancer %s", *i.InstanceId, lbName)
+	return nil
+}
+
+func (i *instance) deregisterInstanceFromTargetGroup(tgARN string) error {
+	// Get the targets of the Target Group, which includes both the instance ID and the port numbers
+	targets, err := i.getTargetGroupTargets(tgARN)
+	if err != nil {
+		return fmt.Errorf("failed to get instance %s target information for Target Group %s: %v", *i.InstanceId, tgARN, err)
+	}
+
+	// Deregister the instance from the Target Group on all ports it may be connected to.
+	var targetIDs []*elbv2.TargetDescription
+	for _, target := range targets {
+		if *target.Id == *i.InstanceId {
+			targetIDs = append(targetIDs, &elbv2.TargetDescription{
+				Id:   target.Id,
+				Port: target.Port,
+			})
+		}
+	}
+	if len(targetIDs) > 0 {
+		_, err = i.region.services.elbv2.DeregisterTargets(&elbv2.DeregisterTargetsInput{
+			TargetGroupArn: &tgARN,
+			Targets:        targetIDs,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to deregister instance %s from Target Group %s: %v", *i.InstanceId, tgARN, err)
+		}
+		log.Printf("Triggered deregistration of instance %s from Target Group %s on all ports", *i.InstanceId, tgARN)
+	} else {
+		log.Printf("Instance %s is not registered with Target Group %s", *i.InstanceId, tgARN)
+	}
+
+	return nil
+}
+
+func (i *instance) getTargetGroupTargets(tgARN string) ([]*elbv2.TargetDescription, error) {
+	output, err := i.region.services.elbv2.DescribeTargetHealth(&elbv2.DescribeTargetHealthInput{
+		TargetGroupArn: &tgARN,
+		Targets:        []*elbv2.TargetDescription{{Id: i.InstanceId}},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe instance %s health for Target Group %s: %v", *i.InstanceId, tgARN, err)
+	}
+	targets := make([]*elbv2.TargetDescription, 0, len(output.TargetHealthDescriptions))
+	for _, desc := range output.TargetHealthDescriptions {
+		targets = append(targets, desc.Target)
+	}
+	return targets, nil
+}
+
+func (i *instance) deregisterInstanceFromAllTargetGroups() error {
+	var wg sync.WaitGroup
+
+	// Get all Target Groups the instance is registered to
+	err := i.region.services.elbv2.DescribeTargetGroupsPages(&elbv2.DescribeTargetGroupsInput{},
+		func(page *elbv2.DescribeTargetGroupsOutput, _ bool) bool {
+			for _, tg := range page.TargetGroups {
+				if tg.TargetType != nil && *tg.TargetType == "instance" {
+					wg.Add(1)
+					go func(tgARN string) {
+						defer wg.Done()
+						err := i.deregisterInstanceFromTargetGroup(tgARN)
+						if err != nil {
+							log.Printf("failed to deregister instance from Target Group %s: %v", tgARN, err)
+						}
+					}(*tg.TargetGroupArn)
+				}
+			}
+			return true
+		})
+
+	if err != nil {
+		return fmt.Errorf("failed to describe Target Groups: %v", err)
+	}
+	wg.Wait()
+	return nil
 }
