@@ -510,13 +510,13 @@ func (r *region) findEnabledASGByName(name string) *autoScalingGroup {
 	return nil
 }
 
-func (r *region) sqsDeleteMessage(instanceID *string, instanceLifecycle string) error {
+func (r *region) sqsDeleteMessage(instanceID *string, instanceLifecycle string, sqsReceiptHandle *string) error {
 	svc := r.services.sqs
 
 	_, err := svc.DeleteMessage(
 		&sqs.DeleteMessageInput{
 			QueueUrl:      &r.conf.SQSQueueURL,
-			ReceiptHandle: &r.conf.sqsReceiptHandle,
+			ReceiptHandle: sqsReceiptHandle,
 		})
 	if err != nil {
 		log.Printf("%s Error deleting %s instance %s launch event message "+

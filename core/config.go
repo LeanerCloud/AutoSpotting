@@ -116,9 +116,6 @@ type Config struct {
 	// SQS Queue URl
 	SQSQueueURL string
 
-	// SQS MessageID
-	sqsReceiptHandle string
-
 	// EnableInstanceRebalanceRecommendation disable the handling of Instance Rebalance Recommendation events.
 	EnableInstanceRebalanceRecommendation bool
 
@@ -159,7 +156,6 @@ func ParseConfig(conf *Config) {
 
 	conf.MainRegion = region
 	conf.SleepMultiplier = 1
-	conf.sqsReceiptHandle = ""
 
 	flagSet.StringVar(&conf.AllowedInstanceTypes, "allowed_instance_types", "",
 		"\n\tIf specified, the spot instances will be searched only among these types.\n\tIf missing, any instance type is allowed.\n"+

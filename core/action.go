@@ -6,6 +6,7 @@ package autospotting
 type target struct {
 	autospotting     *AutoSpotting
 	onDemandInstance *instance
+	sqsReceiptHandle *string
 }
 
 type runer interface {
@@ -26,5 +27,5 @@ type replaceAndTerminateInstance struct {
 
 func (tsi replaceAndTerminateInstance) run() {
 	autospotting := tsi.target.autospotting
-	autospotting.handleNewOnDemandInstanceLaunch(tsi.target.onDemandInstance.region, tsi.target.onDemandInstance)
+	autospotting.handleNewOnDemandInstanceLaunch(tsi.target.onDemandInstance.region, tsi.target.onDemandInstance, tsi.target.sqsReceiptHandle)
 }

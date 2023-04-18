@@ -237,9 +237,10 @@ func (a *AutoSpotting) getRegions() ([]string, error) {
 
 // convertRawEventToCloudwatchEvent parses a raw event into a CloudWatchEvent or
 // returns an error in case of failure
-func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) (*events.CloudWatchEvent, error) {
+func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) (*events.CloudWatchEvent, *string, error) {
 	var sqsEvent events.SQSEvent
 	var cloudwatchEvent events.CloudWatchEvent
+	var sqsReceiptHandle *string
 
 	log.Println("Received event: \n", string(*event))
 	parseEvent := *event
@@ -247,7 +248,7 @@ func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) 
 	// Try to parse event as an Sqs Message
 	if err := json.Unmarshal(parseEvent, &sqsEvent); err != nil {
 		log.Println(err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 
 	// If the event comes from Sqs - extract the Cloudwatch event embedded in it
@@ -255,28 +256,26 @@ func (a *AutoSpotting) convertRawEventToCloudwatchEvent(event *json.RawMessage) 
 		sqsRecord := sqsEvent.Records[0]
 		parseEvent = []byte(sqsRecord.Body)
 		// this will tell us later if the current run was triggered from SQS events
-		a.config.sqsReceiptHandle = sqsRecord.ReceiptHandle
-	} else {
-		a.config.sqsReceiptHandle = ""
+		sqsReceiptHandle = aws.String(sqsRecord.ReceiptHandle)
 	}
 
 	// Try to parse the event as Cloudwatch Event Rule
 	if err := json.Unmarshal(parseEvent, &cloudwatchEvent); err != nil {
 		log.Println(err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &cloudwatchEvent, nil
+	return &cloudwatchEvent, sqsReceiptHandle, nil
 }
 
 // parse instance events and execute the relative methods
-func (a *AutoSpotting) processEventInstance(eventType string, region string, instanceID *string, instanceState *string) error {
+func (a *AutoSpotting) processEventInstance(eventType string, region string, sqsReceiptHandle *string, instanceID *string, instanceState *string) error {
 	if eventType == InstanceStateChangeNotificationCode {
 		// If event is Instance state change
-		if len(a.config.sqsReceiptHandle) != 0 {
+		if sqsReceiptHandle != nil {
 			log.SetPrefix(fmt.Sprintf("SQS:%s ", *instanceID))
 		}
-		a.handleNewInstanceLaunch(region, *instanceID, *instanceState)
+		a.handleNewInstanceLaunch(region, *instanceID, *instanceState, sqsReceiptHandle)
 	} else if eventType == SpotInstanceInterruptionWarningCode || eventType == InstanceRebalanceRecommendationCode {
 		if eventType == InstanceRebalanceRecommendationCode && !a.config.EnableInstanceRebalanceRecommendation {
 			log.Println("Handling of instance rebalance recommendation events is disabled, exiting...")
@@ -299,7 +298,7 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, ins
 
 // parse event and execute the relative methods
 func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
-	cloudwatchEvent, err := a.convertRawEventToCloudwatchEvent(event)
+	cloudwatchEvent, sqsReceiptHandle, err := a.convertRawEventToCloudwatchEvent(event)
 	if err != nil {
 		log.Println("Couldn't parse event", string(*event), err.Error())
 		return err
@@ -322,7 +321,7 @@ func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
 		instanceID != nil {
 		// Handle Instance Events
 		log.SetPrefix(fmt.Sprintf("%s:%s ", eventType, *instanceID))
-		a.processEventInstance(eventType, cloudwatchEvent.Region, instanceID, instanceState)
+		a.processEventInstance(eventType, cloudwatchEvent.Region, sqsReceiptHandle, instanceID, instanceState)
 	} else if eventType == AWSAPICallCloudTrailCode {
 		// CloudTrail
 		a.handleLifecycleHookEvent(*cloudwatchEvent)
@@ -424,7 +423,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 	return nil
 }
 
-func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID string, state string) error {
+func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID string, state string, sqsReceiptHandle *string) error {
 	r := &region{name: regionName, conf: a.config, services: connections{}}
 
 	if !r.enabled() {
@@ -460,7 +459,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 	}
 
 	// Try OnDemand
-	if err := a.handleNewOnDemandInstanceLaunch(r, i); err != nil {
+	if err := a.handleNewOnDemandInstanceLaunch(r, i, sqsReceiptHandle); err != nil {
 		log.Printf("%s Instance %s couldn't be handled as on-demand instance", i.region.name, *i.InstanceId)
 		return err
 	}
@@ -475,7 +474,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 	return nil
 }
 
-func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) error {
+func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, sqsReceiptHandle *string) error {
 	var spotInstanceID *string
 	var err error
 	lifecycle := "on-demand"
@@ -503,10 +502,10 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 	// we anyway need to delete the message, but if we delete it now,
 	// the queue will allow us to process more instances in parallel
 	if a.config.AllowParallelInstanceReplacements {
-		i.region.sqsDeleteMessage(i.InstanceId, OnDemand)
+		i.region.sqsDeleteMessage(i.InstanceId, OnDemand, sqsReceiptHandle)
 	}
 
-	defer i.region.sqsDeleteMessage(i.InstanceId, OnDemand)
+	defer i.region.sqsDeleteMessage(i.InstanceId, OnDemand, sqsReceiptHandle)
 
 	log.Printf("%s instance %s belongs to an enabled ASG and should be "+
 		"replaced with spot", i.region.name, *i.InstanceId)
