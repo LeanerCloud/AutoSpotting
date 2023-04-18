@@ -328,7 +328,6 @@ func (i *instance) deregisterInstanceFromClasicLoadBalancer(lbName string) error
 	log.Printf("Triggered deregistration of instance %s from Load Balancer %s", *i.InstanceId, lbName)
 	return nil
 }
-
 func (i *instance) deregisterInstanceFromTargetGroup(tgARN string) error {
 	// Get the targets of the Target Group, which includes both the instance ID and the port numbers
 	targets, err := i.getTargetGroupTargets(tgARN)
@@ -365,14 +364,15 @@ func (i *instance) deregisterInstanceFromTargetGroup(tgARN string) error {
 func (i *instance) getTargetGroupTargets(tgARN string) ([]*elbv2.TargetDescription, error) {
 	output, err := i.region.services.elbv2.DescribeTargetHealth(&elbv2.DescribeTargetHealthInput{
 		TargetGroupArn: &tgARN,
-		Targets:        []*elbv2.TargetDescription{{Id: i.InstanceId}},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe instance %s health for Target Group %s: %v", *i.InstanceId, tgARN, err)
 	}
-	targets := make([]*elbv2.TargetDescription, 0, len(output.TargetHealthDescriptions))
-	for _, desc := range output.TargetHealthDescriptions {
-		targets = append(targets, desc.Target)
+	targets := make([]*elbv2.TargetDescription, 0)
+	for _, target := range output.TargetHealthDescriptions {
+		if *target.Target.Id == *i.InstanceId {
+			targets = append(targets, target.Target)
+		}
 	}
 	return targets, nil
 }
