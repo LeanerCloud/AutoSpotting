@@ -17,6 +17,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/codedeploy/codedeployiface"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
 	"github.com/aws/aws-sdk-go/service/elasticbeanstalk"
 	"github.com/aws/aws-sdk-go/service/elasticbeanstalk/elasticbeanstalkiface"
 	"github.com/aws/aws-sdk-go/service/elb"
@@ -46,6 +48,7 @@ type connections struct {
 	ssm            ssmiface.SSMAPI
 	sns            snsiface.SNSAPI
 	beanstalk      elasticbeanstalkiface.ElasticBeanstalkAPI
+	ecs            ecsiface.ECSAPI
 	region         string
 }
 
@@ -73,6 +76,7 @@ func (c *connections) connect(region, mainRegion string) {
 	beanstalkConn := make(chan *elasticbeanstalk.ElasticBeanstalk)
 	elbConn := make(chan *elb.ELB)
 	elbv2Conn := make(chan *elbv2.ELBV2)
+	ecsConn := make(chan *ecs.ECS)
 
 	go func() { asConn <- autoscaling.New(c.session) }()
 	go func() { ec2Conn <- ec2.New(c.session) }()
@@ -85,9 +89,10 @@ func (c *connections) connect(region, mainRegion string) {
 	go func() { beanstalkConn <- elasticbeanstalk.New(c.session) }()
 	go func() { elbConn <- elb.New(c.session) }()
 	go func() { elbv2Conn <- elbv2.New(c.session) }()
+	go func() { ecsConn <- ecs.New(c.session) }()
 
-	c.autoScaling, c.ec2, c.cloudFormation, c.lambda, c.sqs, c.codedeploy, c.ssm, c.sns, c.beanstalk, c.elb, c.elbv2, c.region =
-		<-asConn, <-ec2Conn, <-cloudformationConn, <-lambdaConn, <-sqsConn, <-codedeployConn, <-ssmConn, <-snsConn, <-beanstalkConn, <-elbConn, <-elbv2Conn, region
+	c.autoScaling, c.ec2, c.cloudFormation, c.lambda, c.sqs, c.codedeploy, c.ssm, c.sns, c.beanstalk, c.elb, c.elbv2, c.ecs, c.region =
+		<-asConn, <-ec2Conn, <-cloudformationConn, <-lambdaConn, <-sqsConn, <-codedeployConn, <-ssmConn, <-snsConn, <-beanstalkConn, <-elbConn, <-elbv2Conn, <-ecsConn, region
 
 	debug.Println("Created service connections in", region)
 }

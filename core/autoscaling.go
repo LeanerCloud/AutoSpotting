@@ -412,7 +412,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 		}
 	}
 
-	a.deregisterInstancesFromAllLoadBalancers(i)
+	a.deregisterInstanceFromLoadBalancersAndECSClusters(i)
 
 	log.Println(a.region.name,
 		a.name,
@@ -459,7 +459,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	return nil
 }
 
-func (a *autoScalingGroup) deregisterInstancesFromAllLoadBalancers(i *instance) {
+func (a *autoScalingGroup) deregisterInstanceFromLoadBalancersAndECSClusters(i *instance) {
 	// Create wait group
 	var wg sync.WaitGroup
 
@@ -471,7 +471,7 @@ func (a *autoScalingGroup) deregisterInstancesFromAllLoadBalancers(i *instance) 
 				log.Printf("%s %s Deregistering instance: %s from load balancer %s", a.region.name, a.name, *i.InstanceId, *alb)
 				err := i.deregisterInstanceFromClasicLoadBalancer(*alb)
 				if err != nil {
-					log.Fatalf("failed to deregister instance: %v", err)
+					log.Printf("failed to deregister instance: %v", err)
 				}
 			}(alb)
 		}
@@ -485,7 +485,7 @@ func (a *autoScalingGroup) deregisterInstancesFromAllLoadBalancers(i *instance) 
 				log.Printf("%s %s Deregistering instance: %s from target group %s", a.region.name, a.name, *i.InstanceId, *tg)
 				err := i.deregisterInstanceFromTargetGroup(*tg)
 				if err != nil {
-					log.Fatalf("failed to deregister instance: %v", err)
+					log.Printf("failed to deregister instance: %v", err)
 				}
 			}(tg)
 		}
@@ -498,7 +498,17 @@ func (a *autoScalingGroup) deregisterInstancesFromAllLoadBalancers(i *instance) 
 			log.Printf("%s %s Deregistering ECS managed instance %s from all Target groups", a.region.name, a.name, *i.InstanceId)
 			err := i.deregisterInstanceFromAllTargetGroups()
 			if err != nil {
-				log.Fatalf("failed to deregister instance: %v", err)
+				log.Printf("failed to deregister instance: %v", err)
+			}
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			log.Printf("%s %s Deregistering ECS managed instance %s from all ECS clusters", a.region.name, a.name, *i.InstanceId)
+			err := i.deregisterFromAllECSClusters()
+			if err != nil {
+				log.Printf("failed to deregister instance: %v", err)
 			}
 		}()
 	}

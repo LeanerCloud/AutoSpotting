@@ -595,3 +595,11 @@ func (r *region) reapUnattachedSpotInstances() {
 		}
 	}
 }
+
+func (r *region) extractECSClusterName(clusterARN string) (string, error) {
+	if !strings.Contains(clusterARN, ":cluster/") {
+		return "", errors.New("input string is not in the expected format")
+	}
+
+	return strings.TrimPrefix(strings.Split(clusterARN, "/")[1], ":"), nil
+}

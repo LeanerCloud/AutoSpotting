@@ -4,6 +4,7 @@
 package autospotting
 
 import (
+	"errors"
 	"math"
 	"reflect"
 	"testing"
@@ -842,5 +843,54 @@ func Test_region_processDescribeInstancesPage(t *testing.T) {
 				t.Errorf("region.processDescribeInstancesPage() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Test_region_extractECSClusterName(t *testing.T) {
+	type testData struct {
+		region       string
+		clusterARN   string
+		expectedName string
+		expectedErr  error
+	}
+
+	testCases := []testData{
+		{ // Test extracting cluster name from a valid ARN
+			region:       "us-west-2",
+			clusterARN:   "arn:aws:ecs:us-west-2:123456789012:cluster/test-cluster",
+			expectedName: "test-cluster",
+			expectedErr:  nil,
+		},
+		{ // Test extracting cluster name from a CN region ARN
+			region:       "cn-north-1",
+			clusterARN:   "arn:aws-cn:ecs:cn-north-1:123456789012:cluster/test-cluster",
+			expectedName: "test-cluster",
+			expectedErr:  nil,
+		},
+		{ // Test extracting cluster name when region is cn-northwest-1
+			region:       "cn-northwest-1",
+			clusterARN:   "arn:aws-cn:ecs:cn-northwest-1:123456789012:cluster/test-cluster",
+			expectedName: "test-cluster",
+			expectedErr:  nil,
+		},
+
+		{ // Test extracting cluster name with invalid prefix
+			region:       "us-west-2",
+			clusterARN:   "arn:aws:ec2:us-west-2:123456789012:instance/i-0123456789abcdef0",
+			expectedName: "",
+			expectedErr:  errors.New("input string is not in the expected format"),
+		},
+	}
+
+	for _, tc := range testCases {
+		region := &region{name: tc.region}
+		actualName, err := region.extractECSClusterName(tc.clusterARN)
+		if actualName != tc.expectedName {
+			t.Errorf("For %s, Expected %s, but got %s for clusterARN '%s'", tc.region, tc.expectedName, actualName, tc.clusterARN)
+		}
+
+		if err != nil && tc.expectedErr != nil && err.Error() != tc.expectedErr.Error() {
+			t.Errorf("For %s, Expected error %s, but got %s for clusterARN '%s'", tc.region, tc.expectedErr, err, tc.clusterARN)
+		}
 	}
 }

@@ -592,7 +592,7 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	i.asg.loadLaunchConfiguration()
 	i.asg.loadLaunchTemplate()
 
-	i.asg.deregisterInstancesFromAllLoadBalancers(i)
+	i.asg.deregisterInstanceFromLoadBalancersAndECSClusters(i)
 
 	newInstanceID, err := i.launchSpotReplacement()
 	if err != nil {

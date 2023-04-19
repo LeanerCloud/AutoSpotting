@@ -10,7 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/elasticbeanstalk"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/elbv2"
@@ -261,16 +263,6 @@ func (i *instance) terminate() error {
 	return err
 }
 
-func (i *instance) deleteLaunchTemplate(ltName *string) {
-	_, err := i.region.services.ec2.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{
-		LaunchTemplateName: ltName,
-	})
-
-	if err != nil {
-		log.Printf("Issue while deleting launch template %v, error: %v", *ltName, err.Error())
-	}
-}
-
 func (i *instance) waitForBeanstalkDeployments() {
 	envName, envID := i.getBesnstalkDeploymentInformation()
 	if envName == nil || envID == nil {
@@ -299,7 +291,7 @@ func (i *instance) deregisterInstanceFromClasicLoadBalancer(lbName string) error
 		return fmt.Errorf("failed to describe Load Balancer %s: %v", lbName, err)
 	}
 	if len(output.LoadBalancerDescriptions) == 0 {
-		return fmt.Errorf("Load Balancer %s not found", lbName)
+		return fmt.Errorf("load Balancer %s not found", lbName)
 	}
 	lb := output.LoadBalancerDescriptions[0]
 
@@ -402,5 +394,102 @@ func (i *instance) deregisterInstanceFromAllTargetGroups() error {
 		return fmt.Errorf("failed to describe Target Groups: %v", err)
 	}
 	wg.Wait()
+	return nil
+}
+
+func (i *instance) getContainerInstanceArn(clusterName *string) (*string, error) {
+
+	// List the container instances on the cluster
+	listInput := &ecs.ListContainerInstancesInput{
+		Cluster: clusterName,
+	}
+	listOutput, err := i.region.services.ecs.ListContainerInstances(listInput)
+	if err != nil {
+		return nil, fmt.Errorf("error listing container instances on cluster %s: %v", *clusterName, err)
+	}
+
+	if len(listOutput.ContainerInstanceArns) == 0 {
+		return nil, errors.New("no container instances found on cluster")
+	}
+
+	describeInput := &ecs.DescribeContainerInstancesInput{
+		Cluster:            clusterName,
+		ContainerInstances: listOutput.ContainerInstanceArns,
+	}
+	describeOutput, err := i.region.services.ecs.DescribeContainerInstances(describeInput)
+	if err != nil {
+		return nil, fmt.Errorf("error describing container instances: %v", err)
+	}
+
+	// Iterate over the list of container instances
+	for _, instance := range describeOutput.ContainerInstances {
+		// Check if the instance ID matches the instance ID of the current instance
+		if *instance.Ec2InstanceId == *i.InstanceId {
+			return instance.ContainerInstanceArn, nil
+		}
+	}
+
+	// Return an error if the instance is not found
+	return nil, errors.New("instance not found in the list of container instances")
+}
+
+func (i *instance) deregisterFromECSCluster(clusterARN *string, deregisterGroup *sync.WaitGroup) {
+	defer deregisterGroup.Done()
+	// Get the cluster name from the ARN
+	// Extract the cluster name from the ARN
+	clusterName, err := i.region.extractECSClusterName(aws.StringValue(clusterARN))
+	if err != nil {
+		log.Printf("Error extracting cluster name from ARN %s: %v\n", aws.StringValue(clusterARN), err)
+		return
+	}
+
+	containerInstanceArn, err := i.getContainerInstanceArn(clusterARN)
+	if err != nil {
+		log.Printf("Couldn't find container instance ARN for instance %s in ECS cluster %s: %v\n", aws.StringValue(i.InstanceId), clusterName, err)
+		return
+	}
+
+	deregisterInput := &ecs.DeregisterContainerInstanceInput{
+		Cluster:           aws.String(clusterName),
+		ContainerInstance: containerInstanceArn,
+		Force:             aws.Bool(true),
+	}
+	_, err = i.region.services.ecs.DeregisterContainerInstance(deregisterInput)
+	if err != nil {
+		log.Printf("Error deregistering instance %s from cluster %s: %v\n", aws.StringValue(i.InstanceId), clusterName, err)
+	} else {
+		log.Printf("Deregistered instance %s from cluster %s\n", aws.StringValue(i.InstanceId), clusterName)
+	}
+
+}
+
+func (i *instance) deregisterFromECSClusters(clusterARNs []*string) error {
+	// Create a workgroup to perform parallel deregistration
+	deregisterGroup := new(sync.WaitGroup)
+	deregisterGroup.Add(len(clusterARNs))
+
+	// Deregister the instance from each cluster
+	for _, clusterARN := range clusterARNs {
+		go i.deregisterFromECSCluster(clusterARN, deregisterGroup)
+	}
+
+	deregisterGroup.Wait()
+
+	return nil
+}
+
+func (i *instance) deregisterFromAllECSClusters() error {
+	// List all clusters in the region
+	listClusterInput := &ecs.ListClustersInput{}
+	var clusterARNs []*string
+	err := i.region.services.ecs.ListClustersPages(listClusterInput, func(page *ecs.ListClustersOutput, lastPage bool) bool {
+		clusterARNs = append(clusterARNs, page.ClusterArns...)
+		go i.deregisterFromECSClusters(page.ClusterArns)
+		return !lastPage
+	})
+	if err != nil {
+		return fmt.Errorf("could't list ECS clusters: %s", err.Error())
+	}
+
 	return nil
 }
