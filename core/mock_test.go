@@ -61,10 +61,6 @@ type mockEC2 struct {
 	tio   *ec2.TerminateInstancesOutput
 	tierr error
 
-	// DeleteLaunchTemplate
-	dlto   *ec2.DeleteLaunchTemplateOutput
-	dlterr error
-
 	// Describe Regions
 	dro   *ec2.DescribeRegionsOutput
 	drerr error
@@ -87,10 +83,6 @@ func (m mockEC2) CreateFleet(in *ec2.CreateFleetInput) (*ec2.CreateFleetOutput, 
 
 func (m mockEC2) CreateLaunchTemplate(in *ec2.CreateLaunchTemplateInput) (*ec2.CreateLaunchTemplateOutput, error) {
 	return m.clto, m.clterr
-}
-
-func (m mockEC2) DeleteLaunchTemplate(*ec2.DeleteLaunchTemplateInput) (*ec2.DeleteLaunchTemplateOutput, error) {
-	return m.dlto, m.dlterr
 }
 
 func (m mockEC2) DescribeSpotPriceHistoryPages(in *ec2.DescribeSpotPriceHistoryInput, f func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool) error {
