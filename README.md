@@ -24,7 +24,6 @@ The list of ehnancements in the Commercial edition is documented in detail
 | Load balancer and Target Group TCP connection draining     | ✅                                  | ✅ (Relying on Autoscaling)                    | ✅ Proactive                       |
 | Automated ECS task draining                                | Requires UserData script changes    | Requires UserData script changes               | ✅                                 |
 | Failover to on-demand instances                            | ❌                                  | ✅ Relies on Autoscaling to Launch replacement | ✅ Proactive                       |
-| Proactive on-demand failover                               | ❌                                  | ❌                                             | ✅                                 |
 | Instance type diversification for On-Demand Failover       | ❌                                  | ❌ (Relies on ASG to launch new instance)      | ✅ (ICE proof)                     |
 | Automated Spot product handling                            | ❌                                  | ❌                                             | ✅                                 |
 | Main deployment region                                     | N/A                                 | ❌ (N. Virginia only)                          | ✅ (Any region)                    |
@@ -34,6 +33,7 @@ The list of ehnancements in the Commercial edition is documented in detail
 | Savings reports email                                      | ❌                                  | ❌                                             | ✅                                 |
 | Relax EBS bandwidth checks for increased diversification   | N/A                                 | ❌                                             | ✅                                 |
 | Reuse ASG Launch Template when launching Spot instances    | N/A                                 | ❌                                             | ✅                                 |
+| Costs                                                      | Free (AWS Service)                  | Free and open source                           | 5% of savings from OnDemand        |
 
 
 
