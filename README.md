@@ -21,7 +21,7 @@ The list of ehnancements in the Commercial edition is documented in detail
 | Spot event handling - Rebalancing Recommendation           | Optional                            | ✅ (Default - increased instance churn!)       | Optional                           |
 | Spot event handling - Termination Notification             | ❌                                  | Optional                                       | ✅ (Default - less instance churn) |
 | Spot event handling - Replacement with a new Spot instance | Requires Rebalancing Recommendation | ✅ Via Spot termination + ASG OnDemand launch  | ✅ Proactive                       |
-| Load balancer and Target Group TCP connection draining     |                                   | ✅ (Relying on Autoscaling)                    | ✅ Proactive                       |
+| Load balancer and Target Group TCP connection draining     | ✅                                  | ✅ (Relying on Autoscaling)                    | ✅ Proactive                       |
 | Automated ECS task draining                                | Requires UserData script changes    | Requires UserData script changes               | ✅                                 |
 | Failover to on-demand instances                            | ❌                                  | ✅ Relies on Autoscaling to Launch replacement | ✅ Proactive                       |
 | Proactive on-demand failover                               | ❌                                  | ❌                                             | ✅                                 |
