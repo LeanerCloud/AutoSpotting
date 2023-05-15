@@ -68,9 +68,9 @@ changes.
 
 ## Demo
 
-Here's a demo of AutoSpotting and the way it integrates with the new [Spot Savings Estimator GUI](https://github.com/LeanerCloud/savings-estimator).
+Here's a demo of AutoSpotting and the way it integrates with the new [Spot Savings Estimator GUI](https://github.com/LeanerCloud/savings-estimator). (Click to open on YouTube)
 
-{% include youtube.html id="VXfCOXXtLwA" %}  
+[![Demo of AutoSpotting with the Savings Estimator](https://img.youtube.com/vi/VXfCOXXtLwA/maxresdefault.jpg)](https://youtu.be/VXfCOXXtLwA "AutoSpotting and Savings Estimator demo")
 
 ## Guiding principles ##
 
