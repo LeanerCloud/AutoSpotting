@@ -2,27 +2,49 @@
 
 ## AutoSpotting - Community Edition ##
 
-Additional features for increased reliability and better performance are 
-released in the commercial version of AutoSpotting, available on the AWS 
-[Marketplace](https://aws.amazon.com/marketplace/pp/prodview-6uj4pruhgmun6).
-
-Most new features and bug fixes developed by the main author after July 2022 are
-only made available in the commercial offering. The only exception are security
+Most new features, bug fixes and improvements for increased reliability and better performance developed by the main author after July 2022 are
+only available in the commercial version of AutoSpotting, available on the AWS 
+[Marketplace](https://aws.amazon.com/marketplace/pp/prodview-6uj4pruhgmun6). The only exception are security
 fixes, which will be patched in the Community Edition on a best effort basis.
 
-Bug fixes and occasionally also new features contributed by the community will
+Bug fixes and new features contributed by the community are welcome and will
 remain available in the Community Edition indefinitely.
 
 The list of ehnancements in the Commercial edition is documented in detail 
-[here](https://github.com/LeanerCloud/AutoSpotting/discussions/489).
+[here](https://github.com/LeanerCloud/AutoSpotting/discussions/489), but you can see below a brief feature comparison of AutoSpotting options vs. AWS AutoScaling groups.
+
+| **Feature**                                                | **Autoscaling Groups**              | **AutoSpotting Community Edition**             | **AutoSpotting Commercial**        |
+|------------------------------------------------------------|-------------------------------------|------------------------------------------------|------------------------------------|
+| Easy configuration rollout using tags                      | ❌                                  | ✅                                             | ✅                                 |
+| Automated Spot instance type diversification               | If using attribute based selection  | ✅                                             | ✅                                 |
+| Allocation policy with bias for new instance types         | ❌                                  | ✅                                             | ✅                                 |
+| Spot event handling - Rebalancing Recommendation           | Optional                            | ✅ (Default - increased instance churn!)       | Optional                           |
+| Spot event handling - Termination Notification             | ❌                                  | Optional                                       | ✅ (Default - less instance churn) |
+| Spot event handling - Replacement with a new Spot instance | Requires Rebalancing Recommendation | ✅ Via Spot termination + ASG OnDemand launch  | ✅ Proactive                       |
+| Load balancer and Target Group TCP connection draining     |                                   | ✅ (Relying on Autoscaling)                    | ✅ Proactive                       |
+| Automated ECS task draining                                | Requires UserData script changes    | Requires UserData script changes               | ✅                                 |
+| Failover to on-demand instances                            | ❌                                  | ✅ Relies on Autoscaling to Launch replacement | ✅ Proactive                       |
+| Proactive on-demand failover                               | ❌                                  | ❌                                             | ✅                                 |
+| Instance type diversification for On-Demand Failover       | ❌                                  | ❌ (Relies on ASG to launch new instance)      | ✅ (ICE proof)                     |
+| Automated Spot product handling                            | ❌                                  | ❌                                             | ✅                                 |
+| Main deployment region                                     | N/A                                 | ❌ (N. Virginia only)                          | ✅ (Any region)                    |
+| Parallel instance type replacement                         | N/A                                 | ❌                                             | ✅                                 |
+| Recent instance type coverage                              | N/A                                 | ❌                                             | ✅                                 |
+| Auto-update instance type information                      | If using attribute based selection  | ❌                                             | Optional                           |
+| Savings reports email                                      | ❌                                  | ❌                                             | ✅                                 |
+| Relax EBS bandwidth checks for increased diversification   | N/A                                 | ❌                                             | ✅                                 |
+| Reuse ASG Launch Template when launching Spot instances    | N/A                                 | ❌                                             | ✅                                 |
+
+
 
 <img src="logo.png" width="150" align="right">
 
-[![BuildStatus](https://travis-ci.org/LeanerCloud/AutoSpotting.svg?branch=master)](https://travis-ci.org/LeanerCloud/AutoSpotting)
+[![slack](https://img.shields.io/badge/slack-chat-brightgreen.svg?logo=slack)](https://join.slack.com/t/leanercloud/shared_invite/zt-xodcoi9j-1IcxNozXx1OW0gh_N08sjg)
 [![GoReportCard](https://goreportcard.com/badge/github.com/LeanerCloud/AutoSpotting)](https://goreportcard.com/report/github.com/LeanerCloud/AutoSpotting)
-[![CoverageStatus](https://coveralls.io/repos/github/LeanerCloud/AutoSpotting/badge.svg?branch=master)](https://coveralls.io/github/LeanerCloud/AutoSpotting?branch=master)
-[![ChatOnGitter](https://badges.gitter.im/LeanerCloud/AutoSpotting.svg)](https://gitter.im/cristim/autospotting)
 [![Patreon](https://img.shields.io/badge/patreon-donate-yellow.svg)](https://www.patreon.com/cristim/overview)
+
+# About AutoSpotting
+
 
 AutoSpotting is the leading open source spot market automation tool, optimized
 towards quick/easy/frictionless adoption of EC2 Spot instances at any scale.
@@ -48,7 +70,7 @@ changes.
 
 Here's a demo of AutoSpotting and the way it integrates with the new [Spot Savings Estimator GUI](https://github.com/LeanerCloud/savings-estimator).
 
-[![Demo of AutoSpotting with the Savings Estimator](https://yt-embed.live/embed?v=VXfCOXXtLwA)](https://youtu.be/VXfCOXXtLwA "AutoSpotting and Savings Estimator demo")
+{% include youtube.html id="VXfCOXXtLwA" %}  
 
 ## Guiding principles ##
 
