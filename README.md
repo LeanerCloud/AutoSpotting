@@ -24,7 +24,7 @@ The list of ehnancements in the Commercial edition is documented in detail
 | Load balancer and Target Group TCP connection draining     | ✅                                  | ✅ (Relying on Autoscaling)                    | ✅ Proactive                       |
 | Automated ECS task draining                                | Requires UserData script changes    | Requires UserData script changes               | ✅                                 |
 | Failover to on-demand instances                            | ❌                                  | ✅ Relies on Autoscaling to Launch replacement | ✅ Proactive                       |
-| Instance type diversification for On-Demand Failover       | ❌                                  | ❌ (Relies on ASG to launch new instance)      | ✅ (ICE proof)                     |
+| Instance type diversification for On-Demand Failover       | ❌                                  | ❌ (Single instance type from Launch Template) | ✅ (Same diversification as Spot)  |
 | Automated Spot product handling                            | ❌                                  | ❌                                             | ✅                                 |
 | Main deployment region                                     | N/A                                 | ❌ (N. Virginia only)                          | ✅ (Any region)                    |
 | Parallel instance type replacement                         | N/A                                 | ❌                                             | ✅                                 |
