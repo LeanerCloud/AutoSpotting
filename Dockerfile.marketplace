@@ -15,6 +15,6 @@ RUN FLAVOR=$flavor CGO_ENABLED=0 SAVINGS_CUT=$savings_cut make
 
 FROM alpine:latest
 COPY LICENSE BINARY_LICENSE THIRDPARTY /
-COPY --from=golang /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+RUN apk add -U --no-cache ca-certificates tzdata
 COPY --from=golang /src/AutoSpotting .
 ENTRYPOINT ["./AutoSpotting"]
