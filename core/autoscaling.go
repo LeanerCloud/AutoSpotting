@@ -163,6 +163,21 @@ func (a *autoScalingGroup) cronEventAction() runer {
 
 	onDemandInstance := a.getInstance(nil, true)
 
+	if onDemandInstance == nil {
+		log.Println(a.region.name, a.name,
+			"No running unprotected on-demand instances were found, nothing to do here...")
+		return skipRun{reason: "no-instances-to-replace"}
+	}
+
+	onDemandInstance.typeInfo = a.region.instanceTypeInformation[*onDemandInstance.InstanceType]
+	onDemandInstance.odPrice = onDemandInstance.getODPrice()
+
+	log.Printf("Instance data: %v", onDemandInstance)
+
+	if a.MixedInstancesPolicy != nil {
+		log.Printf("Group %s is using a mixed instances policy", a.name)
+	}
+
 	if need, total := a.needReplaceOnDemandInstances(); !need {
 		log.Printf("Not allowed to replace any more of the running OD instances in %s, currently running %d on-demand instances", a.name, total)
 		return skipRun{reason: "not-allowed-to-replace-more-instances"}
@@ -353,6 +368,7 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		}
 
 	}
+
 	log.Printf("Attaching instance %s to ASG %v", spotInstanceID, a.name)
 	resp, err := a.region.services.autoScaling.AttachInstances(
 		&autoscaling.AttachInstancesInput{
@@ -376,10 +392,39 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		return err
 	}
 
+	if a.MixedInstancesPolicy != nil {
+		if err := a.protectFromScaleIn(spotInstanceID); err != nil {
+			log.Printf("Spot instance %s couldn't be protected from scale-in: %v",
+				spotInstanceID, err.Error())
+			return err
+		}
+	}
+
 	if hasLH, hook := a.hasCodeDeployLifecycleHook(); hasLH {
 		a.triggerCodeDeployDeployment(hook, spotInstanceID)
 	}
 
+	return nil
+}
+
+func (a *autoScalingGroup) protectFromScaleIn(instanceID string) error {
+	return a.setInstanceScaleInProtection(instanceID, true)
+}
+func (a *autoScalingGroup) removeScaleInProtection(instanceID string) error {
+	return a.setInstanceScaleInProtection(instanceID, false)
+}
+
+func (a *autoScalingGroup) setInstanceScaleInProtection(instanceID string, status bool) error {
+	protectionInput := &autoscaling.SetInstanceProtectionInput{
+		AutoScalingGroupName: a.AutoScalingGroupName,
+		InstanceIds:          []*string{&instanceID},
+		ProtectedFromScaleIn: aws.Bool(status),
+	}
+
+	_, err := a.region.services.autoScaling.SetInstanceProtection(protectionInput)
+	if err != nil {
+		return fmt.Errorf("unable to set instance protection: %v", err)
+	}
 	return nil
 }
 
