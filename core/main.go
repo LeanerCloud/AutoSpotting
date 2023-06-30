@@ -396,6 +396,10 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 		return errors.New("instance missing")
 	}
 
+	if i.InstanceType != nil {
+		i.typeInfo = r.instanceTypeInformation[*i.InstanceType]
+	}
+
 	if skipRun, err := i.handleInstanceStates(); skipRun {
 		return err
 	}

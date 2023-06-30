@@ -71,6 +71,8 @@ func (i *instance) getSavings() float64 {
 
 func (i *instance) getODPrice() float64 {
 	if price, err := i.getODPriceFromTag(); err == nil {
+		log.Printf("Found OnDemand price %f for instance %s in ASG tag\n",
+			price, *i.InstanceId)
 		return price
 	}
 
@@ -168,6 +170,9 @@ func (i *instance) belongsToAnASG() (bool, *string) {
 }
 
 func (i *instance) getODPriceFromTag() (float64, error) {
+	if i == nil && i.Tags == nil {
+		return 0, errors.New("no tags found")
+	}
 	for _, tag := range i.Tags {
 		if *tag.Key == "odPrice" {
 			if price, err := strconv.ParseFloat(*tag.Value, 64); err == nil {
@@ -388,6 +393,9 @@ func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string,
 	// Count the ephemeral volumes attached to the original instance's block
 	// device mappings, this number is used later when comparing with each
 	// instance type.
+
+	log.Printf("Generating list of compatible instance types for %s with price %f",
+		*i.InstanceType, i.odPrice)
 
 	lcMappings := i.asg.launchConfiguration.countLaunchConfigEphemeralVolumes()
 	ltMappings := i.asg.launchTemplate.countLaunchTemplateEphemeralVolumes()
