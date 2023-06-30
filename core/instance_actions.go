@@ -56,6 +56,15 @@ func (i *instance) createOrReuseLaunchTemplate(replacementLifecycle string) (*st
 		return i.asg.LaunchTemplate.LaunchTemplateName, i.asg.LaunchTemplate.Version, nil
 	}
 
+	if i.asg.MixedInstancesPolicy != nil && i.asg.MixedInstancesPolicy.LaunchTemplate != nil {
+		lt := i.asg.MixedInstancesPolicy.LaunchTemplate.LaunchTemplateSpecification
+		log.Printf("Reusing the Launch template from the Mixed Instances Policy of ASG %s", i.asg.name)
+		return lt.LaunchTemplateName, lt.Version, nil
+	}
+
+	log.Printf("Couldn't determine an existing launch template, creating a new Launch Template for the ASG %s", i.asg.name)
+	debug.Printf("ASG data %v", i.asg)
+
 	ltData, err := i.createLaunchTemplateData(replacementLifecycle)
 
 	debug.Printf("Launch template data: %+#v", ltData)
@@ -77,7 +86,7 @@ func (i *instance) createOrReuseLaunchTemplate(replacementLifecycle string) (*st
 }
 
 func (i *instance) launchReplacement(replacementLifecycle string) (*string, error) {
-
+	log.Printf("Launching replacement instance for %s", *i.InstanceId)
 	instanceTypes, err := i.getCompatibleSpotInstanceTypesList(
 		i.asg.config.PrioritizedInstanceTypesBias,
 		i.asg.config.AllowedInstanceTypes,
@@ -160,7 +169,8 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 	if desiredCapacity == minSize {
 		log.Printf("Attaching %s instance %s to the group %s", *i.InstanceLifecycle,
 			*i.InstanceId, asg.name)
-		if err := attachSpotInstance(i, asg); err != nil {
+		if err := asg.attachSpotInstance(*i.InstanceId, true); err != nil {
+			i.terminate()
 			return nil, fmt.Errorf("couldn't attach spot instance: %w", err)
 		}
 
@@ -180,7 +190,8 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 
 		log.Printf("%s: Terminated on-demand instance %s", asg.name, *odInstance.InstanceId)
 
-		if err := attachSpotInstance(i, asg); err != nil {
+		if err := asg.attachSpotInstance(*i.InstanceId, true); err != nil {
+			i.terminate()
 			return nil, fmt.Errorf("couldn't attach spot instance: %w", err)
 		}
 
@@ -189,17 +200,6 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 	}
 
 	return nil, fmt.Errorf("%s: desiredCapacity is less than minSize, this shouldn't happen", asg.name)
-}
-
-func attachSpotInstance(i *instance, asg *autoScalingGroup) error {
-	log.Printf("%s: Attaching spot instance %s", asg.name, *i.InstanceId)
-	err := asg.attachSpotInstance(*i.InstanceId, true)
-	if err != nil {
-		log.Printf("%s: Spot instance %s couldn't be attached to the group, terminating it...", asg.name, *i.InstanceId)
-		i.terminate()
-		return fmt.Errorf("couldn't attach spot instance %s", *i.InstanceId)
-	}
-	return nil
 }
 
 func (i *instance) terminateInstanceInAutoScalingGroup(asg *autoScalingGroup) error {
