@@ -1276,7 +1276,9 @@ func Test_autoScalingGroup_needReplaceOnDemandInstances(t *testing.T) {
 func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 	asgNoInstances := autoScalingGroup{
 		spotProduct: aws.String(LinuxSpotProduct),
-		Group:       &autoscaling.Group{},
+		Group: &autoscaling.Group{
+			DesiredCapacity: aws.Int64(0),
+		},
 		region: &region{
 			conf: &Config{
 				AutoScalingConfig: AutoScalingConfig{
@@ -1293,15 +1295,29 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 	asgCantTerminateOnDemandInstance := autoScalingGroup{
 		spotProduct: aws.String(LinuxSpotProduct),
 		Group: &autoscaling.Group{
+			DesiredCapacity: aws.Int64(1),
 			Instances: []*autoscaling.Instance{
 				{
 					InstanceId:           aws.String("i-ondemand"),
+					InstanceType:         aws.String("m5.large"),
 					ProtectedFromScaleIn: aws.Bool(false),
 					LifecycleState:       aws.String("Running"),
 				},
 			},
 		},
 		region: &region{
+			instanceTypeInformation: map[string]instanceTypeInformation{
+				"m5.large": {
+					pricing: prices{
+						LinuxSpotProduct: {
+							onDemand: 30.3,
+							spot: spotPriceMap{
+								"us-east-1a": 0.2,
+							},
+						},
+					},
+				},
+			},
 			conf: &Config{
 				AutoScalingConfig: AutoScalingConfig{
 					CronSchedule:      DefaultCronSchedule,
@@ -1314,7 +1330,9 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 				instanceMap{
 					"i-ondemand": {
 						Instance: &ec2.Instance{
-							InstanceId: aws.String("i-ondemand"),
+							InstanceId:   aws.String("i-ondemand"),
+							InstanceType: aws.String("m5.large"),
+							ImageId:      aws.String("ami-12345678"),
 
 							Placement: &ec2.Placement{
 								AvailabilityZone: aws.String("us-east-1a"),
@@ -1339,64 +1357,97 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 			services: connections{
 				ec2: mockEC2{
 					diao: &ec2.DescribeInstanceAttributeOutput{},
+
+					damio: &ec2.DescribeImagesOutput{
+						Images: []*ec2.Image{
+							{
+								PlatformDetails: aws.String(LinuxSpotProduct),
+								ImageId:         aws.String("ami-12345678"),
+							},
+						},
+					},
 				},
 			},
 		},
 	}
 
-	// asgTerminateOnDemandInstance := autoScalingGroup{
+	asgTerminateOnDemandInstance := autoScalingGroup{
 
-	// 	Group: &autoscaling.Group{
-	// 		Instances: []*autoscaling.Instance{
-	// 			{
-	// 				InstanceId:           aws.String("i-ondemand"),
-	// 				ProtectedFromScaleIn: aws.Bool(false),
-	// 				LifecycleState:       aws.String("Running"),
-	// 			},
-	// 		},
-	// 	},
-	// 	region: &region{
-	// 		conf: &Config{
-	// 			AutoScalingConfig: AutoScalingConfig{
-	// 				CronSchedule:      DefaultCronSchedule,
-	// 				CronScheduleState: "on",
-	// 				MinOnDemandNumber: 0,
-	// 			},
-	// 			LicenseType: "custom",
-	// 			Version:     "nightly",
-	// 			FinalRecap:  make(map[string][]string),
-	// 		},
-	// 		instances: makeInstancesWithCatalog(
-	// 			instanceMap{
-	// 				"i-ondemand": {
-	// 					Instance: &ec2.Instance{
-	// 						InstanceId: aws.String("i-ondemand"),
-
-	// 						Placement: &ec2.Placement{
-	// 							AvailabilityZone: aws.String("us-east-1a"),
-	// 						},
-	// 						State: &ec2.InstanceState{
-	// 							Name: aws.String(ec2.InstanceStateNameRunning),
-	// 						},
-	// 					},
-	// 					price: 30.3,
-	// 					typeInfo: instanceTypeInformation{
-	// 						pricing: prices{
-	// 							onDemand: 30.3,
-	// 							spot: spotPriceMap{
-	// 								"us-east-1a": 0.2,
-	// 							},
-	// 						},
-	// 					},
-	// 				},
-	// 			}),
-	// 		services: connections{
-	// 			ec2: mockEC2{
-	// 				diao: &ec2.DescribeInstanceAttributeOutput{},
-	// 			},
-	// 		},
-	// 	},
-	// }
+		Group: &autoscaling.Group{
+			DesiredCapacity: aws.Int64(1),
+			Instances: []*autoscaling.Instance{
+				{
+					InstanceId:           aws.String("i-ondemand"),
+					InstanceType:         aws.String("m5.large"),
+					ProtectedFromScaleIn: aws.Bool(false),
+					LifecycleState:       aws.String("Running"),
+				},
+			},
+		},
+		region: &region{
+			conf: &Config{
+				AutoScalingConfig: AutoScalingConfig{
+					CronSchedule:      DefaultCronSchedule,
+					CronScheduleState: "on",
+					MinOnDemandNumber: 0,
+				},
+				Version:    "nightly",
+				FinalRecap: make(map[string][]string),
+			},
+			instanceTypeInformation: map[string]instanceTypeInformation{
+				"m5.large": {
+					pricing: prices{
+						LinuxSpotProduct: {
+							onDemand: 30.3,
+							spot: spotPriceMap{
+								"us-east-1a": 0.2,
+							},
+						},
+					},
+				},
+			},
+			instances: makeInstancesWithCatalog(
+				instanceMap{
+					"i-ondemand": {
+						Instance: &ec2.Instance{
+							InstanceId:   aws.String("i-ondemand"),
+							InstanceType: aws.String("m5.large"),
+							ImageId:      aws.String("ami-12345678"),
+							Placement: &ec2.Placement{
+								AvailabilityZone: aws.String("us-east-1a"),
+							},
+							State: &ec2.InstanceState{
+								Name: aws.String(ec2.InstanceStateNameRunning),
+							},
+						},
+						odPrice: 30.3,
+						typeInfo: instanceTypeInformation{
+							pricing: prices{
+								LinuxSpotProduct: {
+									onDemand: 30.3,
+									spot: spotPriceMap{
+										"us-east-1a": 0.2,
+									},
+								},
+							},
+						},
+					},
+				}),
+			services: connections{
+				ec2: mockEC2{
+					diao: &ec2.DescribeInstanceAttributeOutput{},
+					damio: &ec2.DescribeImagesOutput{
+						Images: []*ec2.Image{
+							{
+								PlatformDetails: aws.String(LinuxSpotProduct),
+								ImageId:         aws.String("ami-12345678"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 
 	tests := []struct {
 		name string
@@ -1431,16 +1482,15 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 			want: skipRun{reason: "not-allowed-to-replace-more-instances"},
 		},
 
-		// {name: "terminate on demand instance",
-		// 	asg: &asgTerminateOnDemandInstance,
-		// 	want: replaceAndTerminateInstance{
-		// 		target{
-		// 			autospotting:     &autospotting{},
-		// 			totalInstances:   0,
-		// 			onDemandInstance: asgTerminateOnDemandInstance.region.instances.get("i-ondemand"),
-		// 		},
-		// 	},
-		// },
+		{name: "terminate on demand instance",
+			asg: &asgTerminateOnDemandInstance,
+			want: replaceAndTerminateInstance{
+				target{
+					autospotting:     nil,
+					onDemandInstance: asgTerminateOnDemandInstance.region.instances.get("i-ondemand"),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
