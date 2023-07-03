@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -103,6 +104,8 @@ func (i *instance) launchReplacement(replacementLifecycle string) (*string, erro
 		return nil, err
 	}
 
+	log.Printf("Using the following list of %s instance types: %s", replacementLifecycle, strings.Join(derefSlice(instanceTypes), ", "))
+
 	cfi := i.createFleetInput(ltName, ltVersion, instanceTypes, replacementLifecycle)
 
 	debug.Printf("Fleet Input: %+#v", cfi)
@@ -114,7 +117,7 @@ func (i *instance) launchReplacement(replacementLifecycle string) (*string, erro
 		return nil, err
 	}
 
-	log.Printf("CreateFleet() response: %#v", resp)
+	debug.Printf("CreateFleet() response: %#v", resp)
 
 	if resp != nil && len(resp.Instances) > 0 && resp.Instances[0] != nil && len(resp.Instances[0].InstanceIds) > 0 {
 

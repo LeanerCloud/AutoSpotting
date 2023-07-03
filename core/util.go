@@ -37,3 +37,15 @@ func removeDuplicateStr(strSlice []*string) []*string {
 
 	return output
 }
+
+func derefSlice(slice []*string) []string {
+	// Slice to hold dereferenced strings
+	derefSlice := make([]string, len(slice))
+
+	for i, strPtr := range slice {
+		// Dereference the pointer to get the string
+		derefSlice[i] = *strPtr
+	}
+
+	return derefSlice
+}
