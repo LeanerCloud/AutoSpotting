@@ -526,6 +526,7 @@ Resources:
               - "autoscaling:DescribeTags"
               - "autoscaling:DetachInstances"
               - "autoscaling:ResumeProcesses"
+              - "autoscaling:SetInstanceProtection"
               - "autoscaling:SuspendProcesses"
               - "autoscaling:TerminateInstanceInAutoScalingGroup"
               - "autoscaling:UpdateAutoScalingGroup"
