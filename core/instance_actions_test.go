@@ -142,6 +142,7 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 			instance: instance{
 				Instance: &ec2.Instance{
 					InstanceId:         aws.String("i-dummy"),
+					InstanceType:       aws.String("t2.micro"),
 					VirtualizationType: aws.String("paravirtual"),
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),

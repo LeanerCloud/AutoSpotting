@@ -593,8 +593,8 @@ func TestFilterAsgs(t *testing.T) {
 			want: nullSlice,
 		},
 		{
-			name: "Test skipping execution against mixed groups",
-			want: []string{"asg1"},
+			name: "Accept execution against mixed groups",
+			want: []string{"asg1", "asg2"},
 			tregion: &region{
 				tagsToFilterASGsBy: []Tag{{Key: "spot-enabled", Value: "true"}},
 				conf:               &Config{},

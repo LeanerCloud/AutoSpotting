@@ -606,6 +606,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 			instanceInfo: &instance{
 				Instance: &ec2.Instance{
 					InstanceId:         aws.String("i-dummy"),
+					InstanceType:       aws.String("typeX"),
 					VirtualizationType: aws.String("paravirtual"),
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
@@ -689,6 +690,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 			instanceInfo: &instance{
 				Instance: &ec2.Instance{
 					InstanceId:         aws.String("i-dummy"),
+					InstanceType:       aws.String("typeX"),
 					VirtualizationType: aws.String("paravirtual"),
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
@@ -776,6 +778,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 			instanceInfo: &instance{
 				Instance: &ec2.Instance{
 					InstanceId:         aws.String("i-dummy"),
+					InstanceType:       aws.String("typeX"),
 					VirtualizationType: aws.String("paravirtual"),
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
@@ -860,6 +863,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 			instanceInfo: &instance{
 				Instance: &ec2.Instance{
 					InstanceId:         aws.String("i-dummy"),
+					InstanceType:       aws.String("typeX"),
 					VirtualizationType: aws.String("paravirtual"),
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
@@ -945,6 +949,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 			instanceInfo: &instance{
 				Instance: &ec2.Instance{
 					InstanceId:         aws.String("i-dummy"),
+					InstanceType:       aws.String("typeX"),
 					VirtualizationType: aws.String("paravirtual"),
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
@@ -974,6 +979,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
 								InstanceLifecycle: aws.String(Spot),
 							},
+							odPrice: 0.45,
 						},
 					},
 				),
