@@ -493,6 +493,18 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 		return fmt.Errorf("instance %s is a spot instance", *i.InstanceId)
 	}
 
+	// instance is not in an enabled ASG
+	belongs, asg := i.belongsToEnabledASG()
+	if !belongs {
+		log.Printf("Instance %s does not belong to an enabled ASG, skipping further processing", *i.InstanceId)
+		return nil
+	}
+
+	if i.shouldBeTerminated(asg) {
+		log.Printf("%s terminating %s instance %s: ", i.region.name, lifecycle, *i.InstanceId)
+		i.terminate()
+	}
+
 	if !i.shouldBeReplacedWithNewSpotInstance() {
 		log.Printf("%s skipping %s instance %s: either doesn't belong to an "+
 			"enabled ASG or should not be replaced with spot, ",

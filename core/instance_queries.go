@@ -122,6 +122,22 @@ func (i *instance) shouldBeReplacedWithNewSpotInstance() bool {
 	return false
 }
 
+func (i *instance) shouldBeTerminated(asg *autoScalingGroup) bool {
+
+	if asg.MixedInstancesPolicy == nil {
+		log.Printf("Instance %s belongs to an ASG without MixedInstancesPolicy, will not be considered for termination", *i.InstanceId)
+		return false
+	}
+
+	count := int64(asg.instances.count())
+	if *asg.DesiredCapacity < count {
+		log.Printf("Instance %s belongs to an ASG with MixedInstancesPolicy and DesiredCapacity(%d) < number of instances(%d), so needs to be terminated",
+			*i.InstanceId, *asg.DesiredCapacity, asg.instances.count())
+		return true
+	}
+	return false
+}
+
 func (i *instance) belongsToEnabledASG() (bool, *autoScalingGroup) {
 	belongs, asgName := i.belongsToAnASG()
 	if !belongs {
