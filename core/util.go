@@ -44,7 +44,9 @@ func derefSlice(slice []*string) []string {
 
 	for i, strPtr := range slice {
 		// Dereference the pointer to get the string
-		derefSlice[i] = *strPtr
+		if strPtr != nil {
+			derefSlice[i] = *strPtr
+		}
 	}
 
 	return derefSlice

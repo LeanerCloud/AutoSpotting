@@ -3,6 +3,8 @@ package autospotting
 import (
 	"reflect"
 	"testing"
+
+	"github.com/aws/aws-sdk-go/aws"
 )
 
 func Test_min(t *testing.T) {
@@ -151,4 +153,41 @@ func TestRemoveDuplicateStr(t *testing.T) {
 
 func newString(s string) *string {
 	return &s
+}
+
+func TestDerefSlice(t *testing.T) {
+	tests := []struct {
+		name  string
+		slice []*string
+		want  []string
+	}{
+		{
+			name:  "test1",
+			slice: []*string{aws.String("string1"), aws.String("string2"), aws.String("string3")},
+			want:  []string{"string1", "string2", "string3"},
+		},
+		{
+			name:  "test2",
+			slice: []*string{},
+			want:  []string{},
+		},
+		{
+			name:  "test3",
+			slice: []*string{aws.String("single")},
+			want:  []string{"single"},
+		},
+		{
+			name:  "test4",
+			slice: []*string{nil},
+			want:  []string{""},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := derefSlice(tt.slice); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("derefSlice() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
