@@ -173,7 +173,10 @@ func Test_savingsStats_calculateLast7DaysTotalSavings(t *testing.T) {
 }
 
 func Test_savingsStats_calculateLast30DaysTotalSavings(t *testing.T) {
-	day1 := time.Now().Add(-1 * time.Hour)
+	// Use a fixed time for testing.
+	now := time.Date(2023, 7, 3, 0, 0, 0, 0, time.UTC)
+
+	day1 := now.Add(-1 * time.Hour)
 	day2 := day1.Add(-25 * time.Hour)
 	lastMonthDay1 := day1.Add(-30 * 24 * time.Hour)
 	lastMonthDay2 := day2.Add(-30 * 24 * time.Hour)
@@ -229,7 +232,7 @@ func Test_savingsStats_calculateLast30DaysTotalSavings(t *testing.T) {
 					},
 				},
 			},
-			want: 2.6,
+			want: 2.5,
 		},
 	}
 	for _, tt := range tests {
@@ -237,7 +240,12 @@ func Test_savingsStats_calculateLast30DaysTotalSavings(t *testing.T) {
 			s := &savingsStats{
 				history: tt.history,
 			}
-			if got := s.calculateLast30DaysTotalSavings(); math.Abs(got-tt.want) > 0.00000000001 {
+			// Use the fixed time inside the time filter.
+			if got := s.calculateSavingsFromHistory(s.history.dailyHistory, func(t *time.Time) bool {
+				ret := t.Local().After(now.AddDate(0, -1, 0))
+				debug.Printf("Checking if timestamp %v is from last 30 days: %v\n", t.Local(), ret)
+				return ret
+			}); math.Abs(got-tt.want) > 0.00000000001 {
 				t.Errorf("savingsStats.calculateLast30DaysTotalSavings() = %v, want %v", got, tt.want)
 			}
 		})

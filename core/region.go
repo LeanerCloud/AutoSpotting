@@ -116,6 +116,7 @@ func (r *region) processRegion() {
 		log.Println(r.name, "has no enabled AutoScaling groups")
 	}
 	r.reapUnattachedSpotInstances()
+
 }
 
 func (r *region) setupAsgFilters() {
