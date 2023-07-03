@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -161,6 +162,8 @@ func (a *autoScalingGroup) cronEventAction() runer {
 		return skipRun{reason: "outside-cron-schedule"}
 	}
 
+	a.clearScaleInProtectionOfSpotInstancesInDownsizedASGs()
+
 	onDemandInstance := a.getInstance(nil, true)
 
 	if onDemandInstance == nil {
@@ -198,6 +201,62 @@ func (a *autoScalingGroup) cronEventAction() runer {
 		onDemandInstance: onDemandInstance,
 	},
 	}
+}
+
+func (a *autoScalingGroup) clearScaleInProtectionOfSpotInstancesInDownsizedASGs() {
+	count := int64(a.instances.count())
+	capacityDelta := count - *a.DesiredCapacity
+	if capacityDelta <= 0 {
+		return
+	}
+
+	instancesToUnprotect := a.getInstancesToUnprotect()
+
+	for _, instanceID := range instancesToUnprotect {
+		err := a.removeScaleInProtection(instanceID)
+		if err != nil {
+			log.Printf("Error removing scale in protection for instance %s: %s", instanceID, err.Error())
+		} else {
+			log.Println("Successfully removed scale in protection for instance:", instanceID)
+		}
+	}
+
+}
+
+func (a *autoScalingGroup) getInstancesToUnprotect() []string {
+	extraInstancesCount := a.instances.count() - int(*a.DesiredCapacity)
+
+	azInstancesMap := make(map[string][]*autoscaling.Instance)
+	for _, instance := range a.Instances {
+		azInstancesMap[*instance.AvailabilityZone] = append(azInstancesMap[*instance.AvailabilityZone], instance)
+	}
+
+	azs := make([]string, 0, len(azInstancesMap))
+	for az := range azInstancesMap {
+		azs = append(azs, az)
+	}
+
+	sort.Slice(azs, func(i, j int) bool {
+		return len(azInstancesMap[azs[i]]) > len(azInstancesMap[azs[j]])
+	})
+
+	unprotectedInstanceIDs := make([]string, 0, extraInstancesCount)
+	for _, az := range azs {
+		azInstances := azInstancesMap[az]
+		if len(azInstances) <= extraInstancesCount {
+			for _, instance := range azInstances {
+				unprotectedInstanceIDs = append(unprotectedInstanceIDs, *instance.InstanceId)
+			}
+			extraInstancesCount -= len(azInstances)
+		} else {
+			for _, instance := range azInstances[:extraInstancesCount] {
+				unprotectedInstanceIDs = append(unprotectedInstanceIDs, *instance.InstanceId)
+			}
+			break
+		}
+	}
+
+	return unprotectedInstanceIDs
 }
 
 func (a *autoScalingGroup) scanInstances() instances {
@@ -568,6 +627,11 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 
 	var total, count int64
 	instanceCategory := Spot
+
+	if a == nil {
+		log.Println("AutoScalingGroup is nil, this shouldn't happen")
+		return 0, 0
+	}
 
 	if !spot {
 		instanceCategory = OnDemand
