@@ -107,6 +107,7 @@ vet-check:                                                   ## Verify vet compl
 .PHONY: vet-check
 
 fmt-check:                                                   ## Verify fmt compliance
+	@rm -rf .history
 	@sh -c 'test -z "$$(gofmt -l -s -d . | tee /dev/stderr)"'
 .PHONY: fmt-check
 

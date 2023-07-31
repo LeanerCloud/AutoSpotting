@@ -29,6 +29,7 @@ Metadata:
           - TagFilteringMode
           - FilterByTags
           - PrioritizedInstanceTypesBias
+          - InstanceTypesPerAZ
 
       -
         Label:
@@ -213,6 +214,16 @@ Parameters:
       are specified) the 'spot-enabled=true' key/value pair is used. Example:
       'spot-enabled=true,environment=dev'"
     Type: "String"
+  InstanceTypesPerAZ:
+    Description: >
+     "Number of instance types to diversify over for each availability
+     zone. Can be overridden on a per-group basis using the tag
+     'autospotting_number_of_instance_types_per_az'."
+    Type: Number
+    Default: "2"
+    MinValue: "1"
+    MaxValue: "1000"
+    ConstraintDescription: Must be a number between 1 and 100.
   LambdaFunctionTagKey:
     Description: "Name of the tag to be applied to the Lambda function"
     Default: "Name"
@@ -222,13 +233,13 @@ Parameters:
     Default: "AutoSpotting"
     Type: "String"
   LambdaMemorySize:
-    Default: 512
+    Default: "512"
     Description: >
       "Memory allocated to the Lambda function, setting this lower will slow
       down the execution a bit"
     Type: Number
-    MinValue: 128
-    MaxValue: 3008
+    MinValue: "128"
+    MaxValue: "3008"
   SourceECR:
     Default: "709825985650.dkr.ecr.us-east-1.amazonaws.com"
     Description: >
@@ -470,6 +481,8 @@ Resources:
             Ref: "EnableInstanceRebalanceRecommendation"
           DISALLOWED_INSTANCE_TYPES:
             Ref: "DisallowedInstanceTypes"
+          INSTANCE_TYPES_PER_AZ:
+            Ref: "InstanceTypesPerAZ"
           MIN_ON_DEMAND_NUMBER:
             Ref: "MinOnDemandNumber"
           MIN_ON_DEMAND_PERCENTAGE:

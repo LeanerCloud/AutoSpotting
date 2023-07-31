@@ -345,7 +345,7 @@ func (i *instance) terminate() error {
 }
 
 func (i *instance) waitForBeanstalkDeployments() {
-	envName, envID := i.getBesnstalkDeploymentInformation()
+	envName, envID := i.getBeanstalkDeploymentInformation()
 	if envName == nil || envID == nil {
 		log.Printf("Instance %s is not provisioned by ElasticBeanstalk, skipping deployment wait logic", *i.InstanceId)
 		return

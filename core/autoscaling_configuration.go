@@ -22,10 +22,14 @@ const (
 	// percentage of the group's running instances.
 	OnDemandPercentageTag = "autospotting_min_on_demand_percentage"
 
-	// OnDemandNumberLong is the name of a tag that can be defined on a
+	// OnDemandNumberTag is the name of a tag that can be defined on a
 	// per-group level for overriding maintained on-demand capacity given as an
 	// absolute number.
-	OnDemandNumberLong = "autospotting_min_on_demand_number"
+	OnDemandNumberTag = "autospotting_min_on_demand_number"
+
+	// NumberOfInstanceTypesPerAZTag is the name of a tag that can be defined
+	// on a per-group level for controlling the diversification, given in number of instance types per availability zone.
+	NumberOfInstanceTypesPerAZTag = "autospotting_number_of_instance_types_per_az"
 
 	// OnDemandPriceMultiplierTag is the name of a tag that can be defined on a
 	// per-group level for overriding multiplier for the on-demand price.
@@ -59,6 +63,10 @@ const (
 	// DefaultMinOnDemandValue stores the default on-demand capacity to be kept
 	// running in a group managed by autospotting.
 	DefaultMinOnDemandValue = 0
+
+	// DefaultNumberOfInstanceTypesPerAZ stores the default number of instance types
+	// to be used for diversification of instance types in each availability zone.
+	DefaultNumberOfInstanceTypesPerAZ = 2
 
 	// DefaultSpotPriceBufferPercentage stores the default percentage value
 	// above the current spot price to place a bid
@@ -129,6 +137,8 @@ type AutoScalingConfig struct {
 	AllowedInstanceTypes    string
 	DisallowedInstanceTypes string
 
+	NumberOfInstanceTypesPerAZ int64
+
 	OnDemandPriceMultiplier   float64
 	SpotPriceBufferPercentage float64
 
@@ -198,12 +208,25 @@ func (a *autoScalingGroup) loadNumberOnDemand(tagValue *string) (int64, bool) {
 	if err != nil {
 		log.Printf("Error with Atoi: %s\n", err.Error())
 	} else if onDemand >= 0 && int64(onDemand) <= *a.MaxSize {
-		log.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandNumberLong)
+		log.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandNumberTag)
 		return int64(onDemand), true
 	} else {
 		log.Printf("Ignoring value out of range %d\n", onDemand)
 	}
 	return DefaultMinOnDemandValue, false
+}
+
+func (a *autoScalingGroup) loadNumberOfInstanceTypesPerAZ(tagValue *string) (int64, bool) {
+	nr, err := strconv.Atoi(*tagValue)
+	if err != nil {
+		log.Printf("Error with Atoi: %s\n", err.Error())
+	} else if nr >= 0 {
+		log.Printf("Loaded NumberOfInstanceTyperPerAZ value to %d from tag %s\n", nr, NumberOfInstanceTypesPerAZTag)
+		return int64(nr), true
+	} else {
+		log.Printf("Ignoring value out of range %d\n", nr)
+	}
+	return DefaultNumberOfInstanceTypesPerAZ, false
 }
 
 func (a *autoScalingGroup) loadOnDemandPriceMultiplier(tagValue *string) (float64, bool) {
@@ -238,10 +261,10 @@ func (a *autoScalingGroup) setMinOnDemandIfLarger(newValue int64, hasMinOnDemand
 }
 
 func (a *autoScalingGroup) loadConfOnDemand() bool {
-	tagList := [2]string{OnDemandNumberLong, OnDemandPercentageTag}
+	tagList := [2]string{OnDemandNumberTag, OnDemandPercentageTag}
 	loadDyn := map[string]func(*string) (int64, bool){
 		OnDemandPercentageTag: a.loadPercentageOnDemand,
-		OnDemandNumberLong:    a.loadNumberOnDemand,
+		OnDemandNumberTag:     a.loadNumberOnDemand,
 	}
 
 	foundLimit := false
@@ -437,6 +460,23 @@ func (a *autoScalingGroup) loadConfOnDemandPriceMultiplier() bool {
 	return done
 }
 
+func (a *autoScalingGroup) loadConfNumberOfInstanceTypesPerAZ() bool {
+	a.config.NumberOfInstanceTypesPerAZ = a.region.conf.NumberOfInstanceTypesPerAZ
+	tagValue := a.getTagValue(NumberOfInstanceTypesPerAZTag)
+	if tagValue == nil {
+		return false
+	}
+
+	newValue, done := a.loadNumberOfInstanceTypesPerAZ(tagValue)
+	if !done {
+		debug.Println("Couldn't find tag", OnDemandPriceMultiplierTag)
+		return false
+	}
+
+	a.config.NumberOfInstanceTypesPerAZ = newValue
+	return done
+}
+
 // Add configuration of other elements here: prices, whitelisting, etc
 func (a *autoScalingGroup) loadConfigFromTags() bool {
 	ret := false
@@ -498,6 +538,11 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 
 	if a.loadDisallowedInstanceTypes() {
 		log.Println("Found and applied configuration for Disallowed Instance Types")
+		ret = true
+	}
+
+	if a.loadConfNumberOfInstanceTypesPerAZ() {
+		log.Println("Found and applied configuration for Number Of Instance Types Per Availability Zone")
 		ret = true
 	}
 

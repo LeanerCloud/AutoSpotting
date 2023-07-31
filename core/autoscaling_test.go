@@ -5,6 +5,7 @@ package autospotting
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -1498,5 +1499,1503 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 				t.Errorf("autoScalingGroup.cronEventAction() \ngot %#v, \nwant %#v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
+	// Table tests
+	var tests = []struct {
+		name           string
+		asg            autoScalingGroup
+		instanceType   string
+		az             string
+		expectedResult bool
+	}{
+		{
+			name: "Case 1: No instances, should return false",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+			},
+			instanceType:   "t2.micro",
+			az:             "us-east-1a",
+			expectedResult: false,
+		},
+		{
+			name: "Case 2: Instances present but different AZ, should return false",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:       aws.String("i-spot1"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1b"),
+						},
+						{
+							InstanceId:       aws.String("i-spot2"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1b"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot1": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot1"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1b"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1b": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot2": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot2"),
+									InstanceType:      aws.String("t3.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1b"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1b": 0.2,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "t2.micro",
+			az:             "us-east-1a",
+			expectedResult: false,
+		},
+
+		{
+			name: "Case 3: Instances present in same AZ, but different types and below limit, should return false",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:       aws.String("i-spot1"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot2"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot1": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot1"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot2": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot2"),
+									InstanceType:      aws.String("t3.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.25,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "m5.large",
+			az:             "us-east-1a",
+			expectedResult: false,
+		},
+		{
+			name: "Case 4: Instances present in same AZ, and would be too many of the same type, should return true",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:       aws.String("i-spot1"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot2"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot1": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot1"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot2": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot2"),
+									InstanceType:      aws.String("t3.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.25,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "t2.micro",
+			az:             "us-east-1a",
+			expectedResult: true,
+		},
+		{
+			name: "Case 5: Instances present in same AZ, different type, but exceeds limit, should return false",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+
+						{
+							InstanceId:       aws.String("i-spot1"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot2"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot3"),
+							InstanceType:     aws.String("m5.large"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot1": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot1"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot2": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot2"),
+									InstanceType:      aws.String("t3.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.25,
+											},
+										},
+									},
+								},
+							},
+							"i-spot3": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot3"),
+									InstanceType:      aws.String("m3.large"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 2.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.45,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "m4.large",
+			az:             "us-east-1a",
+			expectedResult: false,
+		},
+
+		{
+			name: "Case 6: Instances present in same AZ, same type, exceeds limit but wouldn't imbalance the group, should return false",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:       aws.String("i-spot4"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot5"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot6"),
+							InstanceType:     aws.String("m5.large"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot4": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot4"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot5": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot5"),
+									InstanceType:      aws.String("t3.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.25,
+											},
+										},
+									},
+								},
+							},
+							"i-spot6": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot6"),
+									InstanceType:      aws.String("m5.large"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 2.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.45,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "m5.large",
+			az:             "us-east-1a",
+			expectedResult: false,
+		},
+
+		{
+			name: "Case 7: Instances present in same AZ, same type, exceeds limit and would imbalance the group, should return true",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:       aws.String("i-spot4"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot5"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot6"),
+							InstanceType:     aws.String("m5.large"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot7"),
+							InstanceType:     aws.String("m5.large"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot4": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot4"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot5": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot5"),
+									InstanceType:      aws.String("t3.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.25,
+											},
+										},
+									},
+								},
+							},
+							"i-spot6": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot6"),
+									InstanceType:      aws.String("m5.large"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 2.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.45,
+											},
+										},
+									},
+								},
+							},
+							"i-spot7": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot7"),
+									InstanceType:      aws.String("m5.large"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 2.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.45,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "m5.large",
+			az:             "us-east-1a",
+			expectedResult: true,
+		},
+
+		{
+			name: "Case 8: Instances present in same AZ, same type, exceeds limit and would not imbalance the group, should return false",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:       aws.String("i-spot4"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot5"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot6"),
+							InstanceType:     aws.String("m5.large"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot7"),
+							InstanceType:     aws.String("c5.large"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot4": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot4"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot5": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot5"),
+									InstanceType:      aws.String("t3.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.25,
+											},
+										},
+									},
+								},
+							},
+							"i-spot6": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot6"),
+									InstanceType:      aws.String("m5.large"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 2.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 2.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.4,
+											},
+										},
+									},
+								},
+							},
+							"i-spot7": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot7"),
+									InstanceType:      aws.String("c5.large"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 2.5,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 2.5,
+											spot: spotPriceMap{
+												"us-east-1a": 0.5,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "m5.large",
+			az:             "us-east-1a",
+			expectedResult: false,
+		},
+
+		{
+			name: "Case 9: Multiple instances in same AZ and of same type, below limit, should return true",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{InstanceId: aws.String("i-spot4"), InstanceType: aws.String("t2.micro"), AvailabilityZone: aws.String("us-east-1a")},
+						{InstanceId: aws.String("i-spot5"), InstanceType: aws.String("t2.micro"), AvailabilityZone: aws.String("us-east-1a")},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 2,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot4": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot4"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot5": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot5"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "t2.micro",
+			az:             "us-east-1a",
+			expectedResult: true,
+		},
+
+		{
+			name: "Case 10: Multiple instances of different types in same AZ, just hitting the limit, should return false",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:       aws.String("i-spot4"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot5"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot6"),
+							InstanceType:     aws.String("m5.large"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot4": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot4"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot5": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot5"),
+									InstanceType:      aws.String("t3.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.25,
+											},
+										},
+									},
+								},
+							},
+							"i-spot6": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot6"),
+									InstanceType:      aws.String("m5.large"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 2.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.45,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "c5.large",
+			az:             "us-east-1a",
+			expectedResult: false,
+		},
+
+		{
+			name: "Case 11: Multiple instances in different AZs of the same type, should return true",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:       aws.String("i-spot4"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot5"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1b"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot4": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot4"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot5": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot5"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1b"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1b": 0.2,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "t2.micro",
+			az:             "us-east-1a",
+			expectedResult: true,
+		},
+
+		{
+			name: "Case 12: Instances exceed limit in one AZ but not the other, should return true",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:       aws.String("i-spot1"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot2"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot3"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot4"),
+							InstanceType:     aws.String("m5.large"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot5"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1b"),
+						},
+						{
+							InstanceId:       aws.String("i-spot6"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1b"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot1": {
+								Instance: &ec2.Instance{
+									InstanceId:   aws.String("i-spot1"),
+									InstanceType: aws.String("t2.micro"),
+									ImageId:      aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+									InstanceLifecycle: aws.String("spot"),
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot2": {
+								Instance: &ec2.Instance{
+									InstanceId:   aws.String("i-spot2"),
+									InstanceType: aws.String("t2.micro"),
+									ImageId:      aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+									InstanceLifecycle: aws.String("spot"),
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.25,
+											},
+										},
+									},
+								},
+							},
+							"i-spot3": {
+								Instance: &ec2.Instance{
+									InstanceId:   aws.String("i-spot3"),
+									InstanceType: aws.String("t3.micro"),
+									ImageId:      aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+									InstanceLifecycle: aws.String("spot"),
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 2.1,
+											spot: spotPriceMap{
+												"us-east-1a": 0.45,
+											},
+										},
+									},
+								},
+							},
+							"i-spot4": {
+								Instance: &ec2.Instance{
+									InstanceId:   aws.String("i-spot4"),
+									InstanceType: aws.String("m5.large"),
+									ImageId:      aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+									InstanceLifecycle: aws.String("spot"),
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1b": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot5": {
+								Instance: &ec2.Instance{
+									InstanceId:   aws.String("i-spot5"),
+									InstanceType: aws.String("t2.micro"),
+									ImageId:      aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1b"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+									InstanceLifecycle: aws.String("spot"),
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.1,
+											spot: spotPriceMap{
+												"us-east-1b": 0.25,
+											},
+										},
+									},
+								},
+							},
+							"i-spot6": {
+								Instance: &ec2.Instance{
+									InstanceId:   aws.String("i-spot6"),
+									InstanceType: aws.String("t3.micro"),
+									ImageId:      aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1b"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+									InstanceLifecycle: aws.String("spot"),
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.1,
+											spot: spotPriceMap{
+												"us-east-1b": 0.25,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "t2.micro",
+			az:             "us-east-1a",
+			expectedResult: true,
+		},
+
+		// Then the same case as above, but check for "us-east-1b"
+		{
+			name: "Case 13: Instances exceed limit in one AZ but not the other, should return true",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:       aws.String("i-spot6"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot7"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot8"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot9"),
+							InstanceType:     aws.String("m5.large"),
+							AvailabilityZone: aws.String("us-east-1a"),
+						},
+						{
+							InstanceId:       aws.String("i-spot10"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1b"),
+						},
+						{
+							InstanceId:       aws.String("i-spot11"),
+							InstanceType:     aws.String("t3.micro"),
+							AvailabilityZone: aws.String("us-east-1b"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot6": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot6"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot7": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot7"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot8": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot8"),
+									InstanceType:      aws.String("t3.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot9": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot9"),
+									InstanceType:      aws.String("m5.large"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1a"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1a": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot10": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot10"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1b"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1b": 0.2,
+											},
+										},
+									},
+								},
+							},
+							"i-spot11": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot11"),
+									InstanceType:      aws.String("t3.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1b"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1b": 0.2,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "t2.micro",
+			az:             "us-east-1b",
+			expectedResult: true,
+		},
+
+		{
+			name: "Case 14: No instances in the desired AZ, but instances of the desired type in another AZ, should return false",
+			asg: autoScalingGroup{
+				Group: &autoscaling.Group{
+					Instances: []*autoscaling.Instance{
+						{
+							InstanceId:       aws.String("i-spot11"),
+							InstanceType:     aws.String("t2.micro"),
+							AvailabilityZone: aws.String("us-east-1b"),
+						},
+					},
+				},
+				config: AutoScalingConfig{
+					NumberOfInstanceTypesPerAZ: 3,
+				},
+				region: &region{
+					instances: makeInstancesWithCatalog(
+						instanceMap{
+							"i-spot11": {
+								Instance: &ec2.Instance{
+									InstanceId:        aws.String("i-spot11"),
+									InstanceType:      aws.String("t2.micro"),
+									InstanceLifecycle: aws.String("spot"),
+									ImageId:           aws.String("ami-12345678"),
+									Placement: &ec2.Placement{
+										AvailabilityZone: aws.String("us-east-1b"),
+									},
+									State: &ec2.InstanceState{
+										Name: aws.String(ec2.InstanceStateNameRunning),
+									},
+								},
+								odPrice: 1.0,
+								typeInfo: instanceTypeInformation{
+									pricing: prices{
+										LinuxSpotProduct: {
+											onDemand: 1.0,
+											spot: spotPriceMap{
+												"us-east-1b": 0.2,
+											},
+										},
+									},
+								},
+							},
+						}),
+				},
+			},
+			instanceType:   "t2.micro",
+			az:             "us-east-1a",
+			expectedResult: false,
+		},
+	}
+
+	for _, test := range tests {
+		fmt.Println(test.name)
+		result, _ := test.asg.willCauseInstanceTypeImbalance(test.instanceType, test.az)
+		if result != test.expectedResult {
+			t.Errorf("%s failed, expected %v, got %v", test.name, test.expectedResult, result)
+		}
 	}
 }

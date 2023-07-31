@@ -218,7 +218,7 @@ func (i *instance) getReplacementTargetASGName() *string {
 	return nil
 }
 
-func (i *instance) getBesnstalkDeploymentInformation() (*string, *string) {
+func (i *instance) getBeanstalkDeploymentInformation() (*string, *string) {
 	var envName, envID *string
 
 	for _, tag := range i.Tags {
@@ -249,6 +249,21 @@ func (i *instance) isPriceCompatible(spotPrice float64) bool {
 
 	debug.Printf("\tNot price compatible")
 	return false
+}
+
+func (i *instance) haveTooManyInstancesOfThisTypeRunning(instanceType string) bool {
+
+	ret, err := i.asg.willCauseInstanceTypeImbalance(instanceType, *i.Placement.AvailabilityZone)
+	if err != nil {
+		log.Printf("Encountered error while calling i.asg.haveTooManyInstancesOfInstanceType: %v", err)
+		return false
+	}
+
+	if ret {
+		log.Printf("Having too many instances of instance type %s in AZ %v, skipping this instance type.",
+			*i.InstanceType, *i.Placement.AvailabilityZone)
+	}
+	return ret
 }
 
 func (i *instance) isClassCompatible(spotCandidate *instanceTypeInformation) bool {
@@ -459,7 +474,7 @@ func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string,
 	if acceptableInstanceTypes != nil {
 		sort.Slice(acceptableInstanceTypes, func(i, j int) bool {
 			if PrioritizationBias == "prefer_newer_generations" {
-				log.Printf("Sorting biased towards newer instance types, comparing %v"+
+				debug.Printf("Sorting biased towards newer instance types, comparing %v"+
 					" of generation delta %v and price %v(adjusted to %v) with %v of generation delta %v and price %v (adjusted to %v)\n",
 					acceptableInstanceTypes[i].instanceTI.instanceType,
 					acceptableInstanceTypes[i].generationDelta,
@@ -475,11 +490,16 @@ func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string,
 			return acceptableInstanceTypes[i].price < acceptableInstanceTypes[j].price
 
 		})
-		log.Printf("List of cheapest compatible spot instances found, sorted ascending by price/bias: %#v",
+		debug.Printf("List of cheapest compatible spot instances found, sorted ascending by price/bias: %#v",
 			acceptableInstanceTypes)
 		var result []*string
 		for _, ai := range acceptableInstanceTypes {
-			result = append(result, aws.String(ai.instanceTI.instanceType))
+			it := ai.instanceTI.instanceType
+			if len(acceptableInstanceTypes) > 5 && i.haveTooManyInstancesOfThisTypeRunning(it) {
+				log.Println("Having enough diversification potential, skipping instance type: ", it)
+				continue
+			}
+			result = append(result, aws.String(it))
 		}
 		return result, nil
 	}

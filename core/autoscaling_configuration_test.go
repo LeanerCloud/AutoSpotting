@@ -267,7 +267,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandNumberLong),
+					Key:   aws.String(OnDemandNumberTag),
 					Value: aws.String("text"),
 				},
 			},
@@ -283,7 +283,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandNumberLong),
+					Key:   aws.String(OnDemandNumberTag),
 					Value: aws.String("2.5"),
 				},
 			},
@@ -299,7 +299,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandNumberLong),
+					Key:   aws.String(OnDemandNumberTag),
 					Value: aws.String("-7"),
 				},
 			},
@@ -315,7 +315,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandNumberLong),
+					Key:   aws.String(OnDemandNumberTag),
 					Value: aws.String("50"),
 				},
 			},
@@ -337,7 +337,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("asg-test"),
 				},
 				{
-					Key:   aws.String(OnDemandNumberLong),
+					Key:   aws.String(OnDemandNumberTag),
 					Value: aws.String("1"),
 				},
 			},
@@ -363,7 +363,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("75"),
 				},
 				{
-					Key:   aws.String(OnDemandNumberLong),
+					Key:   aws.String(OnDemandNumberTag),
 					Value: aws.String("-2"),
 				},
 			},
@@ -390,7 +390,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("-75"),
 				},
 				{
-					Key:   aws.String(OnDemandNumberLong),
+					Key:   aws.String(OnDemandNumberTag),
 					Value: aws.String("200"),
 				},
 			},
@@ -410,7 +410,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("75"),
 				},
 				{
-					Key:   aws.String(OnDemandNumberLong),
+					Key:   aws.String(OnDemandNumberTag),
 					Value: aws.String("2"),
 				},
 			},
@@ -441,7 +441,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("10"),
 				},
 				{
-					Key:   aws.String(OnDemandNumberLong),
+					Key:   aws.String(OnDemandNumberTag),
 					Value: aws.String("3"),
 				},
 			},
@@ -682,7 +682,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 			loadingExpected: false,
 			expectedConfig:  AutoScalingConfig{},
 		},
-		{name: OnDemandNumberLong + " OD number is invalid so percentage value is used",
+		{name: OnDemandNumberTag + " OD number is invalid so percentage value is used",
 			asgTags: []*autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
@@ -693,7 +693,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 					Value: aws.String("75"),
 				},
 				{
-					Key:   aws.String(OnDemandNumberLong),
+					Key:   aws.String(OnDemandNumberTag),
 					Value: aws.String("-2"),
 				},
 				{

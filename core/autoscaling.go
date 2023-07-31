@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -147,6 +148,84 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() (bool, int64) {
 	return false, totalRunning
 }
 
+// Error for an invalid instance
+var errInvalidInstance = errors.New("invalid instance")
+
+// Check if instance is valid
+func isValidInstance(instance *autoscaling.Instance) error {
+	if instance == nil || instance.AvailabilityZone == nil || instance.InstanceType == nil {
+		return errInvalidInstance
+	}
+	return nil
+}
+
+// Count Spot instances of a given instance type in an availability zone, and also return the total of Spot instances in that AZ
+func (a *autoScalingGroup) countSpotInstancesInAZ(instanceType, az string) (int64, int64, error) {
+	var countByType, countSpot int64
+	for _, instance := range a.Group.Instances {
+		if err := isValidInstance(instance); err != nil {
+			return 0, 0, err
+		}
+
+		inst := a.region.instances.get(*instance.InstanceId)
+		if inst == nil {
+			a.region.scanInstance(instance.InstanceId)
+			inst = a.region.instances.get(*instance.InstanceId)
+		}
+		if inst == nil {
+			return 0, 0, fmt.Errorf("instance not found: %s", *instance.InstanceId)
+		}
+
+		if !inst.isSpot() {
+			debug.Printf("Ignoring On Demand instance %s in availability zone %s", *instance.InstanceId, az)
+			continue
+		}
+
+		if *instance.AvailabilityZone == az {
+			countSpot++
+			if *instance.InstanceType == instanceType {
+				countByType++
+			}
+		}
+	}
+	return countByType, countSpot, nil
+}
+
+// Error for an invalid auto scaling group or group
+var errInvalidGroup = errors.New("invalid autoScalingGroup or Group is nil")
+
+// Check if adding an instance will cause instance type imbalance
+func (a *autoScalingGroup) willCauseInstanceTypeImbalance(instanceType, az string) (bool, error) {
+	if a == nil || a.Group == nil {
+		return false, errInvalidGroup
+	}
+
+	log.Printf("Starting process: Checking if there are too many instances of type %s in availability zone %s\n", instanceType, az)
+
+	totalSpotCountByType, totalSpotCount, err := a.countSpotInstancesInAZ(instanceType, az)
+	if err != nil {
+		return false, err
+	}
+	futureCountOfSimilarSpotInstancesInAZ := totalSpotCountByType + 1
+	futureTotalSpotCountInAz := totalSpotCount + 1
+
+	// make sure diversification is at least 1 to avoid division by zero
+	diversificationTarget := int64(max(int(a.config.NumberOfInstanceTypesPerAZ), 1))
+
+	// we should allow an additional instance: for
+	// example if we have existing instances of types A,B and C and we want to add
+	// an instance of type A, it should be allowed. But if we have A,A,B and C and we
+	// try to add an A it should not be allowed.
+	allowedInstancesOfInstanceTypeInAZ := int64(math.Ceil(float64(futureTotalSpotCountInAz) / float64(diversificationTarget)))
+
+	if futureCountOfSimilarSpotInstancesInAZ > allowedInstancesOfInstanceTypeInAZ {
+		log.Printf("After adding new instance, type %s in availability zone %s would be imbalanced\n", instanceType, az)
+		return true, nil
+	}
+
+	debug.Printf("After adding new instance, type %s in availability zone %s would not be imbalanced\n", instanceType, az)
+	return false, nil
+}
 func (a *autoScalingGroup) cronEventAction() runer {
 
 	a.scanInstances()
@@ -175,7 +254,7 @@ func (a *autoScalingGroup) cronEventAction() runer {
 	onDemandInstance.typeInfo = a.region.instanceTypeInformation[*onDemandInstance.InstanceType]
 	onDemandInstance.odPrice = onDemandInstance.getODPrice()
 
-	log.Printf("Instance data: %v", onDemandInstance)
+	debug.Printf("Instance data: %v", onDemandInstance)
 
 	if a.MixedInstancesPolicy != nil {
 		log.Printf("Group %s is using a mixed instances policy", a.name)

@@ -168,6 +168,13 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 					spotProduct: aws.String(LinuxSpotProduct),
 					Group: &autoscaling.Group{
 						DesiredCapacity: aws.Int64(4),
+						Instances: []*autoscaling.Instance{
+							{
+								InstanceId:       aws.String("id-1"),
+								InstanceType:     aws.String("typeX"),
+								AvailabilityZone: aws.String("eu-west-1"),
+							},
+						},
 					},
 					instances: makeInstancesWithCatalog(
 						instanceMap{
@@ -182,7 +189,8 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 						},
 					),
 					config: AutoScalingConfig{
-						OnDemandPriceMultiplier: 1.0,
+						OnDemandPriceMultiplier:    1.0,
+						NumberOfInstanceTypesPerAZ: 3,
 					},
 					region: &region{
 						conf: &Config{
