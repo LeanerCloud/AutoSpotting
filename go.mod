@@ -11,8 +11,8 @@ require (
 	github.com/namsral/flag v0.0.0-20170814194028-67f268f20922
 	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
-	golang.org/x/sys v0.0.0-20220627191245-f75cf1eec38b // indirect
-	golang.org/x/tools v0.1.11
+	golang.org/x/tools v0.9.1 // indirect
+	golang.org/x/tools/cmd/cover v0.1.0-deprecated
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gotest.tools/v3 v3.0.0
 )
