@@ -690,7 +690,7 @@ func (a *autoScalingGroup) deregisterInstanceFromLoadBalancersAndECSClusters(i *
 		go func() {
 			defer wg.Done()
 			log.Printf("%s %s Deregistering ECS managed %s instance %s from all ECS clusters", a.region.name, a.name, lifecycle, *i.InstanceId)
-			err := i.deregisterFromAllECSClusters()
+			err := i.setToDrainingInAllECSClusters()
 			if err != nil {
 				log.Printf("failed to deregister %s instance %s: %v", lifecycle, *i.InstanceId, err)
 			}

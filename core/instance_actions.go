@@ -514,9 +514,9 @@ func (i *instance) getContainerInstanceArn(clusterName *string) (*string, error)
 	return nil, errors.New("instance not found in the list of container instances")
 }
 
-func (i *instance) deregisterFromECSCluster(clusterARN *string, deregisterGroup *sync.WaitGroup) {
-	defer deregisterGroup.Done()
-	// Get the cluster name from the ARN
+func (i *instance) setContainerInstanceToDraining(clusterARN *string, setDrainingGroup *sync.WaitGroup) {
+	defer setDrainingGroup.Done()
+
 	// Extract the cluster name from the ARN
 	clusterName, err := i.region.extractECSClusterName(aws.StringValue(clusterARN))
 	if err != nil {
@@ -530,42 +530,42 @@ func (i *instance) deregisterFromECSCluster(clusterARN *string, deregisterGroup 
 		return
 	}
 
-	deregisterInput := &ecs.DeregisterContainerInstanceInput{
-		Cluster:           aws.String(clusterName),
-		ContainerInstance: containerInstanceArn,
-		Force:             aws.Bool(true),
+	// Set the container instance status to DRAINING
+	updateInput := &ecs.UpdateContainerInstancesStateInput{
+		Cluster:            aws.String(clusterName),
+		ContainerInstances: []*string{containerInstanceArn},
+		Status:             aws.String("DRAINING"),
 	}
-	_, err = i.region.services.ecs.DeregisterContainerInstance(deregisterInput)
+	_, err = i.region.services.ecs.UpdateContainerInstancesState(updateInput)
 	if err != nil {
-		log.Printf("Error deregistering instance %s from cluster %s: %v\n", aws.StringValue(i.InstanceId), clusterName, err)
+		log.Printf("Error setting instance %s to DRAINING in cluster %s: %v\n", aws.StringValue(i.InstanceId), clusterName, err)
 	} else {
-		log.Printf("Deregistered instance %s from cluster %s\n", aws.StringValue(i.InstanceId), clusterName)
+		log.Printf("Set instance %s to DRAINING in cluster %s\n", aws.StringValue(i.InstanceId), clusterName)
 	}
-
 }
 
-func (i *instance) deregisterFromECSClusters(clusterARNs []*string) error {
-	// Create a workgroup to perform parallel deregistration
-	deregisterGroup := new(sync.WaitGroup)
-	deregisterGroup.Add(len(clusterARNs))
+func (i *instance) setInstanceToDraining(clusterARNs []*string) error {
+	// Create a workgroup to perform parallel status update
+	setDrainingGroup := new(sync.WaitGroup)
+	setDrainingGroup.Add(len(clusterARNs))
 
-	// Deregister the instance from each cluster
+	// Set the instance status to DRAINING for each cluster
 	for _, clusterARN := range clusterARNs {
-		go i.deregisterFromECSCluster(clusterARN, deregisterGroup)
+		go i.setContainerInstanceToDraining(clusterARN, setDrainingGroup)
 	}
 
-	deregisterGroup.Wait()
+	setDrainingGroup.Wait()
 
 	return nil
 }
 
-func (i *instance) deregisterFromAllECSClusters() error {
+func (i *instance) setToDrainingInAllECSClusters() error {
 	// List all clusters in the region
 	listClusterInput := &ecs.ListClustersInput{}
 	var clusterARNs []*string
 	err := i.region.services.ecs.ListClustersPages(listClusterInput, func(page *ecs.ListClustersOutput, lastPage bool) bool {
 		clusterARNs = append(clusterARNs, page.ClusterArns...)
-		go i.deregisterFromECSClusters(page.ClusterArns)
+		go i.setInstanceToDraining(page.ClusterArns)
 		return !lastPage
 	})
 	if err != nil {
