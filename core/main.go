@@ -602,6 +602,12 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	}
 
 	i.asg = i.region.findEnabledASGByName(*asgName)
+	if i.asg == nil {
+		log.Println("Error: Couldn't find Autoscaling Group", *asgName)
+		return nil, errors.New("couldn't find ASG " + *asgName)
+	}
+	i.asg.name = *i.asg.AutoScalingGroupName
+
 	i.asg.scanInstances()
 	i.asg.loadDefaultConfig()
 	i.asg.loadConfigFromTags()

@@ -141,6 +141,18 @@ func getInstanceTypesAndErrorCodes(errors []*ec2.CreateFleetError) map[string]st
 }
 
 func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace *instance) (*instance, error) {
+	if i == nil {
+		return nil, fmt.Errorf("instance is nil")
+	}
+
+	if asg == nil {
+		return nil, fmt.Errorf("autoScalingGroup is nil")
+	}
+
+	if i.InstanceId == nil {
+		return nil, fmt.Errorf("instance ID is nil")
+	}
+
 	var odInstance *instance
 	var err error
 
@@ -154,24 +166,33 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 			return nil, fmt.Errorf("couldn't find suitable OnDemand swap candidate, error: %w", err)
 		}
 	}
+
+	if odInstance == nil || odInstance.InstanceId == nil {
+		return nil, fmt.Errorf("odInstance or its ID is nil")
+	}
+
 	asg.suspendProcesses()
 	defer asg.resumeProcesses(2 * time.Minute)
 
+	if asg.DesiredCapacity == nil || asg.MaxSize == nil || asg.MinSize == nil {
+		return nil, fmt.Errorf("autoScalingGroup has nil values")
+	}
+
 	desiredCapacity, maxSize, minSize := *asg.DesiredCapacity, *asg.MaxSize, *asg.MinSize
 
-	// temporarily increase AutoScaling group in case the desired capacity reaches the max size,
-	// otherwise attachSpotInstance might fail
 	if minSize == maxSize {
 		log.Printf("%s: Temporarily increasing MaxSize", asg.name)
 		asg.setAutoScalingMaxSize(maxSize + 1)
 		defer asg.setAutoScalingMaxSize(maxSize)
 	}
 
-	// attach the spot instance first and then terminate the on demand instance,
-	//to avoid decreasing the capacity of the group below the mimimum size
 	if desiredCapacity == minSize {
-		log.Printf("Attaching %s instance %s to the group %s", *i.InstanceLifecycle,
-			*i.InstanceId, asg.name)
+		instanceLifecycle := "on-demand" // Default value if InstanceLifecycle is nil
+		if i.InstanceLifecycle != nil {
+			instanceLifecycle = *i.InstanceLifecycle
+		}
+
+		log.Printf("Attaching %s instance %s to the group %s", instanceLifecycle, *i.InstanceId, asg.name)
 		if err := asg.attachSpotInstance(*i.InstanceId, true); err != nil {
 			i.terminate()
 			return nil, fmt.Errorf("couldn't attach spot instance: %w", err)
@@ -183,10 +204,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 
 		log.Printf("%s: Terminated on-demand instance %s", asg.name, *odInstance.InstanceId)
 		return odInstance, nil
-
 	} else if desiredCapacity > minSize {
-		// we can terminate on-demand instance first and then attach the spot instance.
-
 		if err := odInstance.terminateInstanceInAutoScalingGroup(asg); err != nil {
 			return nil, fmt.Errorf("couldn't terminate instance %s: %w", *i.InstanceId, err)
 		}
@@ -202,7 +220,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 		return odInstance, nil
 	}
 
-	return nil, fmt.Errorf("%s: desiredCapacity is less than minSize, this shouldn't happen", asg.name)
+	return nil, fmt.Errorf("unexpected condition in swapWithGroupMember")
 }
 
 func (i *instance) terminateInstanceInAutoScalingGroup(asg *autoScalingGroup) error {
