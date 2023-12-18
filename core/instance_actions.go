@@ -9,7 +9,6 @@ import (
 	"log"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -121,7 +120,16 @@ func (i *instance) launchReplacement(replacementLifecycle string) (*string, erro
 
 	if resp != nil && len(resp.Instances) > 0 && resp.Instances[0] != nil && len(resp.Instances[0].InstanceIds) > 0 {
 
-		return resp.Instances[0].InstanceIds[0], nil
+		inst := *resp.Instances[0]
+		id := inst.InstanceIds[0]
+
+		lifecycle := "spot"
+		if inst.Lifecycle == nil || *inst.Lifecycle != "spot" {
+			lifecycle = "on-demand"
+		}
+
+		log.Printf("%s %s CreateFleet() successfully launched %s instance: %s", i.region.name, i.asg.name, lifecycle, *id)
+		return id, nil
 	}
 
 	if resp.Errors != nil {
@@ -140,95 +148,144 @@ func getInstanceTypesAndErrorCodes(errors []*ec2.CreateFleetError) map[string]st
 	return instanceTypesAndErrorCodes
 }
 
-func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace *instance) (*instance, error) {
-	if i == nil {
-		return nil, fmt.Errorf("instance is nil")
+func validateInputs(i *instance, asg *autoScalingGroup) error {
+	if i == nil || i.InstanceId == nil {
+		log.Printf("Error: Instance or Instance ID is nil")
+		return fmt.Errorf("instance or instance ID is nil")
 	}
 
 	if asg == nil {
-		return nil, fmt.Errorf("autoScalingGroup is nil")
+		log.Printf("Error: AutoScalingGroup is nil")
+		return fmt.Errorf("autoScalingGroup is nil")
 	}
 
-	if i.InstanceId == nil {
-		return nil, fmt.Errorf("instance ID is nil")
-	}
+	return nil
+}
 
-	var odInstance *instance
-	var err error
+func getReplacementInstance(i *instance, instancetoReplace *instance) (*instance, error) {
+
+	newLifecycle := i.getLifecycleValue()
 
 	if instancetoReplace != nil {
-		odInstance = instancetoReplace
-	} else {
-		odInstance, err = i.getSwapCandidate()
-		if err != nil {
-			log.Printf("Couldn't find suitable OnDemand swap candidate, terminating Spot instance: %s", *i.InstanceId)
-			i.terminate()
-			return nil, fmt.Errorf("couldn't find suitable OnDemand swap candidate, error: %w", err)
-		}
+		oldLifecycle := instancetoReplace.getLifecycleValue()
+		log.Printf("Using provided %s instance %s to replace %s instance %s",
+			newLifecycle, *i.InstanceId, oldLifecycle, *instancetoReplace.InstanceId)
+		return instancetoReplace, nil
 	}
 
-	if odInstance == nil || odInstance.InstanceId == nil {
-		return nil, fmt.Errorf("odInstance or its ID is nil")
+	log.Printf("Finding swap candidate for %s instance %s", newLifecycle, *i.InstanceId)
+	swapCandidate, err := i.getSwapCandidate()
+	if err != nil {
+		log.Printf("Couldn't find suitable swap candidate: %v", err)
+		i.terminate()
+		return nil, err
 	}
+	return swapCandidate, nil
+}
 
-	asg.suspendProcesses()
-	defer asg.resumeProcesses(2 * time.Minute)
-
+func checkASGValues(asg *autoScalingGroup) error {
 	if asg.DesiredCapacity == nil || asg.MaxSize == nil || asg.MinSize == nil {
-		return nil, fmt.Errorf("autoScalingGroup has nil values")
+		log.Printf("Error: autoScalingGroup has nil values")
+		return fmt.Errorf("autoScalingGroup has nil values")
 	}
+	return nil
+}
 
+func handleASGSizeAdjustments(asg *autoScalingGroup) {
 	desiredCapacity, maxSize, minSize := *asg.DesiredCapacity, *asg.MaxSize, *asg.MinSize
+	log.Printf("ASG status - DesiredCapacity: %d, MaxSize: %d, MinSize: %d", desiredCapacity, maxSize, minSize)
 
 	if minSize == maxSize {
 		log.Printf("%s: Temporarily increasing MaxSize", asg.name)
 		asg.setAutoScalingMaxSize(maxSize + 1)
 		defer asg.setAutoScalingMaxSize(maxSize)
 	}
+}
 
+func (i *instance) getLifecycleValue() string {
+	defaultValue := "on-demand"
+	if i.InstanceLifecycle != nil {
+		return *i.InstanceLifecycle
+	}
+	return defaultValue
+}
+
+func replaceInstanceInASG(i *instance, asg *autoScalingGroup, existingInstance *instance) (*instance, error) {
+	desiredCapacity, minSize := *asg.DesiredCapacity, *asg.MinSize
+
+	newInstanceLifecycle := i.getLifecycleValue()
+
+	existingInstanceLifecycle := existingInstance.getLifecycleValue()
+
+	// attach the spot instance first and then terminate the on demand instance,
+	// to avoid decreasing the capacity of the group below the mimimum size
 	if desiredCapacity == minSize {
-		instanceLifecycle := "on-demand" // Default value if InstanceLifecycle is nil
-		if i.InstanceLifecycle != nil {
-			instanceLifecycle = *i.InstanceLifecycle
-		}
 
-		log.Printf("Attaching %s instance %s to the group %s", instanceLifecycle, *i.InstanceId, asg.name)
-		if err := asg.attachSpotInstance(*i.InstanceId, true); err != nil {
+		log.Printf("Attaching %s instance %s to the group %s", newInstanceLifecycle, *i.InstanceId, asg.name)
+		if err := asg.attachNewInstance(*i.InstanceId, newInstanceLifecycle, true); err != nil {
 			i.terminate()
+			log.Printf("Failed to attach %s instance: %v", newInstanceLifecycle, err)
 			return nil, fmt.Errorf("couldn't attach spot instance: %w", err)
 		}
 
-		if err := odInstance.terminateInstanceInAutoScalingGroup(asg); err != nil {
-			return nil, fmt.Errorf("couldn't terminate on-demand instance: %w", err)
+		if err := existingInstance.terminateInstanceInAutoScalingGroup(asg); err != nil {
+			log.Printf("Failed to terminate existing %s instance: %v", existingInstanceLifecycle, err)
+			return nil, fmt.Errorf("couldn't terminate %s instance: %w", existingInstanceLifecycle, err)
 		}
 
-		log.Printf("%s: Terminated on-demand instance %s", asg.name, *odInstance.InstanceId)
-		return odInstance, nil
+		log.Printf("%s: Terminated existing %s instance %s", asg.name, existingInstanceLifecycle, *existingInstance.InstanceId)
+		return existingInstance, nil
 	} else if desiredCapacity > minSize {
-		if err := odInstance.terminateInstanceInAutoScalingGroup(asg); err != nil {
+		if err := existingInstance.terminateInstanceInAutoScalingGroup(asg); err != nil {
+			log.Printf("Failed to terminate existing %s instance %s: %v", existingInstanceLifecycle, *existingInstance.InstanceId, err)
 			return nil, fmt.Errorf("couldn't terminate instance %s: %w", *i.InstanceId, err)
 		}
 
-		log.Printf("%s: Terminated on-demand instance %s", asg.name, *odInstance.InstanceId)
+		log.Printf("%s: Terminated existing %s instance %s", asg.name, existingInstanceLifecycle, *existingInstance.InstanceId)
 
-		if err := asg.attachSpotInstance(*i.InstanceId, true); err != nil {
+		if err := asg.attachNewInstance(*i.InstanceId, newInstanceLifecycle, true); err != nil {
 			i.terminate()
-			return nil, fmt.Errorf("couldn't attach spot instance: %w", err)
+			log.Printf("Failed to attach new %s instance: %v", newInstanceLifecycle, err)
+			return nil, fmt.Errorf("couldn't attach new %s instance: %w", newInstanceLifecycle, err)
 		}
 
-		log.Printf("%s: Attached spot instance %s", asg.name, *i.InstanceId)
-		return odInstance, nil
+		log.Printf("%s: Attached new %s instance %s", asg.name, newInstanceLifecycle, *i.InstanceId)
+		return existingInstance, nil
 	}
 
-	return nil, fmt.Errorf("unexpected condition in swapWithGroupMember")
+	log.Printf("replaceInstanceInASG error: unexpected condition")
+	return nil, fmt.Errorf("unexpected condition in replaceInstanceInASG")
+}
+
+func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace *instance) (*instance, error) {
+	if err := validateInputs(i, asg); err != nil {
+		return nil, err
+	}
+
+	odInstance, err := getReplacementInstance(i, instancetoReplace)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := checkASGValues(asg); err != nil {
+		return nil, err
+	}
+
+	// temporarily increase AutoScaling group in case the desired capacity reaches the max size,
+	// otherwise attachSpotInstance might fail
+	handleASGSizeAdjustments(asg)
+
+	return replaceInstanceInASG(i, asg, odInstance)
 }
 
 func (i *instance) terminateInstanceInAutoScalingGroup(asg *autoScalingGroup) error {
-	log.Printf("Terminating instance %s from the group %s",
-		*i.InstanceId, asg.name)
+	lifecycle := i.getLifecycleValue()
+	log.Printf("Terminating %s instance %s from the group %s",
+		lifecycle, *i.InstanceId, asg.name)
+
 	if err := asg.terminateInstanceInAutoScalingGroup(i, true, true); err != nil {
-		log.Printf("%s: On-demand instance %s couldn't be terminated, re-trying...", asg.name, *i.InstanceId)
-		return fmt.Errorf("couldn't terminate on-demand instance %s: %w", *i.InstanceId, err)
+		log.Printf("%s: %s instance %s couldn't be terminated, re-trying...", lifecycle, asg.name, *i.InstanceId)
+		return fmt.Errorf("couldn't terminate %s instance %s: %w", lifecycle, *i.InstanceId, err)
 	}
 	return nil
 }
@@ -264,13 +321,16 @@ func (i *instance) terminate() error {
 	var err error
 	debug.Printf("Instance: %v\n", i)
 
-	log.Printf("Terminating %v", *i.InstanceId)
+	lifecycle := i.getLifecycleValue()
+
+	log.Printf("Terminating %s instance %v", lifecycle, *i.InstanceId)
 	svc := i.region.services.ec2
 
 	if !i.canTerminate() {
-		log.Printf("Can't terminate %v, current state: %s",
-			*i.InstanceId, *i.State.Name)
-		return fmt.Errorf("can't terminate %s", *i.InstanceId)
+		log.Printf("Can't terminate %s instance %v, current state: %s",
+			lifecycle, *i.InstanceId, *i.State.Name)
+		return fmt.Errorf("can't terminate %s instance %s",
+			lifecycle, *i.InstanceId)
 	}
 
 	_, err = svc.TerminateInstances(&ec2.TerminateInstancesInput{
@@ -278,7 +338,7 @@ func (i *instance) terminate() error {
 	})
 
 	if err != nil {
-		log.Printf("Issue while terminating %v: %v", *i.InstanceId, err.Error())
+		log.Printf("Issue while terminating %s instance %v: %v", lifecycle, *i.InstanceId, err.Error())
 	}
 
 	return err

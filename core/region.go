@@ -115,7 +115,7 @@ func (r *region) processRegion() {
 	} else {
 		log.Println(r.name, "has no enabled AutoScaling groups")
 	}
-	r.reapUnattachedSpotInstances()
+	r.reapUnattachedInstances()
 
 }
 
@@ -519,8 +519,8 @@ func (r *region) sqsDeleteMessage(instanceID *string, instanceLifecycle string, 
 		return err
 	}
 
-	log.Printf("%s Successfully deleted spot instance %s launch event message "+
-		"from the SQS Queue %s", r.name, *instanceID, r.conf.SQSQueueURL)
+	log.Printf("%s Successfully deleted %s instance %s launch event message "+
+		"from the SQS Queue %s", r.name, instanceLifecycle, *instanceID, r.conf.SQSQueueURL)
 
 	return nil
 
@@ -570,22 +570,24 @@ func (r *region) calculateSavings() float64 {
 	return savings
 }
 
-func (r *region) reapUnattachedSpotInstances() {
+func (r *region) reapUnattachedInstances() {
 	for inst := range r.instances.instances() {
-		debug.Printf("Looking at instance %s", *inst.InstanceId)
-		if inst.isSpot() && inst.isLaunchedByAutoSpotting() {
-			debug.Printf("instance %s is Spot and launched by AutoSpotting", *inst.InstanceId)
+		lifecycle := inst.getLifecycleValue()
+		debug.Printf("Looking at %s instance %s", lifecycle, *inst.InstanceId)
+		if inst.isLaunchedByAutoSpotting() {
+			debug.Printf("%s instance %s is launched by AutoSpotting",
+				lifecycle, *inst.InstanceId)
 			if belongs, asg := inst.belongsToAnASG(); !belongs {
-				debug.Printf("instance %s doesn't belong to any ASG", *inst.InstanceId)
-				if inst.LaunchTime.Before(time.Now().Add(-15 * time.Minute)) {
-					log.Printf("Reaping Spot instance %s launched by AutoSpotting but not attached to any ASG after more than 15min (%s), terminating it",
-						*inst.InstanceId, time.Since(*inst.LaunchTime))
+				debug.Printf("%s instance %s doesn't belong to any ASG", lifecycle, *inst.InstanceId)
+				if inst.isOlderThan(15 * time.Minute) {
+					log.Printf("Reaping %s instance %s was launched by AutoSpotting but not attached to any ASG after more than 15min (%s), terminating it",
+						lifecycle, *inst.InstanceId, time.Since(*inst.LaunchTime))
 					inst.terminate()
 				} else {
-					debug.Printf("instance %s has recently been launched", *inst.InstanceId)
+					debug.Printf("%s instance %s has recently been launched", lifecycle, *inst.InstanceId)
 				}
 			} else {
-				debug.Printf("instance %s belongs to ASG %s", *inst.InstanceId, *asg)
+				debug.Printf("%s instance %s belongs to ASG %s", lifecycle, *inst.InstanceId, *asg)
 			}
 		}
 	}

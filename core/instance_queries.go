@@ -97,42 +97,51 @@ func (i *instance) canTerminate() bool {
 		*i.State.Name != ec2.InstanceStateNameShuttingDown
 }
 
+func (i *instance) isOlderThan(duration time.Duration) bool {
+	return i.LaunchTime.Before(time.Now().Add(-1 * duration))
+}
+
 func (i *instance) shouldBeReplacedWithNewSpotInstance() bool {
 	// only replace Spot instances if they are older than 2 minutes
 	if i.isSpot() {
-		if i.LaunchTime.Before(time.Now().Add(-2 * time.Minute)) {
+		if i.isOlderThan(2 * time.Minute) {
 			log.Printf("Instance %s is a Spot instance and older than 2 minutes, will be replaced with a new Spot instance", *i.InstanceId)
 			return true
 		}
 		return false
 	}
+	lifecycle := i.getLifecycleValue()
 
 	// instance is not in an enabled ASG
 	if belongs, _ := i.belongsToEnabledASG(); !belongs {
-		log.Printf("Instance %s does not belong to an enabled ASG, will not be replaced with a new Spot instance", *i.InstanceId)
+		log.Printf("%s instance %s does not belong to an enabled ASG, will not be replaced with a new Spot instance",
+			lifecycle, *i.InstanceId)
 		return false
 	}
 
 	if i.asgNeedsReplacement() {
-		log.Printf("Instance %s needs to be replaced by the ASG, will be replaced with a new Spot instance", *i.InstanceId)
+		log.Printf("%s instance %s needs to be replaced by the ASG, will be replaced with a new Spot instance",
+			lifecycle, *i.InstanceId)
 		return true
 	}
 
-	log.Printf("Instance %s does not need to be replaced with a new Spot instance", *i.InstanceId)
+	log.Printf("%s instance %s does not need to be replaced with a new Spot instance",
+		lifecycle, *i.InstanceId)
 	return false
 }
 
 func (i *instance) shouldBeTerminated(asg *autoScalingGroup) bool {
+	lifecycle := i.getLifecycleValue()
 
 	if asg.MixedInstancesPolicy == nil {
-		log.Printf("Instance %s belongs to an ASG without MixedInstancesPolicy, will not be considered for termination", *i.InstanceId)
+		log.Printf("%s instance %s belongs to an ASG without MixedInstancesPolicy, will not be considered for termination", lifecycle, *i.InstanceId)
 		return false
 	}
 
 	count := int64(asg.instances.count())
 	if *asg.DesiredCapacity < count {
-		log.Printf("Instance %s belongs to an ASG with MixedInstancesPolicy and DesiredCapacity(%d) < number of instances(%d), so needs to be terminated",
-			*i.InstanceId, *asg.DesiredCapacity, asg.instances.count())
+		log.Printf("%s instance %s belongs to an ASG with MixedInstancesPolicy and DesiredCapacity(%d) < number of instances(%d), so needs to be terminated",
+			lifecycle, *i.InstanceId, *asg.DesiredCapacity, asg.instances.count())
 		return true
 	}
 	return false
@@ -140,14 +149,15 @@ func (i *instance) shouldBeTerminated(asg *autoScalingGroup) bool {
 
 func (i *instance) belongsToEnabledASG() (bool, *autoScalingGroup) {
 	belongs, asgName := i.belongsToAnASG()
+	lifecycle := i.getLifecycleValue()
 	if !belongs {
-		log.Printf("%s instance %s doesn't belong to any ASG",
-			i.region.name, *i.InstanceId)
+		log.Printf("%s: %s instance %s doesn't belong to any ASG",
+			i.region.name, lifecycle, *i.InstanceId)
 		return false, nil
 	}
 
-	log.Printf("%s instance %s belongs to ASG %s",
-		i.region.name, *i.InstanceId, *asgName)
+	log.Printf("%s: %s instance %s belongs to ASG %s",
+		i.region.name, lifecycle, *i.InstanceId, *asgName)
 
 	for _, asg := range i.region.enabledASGs {
 		if asg.name == *asgName {
@@ -163,13 +173,13 @@ func (i *instance) belongsToEnabledASG() (bool, *autoScalingGroup) {
 			spotProduct := i.asg.getSpotProduct()
 
 			if spotProduct == nil {
-				log.Printf("Couldn't get Spot product for instance: %s", *i.InstanceId)
+				log.Printf("Couldn't get Spot product for %s instance: %s", lifecycle, *i.InstanceId)
 				continue
 			}
 
 			i.odPrice = i.typeInfo.pricing[*spotProduct].onDemand
-			log.Printf("%s instace %s belongs to enabled ASG %s", i.region.name,
-				*i.InstanceId, i.asg.name)
+			log.Printf("%s: %s instace %s belongs to enabled ASG %s",
+				i.region.name, lifecycle, *i.InstanceId, i.asg.name)
 			return true, &asg
 		}
 	}

@@ -351,7 +351,7 @@ func (a *autoScalingGroup) hasMemberInstance(inst *instance) bool {
 	return false
 }
 
-func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status string, maxRetry int) error {
+func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, lifecycle, status string, maxRetry int) error {
 	isInstanceInStatus := false
 	for retry := 0; !isInstanceInStatus; retry++ {
 		if retry > maxRetry {
@@ -373,10 +373,10 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 
 			if len(autoScalingInstances) > 0 {
 				if instanceStatus := *autoScalingInstances[0].LifecycleState; instanceStatus != status {
-					log.Printf("Waiting for instance %s to be in status %s [%s]",
-						*instanceID, status, instanceStatus)
+					log.Printf("Waiting for new %s instance %s to be in status %s [%s]",
+						lifecycle, *instanceID, status, instanceStatus)
 					if instanceStatus == "Terminating" {
-						log.Printf("Instance %s is terminating, no need to wait further", *instanceID)
+						log.Printf("%s instance %s is terminating, no need to wait further", lifecycle, *instanceID)
 						return nil
 					}
 				} else {
@@ -384,8 +384,8 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status stri
 					return nil
 				}
 			} else {
-				log.Printf("Waiting for instance %s to be in AutoScalingGroup with status %s",
-					*instanceID, status)
+				log.Printf("Waiting for %s instance %s to be in AutoScalingGroup with status %s",
+					lifecycle, *instanceID, status)
 			}
 
 			time.Sleep(time.Duration(10) * time.Second)
@@ -413,27 +413,28 @@ func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
 	return nil
 }
 
-func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) error {
+func (a *autoScalingGroup) attachNewInstance(newInstanceID string, lifecycle string, wait bool) error {
+
 	if wait {
-		log.Printf("Waiting for instance %s to start", spotInstanceID)
+		log.Printf("Waiting for %s instance %s to start", lifecycle, newInstanceID)
 		err := a.region.services.ec2.WaitUntilInstanceRunning(
 			&ec2.DescribeInstancesInput{
-				InstanceIds: []*string{aws.String(spotInstanceID)},
+				InstanceIds: []*string{aws.String(newInstanceID)},
 			})
 
 		if err != nil {
-			log.Printf("Issue while waiting for instance %s to start: %v",
-				spotInstanceID, err.Error())
+			log.Printf("Issue while waiting for %s instance %s to start: %v",
+				lifecycle, newInstanceID, err.Error())
 		}
 
 	}
 
-	log.Printf("Attaching instance %s to ASG %v", spotInstanceID, a.name)
+	log.Printf("Attaching %s instance %s to ASG %v", lifecycle, newInstanceID, a.name)
 	resp, err := a.region.services.autoScaling.AttachInstances(
 		&autoscaling.AttachInstancesInput{
 			AutoScalingGroupName: aws.String(a.name),
 			InstanceIds: []*string{
-				&spotInstanceID,
+				&newInstanceID,
 			},
 		},
 	)
@@ -444,23 +445,23 @@ func (a *autoScalingGroup) attachSpotInstance(spotInstanceID string, wait bool) 
 		log.Println(resp)
 		return err
 	}
-	log.Printf("Waiting for instance %s to become in service", spotInstanceID)
-	if err := a.waitForInstanceStatus(&spotInstanceID, "InService", 80); err != nil {
-		log.Printf("Spot instance %s couldn't be attached to the group %s: %v",
-			spotInstanceID, a.name, err.Error())
+	log.Printf("Waiting for %s instance %s to become in service", lifecycle, newInstanceID)
+	if err := a.waitForInstanceStatus(&newInstanceID, "InService", lifecycle, 80); err != nil {
+		log.Printf("new %s instance %s couldn't be attached to the group %s: %v",
+			lifecycle, newInstanceID, a.name, err.Error())
 		return err
 	}
 
 	if a.MixedInstancesPolicy != nil {
-		if err := a.protectFromScaleIn(spotInstanceID); err != nil {
-			log.Printf("Spot instance %s couldn't be protected from scale-in: %v",
-				spotInstanceID, err.Error())
+		if err := a.protectFromScaleIn(newInstanceID); err != nil {
+			log.Printf("%s instance %s couldn't be protected from scale-in: %v",
+				lifecycle, newInstanceID, err.Error())
 			return err
 		}
 	}
 
 	if hasLH, hook := a.hasCodeDeployLifecycleHook(); hasLH {
-		a.triggerCodeDeployDeployment(hook, spotInstanceID)
+		a.triggerCodeDeployDeployment(hook, newInstanceID)
 	}
 
 	return nil
@@ -491,11 +492,12 @@ func (a *autoScalingGroup) setInstanceScaleInProtection(instanceID string, statu
 // TerminateInstanceInAutoScalingGroup api call.
 func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	i *instance, wait bool, decreaseCapacity bool) error {
+	lifecycle := i.getLifecycleValue()
 
 	//return if we can't terminate the instance
 	if !i.canTerminate() {
-		log.Printf("%s %s Not terminating instance: %s because it is already terminated or terminating\n",
-			a.region.name, a.name, *i.InstanceId)
+		log.Printf("%s %s Not terminating %s instance: %s because it is already terminated or terminating\n",
+			a.region.name, a.name, lifecycle, *i.InstanceId)
 		return nil
 	}
 
@@ -506,11 +508,11 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 			})
 
 		if err != nil {
-			log.Printf("Issue while waiting for instance %v to start: %v",
-				*i.InstanceId, err.Error())
+			log.Printf("Issue while waiting for %s instance %v to start: %v",
+				lifecycle, *i.InstanceId, err.Error())
 		}
 
-		if err = a.waitForInstanceStatus(i.InstanceId, "InService", 80); err != nil {
+		if err = a.waitForInstanceStatus(i.InstanceId, "InService", lifecycle, 80); err != nil {
 			log.Printf("Instance %s is still not InService, trying to terminate it anyway.",
 				*i.InstanceId)
 		}
@@ -518,10 +520,8 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 
 	a.deregisterInstanceFromLoadBalancersAndECSClusters(i)
 
-	log.Println(a.region.name,
-		a.name,
-		"Terminating instance:",
-		*i.InstanceId)
+	log.Printf("%s %s, terminating %s instance %s:",
+		a.region.name, a.name, lifecycle, *i.InstanceId)
 
 	asSvc := a.region.services.autoScaling
 
@@ -566,13 +566,14 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 func (a *autoScalingGroup) deregisterInstanceFromLoadBalancersAndECSClusters(i *instance) {
 	// Create wait group
 	var wg sync.WaitGroup
+	lifecycle := i.getLifecycleValue()
 
 	if a.LoadBalancerNames != nil {
 		for _, alb := range a.LoadBalancerNames {
 			wg.Add(1)
 			go func(alb *string) {
 				defer wg.Done()
-				log.Printf("%s %s Deregistering instance: %s from load balancer %s", a.region.name, a.name, *i.InstanceId, *alb)
+				log.Printf("%s %s Deregistering %s instance: %s from load balancer %s", a.region.name, a.name, lifecycle, *i.InstanceId, *alb)
 				err := i.deregisterInstanceFromClasicLoadBalancer(*alb)
 				if err != nil {
 					log.Printf("failed to deregister instance: %v", err)
@@ -586,10 +587,10 @@ func (a *autoScalingGroup) deregisterInstanceFromLoadBalancersAndECSClusters(i *
 			wg.Add(1)
 			go func(tg *string) {
 				defer wg.Done()
-				log.Printf("%s %s Deregistering instance: %s from target group %s", a.region.name, a.name, *i.InstanceId, *tg)
+				log.Printf("%s %s Deregistering %s instance: %s from target group %s", a.region.name, a.name, lifecycle, *i.InstanceId, *tg)
 				err := i.deregisterInstanceFromTargetGroup(*tg)
 				if err != nil {
-					log.Printf("failed to deregister instance: %v", err)
+					log.Printf("failed to deregister %s instance %s: %v", lifecycle, *i.InstanceId, err)
 				}
 			}(tg)
 		}
@@ -599,20 +600,20 @@ func (a *autoScalingGroup) deregisterInstanceFromLoadBalancersAndECSClusters(i *
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			log.Printf("%s %s Deregistering ECS managed instance %s from all Target groups", a.region.name, a.name, *i.InstanceId)
+			log.Printf("%s %s Deregistering ECS managed %s instance %s from all Target groups", a.region.name, a.name, lifecycle, *i.InstanceId)
 			err := i.deregisterInstanceFromAllTargetGroups()
 			if err != nil {
-				log.Printf("failed to deregister instance: %v", err)
+				log.Printf("failed to deregister %s instance %s: %v", lifecycle, *i.InstanceId, err)
 			}
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			log.Printf("%s %s Deregistering ECS managed instance %s from all ECS clusters", a.region.name, a.name, *i.InstanceId)
+			log.Printf("%s %s Deregistering ECS managed %s instance %s from all ECS clusters", a.region.name, a.name, lifecycle, *i.InstanceId)
 			err := i.deregisterFromAllECSClusters()
 			if err != nil {
-				log.Printf("failed to deregister instance: %v", err)
+				log.Printf("failed to deregister %s instance %s: %v", lifecycle, *i.InstanceId, err)
 			}
 		}()
 	}

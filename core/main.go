@@ -585,12 +585,13 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 			regionName, instanceID)
 		return nil, errors.New("instance missing")
 	}
-	log.Printf("%s Found instance %s in state %s",
-		i.region.name, *i.InstanceId, *i.State.Name)
+	lifecycle := i.getLifecycleValue()
+	log.Printf("%s Found %s instance %s in state %s",
+		i.region.name, lifecycle, *i.InstanceId, *i.State.Name)
 
 	if *i.State.Name != "running" {
-		log.Printf("%s Instance %s is not in the running state",
-			i.region.name, *i.InstanceId)
+		log.Printf("%s %s Instance %s is not in the running state",
+			i.region.name, lifecycle, *i.InstanceId)
 		return nil, errors.New("instance not in running state")
 	}
 
@@ -617,24 +618,33 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	i.asg.deregisterInstanceFromLoadBalancersAndECSClusters(i)
 
 	newInstanceID, err := i.launchSpotReplacement()
+
 	if err != nil {
-		fmt.Printf("Spot Instance launch failed while replacing %s, error: %s, falling back to on-demand\n", *i.InstanceId, err.Error())
+		log.Printf("Spot Instance launch failed while replacing %s, error: %s, falling back to on-demand\n", *i.InstanceId, err.Error())
 
 		newInstanceID, err = i.launchOnDemandReplacement()
 		if err != nil {
-			fmt.Printf("Instance launch failed while replacing %s, error: %s\n", *i.InstanceId, err.Error())
+			log.Printf("Instance launch failed while replacing %s, error: %s\n", *i.InstanceId, err.Error())
 			return nil, err
 		}
+		log.Printf("Successfully launched On demand instance %s", *newInstanceID)
+	} else {
+		log.Printf("Successfully launched Spot instance %s", *newInstanceID)
 	}
 
 	i.region.scanInstances()
 	newInstance := i.region.instances.get(*newInstanceID)
 
+	existingLifecycle := i.getLifecycleValue()
+	newLifecycle := newInstance.getLifecycleValue()
+
+	log.Printf("Swapping existing %s instance %s with new %s instance %s",
+		existingLifecycle, *i.InstanceId, newLifecycle, *newInstanceID)
 	newInstance.swapWithGroupMember(i.asg, nil)
 
-	if err = i.asg.waitForInstanceStatus(newInstanceID, "InService", 80); err != nil {
-		log.Printf("Instance %s is still not InService, trying to terminate it.",
-			*newInstanceID)
+	if err = i.asg.waitForInstanceStatus(newInstanceID, "InService", newLifecycle, 80); err != nil {
+		log.Printf("%s instance %s is still not InService, trying to terminate it.",
+			newLifecycle, *newInstanceID)
 		newInstance.terminate()
 	}
 
