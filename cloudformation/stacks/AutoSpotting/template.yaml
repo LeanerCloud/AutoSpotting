@@ -534,6 +534,7 @@ Resources:
               - "autoscaling:CreateOrUpdateTags"
               - "autoscaling:DescribeAutoScalingGroups"
               - "autoscaling:DescribeAutoScalingInstances"
+              - "autoscaling:DescribeInstanceRefreshes"
               - "autoscaling:DescribeLaunchConfigurations"
               - "autoscaling:DescribeLifecycleHooks"
               - "autoscaling:DescribeTags"

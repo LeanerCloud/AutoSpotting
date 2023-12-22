@@ -514,6 +514,7 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 	}
 
 	i.waitForBeanstalkDeployments()
+	i.waitForAutoScalingRefresh()
 
 	// we anyway need to delete the message, but if we delete it now,
 	// the queue will allow us to process more instances in parallel

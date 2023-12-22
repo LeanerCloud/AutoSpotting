@@ -9,8 +9,10 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/elasticbeanstalk"
@@ -359,6 +361,62 @@ func (i *instance) waitForBeanstalkDeployments() {
 	})
 	log.Printf("Instance %s provisioned by Beanstalk for the environment %s with ID %s, wait done",
 		*i.InstanceId, *envName, *envID)
+}
+func (i *instance) waitForAutoScalingRefresh() {
+	asgName := i.getReplacementTargetASGName()
+	if asgName == nil {
+		log.Printf("Instance %s is not part of any Auto Scaling Group, skipping refresh wait logic", *i.InstanceId)
+		return
+	}
+
+	log.Printf("Instance %s is part of Auto Scaling Group %s, waiting for any ongoing refresh actions to complete",
+		*i.InstanceId, *asgName)
+
+	// Define a slice of statuses that indicate an ongoing refresh
+	inProgressStatuses := []string{"Pending", "InProgress", "Cancelling", "RollbackInProgress"}
+
+	// Repeatedly check the status of the instance refresh action
+	for {
+		result, err := i.region.services.autoScaling.DescribeInstanceRefreshes(
+			&autoscaling.DescribeInstanceRefreshesInput{
+				AutoScalingGroupName: asgName,
+			})
+
+		if err != nil {
+			log.Fatalf("error describing instance refreshes: %v", err)
+		}
+
+		allCompleted := true
+		for _, refresh := range result.InstanceRefreshes {
+			status := *refresh.Status
+
+			// Check if the status is in the list of ongoing statuses
+			if isStatusInProgress(status, inProgressStatuses) {
+				allCompleted = false
+				break
+			}
+		}
+
+		if allCompleted {
+			log.Printf("Instance %s in Auto Scaling Group %s: all refresh actions are completed",
+				*i.InstanceId, *asgName)
+			break
+		}
+
+		time.Sleep(10 * time.Second) // Wait for 10 seconds before checking again
+	}
+
+	log.Printf("Instance %s in Auto Scaling Group %s: wait done", *i.InstanceId, *asgName)
+}
+
+// isStatusInProgress checks if a given status is in the list of in-progress statuses
+func isStatusInProgress(status string, inProgressStatuses []string) bool {
+	for _, s := range inProgressStatuses {
+		if status == s {
+			return true
+		}
+	}
+	return false
 }
 
 // DeRegisterInstanceFromLoadBalancer de-registers an EC2 instance from a classic Elastic Load Balancer
