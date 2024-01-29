@@ -24,7 +24,7 @@ LOCAL_PATH := build/s3/$(DOCKER_IMAGE_VERSION)
 
 SHA := $(shell git rev-parse HEAD | cut -c 1-7)
 BUILD := $(DOCKER_IMAGE_VERSION)-$(FLAVOR)-$(SHA)
-SAVINGS_CUT ?= 5
+SAVINGS_CUT ?= 15
 
 GOARCH ?= arm64
 

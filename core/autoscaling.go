@@ -430,7 +430,7 @@ func (a *autoScalingGroup) hasMemberInstance(inst *instance) bool {
 	return false
 }
 
-func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, lifecycle, status string, maxRetry int) error {
+func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status, lifecycle string, maxRetry int) error {
 	isInstanceInStatus := false
 	for retry := 0; !isInstanceInStatus; retry++ {
 		if retry > maxRetry {
@@ -732,9 +732,13 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	log.Println(a.name, "Found", count, instanceCategory, "instances running on a total of", total)
 	return count, total
 }
+func (a *autoScalingGroup) suspendProcesses(processes []string) {
+	// Convert slice of strings to slice of *string
+	AutoScalingProcessesToSuspend := make([]*string, len(processes))
+	for i, process := range processes {
+		AutoScalingProcessesToSuspend[i] = aws.String(process)
+	}
 
-func (a *autoScalingGroup) suspendProcesses() {
-	AutoScalingProcessesToSuspend := []*string{aws.String("Terminate"), aws.String("AZRebalance")}
 	log.Printf("Suspending processes on ASG %s", a.name)
 
 	_, err := a.region.services.autoScaling.SuspendProcesses(
@@ -748,8 +752,13 @@ func (a *autoScalingGroup) suspendProcesses() {
 	time.Sleep(30 * time.Second * a.region.conf.SleepMultiplier)
 }
 
-func (a *autoScalingGroup) resumeProcesses(delay time.Duration) {
-	AutoScalingProcessesToResume := []*string{aws.String("Terminate"), aws.String("AZRebalance")}
+func (a *autoScalingGroup) resumeProcesses(processes []string, delay time.Duration) {
+	// Convert slice of strings to slice of *string
+	AutoScalingProcessesToResume := make([]*string, len(processes))
+	for i, process := range processes {
+		AutoScalingProcessesToResume[i] = aws.String(process)
+	}
+
 	log.Printf("Resuming processes on ASG %s, waiting for %f minutes", a.name, delay.Minutes())
 	time.Sleep(delay * a.region.conf.SleepMultiplier)
 	log.Printf("Resuming processes on ASG %s, waiting complete, performing API call", a.name)
@@ -941,4 +950,64 @@ func (a *autoScalingGroup) getSpotProduct() *string {
 
 	a.spotProduct = spotProduct
 	return spotProduct
+}
+func (a *autoScalingGroup) hadRecentSpotTermination() (bool, error) {
+	if a == nil || a.Group == nil {
+		log.Println("AutoScalingGroup or its Group is nil")
+		return false, errInvalidGroup
+	}
+
+	log.Printf("Checking for recent spot terminations in ASG: %s", *a.AutoScalingGroupName)
+
+	svc := a.region.services.autoScaling
+	input := &autoscaling.DescribeScalingActivitiesInput{
+		AutoScalingGroupName: a.AutoScalingGroupName,
+	}
+
+	resp, err := svc.DescribeScalingActivities(input)
+	if err != nil {
+		log.Printf("Error retrieving scaling activities for ASG %s: %s", *a.AutoScalingGroupName, err)
+		return false, err
+	}
+
+	// Define the termination message we're looking for
+	terminationMessage := "was taken out of service in response to an EC2 Spot Instance interruption notice."
+
+	// Log the number of activities retrieved
+	log.Printf("Retrieved %d scaling activities for ASG %s", len(resp.Activities), *a.AutoScalingGroupName)
+
+	// Check if any recent activities (within the last 3 minutes) contain the termination message
+	for _, activity := range resp.Activities {
+		if activity.Cause != nil && strings.Contains(*activity.Cause, terminationMessage) {
+			activityTime := *activity.StartTime
+			if time.Since(activityTime).Minutes() <= 4 {
+				log.Printf("Recent spot termination found in ASG %s, activity time: %s", *a.AutoScalingGroupName, activityTime)
+				return true, nil
+			}
+			log.Printf("Spot termination activity found in ASG %s, but it's older than 4 minutes, activity time: %s", *a.AutoScalingGroupName, activityTime)
+		}
+	}
+
+	log.Printf("No recent spot terminations found in ASG %s", *a.AutoScalingGroupName)
+	return false, nil
+}
+
+func (a *autoScalingGroup) containsInstance(inst *instance) bool {
+	if a == nil || a.Group == nil || a.Instances == nil {
+		log.Println("AutoScalingGroup or its Group or Instances are nil")
+		return false
+	}
+
+	if inst == nil || inst.InstanceId == nil {
+		log.Println("Provided instance or its InstanceId is nil")
+		return false
+	}
+
+	for _, asgInst := range a.Instances {
+		if asgInst != nil && asgInst.InstanceId != nil && *asgInst.InstanceId == *inst.InstanceId {
+			return true
+		}
+	}
+
+	return false
 }

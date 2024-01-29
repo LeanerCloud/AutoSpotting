@@ -5,6 +5,7 @@ package autospotting
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"path/filepath"
 	"strconv"
@@ -116,6 +117,7 @@ func (r *region) processRegion() {
 		log.Println(r.name, "has no enabled AutoScaling groups")
 	}
 	r.reapUnattachedInstances()
+	r.reapDuplicatedInstances()
 
 }
 
@@ -599,4 +601,91 @@ func (r *region) extractECSClusterName(clusterARN string) (string, error) {
 	}
 
 	return strings.TrimPrefix(strings.Split(clusterARN, "/")[1], ":"), nil
+}
+
+func (r *region) tagResource(resourceID *string, tagKey string, tagValue string) error {
+	tagInput := &ec2.CreateTagsInput{
+		Resources: []*string{resourceID},
+		Tags: []*ec2.Tag{
+			{
+				Key:   aws.String(tagKey),
+				Value: aws.String(tagValue),
+			},
+		},
+	}
+
+	_, err := r.services.ec2.CreateTags(tagInput)
+	if err != nil {
+		return fmt.Errorf("error tagging resource %s: %v", *resourceID, err)
+	}
+
+	return nil
+}
+func (r *region) reapDuplicatedInstances() error {
+	tagKey := "launched-for-replacing-instance"
+	log.Println("Starting the reaping of duplicated instances process")
+
+	// Map to hold instances by their launched-for-replacing-instance tag value.
+	instancesByTag := make(map[string][]*instance)
+
+	// Populate the map.
+	for inst := range r.instances.instances() {
+		for _, tag := range inst.Tags {
+			if *tag.Key == tagKey {
+				instancesByTag[*tag.Value] = append(instancesByTag[*tag.Value], inst)
+				log.Printf("Instance %s has tag %s with value %s", *inst.InstanceId, tagKey, *tag.Value)
+			}
+		}
+	}
+
+	log.Printf("Checking for duplicated instances with tag key: %s", tagKey)
+	// Iterate over the map to find duplicates and terminate the newest.
+	for tagValue, instances := range instancesByTag {
+		if len(instances) > 1 {
+			log.Printf("Found %d instances with duplicated tag value: %s", len(instances), tagValue)
+			newestInstance := findNewestInstance(instances)
+			asg, err := r.findASGForInstance(newestInstance)
+			if err != nil {
+				log.Printf("Error finding ASG for instance %s: %v", *newestInstance.InstanceId, err)
+				continue
+			}
+			if err := newestInstance.terminateInstanceInAutoScalingGroup(asg); err != nil {
+				log.Printf("Failed to terminate instance %s in ASG %s: %v", *newestInstance.InstanceId, asg.name, err)
+				return err
+			}
+			log.Printf("Successfully terminated newest instance %s with duplicated tag %s in ASG %s", *newestInstance.InstanceId, tagKey, asg.name)
+		}
+	}
+
+	log.Println("Completed the reaping of duplicated instances process")
+	return nil
+}
+
+func findNewestInstance(instances []*instance) *instance {
+	var newest *instance
+	log.Println("Identifying the newest instance among the duplicates")
+	for _, inst := range instances {
+		if newest == nil || inst.LaunchTime.After(*newest.LaunchTime) {
+			log.Printf("Newest instance found: %s (Launch Time: %s)", *inst.InstanceId, inst.LaunchTime)
+			newest = inst
+		}
+	}
+	if newest != nil {
+		log.Printf("Newest instance identified: %s", *newest.InstanceId)
+	} else {
+		log.Println("No newest instance found")
+	}
+	return newest
+}
+func (r *region) findASGForInstance(inst *instance) (*autoScalingGroup, error) {
+	log.Printf("Finding ASG for instance: %s", *inst.InstanceId)
+	for _, asg := range r.enabledASGs {
+		if asg.containsInstance(inst) {
+			log.Printf("Found ASG: %s for instance: %s", asg.name, *inst.InstanceId)
+			return &asg, nil
+		}
+	}
+	errMsg := fmt.Sprintf("No ASG found for instance %s", *inst.InstanceId)
+	log.Println(errMsg)
+	return nil, errors.New(errMsg)
 }

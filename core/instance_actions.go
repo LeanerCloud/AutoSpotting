@@ -20,6 +20,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/elbv2"
 )
 
+type elasticIPDetails struct {
+	AllocationID  *string
+	AssociationID *string
+}
+
 // instance_actions.go contains functions that act on instances, altering their state.
 
 func (i *instance) handleInstanceStates() (bool, error) {
@@ -206,18 +211,38 @@ func handleASGSizeAdjustments(asg *autoScalingGroup) {
 
 func (i *instance) getLifecycleValue() string {
 	defaultValue := "on-demand"
-	if i.InstanceLifecycle != nil {
+	if i != nil && i.InstanceLifecycle != nil {
 		return *i.InstanceLifecycle
 	}
 	return defaultValue
 }
 
-func replaceInstanceInASG(i *instance, asg *autoScalingGroup, existingInstance *instance) (*instance, error) {
+func (i *instance) replaceInstanceInASG(asg *autoScalingGroup, existingInstance *instance) (*instance, error) {
 	desiredCapacity, minSize := *asg.DesiredCapacity, *asg.MinSize
+	log.Printf("Starting instance replacement. ASG desired capacity: %d, min size: %d", desiredCapacity, minSize)
 
 	newInstanceLifecycle := i.getLifecycleValue()
-
 	existingInstanceLifecycle := existingInstance.getLifecycleValue()
+	log.Printf("New instance lifecycle: %s, Existing instance lifecycle: %s", newInstanceLifecycle, existingInstanceLifecycle)
+
+	attachedEBSVolumes := existingInstance.getAttachedEBSVolumes()
+	log.Printf("Found %d attached EBS volumes on existing instance %s", len(attachedEBSVolumes), *existingInstance.InstanceId)
+
+	attachedElasticEIPs, err := existingInstance.getAttachedElasticIPs()
+	if err != nil {
+		log.Printf("Failed to get list of attached Elastic IPs for %s instance %s: %v", newInstanceLifecycle, *i.InstanceId, err)
+		return nil, err
+	}
+	log.Printf("Found %d attached Elastic IPs on existing instance %s", len(attachedElasticEIPs), *existingInstance.InstanceId)
+
+	log.Printf("Migrating stateful resources from existing instance %s", *existingInstance.InstanceId)
+	if err := i.migrateResources(existingInstance, attachedEBSVolumes, attachedElasticEIPs); err != nil {
+		log.Printf("Migrating stateful resources from existing instance %s failed, encounted errors: %s",
+			*existingInstance.InstanceId, err.Error())
+	}
+
+	asg.suspendProcesses([]string{"Terminate", "AZRebalance"})
+	defer asg.resumeProcesses([]string{"Terminate", "AZRebalance"}, 20*time.Second)
 
 	// attach the spot instance first and then terminate the on demand instance,
 	// to avoid decreasing the capacity of the group below the mimimum size
@@ -277,7 +302,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 	// otherwise attachSpotInstance might fail
 	handleASGSizeAdjustments(asg)
 
-	return replaceInstanceInASG(i, asg, odInstance)
+	return i.replaceInstanceInASG(asg, odInstance)
 }
 
 func (i *instance) terminateInstanceInAutoScalingGroup(asg *autoScalingGroup) error {

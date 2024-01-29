@@ -500,9 +500,15 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 		return nil
 	}
 
-	if i.shouldBeTerminated(asg) {
-		log.Printf("%s terminating %s instance %s: ", i.region.name, lifecycle, *i.InstanceId)
-		i.terminate()
+	if term, detach := i.shouldBeTerminated(asg); term {
+		if detach {
+			log.Printf("%s terminating %s instance %s, detaching it from the ASG: ", i.region.name, lifecycle, *i.InstanceId)
+			asg.terminateInstanceInAutoScalingGroup(i, false, true)
+		} else {
+			log.Printf("%s terminating %s instance %s without detaching it from the ASG: ", i.region.name, lifecycle, *i.InstanceId)
+			i.terminate()
+		}
+		return nil
 	}
 
 	if !i.shouldBeReplacedWithNewSpotInstance() {
@@ -590,10 +596,10 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	log.Printf("%s Found %s instance %s in state %s",
 		i.region.name, lifecycle, *i.InstanceId, *i.State.Name)
 
-	if *i.State.Name != "running" {
-		log.Printf("%s %s Instance %s is not in the running state",
+	if (*i.State.Name != "running") && (*i.State.Name != "shutting-down") {
+		log.Printf("%s %s Instance %s is not in the running or shutting down state",
 			i.region.name, lifecycle, *i.InstanceId)
-		return nil, errors.New("instance not in running state")
+		return nil, errors.New("instance not in running/shutting down state")
 	}
 
 	asgName := i.getReplacementTargetASGName()
@@ -609,6 +615,9 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 		return nil, errors.New("couldn't find ASG " + *asgName)
 	}
 	i.asg.name = *i.asg.AutoScalingGroupName
+	desiredCapacity := *i.asg.DesiredCapacity
+
+	log.Printf("ASG %s, Desired capacity: %d", i.asg.name, desiredCapacity)
 
 	i.asg.scanInstances()
 	i.asg.loadDefaultConfig()
@@ -631,6 +640,17 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 		log.Printf("Successfully launched On demand instance %s", *newInstanceID)
 	} else {
 		log.Printf("Successfully launched Spot instance %s", *newInstanceID)
+	}
+
+	log.Printf("Waiting for new instance %s to be in status running", *newInstanceID)
+	err = r.services.ec2.WaitUntilInstanceRunning(
+		&ec2.DescribeInstancesInput{
+			InstanceIds: []*string{newInstanceID},
+		})
+	if err != nil {
+		log.Printf("Issue while waiting for new instance %v to start: %v",
+			newInstanceID, err.Error())
+		return nil, err
 	}
 
 	i.region.scanInstances()

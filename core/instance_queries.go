@@ -125,26 +125,55 @@ func (i *instance) shouldBeReplacedWithNewSpotInstance() bool {
 		return true
 	}
 
+	if inst, _ := i.region.findReplacementInstance(*i.InstanceId); inst == nil {
+		log.Printf("%s instance %s doesn't already have a replacement instance", lifecycle, *i.InstanceId)
+		return true
+	}
+
 	log.Printf("%s instance %s does not need to be replaced with a new Spot instance",
 		lifecycle, *i.InstanceId)
 	return false
 }
-
-func (i *instance) shouldBeTerminated(asg *autoScalingGroup) bool {
+func (i *instance) shouldBeTerminated(asg *autoScalingGroup) (bool, bool) {
 	lifecycle := i.getLifecycleValue()
+	log.Printf("Evaluating if %s instance %s should be terminated", lifecycle, *i.InstanceId)
 
-	if asg.MixedInstancesPolicy == nil {
-		log.Printf("%s instance %s belongs to an ASG without MixedInstancesPolicy, will not be considered for termination", lifecycle, *i.InstanceId)
-		return false
+	// Check for recent spot terminations in the ASG
+	recentSpotTermination, err := i.asg.hadRecentSpotTermination()
+	if err != nil {
+		log.Printf("Error checking for recent spot terminations in ASG %s: %s", i.asg.name, err)
+	} else {
+		log.Printf("Recent spot termination check for ASG %s: %t", i.asg.name, recentSpotTermination)
 	}
 
+	// Determine if the instance is a non-spot and non-AutoSpotting instance launched after a recent spot termination
+	if !i.isSpot() {
+		log.Printf("%s instance %s is not a Spot instance", lifecycle, *i.InstanceId)
+		if !i.isLaunchedByAutoSpotting() {
+			log.Printf("%s instance %s was not launched by AutoSpotting", lifecycle, *i.InstanceId)
+			if recentSpotTermination {
+				log.Printf("%s instance %s was launched by the ASG right after a Spot instance was terminated", lifecycle, *i.InstanceId)
+				return true, true
+			}
+		}
+	}
+
+	// Check ASG's MixedInstancesPolicy
+	if asg.MixedInstancesPolicy == nil {
+		log.Printf("%s instance %s belongs to an ASG without MixedInstancesPolicy, will not be considered for termination", lifecycle, *i.InstanceId)
+		return false, false
+	}
+
+	// Check against the ASG's DesiredCapacity
 	count := int64(asg.instances.count())
 	if *asg.DesiredCapacity < count {
 		log.Printf("%s instance %s belongs to an ASG with MixedInstancesPolicy and DesiredCapacity(%d) < number of instances(%d), so needs to be terminated",
-			lifecycle, *i.InstanceId, *asg.DesiredCapacity, asg.instances.count())
-		return true
+			lifecycle, *i.InstanceId, *asg.DesiredCapacity, count)
+		return true, false
 	}
-	return false
+
+	log.Printf("%s instance %s does not meet any criteria for termination", lifecycle, *i.InstanceId)
+	return false, false
 }
 
 func (i *instance) belongsToEnabledASG() (bool, *autoScalingGroup) {
@@ -641,4 +670,24 @@ func (i *instance) getSpotProductFromAMI() *string {
 	}
 
 	return nil
+}
+
+// findReplacementInstance searches for the first instance in the region
+// that has the "launched-for-replacing-instance" tag set to the specified instance ID.
+func (r *region) findReplacementInstance(instanceID string) (*instance, error) {
+	// // Ensure the instances are scanned before searching
+	err := r.scanInstances()
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan instances in %s: %w", r.name, err)
+	}
+
+	for inst := range r.instances.instances() {
+		for _, tag := range inst.Tags {
+			if *tag.Key == "launched-for-replacing-instance" && *tag.Value == instanceID {
+				return inst, nil
+			}
+		}
+	}
+
+	return nil, nil // No matching instance found
 }
