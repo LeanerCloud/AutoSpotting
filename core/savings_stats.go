@@ -1,15 +1,15 @@
 package autospotting
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strconv"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sns"
-	"github.com/aws/aws-sdk-go/service/sns/snsiface"
-	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
+	ssmTypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
 )
 
 // MeteringSSMParameterName stores the name of the SSM parameter that stores the success status of the latest metering call
@@ -26,17 +26,17 @@ const (
 
 type savingsStats struct {
 	ps              parameterStore
-	sns             snsiface.SNSAPI
+	sns             sns.Client
 	topic           string
 	reportFrequency string
 	history         *savingsHistory
 }
 
 type savingsHistory struct {
-	hourlyHistory, dailyHistory, monthlyHistory []*ssm.ParameterHistory
+	hourlyHistory, dailyHistory, monthlyHistory []*ssmTypes.ParameterHistory
 }
 
-func (s *savingsStats) loadHistory(timeline string) []*ssm.ParameterHistory {
+func (s *savingsStats) loadHistory(timeline string) []*ssmTypes.ParameterHistory {
 	history, err := s.ps.getSSMParameterHistory(fmt.Sprintf(SSMParameterNameTotalFormat, timeline))
 	if err != nil {
 		debug.Printf("Couldn't get %s history: %v", timeline, err)
@@ -53,7 +53,7 @@ func (s *savingsStats) loadAllHistory() {
 	}
 }
 
-func (s *savingsStats) calculateSavingsFromHistory(history []*ssm.ParameterHistory, matchesTimeFilter func(t *time.Time) bool) float64 {
+func (s *savingsStats) calculateSavingsFromHistory(history []*ssmTypes.ParameterHistory, matchesTimeFilter func(t *time.Time) bool) float64 {
 
 	var savings float64
 
@@ -294,6 +294,7 @@ func (s *savingsStats) reportSavingsStats(frequency string,
 	log.Println("Sending Savings Report to SNS Topic:", s.topic)
 
 	s.sns.Publish(
+		context.TODO(),
 		&sns.PublishInput{
 			Message: aws.String(s.formatSavingsMessage(frequency,
 				last24hours, last7days, last30days, last12months)),

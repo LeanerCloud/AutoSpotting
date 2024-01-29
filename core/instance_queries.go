@@ -6,6 +6,7 @@
 package autospotting
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -18,8 +19,8 @@ import (
 	"time"
 
 	ec2instancesinfo "github.com/LeanerCloud/ec2-instances-info"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
 func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64 {
@@ -45,8 +46,7 @@ func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64
 }
 
 func (i *instance) isSpot() bool {
-	return i.InstanceLifecycle != nil &&
-		*i.InstanceLifecycle == Spot
+	return i.InstanceLifecycle == Spot
 }
 
 func (i *instance) getSavings() float64 {
@@ -93,8 +93,8 @@ func (i *instance) getODPrice() float64 {
 }
 
 func (i *instance) canTerminate() bool {
-	return *i.State.Name != ec2.InstanceStateNameTerminated &&
-		*i.State.Name != ec2.InstanceStateNameShuttingDown
+	return i.State.Name != ec2Types.InstanceStateNameTerminated &&
+		i.State.Name != ec2Types.InstanceStateNameShuttingDown
 }
 
 func (i *instance) isOlderThan(duration time.Duration) bool {
@@ -165,7 +165,7 @@ func (i *instance) shouldBeTerminated(asg *autoScalingGroup) (bool, bool) {
 	}
 
 	// Check against the ASG's DesiredCapacity
-	count := int64(asg.instances.count())
+	count := int32(asg.instances.count())
 	if *asg.DesiredCapacity < count {
 		log.Printf("%s instance %s belongs to an ASG with MixedInstancesPolicy and DesiredCapacity(%d) < number of instances(%d), so needs to be terminated",
 			lifecycle, *i.InstanceId, *asg.DesiredCapacity, count)
@@ -290,7 +290,7 @@ func (i *instance) haveTooManyInstancesOfThisTypeRunning(instanceType string) bo
 
 	if ret {
 		log.Printf("Having too many instances of instance type %s in AZ %v, skipping this instance type.",
-			*i.InstanceType, *i.Placement.AvailabilityZone)
+			i.InstanceType, *i.Placement.AvailabilityZone)
 	}
 	return ret
 }
@@ -393,7 +393,7 @@ func (i *instance) isStorageCompatible(spotCandidate *instanceTypeInformation, a
 }
 
 func (i *instance) isVirtualizationCompatible(spotVirtualizationTypes []string) bool {
-	current := *i.VirtualizationType
+	current := i.VirtualizationType
 	if len(spotVirtualizationTypes) == 0 {
 		spotVirtualizationTypes = []string{"HVM"}
 	}
@@ -415,7 +415,7 @@ func (i *instance) isAllowed(instanceType string, allowed string, disallowed str
 	debug.Println("Checking allowed/disallowed list")
 
 	if allowed == "current" {
-		return instanceType == *i.InstanceType
+		return instanceType == string(i.InstanceType)
 	}
 
 	allowed = strings.Replace(allowed, " ", ",", -1)
@@ -456,7 +456,7 @@ func (i *instance) isAllowed(instanceType string, allowed string, disallowed str
 }
 
 func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string, allowedList string,
-	disallowedList string) ([]*string, error) {
+	disallowedList string) ([]string, error) {
 	current := i.typeInfo
 	var acceptableInstanceTypes []acceptableInstance
 
@@ -465,7 +465,7 @@ func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string,
 	// instance type.
 
 	log.Printf("Generating list of compatible instance types for %s with price %f",
-		*i.InstanceType, i.odPrice)
+		i.InstanceType, i.odPrice)
 
 	lcMappings := i.asg.launchConfiguration.countLaunchConfigEphemeralVolumes()
 	ltMappings := i.asg.launchTemplate.countLaunchTemplateEphemeralVolumes()
@@ -521,14 +521,14 @@ func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string,
 		})
 		debug.Printf("List of cheapest compatible spot instances found, sorted ascending by price/bias: %#v",
 			acceptableInstanceTypes)
-		var result []*string
+		var result []string
 		for _, ai := range acceptableInstanceTypes {
 			it := ai.instanceTI.instanceType
 			if len(acceptableInstanceTypes) > 5 && i.haveTooManyInstancesOfThisTypeRunning(it) {
 				log.Println("Having enough diversification potential, skipping instance type: ", it)
 				continue
 			}
-			result = append(result, aws.String(it))
+			result = append(result, it)
 		}
 		return result, nil
 	}
@@ -648,9 +648,11 @@ func (i *instance) getSpotProductFromAMI() *string {
 
 	// Retrieve the image details for the AMI ID of the instance
 	ec2Svc := i.region.services.ec2
-	resp, err := ec2Svc.DescribeImages(&ec2.DescribeImagesInput{
-		ImageIds: []*string{i.ImageId},
-	})
+	resp, err := ec2Svc.DescribeImages(
+		context.TODO(),
+		&ec2.DescribeImagesInput{
+			ImageIds: []string{*i.ImageId},
+		})
 	if err != nil {
 		log.Printf("Error describing AMI '%s': %v", *i.ImageId, err)
 		return nil
@@ -675,7 +677,7 @@ func (i *instance) getSpotProductFromAMI() *string {
 // findReplacementInstance searches for the first instance in the region
 // that has the "launched-for-replacing-instance" tag set to the specified instance ID.
 func (r *region) findReplacementInstance(instanceID string) (*instance, error) {
-	// // Ensure the instances are scanned before searching
+	// Ensure the instances are scanned before searching
 	err := r.scanInstances()
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan instances in %s: %w", r.name, err)

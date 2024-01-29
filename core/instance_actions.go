@@ -4,6 +4,7 @@
 package autospotting
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -11,13 +12,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	elb "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
+	elbTypes "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing/types"
+	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
+	elbv2Types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
+
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ecs"
-	"github.com/aws/aws-sdk-go/service/elasticbeanstalk"
-	"github.com/aws/aws-sdk-go/service/elb"
-	"github.com/aws/aws-sdk-go/service/elbv2"
 )
 
 type elasticIPDetails struct {
@@ -29,9 +33,9 @@ type elasticIPDetails struct {
 
 func (i *instance) handleInstanceStates() (bool, error) {
 	log.Printf("%s Found instance %s in state %s",
-		i.region.name, *i.InstanceId, *i.State.Name)
+		i.region.name, *i.InstanceId, i.State.Name)
 
-	if *i.State.Name != "running" {
+	if i.State.Name != "running" {
 		log.Printf("%s Instance %s is not in the running state",
 			i.region.name, *i.InstanceId)
 		return true, errors.New("instance not in running state")
@@ -110,13 +114,13 @@ func (i *instance) launchReplacement(replacementLifecycle string) (*string, erro
 		return nil, err
 	}
 
-	log.Printf("Using the following list of %s instance types: %s", replacementLifecycle, strings.Join(derefSlice(instanceTypes), ", "))
+	log.Printf("Using the following list of %s instance types: %s", replacementLifecycle, strings.Join(instanceTypes, ", "))
 
 	cfi := i.createFleetInput(ltName, ltVersion, instanceTypes, replacementLifecycle)
 
 	debug.Printf("Fleet Input: %+#v", cfi)
 
-	resp, err := i.region.services.ec2.CreateFleet(cfi)
+	resp, err := i.region.services.ec2.CreateFleet(context.TODO(), cfi)
 
 	if err != nil {
 		log.Println(i.region, i.asg.name, "CreateFleet() failure:", err.Error())
@@ -125,18 +129,18 @@ func (i *instance) launchReplacement(replacementLifecycle string) (*string, erro
 
 	debug.Printf("CreateFleet() response: %#v", resp)
 
-	if resp != nil && len(resp.Instances) > 0 && resp.Instances[0] != nil && len(resp.Instances[0].InstanceIds) > 0 {
+	if resp != nil && len(resp.Instances) > 0 && len(resp.Instances[0].InstanceIds) > 0 {
 
-		inst := *resp.Instances[0]
+		inst := resp.Instances[0]
 		id := inst.InstanceIds[0]
 
 		lifecycle := "spot"
-		if inst.Lifecycle == nil || *inst.Lifecycle != "spot" {
+		if inst.Lifecycle != "spot" {
 			lifecycle = "on-demand"
 		}
 
-		log.Printf("%s %s CreateFleet() successfully launched %s instance: %s", i.region.name, i.asg.name, lifecycle, *id)
-		return id, nil
+		log.Printf("%s %s CreateFleet() successfully launched %s instance: %s", i.region.name, i.asg.name, lifecycle, id)
+		return &id, nil
 	}
 
 	if resp.Errors != nil {
@@ -147,10 +151,10 @@ func (i *instance) launchReplacement(replacementLifecycle string) (*string, erro
 	return nil, fmt.Errorf("couldn't launch spot instance because of unknown errors (this code should never be reached)")
 }
 
-func getInstanceTypesAndErrorCodes(errors []*ec2.CreateFleetError) map[string]string {
+func getInstanceTypesAndErrorCodes(errors []ec2Types.CreateFleetError) map[string]string {
 	instanceTypesAndErrorCodes := make(map[string]string)
 	for _, e := range errors {
-		instanceTypesAndErrorCodes[*e.LaunchTemplateAndOverrides.Overrides.InstanceType] = *e.ErrorCode
+		instanceTypesAndErrorCodes[string(e.LaunchTemplateAndOverrides.Overrides.InstanceType)] = *e.ErrorCode
 	}
 	return instanceTypesAndErrorCodes
 }
@@ -211,8 +215,8 @@ func handleASGSizeAdjustments(asg *autoScalingGroup) {
 
 func (i *instance) getLifecycleValue() string {
 	defaultValue := "on-demand"
-	if i != nil && i.InstanceLifecycle != nil {
-		return *i.InstanceLifecycle
+	if i != nil {
+		return string(i.InstanceLifecycle)
 	}
 	return defaultValue
 }
@@ -324,7 +328,7 @@ func (i *instance) getSwapCandidate() (*instance, error) {
 		return nil, fmt.Errorf("couldn't find target instance for %s", *i.InstanceId)
 	}
 
-	if err := i.region.scanInstance(instanceToReplaceID); err != nil {
+	if err := i.region.scanInstance(*instanceToReplaceID); err != nil {
 		log.Printf("Couldn't describe the target instance %s", *instanceToReplaceID)
 		return nil, fmt.Errorf("target instance %s couldn't be described", *instanceToReplaceID)
 	}
@@ -355,14 +359,15 @@ func (i *instance) terminate() error {
 
 	if !i.canTerminate() {
 		log.Printf("Can't terminate %s instance %v, current state: %s",
-			lifecycle, *i.InstanceId, *i.State.Name)
+			lifecycle, *i.InstanceId, i.State.Name)
 		return fmt.Errorf("can't terminate %s instance %s",
 			lifecycle, *i.InstanceId)
 	}
 
-	_, err = svc.TerminateInstances(&ec2.TerminateInstancesInput{
-		InstanceIds: []*string{i.InstanceId},
-	})
+	_, err = svc.TerminateInstances(context.TODO(),
+		&ec2.TerminateInstancesInput{
+			InstanceIds: []string{*i.InstanceId},
+		})
 
 	if err != nil {
 		log.Printf("Issue while terminating %s instance %v: %v", lifecycle, *i.InstanceId, err.Error())
@@ -380,10 +385,10 @@ func (i *instance) waitForBeanstalkDeployments() {
 
 	log.Printf("Instance %s is provisioned by Beanstalk for the environment %s with ID %s, waiting for any ongoing deployments to complete",
 		*i.InstanceId, *envName, *envID)
-	i.region.services.beanstalk.WaitUntilEnvironmentUpdated(&elasticbeanstalk.DescribeEnvironmentsInput{
-		EnvironmentNames: []*string{envName},
-		EnvironmentIds:   []*string{envID},
-	})
+	if err := i.region.waitUntilBeanstalkEnvironmentUpdated(envName, envID); err != nil {
+		log.Printf("Couldn't wait for Beanstalk deployment for Instance %s for the environment %s with ID %s, error: %s",
+			*i.InstanceId, *envName, *envID, err.Error())
+	}
 	log.Printf("Instance %s provisioned by Beanstalk for the environment %s with ID %s, wait done",
 		*i.InstanceId, *envName, *envID)
 }
@@ -403,6 +408,7 @@ func (i *instance) waitForAutoScalingRefresh() {
 	// Repeatedly check the status of the instance refresh action
 	for {
 		result, err := i.region.services.autoScaling.DescribeInstanceRefreshes(
+			context.TODO(),
 			&autoscaling.DescribeInstanceRefreshesInput{
 				AutoScalingGroupName: asgName,
 			})
@@ -413,10 +419,10 @@ func (i *instance) waitForAutoScalingRefresh() {
 
 		allCompleted := true
 		for _, refresh := range result.InstanceRefreshes {
-			status := *refresh.Status
+			status := refresh.Status
 
 			// Check if the status is in the list of ongoing statuses
-			if isStatusInProgress(status, inProgressStatuses) {
+			if isStatusInProgress(string(status), inProgressStatuses) {
 				allCompleted = false
 				break
 			}
@@ -448,9 +454,11 @@ func isStatusInProgress(status string, inProgressStatuses []string) bool {
 // named `lbName`. The instance is identified by its `instanceID`.
 func (i *instance) deregisterInstanceFromClasicLoadBalancer(lbName string) error {
 	// Get the Load Balancer description
-	output, err := i.region.services.elb.DescribeLoadBalancers(&elb.DescribeLoadBalancersInput{
-		LoadBalancerNames: []*string{&lbName},
-	})
+	output, err := i.region.services.elb.DescribeLoadBalancers(
+		context.TODO(),
+		&elb.DescribeLoadBalancersInput{
+			LoadBalancerNames: []string{lbName},
+		})
 	if err != nil {
 		return fmt.Errorf("failed to describe Load Balancer %s: %v", lbName, err)
 	}
@@ -473,10 +481,12 @@ func (i *instance) deregisterInstanceFromClasicLoadBalancer(lbName string) error
 	}
 
 	// Deregister the instance from the Load Balancer
-	_, err = i.region.services.elb.DeregisterInstancesFromLoadBalancer(&elb.DeregisterInstancesFromLoadBalancerInput{
-		LoadBalancerName: &lbName,
-		Instances:        []*elb.Instance{{InstanceId: i.InstanceId}},
-	})
+	_, err = i.region.services.elb.DeregisterInstancesFromLoadBalancer(
+		context.TODO(),
+		&elb.DeregisterInstancesFromLoadBalancerInput{
+			LoadBalancerName: &lbName,
+			Instances:        []elbTypes.Instance{{InstanceId: i.InstanceId}},
+		})
 	if err != nil {
 		return fmt.Errorf("failed to deregister instance %s from Load Balancer %s: %v", *i.InstanceId, lbName, err)
 	}
@@ -492,20 +502,22 @@ func (i *instance) deregisterInstanceFromTargetGroup(tgARN string) error {
 	}
 
 	// Deregister the instance from the Target Group on all ports it may be connected to.
-	var targetIDs []*elbv2.TargetDescription
+	var targetIDs []elbv2Types.TargetDescription
 	for _, target := range targets {
 		if *target.Id == *i.InstanceId {
-			targetIDs = append(targetIDs, &elbv2.TargetDescription{
+			targetIDs = append(targetIDs, elbv2Types.TargetDescription{
 				Id:   target.Id,
 				Port: target.Port,
 			})
 		}
 	}
 	if len(targetIDs) > 0 {
-		_, err = i.region.services.elbv2.DeregisterTargets(&elbv2.DeregisterTargetsInput{
-			TargetGroupArn: &tgARN,
-			Targets:        targetIDs,
-		})
+		_, err = i.region.services.elbv2.DeregisterTargets(
+			context.TODO(),
+			&elbv2.DeregisterTargetsInput{
+				TargetGroupArn: &tgARN,
+				Targets:        targetIDs,
+			})
 		if err != nil {
 			return fmt.Errorf("failed to deregister instance %s from Target Group %s: %v", *i.InstanceId, tgARN, err)
 		}
@@ -517,14 +529,16 @@ func (i *instance) deregisterInstanceFromTargetGroup(tgARN string) error {
 	return nil
 }
 
-func (i *instance) getTargetGroupTargets(tgARN string) ([]*elbv2.TargetDescription, error) {
-	output, err := i.region.services.elbv2.DescribeTargetHealth(&elbv2.DescribeTargetHealthInput{
-		TargetGroupArn: &tgARN,
-	})
+func (i *instance) getTargetGroupTargets(tgARN string) ([]*elbv2Types.TargetDescription, error) {
+	output, err := i.region.services.elbv2.DescribeTargetHealth(
+		context.TODO(),
+		&elbv2.DescribeTargetHealthInput{
+			TargetGroupArn: &tgARN,
+		})
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe instance %s health for Target Group %s: %v", *i.InstanceId, tgARN, err)
 	}
-	targets := make([]*elbv2.TargetDescription, 0)
+	targets := make([]*elbv2Types.TargetDescription, 0)
 	for _, target := range output.TargetHealthDescriptions {
 		if *target.Target.Id == *i.InstanceId {
 			targets = append(targets, target.Target)
@@ -534,29 +548,32 @@ func (i *instance) getTargetGroupTargets(tgARN string) ([]*elbv2.TargetDescripti
 }
 
 func (i *instance) deregisterInstanceFromAllTargetGroups() error {
+
+	input := &elbv2.DescribeTargetGroupsInput{}
+	paginator := elbv2.NewDescribeTargetGroupsPaginator(i.region.services.elbv2, input)
+
 	var wg sync.WaitGroup
 
-	// Get all Target Groups the instance is registered to
-	err := i.region.services.elbv2.DescribeTargetGroupsPages(&elbv2.DescribeTargetGroupsInput{},
-		func(page *elbv2.DescribeTargetGroupsOutput, _ bool) bool {
-			for _, tg := range page.TargetGroups {
-				if tg.TargetType != nil && *tg.TargetType == "instance" {
-					wg.Add(1)
-					go func(tgARN string) {
-						defer wg.Done()
-						err := i.deregisterInstanceFromTargetGroup(tgARN)
-						if err != nil {
-							log.Printf("failed to deregister instance from Target Group %s: %v", tgARN, err)
-						}
-					}(*tg.TargetGroupArn)
-				}
-			}
-			return true
-		})
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to describe Target Groups: %v", err)
+		}
 
-	if err != nil {
-		return fmt.Errorf("failed to describe Target Groups: %v", err)
+		for _, tg := range page.TargetGroups {
+			if tg.TargetType == "instance" {
+				wg.Add(1)
+				go func(tgARN string) {
+					defer wg.Done()
+					err := i.deregisterInstanceFromTargetGroup(tgARN)
+					if err != nil {
+						log.Printf("failed to deregister instance from Target Group %s: %v", tgARN, err)
+					}
+				}(*tg.TargetGroupArn)
+			}
+		}
 	}
+
 	wg.Wait()
 	return nil
 }
@@ -567,7 +584,7 @@ func (i *instance) getContainerInstanceArn(clusterName *string) (*string, error)
 	listInput := &ecs.ListContainerInstancesInput{
 		Cluster: clusterName,
 	}
-	listOutput, err := i.region.services.ecs.ListContainerInstances(listInput)
+	listOutput, err := i.region.services.ecs.ListContainerInstances(context.TODO(), listInput)
 	if err != nil {
 		return nil, fmt.Errorf("error listing container instances on cluster %s: %v", *clusterName, err)
 	}
@@ -580,7 +597,7 @@ func (i *instance) getContainerInstanceArn(clusterName *string) (*string, error)
 		Cluster:            clusterName,
 		ContainerInstances: listOutput.ContainerInstanceArns,
 	}
-	describeOutput, err := i.region.services.ecs.DescribeContainerInstances(describeInput)
+	describeOutput, err := i.region.services.ecs.DescribeContainerInstances(context.TODO(), describeInput)
 	if err != nil {
 		return nil, fmt.Errorf("error describing container instances: %v", err)
 	}
@@ -616,10 +633,10 @@ func (i *instance) setContainerInstanceToDraining(clusterARN *string, setDrainin
 	// Set the container instance status to DRAINING
 	updateInput := &ecs.UpdateContainerInstancesStateInput{
 		Cluster:            aws.String(clusterName),
-		ContainerInstances: []*string{containerInstanceArn},
-		Status:             aws.String("DRAINING"),
+		ContainerInstances: []string{*containerInstanceArn},
+		Status:             "DRAINING",
 	}
-	_, err = i.region.services.ecs.UpdateContainerInstancesState(updateInput)
+	_, err = i.region.services.ecs.UpdateContainerInstancesState(context.TODO(), updateInput)
 	if err != nil {
 		log.Printf("Error setting instance %s to DRAINING in cluster %s: %v\n", aws.StringValue(i.InstanceId), clusterName, err)
 	} else {
@@ -627,14 +644,14 @@ func (i *instance) setContainerInstanceToDraining(clusterARN *string, setDrainin
 	}
 }
 
-func (i *instance) setInstanceToDraining(clusterARNs []*string) error {
+func (i *instance) setInstanceToDraining(clusterARNs []string) error {
 	// Create a workgroup to perform parallel status update
 	setDrainingGroup := new(sync.WaitGroup)
 	setDrainingGroup.Add(len(clusterARNs))
 
 	// Set the instance status to DRAINING for each cluster
 	for _, clusterARN := range clusterARNs {
-		go i.setContainerInstanceToDraining(clusterARN, setDrainingGroup)
+		go i.setContainerInstanceToDraining(&clusterARN, setDrainingGroup)
 	}
 
 	setDrainingGroup.Wait()
@@ -643,16 +660,21 @@ func (i *instance) setInstanceToDraining(clusterARNs []*string) error {
 }
 
 func (i *instance) setToDrainingInAllECSClusters() error {
-	// List all clusters in the region
-	listClusterInput := &ecs.ListClustersInput{}
-	var clusterARNs []*string
-	err := i.region.services.ecs.ListClustersPages(listClusterInput, func(page *ecs.ListClustersOutput, lastPage bool) bool {
-		clusterARNs = append(clusterARNs, page.ClusterArns...)
-		go i.setInstanceToDraining(page.ClusterArns)
-		return !lastPage
-	})
-	if err != nil {
-		return fmt.Errorf("could't list ECS clusters: %s", err.Error())
+
+	ecsClient := i.region.services.ecs
+
+	input := &ecs.ListClustersInput{}
+	paginator := ecs.NewListClustersPaginator(ecsClient, input)
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			return fmt.Errorf("could't list ECS clusters: %s", err)
+		}
+
+		if err := i.setInstanceToDraining(page.ClusterArns); err != nil {
+			log.Printf("Failed to set instance to draining in clusters %v: %s", page.ClusterArns, err)
+		}
 	}
 
 	return nil

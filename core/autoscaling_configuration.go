@@ -207,7 +207,7 @@ func (a *autoScalingGroup) loadNumberOnDemand(tagValue *string) (int64, bool) {
 	onDemand, err := strconv.Atoi(*tagValue)
 	if err != nil {
 		log.Printf("Error with Atoi: %s\n", err.Error())
-	} else if onDemand >= 0 && int64(onDemand) <= *a.MaxSize {
+	} else if onDemand >= 0 && int32(onDemand) <= *a.MaxSize {
 		log.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandNumberTag)
 		return int64(onDemand), true
 	} else {

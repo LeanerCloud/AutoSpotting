@@ -6,15 +6,17 @@ package autospotting
 // instance_conversion.go contains functions that help cloning OnDemand instance configuration to new Spot instances.
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math"
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
 var unsupportedIO2Regions = [...]string{
@@ -45,28 +47,28 @@ func (i *instance) getPriceToBid(
 	return bufferPrice
 }
 
-func (i *instance) convertLaunchConfigurationBlockDeviceMappings(BDMs []*autoscaling.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
+func (i *instance) convertLaunchConfigurationBlockDeviceMappings(BDMs []autoscalingTypes.BlockDeviceMapping) []ec2Types.LaunchTemplateBlockDeviceMappingRequest {
 
-	bds := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
+	bds := []ec2Types.LaunchTemplateBlockDeviceMappingRequest{}
 	if len(BDMs) == 0 {
 		debug.Println("Missing LC block device mappings")
 	}
 
 	for _, BDM := range BDMs {
 
-		ec2BDM := &ec2.LaunchTemplateBlockDeviceMappingRequest{
+		ec2BDM := &ec2Types.LaunchTemplateBlockDeviceMappingRequest{
 			DeviceName:  BDM.DeviceName,
 			VirtualName: BDM.VirtualName,
 		}
 
 		if BDM.Ebs != nil {
-			ec2BDM.Ebs = &ec2.LaunchTemplateEbsBlockDeviceRequest{
+			ec2BDM.Ebs = &ec2Types.LaunchTemplateEbsBlockDeviceRequest{
 				DeleteOnTermination: BDM.Ebs.DeleteOnTermination,
 				Encrypted:           BDM.Ebs.Encrypted,
 				Iops:                BDM.Ebs.Iops,
 				SnapshotId:          BDM.Ebs.SnapshotId,
 				VolumeSize:          BDM.Ebs.VolumeSize,
-				VolumeType:          BDM.Ebs.VolumeType,
+				VolumeType:          ec2Types.VolumeType(*BDM.Ebs.VolumeType),
 			}
 		}
 
@@ -74,7 +76,7 @@ func (i *instance) convertLaunchConfigurationBlockDeviceMappings(BDMs []*autosca
 		if BDM.NoDevice != nil && *BDM.NoDevice {
 			continue
 		}
-		bds = append(bds, ec2BDM)
+		bds = append(bds, *ec2BDM)
 	}
 
 	if len(bds) == 0 {
@@ -83,22 +85,22 @@ func (i *instance) convertLaunchConfigurationBlockDeviceMappings(BDMs []*autosca
 	return bds
 }
 
-func (i *instance) convertImageBlockDeviceMappings(BDMs []*ec2.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
+func (i *instance) convertImageBlockDeviceMappings(BDMs []ec2Types.BlockDeviceMapping) []ec2Types.LaunchTemplateBlockDeviceMappingRequest {
 
-	bds := []*ec2.LaunchTemplateBlockDeviceMappingRequest{}
+	bds := []ec2Types.LaunchTemplateBlockDeviceMappingRequest{}
 	if len(BDMs) == 0 {
 		log.Println("Missing Image block device mappings")
 	}
 
 	for _, BDM := range BDMs {
 
-		ec2BDM := &ec2.LaunchTemplateBlockDeviceMappingRequest{
+		ec2BDM := ec2Types.LaunchTemplateBlockDeviceMappingRequest{
 			DeviceName:  BDM.DeviceName,
 			VirtualName: BDM.VirtualName,
 		}
 
 		if BDM.Ebs != nil {
-			ec2BDM.Ebs = &ec2.LaunchTemplateEbsBlockDeviceRequest{
+			ec2BDM.Ebs = &ec2Types.LaunchTemplateEbsBlockDeviceRequest{
 				DeleteOnTermination: BDM.Ebs.DeleteOnTermination,
 				Encrypted:           BDM.Ebs.Encrypted,
 				Iops:                BDM.Ebs.Iops,
@@ -121,19 +123,20 @@ func (i *instance) convertImageBlockDeviceMappings(BDMs []*ec2.BlockDeviceMappin
 	return bds
 }
 
-func (i *instance) convertSecurityGroups() []*string {
-	groupIDs := []*string{}
+func (i *instance) convertSecurityGroups() []string {
+	groupIDs := []string{}
 	for _, sg := range i.SecurityGroups {
-		groupIDs = append(groupIDs, sg.GroupId)
+		groupIDs = append(groupIDs, *sg.GroupId)
 	}
 
 	return groupIDs
 }
 
-func (i *instance) getlaunchTemplate(id, ver *string) (*ec2.ResponseLaunchTemplateData, error) {
+func (i *instance) getlaunchTemplate(id, ver *string) (*ec2Types.ResponseLaunchTemplateData, error) {
 	res, err := i.region.services.ec2.DescribeLaunchTemplateVersions(
+		context.TODO(),
 		&ec2.DescribeLaunchTemplateVersionsInput{
-			Versions:         []*string{ver},
+			Versions:         []string{*ver},
 			LaunchTemplateId: id,
 		},
 	)
@@ -149,7 +152,7 @@ func (i *instance) getlaunchTemplate(id, ver *string) (*ec2.ResponseLaunchTempla
 	return nil, fmt.Errorf("missing launch template version information")
 }
 
-func (i *instance) processLaunchConfiguration(retval *ec2.RequestLaunchTemplateData) {
+func (i *instance) processLaunchConfiguration(retval *ec2Types.RequestLaunchTemplateData) {
 	lc := i.asg.launchConfiguration
 
 	if lc.KeyName != nil && *lc.KeyName != "" {
@@ -162,11 +165,11 @@ func (i *instance) processLaunchConfiguration(retval *ec2.RequestLaunchTemplateD
 
 	if lc.IamInstanceProfile != nil {
 		if strings.HasPrefix(*lc.IamInstanceProfile, "arn:aws:iam:") {
-			retval.IamInstanceProfile = &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
+			retval.IamInstanceProfile = &ec2Types.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Arn: lc.IamInstanceProfile,
 			}
 		} else {
-			retval.IamInstanceProfile = &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
+			retval.IamInstanceProfile = &ec2Types.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: lc.IamInstanceProfile,
 			}
 		}
@@ -182,16 +185,16 @@ func (i *instance) processLaunchConfiguration(retval *ec2.RequestLaunchTemplateD
 	}
 
 	if lc.InstanceMonitoring != nil {
-		retval.Monitoring = &ec2.LaunchTemplatesMonitoringRequest{
+		retval.Monitoring = &ec2Types.LaunchTemplatesMonitoringRequest{
 			Enabled: lc.InstanceMonitoring.Enabled}
 	}
 
 	if lc.AssociatePublicIpAddress != nil || i.SubnetId != nil {
 		// Instances are running in a VPC.
-		retval.NetworkInterfaces = []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+		retval.NetworkInterfaces = []ec2Types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 			{
 				AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
-				DeviceIndex:              aws.Int64(0),
+				DeviceIndex:              aws.Int32(0),
 				SubnetId:                 i.SubnetId,
 				Groups:                   lc.SecurityGroups,
 			},
@@ -200,12 +203,13 @@ func (i *instance) processLaunchConfiguration(retval *ec2.RequestLaunchTemplateD
 	}
 }
 
-func (i *instance) processImageBlockDevices(rii *ec2.RequestLaunchTemplateData) {
+func (i *instance) processImageBlockDevices(rii *ec2Types.RequestLaunchTemplateData) {
 	svc := i.region.services.ec2
 
 	resp, err := svc.DescribeImages(
+		context.TODO(),
 		&ec2.DescribeImagesInput{
-			ImageIds: []*string{i.ImageId},
+			ImageIds: []string{*i.ImageId},
 		})
 
 	if err != nil {
@@ -220,7 +224,7 @@ func (i *instance) processImageBlockDevices(rii *ec2.RequestLaunchTemplateData) 
 	rii.BlockDeviceMappings = i.convertImageBlockDeviceMappings(resp.Images[0].BlockDeviceMappings)
 }
 
-func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2.RequestLaunchTemplateData, error) {
+func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2Types.RequestLaunchTemplateData, error) {
 	spotProduct := i.asg.getSpotProduct()
 
 	odPrice := i.typeInfo.pricing[*spotProduct].onDemand
@@ -230,9 +234,9 @@ func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2.Requ
 	}
 	i.odPrice = odPrice * mp
 
-	placement := ec2.LaunchTemplatePlacementRequest(*i.Placement)
+	placement := ec2Types.LaunchTemplatePlacementRequest(*i.Placement)
 
-	ltData := ec2.RequestLaunchTemplateData{}
+	ltData := ec2Types.RequestLaunchTemplateData{}
 
 	// populate the base of the ltData fields from launch Template and launch
 	// Configuration then set additional fields from computed values. SGs need to
@@ -253,9 +257,9 @@ func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2.Requ
 	ltData.EbsOptimized = i.EbsOptimized
 
 	if instanceLifecycle == "spot" {
-		ltData.InstanceMarketOptions = &ec2.LaunchTemplateInstanceMarketOptionsRequest{
-			MarketType: aws.String(Spot),
-			SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
+		ltData.InstanceMarketOptions = &ec2Types.LaunchTemplateInstanceMarketOptionsRequest{
+			MarketType: Spot,
+			SpotOptions: &ec2Types.LaunchTemplateSpotMarketOptionsRequest{
 				MaxPrice: aws.String(strconv.FormatFloat(i.odPrice, 'g', 10, 64)),
 			},
 		}
@@ -268,13 +272,15 @@ func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2.Requ
 	return &ltData, nil
 }
 
-func (i *instance) createFleetLaunchTemplate(ltData *ec2.RequestLaunchTemplateData) (*string, *string, error) {
+func (i *instance) createFleetLaunchTemplate(ltData *ec2Types.RequestLaunchTemplateData) (*string, *string, error) {
 	ltName := "AutoSpotting-Converted-LaunchTemplate-for-" + i.asg.name
 
-	_, err := i.region.services.ec2.CreateLaunchTemplate(&ec2.CreateLaunchTemplateInput{
-		LaunchTemplateName: aws.String(ltName),
-		LaunchTemplateData: ltData,
-	})
+	_, err := i.region.services.ec2.CreateLaunchTemplate(
+		context.TODO(),
+		&ec2.CreateLaunchTemplateInput{
+			LaunchTemplateName: aws.String(ltName),
+			LaunchTemplateData: ltData,
+		})
 
 	if err != nil {
 		log.Println("failed to create LaunchTemplate,", err.Error())
@@ -289,61 +295,61 @@ func (i *instance) createFleetLaunchTemplate(ltData *ec2.RequestLaunchTemplateDa
 	return &ltName, aws.String("$Latest"), err
 }
 
-func (i *instance) createFleetInput(ltName *string, ltVersion *string, instanceTypes []*string, lifeCycle string) *ec2.CreateFleetInput {
+func (i *instance) createFleetInput(ltName *string, ltVersion *string, instanceTypes []string, lifeCycle string) *ec2.CreateFleetInput {
 
-	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
+	var overrides []ec2Types.FleetLaunchTemplateOverridesRequest
 
 	debug.Printf("instance Details: %+#v\n", i)
 
 	for p, inst := range instanceTypes {
-		override := ec2.FleetLaunchTemplateOverridesRequest{
-			InstanceType: inst,
+		override := ec2Types.FleetLaunchTemplateOverridesRequest{
+			InstanceType: ec2Types.InstanceType(inst),
 			SubnetId:     i.SubnetId,
 		}
 		if i.asg.config.SpotAllocationStrategy == "capacity-optimized-prioritized" {
 			override.Priority = aws.Float64(float64(p))
 		}
-		overrides = append(overrides, &override)
+		overrides = append(overrides, override)
 	}
 
 	retval := &ec2.CreateFleetInput{
-		LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
+		LaunchTemplateConfigs: []ec2Types.FleetLaunchTemplateConfigRequest{
 			{
-				LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+				LaunchTemplateSpecification: &ec2Types.FleetLaunchTemplateSpecificationRequest{
 					LaunchTemplateName: ltName,
 					Version:            ltVersion,
 				},
 				Overrides: overrides,
 			},
 		},
-		SpotOptions: &ec2.SpotOptionsRequest{
-			AllocationStrategy: aws.String(i.asg.config.SpotAllocationStrategy),
+		SpotOptions: &ec2Types.SpotOptionsRequest{
+			AllocationStrategy: ec2Types.SpotAllocationStrategy(i.asg.config.SpotAllocationStrategy),
 			MaxTotalPrice:      aws.String(strconv.FormatFloat(i.odPrice, 'g', 10, 64)),
 		},
-		OnDemandOptions: &ec2.OnDemandOptionsRequest{
-			AllocationStrategy: aws.String("prioritized"),
+		OnDemandOptions: &ec2Types.OnDemandOptionsRequest{
+			AllocationStrategy: "prioritized",
 		},
-		Type: aws.String("instant"),
-		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
-			SpotTargetCapacity:        aws.Int64(1),
-			TotalTargetCapacity:       aws.Int64(1),
-			DefaultTargetCapacityType: aws.String("spot"),
+		Type: "instant",
+		TargetCapacitySpecification: &ec2Types.TargetCapacitySpecificationRequest{
+			SpotTargetCapacity:        aws.Int32(1),
+			TotalTargetCapacity:       aws.Int32(1),
+			DefaultTargetCapacityType: "spot",
 		},
 		TagSpecifications: i.generateTagsList(),
 	}
 	if lifeCycle != "spot" {
 		log.Printf("Overriding default capacity type to ondemand\n")
-		retval.TargetCapacitySpecification.DefaultTargetCapacityType = aws.String("on-demand")
-		retval.TargetCapacitySpecification.SpotTargetCapacity = aws.Int64(0)
-		retval.TargetCapacitySpecification.OnDemandTargetCapacity = aws.Int64(1)
+		retval.TargetCapacitySpecification.DefaultTargetCapacityType = "on-demand"
+		retval.TargetCapacitySpecification.SpotTargetCapacity = aws.Int32(0)
+		retval.TargetCapacitySpecification.OnDemandTargetCapacity = aws.Int32(1)
 	}
 	return retval
 }
 
-func (i *instance) generateTagsList() []*ec2.TagSpecification {
-	tags := ec2.TagSpecification{
-		ResourceType: aws.String("instance"),
-		Tags: []*ec2.Tag{
+func (i *instance) generateTagsList() []ec2Types.TagSpecification {
+	tags := ec2Types.TagSpecification{
+		ResourceType: "instance",
+		Tags: []ec2Types.Tag{
 			{
 				Key:   aws.String("launched-by-autospotting"),
 				Value: aws.String("true"),
@@ -364,16 +370,16 @@ func (i *instance) generateTagsList() []*ec2.TagSpecification {
 	}
 
 	if i.asg.LaunchTemplate != nil {
-		tags.Tags = append(tags.Tags, &ec2.Tag{
+		tags.Tags = append(tags.Tags, ec2Types.Tag{
 			Key:   aws.String("LaunchTemplateID"),
 			Value: i.asg.LaunchTemplate.LaunchTemplateId,
 		})
-		tags.Tags = append(tags.Tags, &ec2.Tag{
+		tags.Tags = append(tags.Tags, ec2Types.Tag{
 			Key:   aws.String("LaunchTemplateVersion"),
 			Value: i.asg.LaunchTemplate.Version,
 		})
 	} else if i.asg.LaunchConfigurationName != nil {
-		tags.Tags = append(tags.Tags, &ec2.Tag{
+		tags.Tags = append(tags.Tags, ec2Types.Tag{
 			Key:   aws.String("LaunchConfigurationName"),
 			Value: i.asg.LaunchConfigurationName,
 		})
@@ -383,11 +389,11 @@ func (i *instance) generateTagsList() []*ec2.TagSpecification {
 
 	tags.Tags = deduplicateTags(tags.Tags)
 
-	return []*ec2.TagSpecification{&tags}
+	return []ec2Types.TagSpecification{tags}
 }
 
-func filterTags(tags []*ec2.Tag) []*ec2.Tag {
-	var tl []*ec2.Tag
+func filterTags(tags []ec2Types.Tag) []ec2Types.Tag {
+	var tl []ec2Types.Tag
 
 	var tagsToSkip = []string{
 		"launched-by-autospotting",
@@ -407,9 +413,9 @@ func filterTags(tags []*ec2.Tag) []*ec2.Tag {
 	return tl
 }
 
-func deduplicateTags(tags []*ec2.Tag) []*ec2.Tag {
+func deduplicateTags(tags []ec2Types.Tag) []ec2Types.Tag {
 	seen := make(map[string]bool)
-	deduplicatedTags := make([]*ec2.Tag, 0)
+	deduplicatedTags := make([]ec2Types.Tag, 0)
 
 	for _, tag := range tags {
 		key := *tag.Key

@@ -7,16 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/autoscaling/autoscalingiface"
-	"github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/aws/aws-sdk-go/service/cloudformation/cloudformationiface"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
 func CheckErrors(t *testing.T, err error, expected error) {
@@ -29,7 +24,7 @@ func CheckErrors(t *testing.T, err error, expected error) {
 // All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockEC2 struct {
-	ec2iface.EC2API
+	ec2.Client
 
 	// CreateLaunchTemplate Output and error
 	clto   *ec2.CreateLaunchTemplateOutput
@@ -128,7 +123,7 @@ func (m mockEC2) WaitUntilInstanceRunning(*ec2.DescribeInstancesInput) error {
 // All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockASG struct {
-	autoscalingiface.AutoScalingAPI
+	*autoscaling.Client
 	// Detach Instances
 	dio   *autoscaling.DetachInstancesOutput
 	dierr error
@@ -213,7 +208,7 @@ func (m mockASG) CreateOrUpdateTags(*autoscaling.CreateOrUpdateTagsInput) (*auto
 // All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockCloudFormation struct {
-	cloudformationiface.CloudFormationAPI
+	cloudformation.Client
 	// DescribeStacks
 	dso   *cloudformation.DescribeStacksOutput
 	dserr error
@@ -226,7 +221,7 @@ func (m mockCloudFormation) DescribeStacks(*cloudformation.DescribeStacksInput) 
 // All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockSQS struct {
-	sqsiface.SQSAPI
+	sqs.Client
 	// SendMessage
 	smo   *sqs.SendMessageOutput
 	smerr error
@@ -256,7 +251,7 @@ func errorMatches(got error, wanted error) bool {
 }
 
 type mockSSM struct {
-	ssmiface.SSMAPI
+	ssm.Client
 
 	gpo    *ssm.GetParameterOutput
 	gpoerr error

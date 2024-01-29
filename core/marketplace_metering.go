@@ -1,20 +1,20 @@
 package autospotting
 
 import (
+	"context"
 	"errors"
 	"log"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/marketplacemetering"
-	"github.com/aws/aws-sdk-go/service/marketplacemetering/marketplacemeteringiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/marketplacemetering"
 )
 
 // MeteringSSMParameterName stores the name of the SSM parameter that stores the success status of the latest metering call
 const MeteringSSMParameterName = "autospotting-metering"
 
 type marketplaceMetering struct {
-	mpSvc marketplacemeteringiface.MarketplaceMeteringAPI
+	mpSvc marketplacemetering.Client
 	ps    parameterStore
 	svs   savingsStats
 }
@@ -36,7 +36,7 @@ func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
 	m.svs.updateSavingsStats(savings)
 
 	charge := savings * 0.01 * cut
-	units := int64(charge * 1000)
+	units := int32(charge * 1000)
 
 	if units == 0 {
 		log.Printf("Your usage is within the free tier, yay!")
@@ -45,15 +45,17 @@ func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
 	log.Printf("Billing %v units for $%f saved/hour (%v%% of the generated savings of $%f/hour)",
 		units, charge, cut, savings)
 
-	res, err := m.mpSvc.MeterUsage(&marketplacemetering.MeterUsageInput{
-		ProductCode:    aws.String("9e5m3z5f5hlwdqcrv16xdi040"),
-		Timestamp:      aws.Time(time.Now()),
-		UsageDimension: aws.String("SavingsCut"),
-		UsageQuantity:  aws.Int64(units),
-	})
+	res, err := m.mpSvc.MeterUsage(
+		context.TODO(),
+		&marketplacemetering.MeterUsageInput{
+			ProductCode:    aws.String("9e5m3z5f5hlwdqcrv16xdi040"),
+			Timestamp:      aws.Time(time.Now()),
+			UsageDimension: aws.String("SavingsCut"),
+			UsageQuantity:  aws.Int32(units),
+		})
 
 	if err != nil {
-		log.Printf("Error submitting AWS Marketplace metering data: %v, received response: %v\n", err.Error(), res.String())
+		log.Printf("Error submitting AWS Marketplace metering data: %v, received response: %v\n", err.Error(), res.ResultMetadata)
 		m.markAsFailingFromFargate()
 		return err
 	}

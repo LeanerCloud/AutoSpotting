@@ -1,16 +1,18 @@
 package autospotting
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
-func (i *instance) getAttachedEBSVolumes() []*ec2.InstanceBlockDeviceMapping {
+func (i *instance) getAttachedEBSVolumes() []ec2Types.InstanceBlockDeviceMapping {
 	return i.BlockDeviceMappings
 }
 
@@ -18,15 +20,15 @@ func (i *instance) getAttachedElasticIPs() ([]elasticIPDetails, error) {
 	var eipDetails []elasticIPDetails
 
 	input := &ec2.DescribeAddressesInput{
-		Filters: []*ec2.Filter{
+		Filters: []ec2Types.Filter{
 			{
 				Name:   aws.String("instance-id"),
-				Values: []*string{i.InstanceId},
+				Values: []string{*i.InstanceId},
 			},
 		},
 	}
 
-	result, err := i.region.services.ec2.DescribeAddresses(input)
+	result, err := i.region.services.ec2.DescribeAddresses(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +43,7 @@ func (i *instance) getAttachedElasticIPs() ([]elasticIPDetails, error) {
 	return eipDetails, nil
 }
 
-func (i *instance) detachEBSVolume(volume *ec2.InstanceBlockDeviceMapping) error {
+func (i *instance) detachEBSVolume(volume *ec2Types.InstanceBlockDeviceMapping) error {
 	if *volume.DeviceName == "/dev/xvda" {
 		return nil // Skip root device
 	}
@@ -51,18 +53,16 @@ func (i *instance) detachEBSVolume(volume *ec2.InstanceBlockDeviceMapping) error
 	}
 	log.Printf("Attempting to detach EBS volume %s from instance %s", *volume.Ebs.VolumeId, *i.InstanceId)
 
-	_, err := i.region.services.ec2.DetachVolume(input)
+	_, err := i.region.services.ec2.DetachVolume(context.TODO(), input)
 	if err != nil {
 		return err
 	}
 
-	// Wait until the volume is available
-	waitInput := &ec2.DescribeVolumesInput{
-		VolumeIds: []*string{volume.Ebs.VolumeId},
+	err = i.region.waitUntilVolumeAvailable(volume.Ebs.VolumeId)
+	if err != nil {
+		log.Printf("Failed waiting for EBS volume %s to become available, error: %s", *volume.Ebs.VolumeId, err.Error())
 	}
-	log.Printf("EBS volume %s successfully detached from instance %s", *volume.Ebs.VolumeId, *i.InstanceId)
-
-	return i.region.services.ec2.WaitUntilVolumeAvailable(waitInput)
+	return err
 }
 
 func (i *instance) detachElasticIP(eip elasticIPDetails) error {
@@ -75,7 +75,7 @@ func (i *instance) detachElasticIP(eip elasticIPDetails) error {
 		AssociationId: eip.AssociationID,
 	}
 
-	_, err := i.region.services.ec2.DisassociateAddress(input)
+	_, err := i.region.services.ec2.DisassociateAddress(context.TODO(), input)
 	log.Printf("Elastic IP with association ID %s successfully detached", *eip.AssociationID)
 	return err
 }
@@ -91,7 +91,7 @@ func (i *instance) attachElasticIP(eip elasticIPDetails) error {
 	}
 	log.Printf("Attempting to attach Elastic IP with allocation ID %s to instance %s", *eip.AllocationID, *i.InstanceId)
 
-	_, err := i.region.services.ec2.AssociateAddress(input)
+	_, err := i.region.services.ec2.AssociateAddress(context.TODO(), input)
 	if err != nil {
 		return err
 	}
@@ -104,7 +104,7 @@ func (i *instance) attachElasticIP(eip elasticIPDetails) error {
 	log.Printf("Elastic IP with allocation ID %s successfully attached to instance %s", *eip.AllocationID, *i.InstanceId)
 	return nil
 }
-func (i *instance) attachEBSVolume(volume *ec2.InstanceBlockDeviceMapping, deviceName string) error {
+func (i *instance) attachEBSVolume(volume *ec2Types.InstanceBlockDeviceMapping, deviceName string) error {
 	if *volume.DeviceName == "/dev/xvda" {
 		return nil // Skip root device
 	}
@@ -116,7 +116,7 @@ func (i *instance) attachEBSVolume(volume *ec2.InstanceBlockDeviceMapping, devic
 	}
 
 	log.Printf("Attempting to attach EBS volume %s to instance %s", *volume.Ebs.VolumeId, *i.InstanceId)
-	_, err := i.region.services.ec2.AttachVolume(input)
+	_, err := i.region.services.ec2.AttachVolume(context.TODO(), input)
 	if err != nil {
 		return err
 	}
@@ -137,22 +137,22 @@ func (i *instance) attachEBSVolume(volume *ec2.InstanceBlockDeviceMapping, devic
 	return nil
 }
 
-func (i *instance) getUnattachedTaggedEBSVolumes() ([]*ec2.Volume, error) {
+func (i *instance) getUnattachedTaggedEBSVolumes() ([]ec2Types.Volume, error) {
 	input := &ec2.DescribeVolumesInput{
-		Filters: []*ec2.Filter{
+		Filters: []ec2Types.Filter{
 			{
 				Name:   aws.String("tag:attached-instance"),
-				Values: []*string{i.InstanceId},
+				Values: []string{*i.InstanceId},
 			},
 			{
 				Name:   aws.String("status"),
-				Values: []*string{aws.String("available")},
+				Values: []string{"available"},
 			},
 		},
 	}
 	log.Printf("Retrieving unattached tagged EBS volumes for instance %s", *i.InstanceId)
 
-	result, err := i.region.services.ec2.DescribeVolumes(input)
+	result, err := i.region.services.ec2.DescribeVolumes(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
@@ -161,26 +161,26 @@ func (i *instance) getUnattachedTaggedEBSVolumes() ([]*ec2.Volume, error) {
 	return result.Volumes, nil
 }
 
-func (i *instance) getUnattachedTaggedElasticIPs() ([]*ec2.Address, error) {
+func (i *instance) getUnattachedTaggedElasticIPs() ([]ec2Types.Address, error) {
 	// Define the input with only one filter for the attached instance tag
 	input := &ec2.DescribeAddressesInput{
-		Filters: []*ec2.Filter{
+		Filters: []ec2Types.Filter{
 			{
 				Name:   aws.String("tag:attached-instance"),
-				Values: []*string{i.InstanceId},
+				Values: []string{*i.InstanceId},
 			},
 		},
 	}
 	log.Printf("Retrieving tagged Elastic IPs for instance %s", *i.InstanceId)
 
 	// Call DescribeAddresses
-	result, err := i.region.services.ec2.DescribeAddresses(input)
+	result, err := i.region.services.ec2.DescribeAddresses(context.TODO(), input)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a slice to hold unattached addresses
-	var unattachedAddresses []*ec2.Address
+	var unattachedAddresses []ec2Types.Address
 
 	// Iterate over the addresses to check the association
 	for _, address := range result.Addresses {
@@ -193,7 +193,7 @@ func (i *instance) getUnattachedTaggedElasticIPs() ([]*ec2.Address, error) {
 	return unattachedAddresses, nil
 }
 
-func detachAndAttachEBSVolume(existingInstance *instance, targetInstance *instance, vol *ec2.InstanceBlockDeviceMapping, errChan chan<- error) {
+func detachAndAttachEBSVolume(existingInstance *instance, targetInstance *instance, vol *ec2Types.InstanceBlockDeviceMapping, errChan chan<- error) {
 	log.Printf("Starting to detach EBS volume %s from instance %s", *vol.Ebs.VolumeId, *existingInstance.InstanceId)
 	if err := existingInstance.detachEBSVolume(vol); err != nil {
 		errChan <- fmt.Errorf("error detaching EBS volume %s: %v", *vol.Ebs.VolumeId, err)
@@ -220,14 +220,14 @@ func detachAndAttachElasticIP(existingInstance *instance, targetInstance *instan
 		errChan <- fmt.Errorf("error attaching Elastic IP with allocation ID %s: %v", *eipDetail.AllocationID, err)
 	}
 }
-func migrateUnattachedTaggedEBSVolume(targetInstance *instance, vol *ec2.Volume, errChan chan<- error) {
+func migrateUnattachedTaggedEBSVolume(targetInstance *instance, vol *ec2Types.Volume, errChan chan<- error) {
 	log.Printf("Starting to attach unattached tagged EBS volume %s to instance %s", *vol.VolumeId, *targetInstance.InstanceId)
 
 	// Retrieve device name from volume tags
 	deviceName := getDeviceNameFromTags(vol.Tags)
 
-	ebsMapping := &ec2.InstanceBlockDeviceMapping{
-		Ebs: &ec2.EbsInstanceBlockDevice{
+	ebsMapping := &ec2Types.InstanceBlockDeviceMapping{
+		Ebs: &ec2Types.EbsInstanceBlockDevice{
 			VolumeId: vol.VolumeId,
 		},
 		DeviceName: aws.String(deviceName),
@@ -244,7 +244,7 @@ func migrateUnattachedTaggedEBSVolume(targetInstance *instance, vol *ec2.Volume,
 	}
 }
 
-func migrateUnattachedTaggedElasticIP(targetInstance *instance, address *ec2.Address, errChan chan<- error) {
+func migrateUnattachedTaggedElasticIP(targetInstance *instance, address *ec2Types.Address, errChan chan<- error) {
 	log.Printf("Starting to attach unattached tagged Elastic IP with allocation ID %s to instance %s", *address.AllocationId, *targetInstance.InstanceId)
 	eipDetails := elasticIPDetails{
 		AllocationID: address.AllocationId,
@@ -255,7 +255,7 @@ func migrateUnattachedTaggedElasticIP(targetInstance *instance, address *ec2.Add
 	}
 }
 
-func getDeviceNameFromTags(tags []*ec2.Tag) string {
+func getDeviceNameFromTags(tags []ec2Types.Tag) string {
 	for _, tag := range tags {
 		if *tag.Key == "device-name" {
 			return *tag.Value
@@ -264,7 +264,7 @@ func getDeviceNameFromTags(tags []*ec2.Tag) string {
 	return "" // Return a sensible default or handle this case as needed
 }
 
-func (i *instance) migrateResources(existingInstance *instance, attachedEBSVolumes []*ec2.InstanceBlockDeviceMapping, attachedElasticEIPs []elasticIPDetails) error {
+func (i *instance) migrateResources(existingInstance *instance, attachedEBSVolumes []ec2Types.InstanceBlockDeviceMapping, attachedElasticEIPs []elasticIPDetails) error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(attachedEBSVolumes)+len(attachedElasticEIPs))
 	var errList []error
@@ -283,9 +283,9 @@ func (i *instance) migrateResources(existingInstance *instance, attachedEBSVolum
 	// Migrate Attached EBS Volumes
 	for _, volume := range attachedEBSVolumes {
 		wg.Add(1)
-		go func(vol *ec2.InstanceBlockDeviceMapping) {
+		go func(vol ec2Types.InstanceBlockDeviceMapping) {
 			defer wg.Done()
-			detachAndAttachEBSVolume(existingInstance, i, vol, errChan)
+			detachAndAttachEBSVolume(existingInstance, i, &vol, errChan)
 		}(volume)
 	}
 
@@ -305,9 +305,9 @@ func (i *instance) migrateResources(existingInstance *instance, attachedEBSVolum
 	}
 	for _, volume := range unattachedTaggedVolumes {
 		wg.Add(1)
-		go func(vol *ec2.Volume) {
+		go func(vol ec2Types.Volume) {
 			defer wg.Done()
-			migrateUnattachedTaggedEBSVolume(i, vol, errChan)
+			migrateUnattachedTaggedEBSVolume(i, &vol, errChan)
 		}(volume)
 	}
 
@@ -318,9 +318,9 @@ func (i *instance) migrateResources(existingInstance *instance, attachedEBSVolum
 	}
 	for _, address := range unattachedTaggedEIPs {
 		wg.Add(1)
-		go func(addr *ec2.Address) {
+		go func(addr ec2Types.Address) {
 			defer wg.Done()
-			migrateUnattachedTaggedElasticIP(i, addr, errChan)
+			migrateUnattachedTaggedElasticIP(i, &addr, errChan)
 		}(address)
 	}
 

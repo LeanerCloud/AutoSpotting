@@ -7,11 +7,11 @@ import (
 	"log"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/autoscaling"
+	types "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 )
 
 type launchConfiguration struct {
-	*autoscaling.LaunchConfiguration
+	*types.LaunchConfiguration
 }
 
 func (lc *launchConfiguration) countLaunchConfigEphemeralVolumes() int {

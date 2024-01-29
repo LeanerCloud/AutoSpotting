@@ -6,8 +6,8 @@ package autospotting
 import (
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
 func Test_countLaunchTemplateEphemeralVolumes(t *testing.T) {

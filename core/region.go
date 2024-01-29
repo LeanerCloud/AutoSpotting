@@ -4,6 +4,7 @@
 package autospotting
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -13,11 +14,22 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+
+	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk"
+	beanstalkTypes "github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk/types"
+
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
 // Tag represents an Asg Tag: Key, Value
@@ -154,7 +166,7 @@ func splitTagAndValue(value string) *Tag {
 	return nil
 }
 
-func (r *region) processDescribeInstancesPage(page *ec2.DescribeInstancesOutput, lastPage bool) bool {
+func (r *region) processDescribeInstancesPage(page *ec2.DescribeInstancesOutput) {
 	debug.Println("Processing page of DescribeInstancesPages for", r.name)
 
 	if len(page.Reservations) > 0 &&
@@ -162,22 +174,21 @@ func (r *region) processDescribeInstancesPage(page *ec2.DescribeInstancesOutput,
 
 		for _, res := range page.Reservations {
 			for _, inst := range res.Instances {
-				r.addInstance(inst)
+				r.addInstance(&inst)
 			}
 		}
 	}
-	return true
 }
 
 func (r *region) scanInstances() error {
 	svc := r.services.ec2
 	input := &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
+		Filters: []ec2Types.Filter{
 			{
 				Name: aws.String("instance-state-name"),
-				Values: []*string{
-					aws.String("running"),
-					aws.String("pending"),
+				Values: []string{
+					"running",
+					"pending",
 				},
 			},
 		},
@@ -185,12 +196,16 @@ func (r *region) scanInstances() error {
 
 	r.instances = makeInstances()
 
-	err := svc.DescribeInstancesPages(
-		input,
-		r.processDescribeInstancesPage)
+	paginator := ec2.NewDescribeInstancesPaginator(svc, input)
 
-	if err != nil {
-		return err
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+
+			return err
+		}
+		r.processDescribeInstancesPage(page)
+
 	}
 
 	debug.Println(r.instances.dump())
@@ -198,34 +213,36 @@ func (r *region) scanInstances() error {
 	return nil
 }
 
-func (r *region) scanInstance(instanceID *string) error {
+func (r *region) scanInstance(instanceID string) error {
 	svc := r.services.ec2
 	input := &ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
+		Filters: []ec2Types.Filter{
 			{
 				Name:   aws.String("instance-id"),
-				Values: []*string{instanceID},
+				Values: []string{instanceID},
 			},
 		},
 	}
 
 	r.instances = makeInstances()
 
-	err := svc.DescribeInstancesPages(
-		input,
-		r.processDescribeInstancesPage)
+	paginator := ec2.NewDescribeInstancesPaginator(svc, input)
 
-	if err != nil {
-		return err
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			return err
+		}
+
+		r.processDescribeInstancesPage(page)
 	}
-
 	return nil
 }
 
-func (r *region) addInstance(inst *ec2.Instance) {
+func (r *region) addInstance(inst *ec2Types.Instance) {
 	r.instances.add(&instance{
 		Instance: inst,
-		typeInfo: r.instanceTypeInformation[*inst.InstanceType],
+		typeInfo: r.instanceTypeInformation[string(inst.InstanceType)],
 		region:   r,
 	})
 }
@@ -293,8 +310,8 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 		}
 	}
 	// this is safe to do once outside of the loop because the call will only
-	// return entries about the available instance types, so no invalid instance
-	// types would be returned
+	// return entries about the available instance ec2Types, so no invalid instance
+	// ec2Types would be returned
 
 	if err := r.requestSpotPrices(); err != nil {
 		log.Println(err.Error())
@@ -318,7 +335,7 @@ func (r *region) requestSpotPrices() error {
 
 	for _, priceInfo := range s.data {
 
-		instType, az := *priceInfo.InstanceType, *priceInfo.AvailabilityZone
+		instType, az := priceInfo.InstanceType, *priceInfo.AvailabilityZone
 
 		// failure to parse this means that the instance is not available on the
 		// spot market
@@ -329,20 +346,20 @@ func (r *region) requestSpotPrices() error {
 			continue
 		}
 
-		if r.instanceTypeInformation[instType].pricing[*priceInfo.ProductDescription].spot == nil {
+		if r.instanceTypeInformation[string(instType)].pricing[string(priceInfo.ProductDescription)].spot == nil {
 			debug.Println(r.name, "Instance data missing for", instType, "in", az,
 				"skipping because this region is currently not supported")
 			continue
 		}
 
-		r.instanceTypeInformation[instType].pricing[*priceInfo.ProductDescription].spot[az] = price
+		r.instanceTypeInformation[string(instType)].pricing[string(priceInfo.ProductDescription)].spot[az] = price
 
 	}
 
 	return nil
 }
 
-func tagsMatch(asgTag *autoscaling.TagDescription, filteringTag Tag) bool {
+func tagsMatch(asgTag *autoscalingTypes.TagDescription, filteringTag Tag) bool {
 	if asgTag != nil && *asgTag.Key == filteringTag.Key {
 		matched, err := filepath.Match(filteringTag.Value, *asgTag.Value)
 		if err != nil {
@@ -354,16 +371,16 @@ func tagsMatch(asgTag *autoscaling.TagDescription, filteringTag Tag) bool {
 	return false
 }
 
-func isASGWithMatchingTag(tagToMatch Tag, asgTags []*autoscaling.TagDescription) bool {
+func isASGWithMatchingTag(tagToMatch Tag, asgTags []autoscalingTypes.TagDescription) bool {
 	for _, asgTag := range asgTags {
-		if tagsMatch(asgTag, tagToMatch) {
+		if tagsMatch(&asgTag, tagToMatch) {
 			return true
 		}
 	}
 	return false
 }
 
-func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch []Tag) bool {
+func isASGWithMatchingTags(asg *autoscalingTypes.AutoScalingGroup, tagsToMatch []Tag) bool {
 	matchedTags := 0
 
 	for _, tag := range tagsToMatch {
@@ -375,9 +392,9 @@ func isASGWithMatchingTags(asg *autoscaling.Group, tagsToMatch []Tag) bool {
 	return matchedTags == len(tagsToMatch)
 }
 
-func getTagValueFromASGWithMatchingTag(asg *autoscaling.Group, tagToMatch Tag) *string {
+func getTagValueFromASGWithMatchingTag(asg *autoscalingTypes.AutoScalingGroup, tagToMatch Tag) *string {
 	for _, asgTag := range asg.Tags {
-		if tagsMatch(asgTag, tagToMatch) {
+		if tagsMatch(&asgTag, tagToMatch) {
 			return asgTag.Value
 		}
 	}
@@ -398,19 +415,19 @@ func (r *region) isStackUpdating(stackName *string) (string, bool) {
 		StackName: stackName,
 	}
 
-	if output, err := svc.DescribeStacks(&input); err != nil {
+	if output, err := svc.DescribeStacks(context.TODO(), &input); err != nil {
 		log.Println("Failed to describe stack", *stackName, "with error:", err.Error())
 	} else {
 		stackStatus := output.Stacks[0].StackStatus
-		if _, exists := stackCompleteStatuses[*stackStatus]; !exists {
-			return *stackStatus, true
+		if _, exists := stackCompleteStatuses[string(stackStatus)]; !exists {
+			return string(stackStatus), true
 		}
 	}
 
 	return "", false
 }
 
-func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
+func (r *region) findMatchingASGsInPageOfResults(groups []autoscalingTypes.AutoScalingGroup,
 	tagsToMatch []Tag) []autoScalingGroup {
 
 	var asgs []autoScalingGroup
@@ -421,7 +438,7 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
 	for _, group := range groups {
 		asgName := *group.AutoScalingGroupName
 
-		groupMatchesExpectedTags := isASGWithMatchingTags(group, tagsToMatch)
+		groupMatchesExpectedTags := isASGWithMatchingTags(&group, tagsToMatch)
 		// Go lacks a logical XOR operator, this is the equivalent to that logical
 		// expression. The goal is to add the matching ASGs when running in opt-in
 		// mode and the other way round.
@@ -432,7 +449,7 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
 			continue
 		}
 
-		if stackName := getTagValueFromASGWithMatchingTag(group, tagCloudFormationStackName); stackName != nil {
+		if stackName := getTagValueFromASGWithMatchingTag(&group, tagCloudFormationStackName); stackName != nil {
 			debug.Println("Stack: ", *stackName)
 			if status, updating := r.isStackUpdating(stackName); updating {
 				log.Printf("Skipping group %s because stack %s is in state %s\n",
@@ -445,9 +462,9 @@ func (r *region) findMatchingASGsInPageOfResults(groups []*autoscaling.Group,
 			"currently configured  filtering mode (%s) and tag filters are aligned\n",
 			asgName, r.conf.TagFilteringMode)
 		asgs = append(asgs, autoScalingGroup{
-			Group:  group,
-			name:   asgName,
-			region: r,
+			AutoScalingGroup: &group,
+			name:             asgName,
+			region:           r,
 		})
 	}
 	return asgs
@@ -457,22 +474,22 @@ func (r *region) scanForEnabledAutoScalingGroups() {
 
 	svc := r.services.autoScaling
 
+	input := &autoscaling.DescribeAutoScalingGroupsInput{}
+	paginator := autoscaling.NewDescribeAutoScalingGroupsPaginator(svc, input)
+
 	pageNum := 0
-	err := svc.DescribeAutoScalingGroupsPages(
-		&autoscaling.DescribeAutoScalingGroupsInput{},
-		func(page *autoscaling.DescribeAutoScalingGroupsOutput, lastPage bool) bool {
-			pageNum++
-			debug.Println("Processing page", pageNum, "of DescribeAutoScalingGroupsPages for", r.name, "lastPage is", lastPage)
-			matchingAsgs := r.findMatchingASGsInPageOfResults(page.AutoScalingGroups, r.tagsToFilterASGsBy)
-			r.enabledASGs = append(r.enabledASGs, matchingAsgs...)
-			return true
-		},
-	)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			log.Println("Failed to describe AutoScalingGroups in", r.name, err.Error())
+			return
+		}
 
-	if err != nil {
-		log.Println("Failed to describe AutoScalingGroups in", r.name, err.Error())
+		pageNum++
+		debug.Println("Processing page", pageNum, "of DescribeAutoScalingGroups for", r.name)
+		matchingAsgs := r.findMatchingASGsInPageOfResults(page.AutoScalingGroups, r.tagsToFilterASGsBy)
+		r.enabledASGs = append(r.enabledASGs, matchingAsgs...)
 	}
-
 }
 
 func (r *region) hasEnabledAutoScalingGroups() bool {
@@ -510,7 +527,7 @@ func (r *region) findEnabledASGByName(name string) *autoScalingGroup {
 func (r *region) sqsDeleteMessage(instanceID *string, instanceLifecycle string, sqsReceiptHandle *string) error {
 	svc := r.services.sqs
 
-	_, err := svc.DeleteMessage(
+	_, err := svc.DeleteMessage(context.TODO(),
 		&sqs.DeleteMessageInput{
 			QueueUrl:      &r.conf.SQSQueueURL,
 			ReceiptHandle: sqsReceiptHandle,
@@ -551,7 +568,7 @@ func (r *region) calculateSavings() float64 {
 
 			is := inst.getSavings()
 			log.Printf("Found AutoSpotting instance %s(%s) in %s with hourly savings %f\n",
-				*inst.InstanceId, *inst.InstanceType, r.name, is)
+				*inst.InstanceId, inst.InstanceType, r.name, is)
 			savings += is
 			if belongs, asg := inst.belongsToAnASG(); belongs {
 				asgSavings[*asg] += is
@@ -561,11 +578,11 @@ func (r *region) calculateSavings() float64 {
 	log.Printf("Total savings in %s: %f\n", r.name, savings)
 
 	ss := savingsStats{
-		sns:             r.services.sns,
+		sns:             *r.services.sns,
 		topic:           r.conf.NotificationSNSTopic,
 		reportFrequency: r.conf.SavingsReportsFrequency,
 		ps: parameterStore{
-			svc: r.services.ssm,
+			svc: *r.services.ssm,
 		},
 	}
 	ss.persistHourlyASGSavings(r.name, asgSavings)
@@ -605,8 +622,8 @@ func (r *region) extractECSClusterName(clusterARN string) (string, error) {
 
 func (r *region) tagResource(resourceID *string, tagKey string, tagValue string) error {
 	tagInput := &ec2.CreateTagsInput{
-		Resources: []*string{resourceID},
-		Tags: []*ec2.Tag{
+		Resources: []string{*resourceID},
+		Tags: []ec2Types.Tag{
 			{
 				Key:   aws.String(tagKey),
 				Value: aws.String(tagValue),
@@ -614,7 +631,7 @@ func (r *region) tagResource(resourceID *string, tagKey string, tagValue string)
 		},
 	}
 
-	_, err := r.services.ec2.CreateTags(tagInput)
+	_, err := r.services.ec2.CreateTags(context.TODO(), tagInput)
 	if err != nil {
 		return fmt.Errorf("error tagging resource %s: %v", *resourceID, err)
 	}
@@ -688,4 +705,125 @@ func (r *region) findASGForInstance(inst *instance) (*autoScalingGroup, error) {
 	errMsg := fmt.Sprintf("No ASG found for instance %s", *inst.InstanceId)
 	log.Println(errMsg)
 	return nil, errors.New(errMsg)
+}
+func (r *region) waitForInstanceRunning(instanceID *string) error {
+	// Define the timeout for the waiter
+	waitTimeout := 5 * time.Minute
+
+	// Define the polling interval
+	pollInterval := 15 * time.Second
+
+	// Record the time when we start waiting
+	startTime := time.Now()
+
+	// Context for the operation
+	ctx := context.TODO()
+
+	for {
+		// Check if we've exceeded the timeout
+		if time.Since(startTime) > waitTimeout {
+			return fmt.Errorf("timed out waiting for instance to be running")
+		}
+
+		// Describe the instance
+		input := &ec2.DescribeInstancesInput{
+			InstanceIds: []string{*instanceID},
+		}
+		result, err := r.services.ec2.DescribeInstances(ctx, input)
+		if err != nil {
+			return fmt.Errorf("failed to describe instance: %w", err)
+		}
+
+		// Check the instance state
+		if len(result.Reservations) > 0 && len(result.Reservations[0].Instances) > 0 {
+			state := result.Reservations[0].Instances[0].State
+			if state != nil && state.Name == types.InstanceStateNameRunning {
+				return nil
+			}
+		}
+
+		// Wait for the next poll interval
+		time.Sleep(pollInterval)
+	}
+}
+
+func (r *region) waitUntilBeanstalkEnvironmentUpdated(envName, envID *string) error {
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(r.name))
+	if err != nil {
+		return err
+	}
+
+	svc := elasticbeanstalk.NewFromConfig(cfg)
+
+	ctx := context.TODO()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(30 * time.Second): // Polling interval
+			input := &elasticbeanstalk.DescribeEnvironmentsInput{
+				EnvironmentNames: []string{*envName},
+				EnvironmentIds:   []string{*envID},
+			}
+
+			resp, err := svc.DescribeEnvironments(ctx, input)
+			if err != nil {
+				return err
+			}
+
+			if len(resp.Environments) == 0 {
+				continue
+			}
+
+			env := resp.Environments[0]
+			switch env.Status {
+			case beanstalkTypes.EnvironmentStatusReady:
+				return nil
+			case beanstalkTypes.EnvironmentStatusTerminated, beanstalkTypes.EnvironmentStatusTerminating:
+				return fmt.Errorf("environment is in a terminating state")
+			}
+		}
+	}
+}
+
+func (r *region) waitUntilVolumeAvailable(volumeID *string) error {
+	// Define the timeout for the waiter
+	waitTimeout := 5 * time.Minute
+
+	// Define the polling interval
+	pollInterval := 15 * time.Second
+
+	// Record the time when we start waiting
+	startTime := time.Now()
+
+	ctx := context.TODO()
+
+	for {
+		// Check if we've exceeded the timeout
+		if time.Since(startTime) > waitTimeout {
+			return fmt.Errorf("timed out waiting for volume to become available")
+		}
+
+		// Describe the volume
+		input := &ec2.DescribeVolumesInput{
+			VolumeIds: []string{*volumeID},
+		}
+		resp, err := r.services.ec2.DescribeVolumes(ctx, input)
+		if err != nil {
+			return fmt.Errorf("failed to describe volume: %w", err)
+		}
+
+		if len(resp.Volumes) == 0 {
+			return fmt.Errorf("no volume found with the provided ID")
+		}
+
+		// Check the volume state
+		if resp.Volumes[0].State == types.VolumeStateAvailable {
+			log.Printf("EBS volume %s successfully detached and is now available", *volumeID)
+			return nil
+		}
+
+		// Wait for the next poll interval
+		time.Sleep(pollInterval)
+	}
 }

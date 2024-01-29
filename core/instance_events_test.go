@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 )
 
 func TestParseEventData(t *testing.T) {

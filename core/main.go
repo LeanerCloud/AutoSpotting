@@ -4,6 +4,7 @@
 package autospotting
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,13 +17,13 @@ import (
 
 	ec2instancesinfo "github.com/LeanerCloud/ec2-instances-info"
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/marketplacemetering"
-	"github.com/aws/aws-sdk-go/service/sns"
-	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+
+	"github.com/aws/aws-sdk-go-v2/service/marketplacemetering"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
 var debug *log.Logger
@@ -32,7 +33,7 @@ var totalSavings float64
 // entrypoints of this library
 type AutoSpotting struct {
 	config      *Config
-	mainEC2Conn ec2iface.EC2API
+	mainEC2Conn *ec2.Client
 }
 
 var as *AutoSpotting
@@ -137,28 +138,38 @@ func (cfg *Config) setupLogging() {
 func (a *AutoSpotting) processRegions(regions []string) {
 	var wg sync.WaitGroup
 	var savingsMutex sync.RWMutex
+	var totalSavings float64
 
 	for _, r := range regions {
 		wg.Add(1)
 		r := region{name: r, conf: a.config}
-		go func() {
+		go func(r region) {
 			s := r.calculateSavings()
 			savingsMutex.Lock()
 			totalSavings += s
 			savingsMutex.Unlock()
 			wg.Done()
-		}()
+		}(r)
 	}
 	wg.Wait()
 
-	session := session.Must(session.NewSession(&aws.Config{Region: aws.String(a.config.MainRegion)}))
-	ps := parameterStore{svc: ssm.New(session, aws.NewConfig().WithRegion(a.config.MainRegion))}
+	ctx := context.TODO()
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(a.config.MainRegion))
+	if err != nil {
+		log.Fatalf("unable to load SDK config, %v", err)
+	}
+
+	ssmClient := ssm.NewFromConfig(cfg)
+	ps := parameterStore{svc: *ssmClient}
+	mpSvc := marketplacemetering.NewFromConfig(cfg)
+	snsClient := sns.NewFromConfig(cfg)
+
 	mp := marketplaceMetering{
-		mpSvc: marketplacemetering.New(session, aws.NewConfig().WithRegion(a.config.MainRegion)),
+		mpSvc: *mpSvc,
 		ps:    ps,
 		svs: savingsStats{
 			ps:              ps,
-			sns:             sns.New(session, aws.NewConfig().WithRegion(a.config.MainRegion)),
+			sns:             *snsClient,
 			topic:           a.config.NotificationSNSTopic,
 			reportFrequency: a.config.SavingsReportsFrequency,
 		},
@@ -199,15 +210,14 @@ func (a *AutoSpotting) processRegions(regions []string) {
 	wg.Wait()
 }
 
-func connectEC2(region string) *ec2.EC2 {
-
-	sess, err := session.NewSession()
+func connectEC2(region string) *ec2.Client {
+	ctx := context.TODO()
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
 		panic(err)
 	}
 
-	return ec2.New(sess,
-		aws.NewConfig().WithRegion(region))
+	return ec2.NewFromConfig(cfg)
 }
 
 // getRegions generates a list of AWS regions.
@@ -216,7 +226,7 @@ func (a *AutoSpotting) getRegions() ([]string, error) {
 
 	log.Println("Scanning for available AWS regions")
 
-	resp, err := a.mainEC2Conn.DescribeRegions(&ec2.DescribeRegionsInput{})
+	resp, err := a.mainEC2Conn.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
 
 	if err != nil {
 		log.Println(err.Error())
@@ -227,7 +237,7 @@ func (a *AutoSpotting) getRegions() ([]string, error) {
 
 	for _, r := range resp.Regions {
 
-		if r != nil && r.RegionName != nil {
+		if r.RegionName != nil {
 			debug.Println("Found region", *r.RegionName)
 			output = append(output, *r.RegionName)
 		}
@@ -382,7 +392,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 
-	if err := r.scanInstance(aws.String(instanceID)); err != nil {
+	if err := r.scanInstance(instanceID); err != nil {
 		log.Printf("%s Couldn't scan instance %s: %s", regionName,
 			instanceID, err.Error())
 		return err
@@ -396,8 +406,8 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 		return errors.New("instance missing")
 	}
 
-	if i.InstanceType != nil {
-		i.typeInfo = r.instanceTypeInformation[*i.InstanceType]
+	if i.InstanceType != "" {
+		i.typeInfo = r.instanceTypeInformation[string(i.InstanceType)]
 	}
 
 	if skipRun, err := i.handleInstanceStates(); skipRun {
@@ -441,7 +451,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 	log.Println("Scanning full instance information in", r.name)
 	r.determineInstanceTypeInformation(r.conf)
 
-	if err := r.scanInstance(aws.String(instanceID)); err != nil {
+	if err := r.scanInstance(instanceID); err != nil {
 		log.Printf("%s Couldn't scan instance %s: %s", regionName,
 			instanceID, err.Error())
 		return err
@@ -454,7 +464,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 		return errors.New("instance missing")
 	}
 	log.Printf("%s Found instance %s in state %s",
-		i.region.name, *i.InstanceId, *i.State.Name)
+		i.region.name, *i.InstanceId, i.State.Name)
 
 	if state != "running" {
 		log.Printf("%s Instance %s is not in the running state",
@@ -483,8 +493,8 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 	var err error
 	lifecycle := "on-demand"
 
-	if i.InstanceLifecycle != nil {
-		lifecycle = *i.InstanceLifecycle
+	if i.InstanceLifecycle != "" {
+		lifecycle = string(i.InstanceLifecycle)
 	}
 	if i.isSpot() {
 		log.Printf("%s skipping Spot instance %s: only replacing new On Demand instances",
@@ -542,16 +552,14 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 	}
 
 	log.Printf("Waiting for spot instance %s to be in status running", *spotInstanceID)
-	err = r.services.ec2.WaitUntilInstanceRunning(
-		&ec2.DescribeInstancesInput{
-			InstanceIds: []*string{spotInstanceID},
-		})
-	if err != nil {
+
+	if err := r.waitForInstanceRunning(spotInstanceID); err != nil {
 		log.Printf("Issue while waiting for spot instance %v to start: %v",
 			spotInstanceID, err.Error())
 		return err
 	}
-	if err := r.scanInstance(spotInstanceID); err != nil {
+
+	if err := r.scanInstance(*spotInstanceID); err != nil {
 		log.Printf("%s Couldn't scan instance %s: %s", i.region.name,
 			*spotInstanceID, err.Error())
 		return err
@@ -580,7 +588,7 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	log.Println("Scanning full instance information in", r.name)
 	r.determineInstanceTypeInformation(r.conf)
 
-	if err := r.scanInstance(aws.String(instanceID)); err != nil {
+	if err := r.scanInstance(instanceID); err != nil {
 		log.Printf("%s Couldn't scan instance %s: %s", regionName,
 			instanceID, err.Error())
 		return nil, err
@@ -594,9 +602,9 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	}
 	lifecycle := i.getLifecycleValue()
 	log.Printf("%s Found %s instance %s in state %s",
-		i.region.name, lifecycle, *i.InstanceId, *i.State.Name)
+		i.region.name, lifecycle, *i.InstanceId, i.State.Name)
 
-	if (*i.State.Name != "running") && (*i.State.Name != "shutting-down") {
+	if (i.State.Name != "running") && (i.State.Name != "shutting-down") {
 		log.Printf("%s %s Instance %s is not in the running or shutting down state",
 			i.region.name, lifecycle, *i.InstanceId)
 		return nil, errors.New("instance not in running/shutting down state")
@@ -643,10 +651,7 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	}
 
 	log.Printf("Waiting for new instance %s to be in status running", *newInstanceID)
-	err = r.services.ec2.WaitUntilInstanceRunning(
-		&ec2.DescribeInstancesInput{
-			InstanceIds: []*string{newInstanceID},
-		})
+	err = r.waitForInstanceRunning(newInstanceID)
 	if err != nil {
 		log.Printf("Issue while waiting for new instance %v to start: %v",
 			newInstanceID, err.Error())

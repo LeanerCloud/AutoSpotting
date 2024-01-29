@@ -3,10 +3,10 @@
 
 package autospotting
 
-import "github.com/aws/aws-sdk-go/service/ec2"
+import "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 type instance struct {
-	*ec2.Instance
+	*types.Instance
 	typeInfo    instanceTypeInformation
 	odPrice     float64
 	region      *region

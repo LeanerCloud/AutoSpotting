@@ -9,10 +9,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config/awserr"
+	autoscaling "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	ec2 "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
 func TestAlreadyRunningInstanceCount(t *testing.T) {
@@ -39,9 +39,9 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				instanceMap{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameStopped},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String(Spot),
+							InstanceLifecycle: Spot,
 						},
 					},
 				},
@@ -57,16 +57,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				instanceMap{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String(OnDemand),
+							InstanceLifecycle: OnDemand,
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-							InstanceLifecycle: aws.String(OnDemand),
+							InstanceLifecycle: OnDemand,
 						},
 					},
 				},
@@ -82,16 +82,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				instanceMap{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String(Spot),
+							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-							InstanceLifecycle: aws.String(Spot),
+							InstanceLifecycle: Spot,
 						},
 					},
 				},
@@ -107,16 +107,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				instanceMap{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String(OnDemand),
+							InstanceLifecycle: OnDemand,
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-							InstanceLifecycle: aws.String(OnDemand),
+							InstanceLifecycle: OnDemand,
 						},
 					},
 				},
@@ -132,16 +132,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				instanceMap{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String(OnDemand),
+							InstanceLifecycle: OnDemand,
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-							InstanceLifecycle: aws.String(OnDemand),
+							InstanceLifecycle: OnDemand,
 						},
 					},
 				},
@@ -157,16 +157,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				instanceMap{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String(Spot),
+							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-							InstanceLifecycle: aws.String(Spot),
+							InstanceLifecycle: Spot,
 						},
 					},
 				},
@@ -182,16 +182,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				instanceMap{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String(Spot),
+							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-							InstanceLifecycle: aws.String(Spot),
+							InstanceLifecycle: Spot,
 						},
 					},
 				},
@@ -207,16 +207,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				instanceMap{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameShuttingDown)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameShuttingDown},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String(Spot),
+							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-							InstanceLifecycle: aws.String(OnDemand),
+							InstanceLifecycle: OnDemand,
 						},
 					},
 				},
@@ -232,16 +232,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				instanceMap{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String(Spot),
+							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-							InstanceLifecycle: aws.String(OnDemand),
+							InstanceLifecycle: OnDemand,
 						},
 					},
 				},
@@ -257,16 +257,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 				instanceMap{
 					"id-1": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-							InstanceLifecycle: aws.String(Spot),
+							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
 						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameStopped)},
+							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameStopped},
 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-							InstanceLifecycle: aws.String(OnDemand),
+							InstanceLifecycle: OnDemand,
 						},
 					},
 				},
@@ -280,7 +280,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := autoScalingGroup{Group: &autoscaling.Group{}}
+			a := autoScalingGroup{AutoScalingGroup: &autoscaling.AutoScalingGroup{}}
 			a.name = tt.asgName
 			a.instances = tt.asgInstances
 			count, total := a.alreadyRunningInstanceCount(tt.spot, tt.availabilityZone)
@@ -321,16 +321,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 				instanceMap{
 // 					"id-1": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameShuttingDown)},
+// 							State:             &ec2.InstanceState{Name: InstanceStateNameShuttingDown},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-// 							InstanceLifecycle: aws.String(Spot),
+// 							InstanceLifecycle: Spot,
 // 						},
 // 					},
 // 					"id-2": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameShuttingDown)},
+// 							State:             &ec2.InstanceState{Name: InstanceStateNameShuttingDown},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-// 							InstanceLifecycle: aws.String(OnDemand),
+// 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
@@ -344,16 +344,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 				instanceMap{
 // 					"id-1": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameShuttingDown)},
+// 							State:             &ec2.InstanceState{Name: InstanceStateNameShuttingDown},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-// 							InstanceLifecycle: aws.String(Spot),
+// 							InstanceLifecycle: Spot,
 // 						},
 // 					},
 // 					"id-2": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameShuttingDown)},
+// 							State:             &ec2.InstanceState{Name: InstanceStateNameShuttingDown},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-// 							InstanceLifecycle: aws.String(OnDemand),
+// 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
@@ -368,9 +368,9 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 					"id-1": {
 // 						Instance: &ec2.Instance{
 // 							InstanceId:        aws.String("id-1"),
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-// 							InstanceLifecycle: aws.String(Spot),
+// 							InstanceLifecycle: Spot,
 // 						},
 // 						region: &region{
 // 							name: "test-region",
@@ -382,9 +382,9 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 					"id-2": {
 // 						Instance: &ec2.Instance{
 // 							InstanceId:        aws.String("id-2"),
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-// 							InstanceLifecycle: aws.String(OnDemand),
+// 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
@@ -405,16 +405,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 				instanceMap{
 // 					"id-1": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-// 							InstanceLifecycle: aws.String(Spot),
+// 							InstanceLifecycle: Spot,
 // 						},
 // 					},
 // 					"id-2": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-// 							InstanceLifecycle: aws.String(OnDemand),
+// 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
@@ -428,9 +428,9 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 				instanceMap{
 // 					"id-1": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-// 							InstanceLifecycle: aws.String(Spot),
+// 							InstanceLifecycle: Spot,
 // 						},
 // 					},
 // 				},
@@ -444,16 +444,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 				instanceMap{
 // 					"id-1": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-// 							InstanceLifecycle: aws.String(OnDemand),
+// 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 					"id-2": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-// 							InstanceLifecycle: aws.String(OnDemand),
+// 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
@@ -467,16 +467,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 				instanceMap{
 // 					"id-1": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-// 							InstanceLifecycle: aws.String(OnDemand),
+// 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 					"id-2": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-// 							InstanceLifecycle: aws.String(OnDemand),
+// 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
@@ -490,16 +490,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 				map[string]*instance{
 // 					"id-1": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
-// 							InstanceLifecycle: aws.String(OnDemand),
+// 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 					"id-2": {
 // 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: aws.String(ec2.InstanceStateNameRunning)},
+// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
 // 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
-// 							InstanceLifecycle: aws.String(Spot),
+// 							InstanceLifecycle: Spot,
 // 						},
 // 					},
 // 				},
@@ -542,7 +542,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 						Instance: &ec2.Instance{
 // 							InstanceId: aws.String("1"),
 // 							State: &ec2.InstanceState{
-// 								Name: aws.String(ec2.InstanceStateNameRunning),
+// 								Name: ec2.InstanceStateNameRunning,
 // 							},
 // 						},
 // 						region: &region{
@@ -570,7 +570,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 						Instance: &ec2.Instance{
 // 							InstanceId: aws.String("1"),
 // 							State: &ec2.InstanceState{
-// 								Name: aws.String(ec2.InstanceStateNameRunning),
+// 								Name: ec2.InstanceStateNameRunning,
 // 							},
 // 						},
 // 						region: &region{
@@ -1010,7 +1010,7 @@ func TestScanInstances(t *testing.T) {
 								Placement: &ec2.Placement{
 									AvailabilityZone: aws.String("az-1"),
 								},
-								InstanceLifecycle: aws.String(Spot),
+								InstanceLifecycle: Spot,
 							},
 							typeInfo: instanceTypeInformation{
 								pricing: prices{
@@ -1073,7 +1073,7 @@ func TestScanInstances(t *testing.T) {
 						Placement: &ec2.Placement{
 							AvailabilityZone: aws.String("az-1"),
 						},
-						InstanceLifecycle: aws.String(Spot),
+						InstanceLifecycle: Spot,
 					},
 					typeInfo: instanceTypeInformation{
 						pricing: prices{
@@ -1339,7 +1339,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 								AvailabilityZone: aws.String("us-east-1a"),
 							},
 							State: &ec2.InstanceState{
-								Name: aws.String(ec2.InstanceStateNameRunning),
+								Name: ec2.InstanceStateNameRunning,
 							},
 						},
 						odPrice: 30.3,
@@ -1418,7 +1418,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 								AvailabilityZone: aws.String("us-east-1a"),
 							},
 							State: &ec2.InstanceState{
-								Name: aws.String(ec2.InstanceStateNameRunning),
+								Name: ec2.InstanceStateNameRunning,
 							},
 						},
 						odPrice: 30.3,
@@ -1558,7 +1558,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1583,7 +1583,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1639,7 +1639,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1664,7 +1664,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1719,7 +1719,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1744,7 +1744,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1805,7 +1805,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1830,7 +1830,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1855,7 +1855,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1916,7 +1916,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1941,7 +1941,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1966,7 +1966,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2032,7 +2032,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2057,7 +2057,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2082,7 +2082,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2107,7 +2107,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2173,7 +2173,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2198,7 +2198,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2223,7 +2223,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 2.0,
@@ -2248,7 +2248,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 2.5,
@@ -2296,7 +2296,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2321,7 +2321,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2382,7 +2382,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2407,7 +2407,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2432,7 +2432,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2488,7 +2488,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2513,7 +2513,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2588,7 +2588,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 									InstanceLifecycle: aws.String("spot"),
 								},
@@ -2613,7 +2613,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 									InstanceLifecycle: aws.String("spot"),
 								},
@@ -2638,7 +2638,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 									InstanceLifecycle: aws.String("spot"),
 								},
@@ -2663,7 +2663,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 									InstanceLifecycle: aws.String("spot"),
 								},
@@ -2688,7 +2688,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 									InstanceLifecycle: aws.String("spot"),
 								},
@@ -2713,7 +2713,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 									InstanceLifecycle: aws.String("spot"),
 								},
@@ -2791,7 +2791,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2816,7 +2816,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2841,7 +2841,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2866,7 +2866,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2891,7 +2891,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2916,7 +2916,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2967,7 +2967,7 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
 									State: &ec2.InstanceState{
-										Name: aws.String(ec2.InstanceStateNameRunning),
+										Name: ec2.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,

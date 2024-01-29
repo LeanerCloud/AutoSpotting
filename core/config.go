@@ -11,7 +11,7 @@ import (
 	"time"
 
 	ec2instancesinfo "github.com/LeanerCloud/ec2-instances-info"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
+
 	"github.com/namsral/flag"
 )
 
@@ -145,7 +145,7 @@ func ParseConfig(conf *Config) {
 	if r := os.Getenv("AWS_REGION"); r != "" {
 		region = r
 	} else {
-		region = endpoints.UsEast1RegionID
+		region = "us-east-1"
 	}
 
 	conf.LogFile = os.Stdout

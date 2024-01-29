@@ -1,26 +1,30 @@
 package autospotting
 
 import (
+	"context"
+	"errors"
 	"log"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	ssmTypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 )
 
 type parameterStore struct {
-	svc ssmiface.SSMAPI
+	svc ssm.Client
 }
 
 func (ps *parameterStore) putSSMParameter(key, value string) {
 
-	_, err := ps.svc.PutParameter(&ssm.PutParameterInput{
-		Name:      aws.String(key),
-		Overwrite: aws.Bool(true),
-		Type:      aws.String("String"),
-		Value:     aws.String(value),
-	})
+	_, err := ps.svc.PutParameter(
+		context.TODO(),
+		&ssm.PutParameterInput{
+			Name:      aws.String(key),
+			Overwrite: aws.Bool(true),
+			Type:      "String",
+			Value:     aws.String(value),
+		})
 	if err != nil {
 		log.Printf("Error persisting marketplace metering status(%s) to SSM: %s", value, err.Error())
 	}
@@ -28,9 +32,11 @@ func (ps *parameterStore) putSSMParameter(key, value string) {
 
 func (ps *parameterStore) getSSMParameter(key string) (*string, *time.Time, error) {
 
-	res, err := ps.svc.GetParameter(&ssm.GetParameterInput{
-		Name: aws.String(key),
-	})
+	res, err := ps.svc.GetParameter(
+		context.TODO(),
+		&ssm.GetParameterInput{
+			Name: aws.String(key),
+		})
 
 	if err != nil {
 		debug.Printf("Error reading SSM Parameter '%s' from SSM, error: %s", key, err.Error())
@@ -43,29 +49,32 @@ func (ps *parameterStore) getSSMParameter(key string) (*string, *time.Time, erro
 	return value, timestamp, nil
 }
 
-func (ps *parameterStore) getSSMParameterHistory(key string) ([]*ssm.ParameterHistory, error) {
+func (ps *parameterStore) getSSMParameterHistory(key string) ([]*ssmTypes.ParameterHistory, error) {
 	input := &ssm.GetParameterHistoryInput{
 		Name:       aws.String(key),
-		MaxResults: aws.Int64(50),
+		MaxResults: aws.Int32(50),
 	}
-	var history []*ssm.ParameterHistory
 
-	err := ps.svc.GetParameterHistoryPages(input,
-		func(page *ssm.GetParameterHistoryOutput, lastPage bool) bool {
-			for _, value := range page.Parameters {
-				history = append(history, value)
+	var history []*ssmTypes.ParameterHistory
+	paginator := ssm.NewGetParameterHistoryPaginator(&ps.svc, input)
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			log.Printf("Error reading parameter history for SSM parameter '%s': %v", key, err)
+			var notFoundErr *ssmTypes.ParameterNotFound
+			if errors.As(err, &notFoundErr) {
+				log.Printf("Parameter not found: %s: %v", key, err)
+				return nil, err
 			}
-			return true
-		})
-
-	if err != nil {
-		debug.Printf("Error reading parameter history for SSM parameter '%s'", key)
-		if _, ok := err.(*ssm.ParameterNotFound); ok {
-			debug.Printf("Parameter not found: %s: %v", key, err.Error())
+			log.Printf("Encountered error: %v", err)
 			return nil, err
 		}
-		debug.Printf("Encountered error: %v", err.Error())
-		return nil, err
+
+		for _, value := range page.Parameters {
+			history = append(history, &value)
+		}
 	}
+
 	return history, nil
 }

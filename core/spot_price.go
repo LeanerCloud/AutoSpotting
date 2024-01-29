@@ -4,27 +4,27 @@
 package autospotting
 
 import (
+	"context"
 	"log"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
 type spotPrices struct {
-	data []*ec2.SpotPrice
+	data []ec2Types.SpotPrice
 	conn connections
 }
 
-// fetch queries all spot prices in the current region
 func (s *spotPrices) fetch(
 	duration time.Duration,
 	availabilityZone *string,
-	instanceTypes []*string) error {
+	instanceTypes []ec2Types.InstanceType) error {
 
-	log.Println(s.conn.region, "Requesting spot prices")
+	debug.Println(s.conn.region, "Requesting spot prices")
 
-	ec2Conn := s.conn.ec2
 	params := &ec2.DescribeSpotPriceHistoryInput{
 		StartTime:        aws.Time(time.Now().Add(-1 * duration)),
 		EndTime:          aws.Time(time.Now()),
@@ -32,16 +32,17 @@ func (s *spotPrices) fetch(
 		InstanceTypes:    instanceTypes,
 	}
 
-	data := []*ec2.SpotPrice{}
-	err := ec2Conn.DescribeSpotPriceHistoryPages(params, func(page *ec2.DescribeSpotPriceHistoryOutput, lastPage bool) bool {
-		data = append(data, page.SpotPriceHistory...)
-		debug.Printf("DescribeSpotPriceHistory lastPage: %v", lastPage)
-		return true
-	})
+	paginator := ec2.NewDescribeSpotPriceHistoryPaginator(s.conn.ec2, params)
 
-	if err != nil {
-		log.Println(s.conn.region, "Failed requesting spot prices:", err.Error())
-		return err
+	data := []ec2Types.SpotPrice{}
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			log.Println(s.conn.region, "Failed requesting spot prices:", err)
+			return err
+		}
+		data = append(data, page.SpotPriceHistory...)
+		debug.Printf("DescribeSpotPriceHistory lastPage: %v", !paginator.HasMorePages())
 	}
 
 	s.data = data

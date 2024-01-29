@@ -4,6 +4,7 @@
 package autospotting
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -13,14 +14,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	"github.com/aws/aws-sdk-go-v2/service/codedeploy"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/codedeploy"
-	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
 type autoScalingGroup struct {
-	*autoscaling.Group
+	*types.AutoScalingGroup
 
 	name                string
 	region              *region
@@ -47,9 +51,9 @@ func (a *autoScalingGroup) loadLaunchConfiguration() (*launchConfiguration, erro
 	svc := a.region.services.autoScaling
 
 	params := &autoscaling.DescribeLaunchConfigurationsInput{
-		LaunchConfigurationNames: []*string{lcName},
+		LaunchConfigurationNames: []string{*lcName},
 	}
-	resp, err := svc.DescribeLaunchConfigurations(params)
+	resp, err := svc.DescribeLaunchConfigurations(context.TODO(), params)
 
 	if err != nil {
 		log.Println(err.Error())
@@ -57,7 +61,7 @@ func (a *autoScalingGroup) loadLaunchConfiguration() (*launchConfiguration, erro
 	}
 
 	a.launchConfiguration = &launchConfiguration{
-		LaunchConfiguration: resp.LaunchConfigurations[0],
+		LaunchConfiguration: &resp.LaunchConfigurations[0],
 	}
 
 	return a.launchConfiguration, nil
@@ -86,10 +90,10 @@ func (a *autoScalingGroup) loadLaunchTemplate() (*launchTemplate, error) {
 
 	params := &ec2.DescribeLaunchTemplateVersionsInput{
 		LaunchTemplateId: ltID,
-		Versions:         []*string{ltVer},
+		Versions:         []string{*ltVer},
 	}
 
-	resp, err := svc.DescribeLaunchTemplateVersions(params)
+	resp, err := svc.DescribeLaunchTemplateVersions(context.TODO(), params)
 
 	if err != nil {
 		log.Println(err.Error())
@@ -103,10 +107,10 @@ func (a *autoScalingGroup) loadLaunchTemplate() (*launchTemplate, error) {
 	ltv := resp.LaunchTemplateVersions[0]
 
 	params2 := &ec2.DescribeImagesInput{
-		ImageIds: []*string{ltv.LaunchTemplateData.ImageId},
+		ImageIds: []string{*ltv.LaunchTemplateData.ImageId},
 	}
 
-	resp2, err2 := svc.DescribeImages(params2)
+	resp2, err2 := svc.DescribeImages(context.TODO(), params2)
 
 	if err2 != nil {
 		log.Println(err2.Error())
@@ -118,8 +122,8 @@ func (a *autoScalingGroup) loadLaunchTemplate() (*launchTemplate, error) {
 	}
 
 	a.launchTemplate = &launchTemplate{
-		LaunchTemplateVersion: ltv,
-		Image:                 resp2.Images[0],
+		LaunchTemplateVersion: &ltv,
+		Image:                 &resp2.Images[0],
 	}
 	return a.launchTemplate, nil
 }
@@ -152,8 +156,8 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() (bool, int64) {
 var errInvalidInstance = errors.New("invalid instance")
 
 // Check if instance is valid
-func isValidInstance(instance *autoscaling.Instance) error {
-	if instance == nil || instance.AvailabilityZone == nil || instance.InstanceType == nil {
+func isValidInstance(instance types.Instance) error {
+	if instance.AvailabilityZone == nil || instance.InstanceType == nil {
 		return errInvalidInstance
 	}
 	return nil
@@ -162,14 +166,14 @@ func isValidInstance(instance *autoscaling.Instance) error {
 // Count Spot instances of a given instance type in an availability zone, and also return the total of Spot instances in that AZ
 func (a *autoScalingGroup) countSpotInstancesInAZ(instanceType, az string) (int64, int64, error) {
 	var countByType, countSpot int64
-	for _, instance := range a.Group.Instances {
+	for _, instance := range a.AutoScalingGroup.Instances {
 		if err := isValidInstance(instance); err != nil {
 			return 0, 0, err
 		}
 
 		inst := a.region.instances.get(*instance.InstanceId)
 		if inst == nil {
-			a.region.scanInstance(instance.InstanceId)
+			a.region.scanInstance(*instance.InstanceId)
 			inst = a.region.instances.get(*instance.InstanceId)
 		}
 		if inst == nil {
@@ -196,7 +200,7 @@ var errInvalidGroup = errors.New("invalid autoScalingGroup or Group is nil")
 
 // Check if adding an instance will cause instance type imbalance
 func (a *autoScalingGroup) willCauseInstanceTypeImbalance(instanceType, az string) (bool, error) {
-	if a == nil || a.Group == nil {
+	if a == nil || a.AutoScalingGroup == nil {
 		return false, errInvalidGroup
 	}
 
@@ -251,7 +255,7 @@ func (a *autoScalingGroup) cronEventAction() runer {
 		return skipRun{reason: "no-instances-to-replace"}
 	}
 
-	onDemandInstance.typeInfo = a.region.instanceTypeInformation[*onDemandInstance.InstanceType]
+	onDemandInstance.typeInfo = a.region.instanceTypeInformation[string(onDemandInstance.InstanceType)]
 	onDemandInstance.odPrice = onDemandInstance.getODPrice()
 
 	debug.Printf("Instance data: %v", onDemandInstance)
@@ -283,7 +287,7 @@ func (a *autoScalingGroup) cronEventAction() runer {
 }
 
 func (a *autoScalingGroup) clearScaleInProtectionOfSpotInstancesInDownsizedASGs() {
-	count := int64(a.instances.count())
+	count := int32(a.instances.count())
 	capacityDelta := count - *a.DesiredCapacity
 	if capacityDelta <= 0 {
 		return
@@ -305,7 +309,7 @@ func (a *autoScalingGroup) clearScaleInProtectionOfSpotInstancesInDownsizedASGs(
 func (a *autoScalingGroup) getInstancesToUnprotect() []string {
 	extraInstancesCount := a.instances.count() - int(*a.DesiredCapacity)
 
-	azInstancesMap := make(map[string][]*autoscaling.Instance)
+	azInstancesMap := make(map[string][]types.Instance)
 	for _, instance := range a.Instances {
 		azInstancesMap[*instance.AvailabilityZone] = append(azInstancesMap[*instance.AvailabilityZone], instance)
 	}
@@ -347,7 +351,7 @@ func (a *autoScalingGroup) scanInstances() instances {
 
 		if i == nil {
 			debug.Println("Missing instance data for ", *inst.InstanceId, "scanning it again")
-			a.region.scanInstance(inst.InstanceId)
+			a.region.scanInstance(*inst.InstanceId)
 
 			i = a.region.instances.get(*inst.InstanceId)
 			if i == nil {
@@ -379,7 +383,7 @@ func (a *autoScalingGroup) scanInstances() instances {
 		}
 
 		// Avoid adding instance in Terminating (Wait|Proceed) Lifecycle State
-		if strings.HasPrefix(*inst.LifecycleState, "Terminating") {
+		if strings.HasPrefix(string(inst.LifecycleState), "Terminating") {
 			continue
 		}
 
@@ -399,7 +403,7 @@ func (a *autoScalingGroup) getInstance(
 	for i := range a.instances.instances() {
 
 		// instance is running
-		if *i.State.Name == ec2.InstanceStateNameRunning {
+		if i.State.Name == ec2Types.InstanceStateNameRunning {
 
 			// the InstanceLifecycle attribute is non-nil only for spot instances,
 			// where it contains the value "spot", if we're looking for on-demand
@@ -439,8 +443,9 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status, lif
 			break
 		} else {
 			result, err := a.region.services.autoScaling.DescribeAutoScalingInstances(
+				context.TODO(),
 				&autoscaling.DescribeAutoScalingInstancesInput{
-					InstanceIds: []*string{instanceID},
+					InstanceIds: []string{*instanceID},
 				})
 
 			if err != nil {
@@ -474,17 +479,17 @@ func (a *autoScalingGroup) waitForInstanceStatus(instanceID *string, status, lif
 	return errors.New("")
 }
 
-func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int64) error {
+func (a *autoScalingGroup) setAutoScalingMaxSize(maxSize int32) error {
 	svc := a.region.services.autoScaling
 
-	_, err := svc.UpdateAutoScalingGroup(
+	_, err := svc.UpdateAutoScalingGroup(context.TODO(),
 		&autoscaling.UpdateAutoScalingGroupInput{
 			AutoScalingGroupName: aws.String(a.name),
-			MaxSize:              aws.Int64(maxSize),
+			MaxSize:              aws.Int32(maxSize),
 		})
 
 	if err != nil {
-		// Print the error, cast err to awserr.Error to get the Code and
+		// Print the error, cast err to aws.APIError to get the Code and
 		// Message from an error.
 		log.Println(err.Error())
 		return err
@@ -496,24 +501,19 @@ func (a *autoScalingGroup) attachNewInstance(newInstanceID string, lifecycle str
 
 	if wait {
 		log.Printf("Waiting for %s instance %s to start", lifecycle, newInstanceID)
-		err := a.region.services.ec2.WaitUntilInstanceRunning(
-			&ec2.DescribeInstancesInput{
-				InstanceIds: []*string{aws.String(newInstanceID)},
-			})
-
-		if err != nil {
+		if err := a.region.waitForInstanceRunning(&newInstanceID); err != nil {
 			log.Printf("Issue while waiting for %s instance %s to start: %v",
 				lifecycle, newInstanceID, err.Error())
 		}
-
 	}
 
 	log.Printf("Attaching %s instance %s to ASG %v", lifecycle, newInstanceID, a.name)
 	resp, err := a.region.services.autoScaling.AttachInstances(
+		context.TODO(),
 		&autoscaling.AttachInstancesInput{
 			AutoScalingGroupName: aws.String(a.name),
-			InstanceIds: []*string{
-				&newInstanceID,
+			InstanceIds: []string{
+				newInstanceID,
 			},
 		},
 	)
@@ -556,11 +556,11 @@ func (a *autoScalingGroup) removeScaleInProtection(instanceID string) error {
 func (a *autoScalingGroup) setInstanceScaleInProtection(instanceID string, status bool) error {
 	protectionInput := &autoscaling.SetInstanceProtectionInput{
 		AutoScalingGroupName: a.AutoScalingGroupName,
-		InstanceIds:          []*string{&instanceID},
+		InstanceIds:          []string{instanceID},
 		ProtectedFromScaleIn: aws.Bool(status),
 	}
 
-	_, err := a.region.services.autoScaling.SetInstanceProtection(protectionInput)
+	_, err := a.region.services.autoScaling.SetInstanceProtection(context.TODO(), protectionInput)
 	if err != nil {
 		return fmt.Errorf("unable to set instance protection: %v", err)
 	}
@@ -581,17 +581,13 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	}
 
 	if wait {
-		err := a.region.services.ec2.WaitUntilInstanceRunning(
-			&ec2.DescribeInstancesInput{
-				InstanceIds: []*string{i.InstanceId},
-			})
 
-		if err != nil {
+		if err := a.region.waitForInstanceRunning(i.InstanceId); err != nil {
 			log.Printf("Issue while waiting for %s instance %v to start: %v",
 				lifecycle, *i.InstanceId, err.Error())
 		}
 
-		if err = a.waitForInstanceStatus(i.InstanceId, "InService", lifecycle, 80); err != nil {
+		if err := a.waitForInstanceStatus(i.InstanceId, "InService", lifecycle, 80); err != nil {
 			log.Printf("Instance %s is still not InService, trying to terminate it anyway.",
 				*i.InstanceId)
 		}
@@ -605,6 +601,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	asSvc := a.region.services.autoScaling
 
 	resDLH, err := asSvc.DescribeLifecycleHooks(
+		context.TODO(),
 		&autoscaling.DescribeLifecycleHooksInput{
 			AutoScalingGroupName: a.AutoScalingGroupName,
 		})
@@ -616,6 +613,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 
 	for _, hook := range resDLH.LifecycleHooks {
 		asSvc.CompleteLifecycleAction(
+			context.TODO(),
 			&autoscaling.CompleteLifecycleActionInput{
 				AutoScalingGroupName:  a.AutoScalingGroupName,
 				InstanceId:            i.InstanceId,
@@ -625,6 +623,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	}
 
 	resTIIASG, err := asSvc.TerminateInstanceInAutoScalingGroup(
+		context.TODO(),
 		&autoscaling.TerminateInstanceInAutoScalingGroupInput{
 			InstanceId:                     i.InstanceId,
 			ShouldDecrementDesiredCapacity: aws.Bool(decreaseCapacity),
@@ -650,10 +649,11 @@ func (a *autoScalingGroup) deregisterInstanceFromLoadBalancersAndECSClusters(i *
 	if a.LoadBalancerNames != nil {
 		for _, alb := range a.LoadBalancerNames {
 			wg.Add(1)
-			go func(alb *string) {
+			go func(alb string) {
 				defer wg.Done()
-				log.Printf("%s %s Deregistering %s instance: %s from load balancer %s", a.region.name, a.name, lifecycle, *i.InstanceId, *alb)
-				err := i.deregisterInstanceFromClasicLoadBalancer(*alb)
+				log.Printf("%s %s Deregistering %s instance: %s from load balancer %s",
+					a.region.name, a.name, lifecycle, *i.InstanceId, alb)
+				err := i.deregisterInstanceFromClasicLoadBalancer(alb)
 				if err != nil {
 					log.Printf("failed to deregister instance: %v", err)
 				}
@@ -664,10 +664,10 @@ func (a *autoScalingGroup) deregisterInstanceFromLoadBalancersAndECSClusters(i *
 	if a.TargetGroupARNs != nil {
 		for _, tg := range a.TargetGroupARNs {
 			wg.Add(1)
-			go func(tg *string) {
+			go func(tg string) {
 				defer wg.Done()
-				log.Printf("%s %s Deregistering %s instance: %s from target group %s", a.region.name, a.name, lifecycle, *i.InstanceId, *tg)
-				err := i.deregisterInstanceFromTargetGroup(*tg)
+				log.Printf("%s %s Deregistering %s instance: %s from target group %s", a.region.name, a.name, lifecycle, *i.InstanceId, tg)
+				err := i.deregisterInstanceFromTargetGroup(tg)
 				if err != nil {
 					log.Printf("failed to deregister %s instance %s: %v", lifecycle, *i.InstanceId, err)
 				}
@@ -719,7 +719,7 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	log.Println(a.name, "Counting already running", instanceCategory, "instances")
 	for inst := range a.instances.instances() {
 
-		if *inst.Instance.State.Name == "running" {
+		if inst.Instance.State.Name == "running" {
 			// Count total running instances
 			total++
 			if availabilityZone == nil || *inst.Placement.AvailabilityZone == *availabilityZone {
@@ -733,18 +733,14 @@ func (a *autoScalingGroup) alreadyRunningInstanceCount(
 	return count, total
 }
 func (a *autoScalingGroup) suspendProcesses(processes []string) {
-	// Convert slice of strings to slice of *string
-	AutoScalingProcessesToSuspend := make([]*string, len(processes))
-	for i, process := range processes {
-		AutoScalingProcessesToSuspend[i] = aws.String(process)
-	}
 
 	log.Printf("Suspending processes on ASG %s", a.name)
 
 	_, err := a.region.services.autoScaling.SuspendProcesses(
-		&autoscaling.ScalingProcessQuery{
+		context.TODO(),
+		&autoscaling.SuspendProcessesInput{
 			AutoScalingGroupName: a.AutoScalingGroupName,
-			ScalingProcesses:     AutoScalingProcessesToSuspend,
+			ScalingProcesses:     processes,
 		})
 	if err != nil {
 		log.Printf("couldn't suspend processes on ASG %s ", a.name)
@@ -753,29 +749,26 @@ func (a *autoScalingGroup) suspendProcesses(processes []string) {
 }
 
 func (a *autoScalingGroup) resumeProcesses(processes []string, delay time.Duration) {
-	// Convert slice of strings to slice of *string
-	AutoScalingProcessesToResume := make([]*string, len(processes))
-	for i, process := range processes {
-		AutoScalingProcessesToResume[i] = aws.String(process)
-	}
 
 	log.Printf("Resuming processes on ASG %s, waiting for %f minutes", a.name, delay.Minutes())
 	time.Sleep(delay * a.region.conf.SleepMultiplier)
 	log.Printf("Resuming processes on ASG %s, waiting complete, performing API call", a.name)
 
 	_, err := a.region.services.autoScaling.ResumeProcesses(
-		&autoscaling.ScalingProcessQuery{
+		context.TODO(),
+		&autoscaling.ResumeProcessesInput{
 			AutoScalingGroupName: a.AutoScalingGroupName,
-			ScalingProcesses:     AutoScalingProcessesToResume,
+			ScalingProcesses:     processes,
 		})
 	if err != nil {
 		log.Printf("couldn't resume processes on ASG %s ", a.name)
 	}
 }
 
-func (a *autoScalingGroup) hasLifecycleHook(hookType string) (bool, *autoscaling.LifecycleHook) {
+func (a *autoScalingGroup) hasLifecycleHook(hookType string) (bool, *types.LifecycleHook) {
 	result, err := a.region.services.autoScaling.
 		DescribeLifecycleHooks(
+			context.TODO(),
 			&autoscaling.DescribeLifecycleHooksInput{
 				AutoScalingGroupName: a.AutoScalingGroupName,
 			})
@@ -788,13 +781,13 @@ func (a *autoScalingGroup) hasLifecycleHook(hookType string) (bool, *autoscaling
 	for _, lfh := range result.LifecycleHooks {
 		if *lfh.LifecycleTransition == hookType {
 			log.Println("Found Hook", *lfh.LifecycleHookName)
-			return true, lfh
+			return true, &lfh
 		}
 	}
 	return false, nil
 }
 
-func (a *autoScalingGroup) hasCodeDeployLifecycleHook() (bool, *autoscaling.LifecycleHook) {
+func (a *autoScalingGroup) hasCodeDeployLifecycleHook() (bool, *types.LifecycleHook) {
 	hasLH, lHook := a.hasLifecycleHook("autoscaling:EC2_INSTANCE_LAUNCHING")
 
 	if !hasLH {
@@ -807,7 +800,7 @@ func (a *autoScalingGroup) hasCodeDeployLifecycleHook() (bool, *autoscaling.Life
 
 }
 
-func (a *autoScalingGroup) triggerCodeDeployDeployment(hook *autoscaling.LifecycleHook, spotInstanceID string) error {
+func (a *autoScalingGroup) triggerCodeDeployDeployment(hook *types.LifecycleHook, spotInstanceID string) error {
 
 	appName, deploymentGroupName, err := a.findDeployment(*hook.LifecycleHookName)
 
@@ -822,7 +815,9 @@ func (a *autoScalingGroup) triggerCodeDeployDeployment(hook *autoscaling.Lifecyc
 
 func (a *autoScalingGroup) findDeployment(hookName string) (*string, *string, error) {
 
-	apps, err := a.region.services.codedeploy.ListApplications(&codedeploy.ListApplicationsInput{})
+	apps, err := a.region.services.codedeploy.ListApplications(
+		context.TODO(),
+		&codedeploy.ListApplicationsInput{})
 
 	if err != nil {
 		log.Println(err.Error())
@@ -830,11 +825,13 @@ func (a *autoScalingGroup) findDeployment(hookName string) (*string, *string, er
 	}
 
 	for _, app := range apps.Applications {
-		log.Println("Processing CodeDeploy application:", *app)
+		log.Println("Processing CodeDeploy application:", app)
 
-		groups, err := a.region.services.codedeploy.ListDeploymentGroups(&codedeploy.ListDeploymentGroupsInput{
-			ApplicationName: app,
-		})
+		groups, err := a.region.services.codedeploy.ListDeploymentGroups(
+			context.TODO(),
+			&codedeploy.ListDeploymentGroupsInput{
+				ApplicationName: &app,
+			})
 
 		if err != nil {
 			log.Println(err.Error())
@@ -843,11 +840,13 @@ func (a *autoScalingGroup) findDeployment(hookName string) (*string, *string, er
 
 		for _, group := range groups.DeploymentGroups {
 
-			log.Printf("Processing CodeDeploy deployment group %s for application %s", *group, *app)
-			gd, err := a.region.services.codedeploy.GetDeploymentGroup(&codedeploy.GetDeploymentGroupInput{
-				ApplicationName:     app,
-				DeploymentGroupName: group,
-			})
+			log.Printf("Processing CodeDeploy deployment group %s for application %s", group, app)
+			gd, err := a.region.services.codedeploy.GetDeploymentGroup(
+				context.TODO(),
+				&codedeploy.GetDeploymentGroupInput{
+					ApplicationName:     &app,
+					DeploymentGroupName: &group,
+				})
 
 			if err != nil {
 				log.Println(err.Error())
@@ -856,18 +855,18 @@ func (a *autoScalingGroup) findDeployment(hookName string) (*string, *string, er
 
 			if gd.DeploymentGroupInfo.AutoScalingGroups == nil ||
 				len(gd.DeploymentGroupInfo.AutoScalingGroups) == 0 {
-				log.Printf("Deployment group %s for application %s has no ASG configuration, skipping...", *group, *app)
+				log.Printf("Deployment group %s for application %s has no ASG configuration, skipping...", group, app)
 				continue
 			}
 
-			asg := *gd.DeploymentGroupInfo.AutoScalingGroups[0]
+			asg := gd.DeploymentGroupInfo.AutoScalingGroups[0]
 
-			log.Printf("Deployment group %s for application %s has the ASG %s and hook %s", *group, *app, *asg.Name, *asg.Hook)
+			log.Printf("Deployment group %s for application %s has the ASG %s and hook %s", group, app, *asg.Name, *asg.Hook)
 
 			if *asg.Hook == hookName && *asg.Name == a.name {
 				log.Printf("Found matching deployment group %s for application %s for the ASG %s and hook %s",
-					*group, *app, *asg.Name, *asg.Hook)
-				return app, group, nil
+					group, app, *asg.Name, *asg.Hook)
+				return &app, &group, nil
 			}
 		}
 	}
@@ -878,11 +877,12 @@ func (a *autoScalingGroup) findDeployment(hookName string) (*string, *string, er
 func (a *autoScalingGroup) triggerDeployment(appName, deploymentGroupName *string) error {
 
 	_, err := a.region.services.codedeploy.CreateDeployment(
+		context.TODO(),
 		&codedeploy.CreateDeploymentInput{
 			ApplicationName:             appName,
 			DeploymentGroupName:         deploymentGroupName,
 			Description:                 aws.String("AutoSpoting triggered deployment after new Spot instance launch"),
-			UpdateOutdatedInstancesOnly: aws.Bool(true),
+			UpdateOutdatedInstancesOnly: true,
 		})
 
 	if err != nil {
@@ -931,17 +931,19 @@ func (a *autoScalingGroup) getSpotProduct() *string {
 
 	// Set the Spot product in a tag on the Auto Scaling group
 
-	_, err := a.region.services.autoScaling.CreateOrUpdateTags(&autoscaling.CreateOrUpdateTagsInput{
-		Tags: []*autoscaling.Tag{
-			{
-				ResourceId:        aws.String(a.name),
-				ResourceType:      aws.String("auto-scaling-group"),
-				Key:               aws.String(spotProductTag),
-				Value:             spotProduct,
-				PropagateAtLaunch: aws.Bool(true),
+	_, err := a.region.services.autoScaling.CreateOrUpdateTags(
+		context.TODO(),
+		&autoscaling.CreateOrUpdateTagsInput{
+			Tags: []types.Tag{
+				{
+					ResourceId:        aws.String(a.name),
+					ResourceType:      aws.String("auto-scaling-group"),
+					Key:               aws.String(spotProductTag),
+					Value:             spotProduct,
+					PropagateAtLaunch: aws.Bool(true),
+				},
 			},
-		},
-	})
+		})
 	if err != nil {
 		log.Printf("Error setting Spot product '%s' in tag on Auto Scaling group '%s': %v", *spotProduct, a.name, err)
 		return nil
@@ -952,7 +954,7 @@ func (a *autoScalingGroup) getSpotProduct() *string {
 	return spotProduct
 }
 func (a *autoScalingGroup) hadRecentSpotTermination() (bool, error) {
-	if a == nil || a.Group == nil {
+	if a == nil || a.AutoScalingGroup == nil {
 		log.Println("AutoScalingGroup or its Group is nil")
 		return false, errInvalidGroup
 	}
@@ -964,7 +966,7 @@ func (a *autoScalingGroup) hadRecentSpotTermination() (bool, error) {
 		AutoScalingGroupName: a.AutoScalingGroupName,
 	}
 
-	resp, err := svc.DescribeScalingActivities(input)
+	resp, err := svc.DescribeScalingActivities(context.TODO(), input)
 	if err != nil {
 		log.Printf("Error retrieving scaling activities for ASG %s: %s", *a.AutoScalingGroupName, err)
 		return false, err
@@ -993,7 +995,7 @@ func (a *autoScalingGroup) hadRecentSpotTermination() (bool, error) {
 }
 
 func (a *autoScalingGroup) containsInstance(inst *instance) bool {
-	if a == nil || a.Group == nil || a.Instances == nil {
+	if a == nil || a.AutoScalingGroup == nil || a.Instances == nil {
 		log.Println("AutoScalingGroup or its Group or Instances are nil")
 		return false
 	}
@@ -1004,7 +1006,7 @@ func (a *autoScalingGroup) containsInstance(inst *instance) bool {
 	}
 
 	for _, asgInst := range a.Instances {
-		if asgInst != nil && asgInst.InstanceId != nil && *asgInst.InstanceId == *inst.InstanceId {
+		if asgInst.InstanceId != nil && *asgInst.InstanceId == *inst.InstanceId {
 			return true
 		}
 	}

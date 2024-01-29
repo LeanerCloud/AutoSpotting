@@ -7,12 +7,12 @@ import (
 	"log"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
 type launchTemplate struct {
-	*ec2.LaunchTemplateVersion
-	*ec2.Image
+	*ec2Types.LaunchTemplateVersion
+	*ec2Types.Image
 }
 
 func (lt *launchTemplate) countLaunchTemplateEphemeralVolumes() int {
