@@ -4,6 +4,7 @@
 package autospotting
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -23,9 +24,7 @@ func CheckErrors(t *testing.T, err error, expected error) {
 
 // All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
-type mockEC2 struct {
-	ec2.Client
-
+type mockEC2Client struct {
 	// CreateLaunchTemplate Output and error
 	clto   *ec2.CreateLaunchTemplateOutput
 	clterr error
@@ -35,7 +34,7 @@ type mockEC2 struct {
 	cferr error
 
 	// DescribeSpotPriceHistoryPages output
-	dsphpo   []*ec2.DescribeSpotPriceHistoryOutput
+	dsphpo   *ec2.DescribeSpotPriceHistoryOutput
 	dsphperr error
 
 	// DescribeInstancesOutput
@@ -70,60 +69,111 @@ type mockEC2 struct {
 
 	// WaitUntilInstanceRunning error
 	wuirerr error
+
+	// CreateTags
+	cto   *ec2.CreateTagsOutput
+	cterr error
+
+	// DescribeAddresses
+	dao   *ec2.DescribeAddressesOutput
+	daerr error
+
+	// DescribeVolumes
+	dvolo   *ec2.DescribeVolumesOutput
+	dvolerr error
+
+	// AttachVolume
+	avo   *ec2.AttachVolumeOutput
+	averr error
+
+	// DetachVolume
+	dvo   *ec2.DetachVolumeOutput
+	dverr error
+
+	// AssociateAddress
+	aao   *ec2.AssociateAddressOutput
+	aaerr error
+
+	// DisassociateAddress
+	ddao  *ec2.DisassociateAddressOutput
+	dderr error
 }
 
-func (m mockEC2) CreateFleet(in *ec2.CreateFleetInput) (*ec2.CreateFleetOutput, error) {
+// Implement AssociateAddress
+func (m mockEC2Client) AssociateAddress(ctx context.Context, params *ec2.AssociateAddressInput, optFns ...func(*ec2.Options)) (*ec2.AssociateAddressOutput, error) {
+	return m.aao, m.aaerr
+}
+
+// Implement AttachVolume
+func (m mockEC2Client) AttachVolume(ctx context.Context, params *ec2.AttachVolumeInput, optFns ...func(*ec2.Options)) (*ec2.AttachVolumeOutput, error) {
+	return m.avo, m.averr
+}
+
+// Implement CreateFleet
+func (m mockEC2Client) CreateFleet(ctx context.Context, params *ec2.CreateFleetInput, optFns ...func(*ec2.Options)) (*ec2.CreateFleetOutput, error) {
 	return m.cfo, m.cferr
 }
 
-func (m mockEC2) CreateLaunchTemplate(in *ec2.CreateLaunchTemplateInput) (*ec2.CreateLaunchTemplateOutput, error) {
+// Implement CreateLaunchTemplate
+func (m mockEC2Client) CreateLaunchTemplate(ctx context.Context, params *ec2.CreateLaunchTemplateInput, optFns ...func(*ec2.Options)) (*ec2.CreateLaunchTemplateOutput, error) {
 	return m.clto, m.clterr
 }
 
-func (m mockEC2) DescribeSpotPriceHistoryPages(in *ec2.DescribeSpotPriceHistoryInput, f func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool) error {
-	for i, page := range m.dsphpo {
-		f(page, i == len(m.dsphpo)-1)
-	}
-	return m.dsphperr
+// Implement CreateTags
+func (m mockEC2Client) CreateTags(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
+	return m.cto, m.cterr
 }
 
-func (m mockEC2) DescribeInstancesPages(in *ec2.DescribeInstancesInput, f func(*ec2.DescribeInstancesOutput, bool) bool) error {
-	f(m.dio, true)
-	return m.diperr
+// Implement DescribeAddresses
+func (m mockEC2Client) DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error) {
+	return m.dao, m.daerr
 }
 
-func (m mockEC2) DescribeInstanceAttribute(in *ec2.DescribeInstanceAttributeInput) (*ec2.DescribeInstanceAttributeOutput, error) {
-	return m.diao, m.diaerr
-}
-
-func (m mockEC2) DescribeImages(in *ec2.DescribeImagesInput) (*ec2.DescribeImagesOutput, error) {
+// Implement DescribeImages
+func (m mockEC2Client) DescribeImages(ctx context.Context, params *ec2.DescribeImagesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
 	return m.damio, m.damierr
 }
 
-func (m mockEC2) TerminateInstances(*ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
-	return m.tio, m.tierr
+// Implement DescribeInstances
+func (m mockEC2Client) DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
+	return m.dio, m.diperr
 }
 
-func (m mockEC2) DescribeRegions(*ec2.DescribeRegionsInput) (*ec2.DescribeRegionsOutput, error) {
-	return m.dro, m.drerr
-}
-
-func (m mockEC2) DeleteTags(*ec2.DeleteTagsInput) (*ec2.DeleteTagsOutput, error) {
-	return m.dto, m.dterr
-}
-
-func (m mockEC2) DescribeLaunchTemplateVersions(*ec2.DescribeLaunchTemplateVersionsInput) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
+// Implement DescribeLaunchTemplateVersions
+func (m mockEC2Client) DescribeLaunchTemplateVersions(ctx context.Context, params *ec2.DescribeLaunchTemplateVersionsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
 	return m.dltvo, m.dltverr
 }
 
-func (m mockEC2) WaitUntilInstanceRunning(*ec2.DescribeInstancesInput) error {
-	return m.wuirerr
+// Implement DescribeSpotPriceHistory
+func (m mockEC2Client) DescribeSpotPriceHistory(ctx context.Context, params *ec2.DescribeSpotPriceHistoryInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSpotPriceHistoryOutput, error) {
+	return m.dsphpo, m.dsphperr
 }
+
+// Implement DescribeVolumes
+func (m mockEC2Client) DescribeVolumes(ctx context.Context, params *ec2.DescribeVolumesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVolumesOutput, error) {
+	return m.dvolo, m.dvolerr
+}
+
+// Implement DetachVolume
+func (m mockEC2Client) DetachVolume(ctx context.Context, params *ec2.DetachVolumeInput, optFns ...func(*ec2.Options)) (*ec2.DetachVolumeOutput, error) {
+	return m.dvo, m.dverr
+}
+
+// Implement DisassociateAddress
+func (m mockEC2Client) DisassociateAddress(ctx context.Context, params *ec2.DisassociateAddressInput, optFns ...func(*ec2.Options)) (*ec2.DisassociateAddressOutput, error) {
+	return m.ddao, m.daerr
+}
+
+// Implement TerminateInstances
+func (m mockEC2Client) TerminateInstances(ctx context.Context, params *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error) {
+	return m.tio, m.tierr
+}
+
+// Add other method implementations as needed...
 
 // All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockASG struct {
-	*autoscaling.Client
 	// Detach Instances
 	dio   *autoscaling.DetachInstancesOutput
 	dierr error
@@ -141,68 +191,86 @@ type mockASG struct {
 	uasgerr error
 	// Describe Tags
 	dto *autoscaling.DescribeTagsOutput
-
 	// Describe AutoScaling Group
 	dasgo   *autoscaling.DescribeAutoScalingGroupsOutput
 	dasgerr error
-
 	// Describe AutoScalingInstances
 	dasio   *autoscaling.DescribeAutoScalingInstancesOutput
 	dasierr error
-
 	// DescribeLifecycleHooks
 	dlho   *autoscaling.DescribeLifecycleHooksOutput
 	dlherr error
-
 	// CreateOrUpdateTags
 	couto   *autoscaling.CreateOrUpdateTagsOutput
 	couterr error
 }
 
-func (m mockASG) DetachInstances(*autoscaling.DetachInstancesInput) (*autoscaling.DetachInstancesOutput, error) {
-	return m.dio, m.dierr
-}
-
-func (m mockASG) TerminateInstanceInAutoScalingGroup(*autoscaling.TerminateInstanceInAutoScalingGroupInput) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error) {
-	return m.tiiasgo, m.tiiasgerr
-}
-
-func (m mockASG) AttachInstances(*autoscaling.AttachInstancesInput) (*autoscaling.AttachInstancesOutput, error) {
+func (m mockASG) AttachInstances(ctx context.Context, params *autoscaling.AttachInstancesInput, optFns ...func(*autoscaling.Options)) (*autoscaling.AttachInstancesOutput, error) {
 	return m.aio, m.aierr
 }
 
-func (m mockASG) DescribeLaunchConfigurations(*autoscaling.DescribeLaunchConfigurationsInput) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
-	return m.dlco, m.dlcerr
+func (m mockASG) CompleteLifecycleAction(ctx context.Context, params *autoscaling.CompleteLifecycleActionInput, optFns ...func(*autoscaling.Options)) (*autoscaling.CompleteLifecycleActionOutput, error) {
+	// Implement the CompleteLifecycleAction method here
+	return nil, nil
 }
 
-func (m mockASG) UpdateAutoScalingGroup(*autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
-	return m.uasgo, m.uasgerr
+func (m mockASG) CreateOrUpdateTags(ctx context.Context, params *autoscaling.CreateOrUpdateTagsInput, optFns ...func(*autoscaling.Options)) (*autoscaling.CreateOrUpdateTagsOutput, error) {
+	return m.couto, m.couterr
 }
 
-func (m mockASG) DescribeTagsPages(input *autoscaling.DescribeTagsInput, function func(*autoscaling.DescribeTagsOutput, bool) bool) error {
-	function(m.dto, true)
-	return nil
-}
-
-func (m mockASG) DescribeAutoScalingGroups(input *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+func (m mockASG) DescribeAutoScalingGroups(ctx context.Context, params *autoscaling.DescribeAutoScalingGroupsInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
 	return m.dasgo, m.dasgerr
 }
 
-func (m mockASG) DescribeAutoScalingGroupsPages(input *autoscaling.DescribeAutoScalingGroupsInput, function func(*autoscaling.DescribeAutoScalingGroupsOutput, bool) bool) error {
-	function(m.dasgo, true)
-	return nil
-}
-
-func (m mockASG) DescribeAutoScalingInstances(input *autoscaling.DescribeAutoScalingInstancesInput) (*autoscaling.DescribeAutoScalingInstancesOutput, error) {
+func (m mockASG) DescribeAutoScalingInstances(ctx context.Context, params *autoscaling.DescribeAutoScalingInstancesInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeAutoScalingInstancesOutput, error) {
 	return m.dasio, m.dasierr
 }
 
-func (m mockASG) DescribeLifecycleHooks(*autoscaling.DescribeLifecycleHooksInput) (*autoscaling.DescribeLifecycleHooksOutput, error) {
+func (m mockASG) DescribeInstanceRefreshes(ctx context.Context, params *autoscaling.DescribeInstanceRefreshesInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeInstanceRefreshesOutput, error) {
+	// Implement the DescribeInstanceRefreshes method here
+	return nil, nil
+}
+
+func (m mockASG) DescribeLaunchConfigurations(ctx context.Context, params *autoscaling.DescribeLaunchConfigurationsInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeLaunchConfigurationsOutput, error) {
+	return m.dlco, m.dlcerr
+}
+
+func (m mockASG) DescribeLifecycleHooks(ctx context.Context, params *autoscaling.DescribeLifecycleHooksInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeLifecycleHooksOutput, error) {
 	return m.dlho, m.dlherr
 }
 
-func (m mockASG) CreateOrUpdateTags(*autoscaling.CreateOrUpdateTagsInput) (*autoscaling.CreateOrUpdateTagsOutput, error) {
-	return m.couto, m.couterr
+func (m mockEC2Client) DescribeRegions(ctx context.Context, in *ec2.DescribeRegionsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeRegionsOutput, error) {
+	// Implement the behavior of DescribeRegions as needed for your tests
+	// You can return a mock output and error here
+	return m.dro, m.drerr
+}
+
+func (m mockASG) DescribeScalingActivities(ctx context.Context, params *autoscaling.DescribeScalingActivitiesInput, optFns ...func(*autoscaling.Options)) (*autoscaling.DescribeScalingActivitiesOutput, error) {
+	// Implement the DescribeScalingActivities method here
+	return nil, nil
+}
+
+func (m mockASG) ResumeProcesses(ctx context.Context, params *autoscaling.ResumeProcessesInput, optFns ...func(*autoscaling.Options)) (*autoscaling.ResumeProcessesOutput, error) {
+	// Implement the ResumeProcesses method here
+	return nil, nil
+}
+
+func (m mockASG) SetInstanceProtection(ctx context.Context, params *autoscaling.SetInstanceProtectionInput, optFns ...func(*autoscaling.Options)) (*autoscaling.SetInstanceProtectionOutput, error) {
+	// Implement the SetInstanceProtection method here
+	return nil, nil
+}
+
+func (m mockASG) SuspendProcesses(ctx context.Context, params *autoscaling.SuspendProcessesInput, optFns ...func(*autoscaling.Options)) (*autoscaling.SuspendProcessesOutput, error) {
+	// Implement the SuspendProcesses method here
+	return nil, nil
+}
+
+func (m mockASG) TerminateInstanceInAutoScalingGroup(ctx context.Context, params *autoscaling.TerminateInstanceInAutoScalingGroupInput, optFns ...func(*autoscaling.Options)) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error) {
+	return m.tiiasgo, m.tiiasgerr
+}
+
+func (m mockASG) UpdateAutoScalingGroup(ctx context.Context, params *autoscaling.UpdateAutoScalingGroupInput, optFns ...func(*autoscaling.Options)) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
+	return m.uasgo, m.uasgerr
 }
 
 // All fields are composed of the abbreviation of their method
@@ -214,14 +282,14 @@ type mockCloudFormation struct {
 	dserr error
 }
 
-func (m mockCloudFormation) DescribeStacks(*cloudformation.DescribeStacksInput) (*cloudformation.DescribeStacksOutput, error) {
+func (m mockCloudFormation) DescribeStacks(ctx context.Context, in *cloudformation.DescribeStacksInput, cfOpts ...func(*cloudformation.Options)) (*cloudformation.DescribeStacksOutput, error) {
 	return m.dso, m.dserr
 }
 
 // All fields are composed of the abbreviation of their method
 // This is useful when methods are doing multiple calls to AWS API
 type mockSQS struct {
-	sqs.Client
+
 	// SendMessage
 	smo   *sqs.SendMessageOutput
 	smerr error
@@ -231,11 +299,11 @@ type mockSQS struct {
 	dmerr error
 }
 
-func (m mockSQS) SendMessage(*sqs.SendMessageInput) (*sqs.SendMessageOutput, error) {
+func (m mockSQS) SendMessage(ctx context.Context, in *sqs.SendMessageInput) (*sqs.SendMessageOutput, error) {
 	return m.smo, m.smerr
 }
 
-func (m mockSQS) DeleteMessage(*sqs.DeleteMessageInput) (*sqs.DeleteMessageOutput, error) {
+func (m mockSQS) DeleteMessage(ctx context.Context, in *sqs.DeleteMessageInput) (*sqs.DeleteMessageOutput, error) {
 	return m.dmo, m.dmerr
 }
 
@@ -251,8 +319,6 @@ func errorMatches(got error, wanted error) bool {
 }
 
 type mockSSM struct {
-	ssm.Client
-
 	gpo    *ssm.GetParameterOutput
 	gpoerr error
 
@@ -264,9 +330,9 @@ type mockSSM struct {
 
 }
 
-func (m mockSSM) GetParameter(*ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+func (m mockSSM) GetParameter(ctx context.Context, in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
 	return m.gpo, m.gpoerr
 }
-func (m mockSSM) GetParameterHistory(*ssm.GetParameterHistoryInput) (*ssm.GetParameterHistoryOutput, error) {
+func (m mockSSM) GetParameterHistory(ctx context.Context, in *ssm.GetParameterHistoryInput) (*ssm.GetParameterHistoryOutput, error) {
 	return m.gpho, m.gphoerr
 }

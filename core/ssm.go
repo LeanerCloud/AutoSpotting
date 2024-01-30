@@ -12,7 +12,7 @@ import (
 )
 
 type parameterStore struct {
-	svc ssm.Client
+	svc SSMAPI
 }
 
 func (ps *parameterStore) putSSMParameter(key, value string) {
@@ -56,7 +56,7 @@ func (ps *parameterStore) getSSMParameterHistory(key string) ([]*ssmTypes.Parame
 	}
 
 	var history []*ssmTypes.ParameterHistory
-	paginator := ssm.NewGetParameterHistoryPaginator(&ps.svc, input)
+	paginator := ssm.NewGetParameterHistoryPaginator(ps.svc, input)
 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(context.Background())

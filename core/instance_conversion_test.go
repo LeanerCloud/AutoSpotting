@@ -9,9 +9,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -20,18 +21,18 @@ func TestGenerateTagList(t *testing.T) {
 		name                     string
 		ASGName                  string
 		ASGLCName                string
-		instanceTags             []*ec2.Tag
+		instanceTags             []ec2Types.Tag
 		instanceID               string
-		expectedTagSpecification []*ec2.TagSpecification
+		expectedTagSpecification []ec2Types.TagSpecification
 	}{
 		{name: "no tags on original instance",
 			ASGLCName: "testLC0",
 			ASGName:   "myASG", instanceID: "foo",
-			instanceTags: []*ec2.Tag{},
-			expectedTagSpecification: []*ec2.TagSpecification{
+			instanceTags: []ec2Types.Tag{},
+			expectedTagSpecification: []ec2Types.TagSpecification{
 				{
-					ResourceType: aws.String("instance"),
-					Tags: []*ec2.Tag{
+					ResourceType: "instance",
+					Tags: []ec2Types.Tag{
 						{
 							Key:   aws.String("LaunchConfigurationName"),
 							Value: aws.String("testLC0"),
@@ -59,7 +60,7 @@ func TestGenerateTagList(t *testing.T) {
 			ASGLCName:  "testLC0",
 			ASGName:    "myASG",
 			instanceID: "bar",
-			instanceTags: []*ec2.Tag{
+			instanceTags: []ec2Types.Tag{
 				{
 					Key:   aws.String("foo"),
 					Value: aws.String("bar"),
@@ -69,10 +70,10 @@ func TestGenerateTagList(t *testing.T) {
 					Value: aws.String("bazinga"),
 				},
 			},
-			expectedTagSpecification: []*ec2.TagSpecification{
+			expectedTagSpecification: []ec2Types.TagSpecification{
 				{
-					ResourceType: aws.String("instance"),
-					Tags: []*ec2.Tag{
+					ResourceType: "instance",
+					Tags: []ec2Types.Tag{
 						{
 							Key:   aws.String("LaunchConfigurationName"),
 							Value: aws.String("testLC0"),
@@ -111,13 +112,13 @@ func TestGenerateTagList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			i := instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					Tags:       tt.instanceTags,
 					InstanceId: aws.String(tt.instanceID),
 				},
 				asg: &autoScalingGroup{
 					name: tt.ASGName,
-					Group: &autoscaling.Group{
+					AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
 						LaunchConfigurationName: aws.String(tt.ASGLCName),
 					},
 				},
@@ -145,9 +146,9 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 
 	tests := []struct {
 		name string
-		BDMs []*autoscaling.BlockDeviceMapping
+		BDMs []autoscalingTypes.BlockDeviceMapping
 		i    *instance
-		want []*ec2.LaunchTemplateBlockDeviceMappingRequest
+		want []ec2Types.LaunchTemplateBlockDeviceMappingRequest
 	}{
 		{
 			name: "nil block device mapping",
@@ -157,7 +158,7 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 		},
 		{
 			name: "instance-store only, skipping one of the volumes from the BDMs",
-			BDMs: []*autoscaling.BlockDeviceMapping{
+			BDMs: []autoscalingTypes.BlockDeviceMapping{
 				{
 					DeviceName:  aws.String("/dev/ephemeral0"),
 					Ebs:         nil,
@@ -171,7 +172,7 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 				},
 			},
 			i: &instance{},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+			want: []ec2Types.LaunchTemplateBlockDeviceMappingRequest{
 				{
 					DeviceName:  aws.String("/dev/ephemeral1"),
 					Ebs:         nil,
@@ -200,8 +201,8 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 		{
 			name: "missing SGs",
 			inst: instance{
-				Instance: &ec2.Instance{
-					SecurityGroups: []*ec2.GroupIdentifier{},
+				Instance: &ec2Types.Instance{
+					SecurityGroups: []ec2Types.GroupIdentifier{},
 				},
 			},
 			want: []*string{},
@@ -209,8 +210,8 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 		{
 			name: "single SG",
 			inst: instance{
-				Instance: &ec2.Instance{
-					SecurityGroups: []*ec2.GroupIdentifier{{
+				Instance: &ec2Types.Instance{
+					SecurityGroups: []ec2Types.GroupIdentifier{{
 						GroupId:   aws.String("sg-123"),
 						GroupName: aws.String("foo"),
 					}},
@@ -221,8 +222,8 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 		{
 			name: "multiple SGs",
 			inst: instance{
-				Instance: &ec2.Instance{
-					SecurityGroups: []*ec2.GroupIdentifier{{
+				Instance: &ec2Types.Instance{
+					SecurityGroups: []ec2Types.GroupIdentifier{{
 						GroupId:   aws.String("sg-123"),
 						GroupName: aws.String("foo"),
 					},
@@ -251,7 +252,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 	tests := []struct {
 		name string
 		inst instance
-		want *ec2.RequestLaunchTemplateData
+		want *ec2Types.RequestLaunchTemplateData
 	}{
 
 		{
@@ -267,9 +268,9 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 				},
 				region: &region{
 					services: connections{
-						ec2: mockEC2{
+						ec2: mockEC2Client{
 							damio: &ec2.DescribeImagesOutput{
-								Images: []*ec2.Image{},
+								Images: []ec2Types.Image{},
 							},
 						},
 					},
@@ -280,11 +281,11 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					config: AutoScalingConfig{
 						OnDemandPriceMultiplier: 1,
 					},
-					Group: &autoscaling.Group{
+					AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
 						LaunchConfigurationName: aws.String("myLC"),
 					},
 					launchConfiguration: &launchConfiguration{
-						LaunchConfiguration: &autoscaling.LaunchConfiguration{
+						LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
 							AssociatePublicIpAddress: nil,
 							BlockDeviceMappings:      nil,
 							ImageId:                  aws.String("ami-12345"),
@@ -295,21 +296,21 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 						},
 					},
 				},
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					EbsOptimized: aws.Bool(true),
 
-					IamInstanceProfile: &ec2.IamInstanceProfile{
+					IamInstanceProfile: &ec2Types.IamInstanceProfile{
 						Arn: aws.String("profile-arn"),
 					},
 					ImageId:      aws.String("ami-123"),
 					InstanceId:   aws.String("i-foo"),
-					InstanceType: aws.String("t2.medium"),
+					InstanceType: "t2.medium",
 
-					Placement: &ec2.Placement{
+					Placement: &ec2Types.Placement{
 						Affinity: aws.String("foo"),
 					},
 
-					SecurityGroups: []*ec2.GroupIdentifier{
+					SecurityGroups: []ec2Types.GroupIdentifier{
 						{
 							GroupName: aws.String("foo"),
 							GroupId:   aws.String("sg-123"),
@@ -323,32 +324,32 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					SubnetId: nil,
 				},
 			},
-			want: &ec2.RequestLaunchTemplateData{
+			want: &ec2Types.RequestLaunchTemplateData{
 
 				EbsOptimized: aws.Bool(true),
 
-				IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
+				IamInstanceProfile: &ec2Types.LaunchTemplateIamInstanceProfileSpecificationRequest{
 					Name: aws.String("profile"),
 				},
 
 				ImageId: aws.String("ami-12345"),
 
-				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
-					MarketType: aws.String(Spot),
-					SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
+				InstanceMarketOptions: &ec2Types.LaunchTemplateInstanceMarketOptionsRequest{
+					MarketType: Spot,
+					SpotOptions: &ec2Types.LaunchTemplateSpotMarketOptionsRequest{
 						MaxPrice: aws.String("1.5"),
 					},
 				},
 
 				KeyName: aws.String("mykey"),
 
-				Placement: &ec2.LaunchTemplatePlacementRequest{
+				Placement: &ec2Types.LaunchTemplatePlacementRequest{
 					Affinity: aws.String("foo"),
 				},
 
-				SecurityGroupIds: []*string{
-					aws.String("sg-123"),
-					aws.String("sg-456"),
+				SecurityGroupIds: []string{
+					"sg-123",
+					"sg-456",
 				},
 				UserData: aws.String("userdata"),
 			},
@@ -367,9 +368,9 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 				},
 				region: &region{
 					services: connections{
-						ec2: mockEC2{
+						ec2: mockEC2Client{
 							damio: &ec2.DescribeImagesOutput{
-								Images: []*ec2.Image{},
+								Images: []ec2Types.Image{},
 							},
 						},
 					},
@@ -380,47 +381,47 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					config: AutoScalingConfig{
 						OnDemandPriceMultiplier: 1,
 					},
-					Group: &autoscaling.Group{
+					AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
 						LaunchConfigurationName: aws.String("myLC"),
 					},
 					launchConfiguration: &launchConfiguration{
-						LaunchConfiguration: &autoscaling.LaunchConfiguration{
+						LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
 							IamInstanceProfile: aws.String("profile-name"),
 							ImageId:            aws.String("ami-12345"),
-							InstanceMonitoring: &autoscaling.InstanceMonitoring{
+							InstanceMonitoring: &autoscalingTypes.InstanceMonitoring{
 								Enabled: aws.Bool(true),
 							},
 							KeyName: aws.String("current-key"),
-							BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+							BlockDeviceMappings: []autoscalingTypes.BlockDeviceMapping{
 								{
 									DeviceName: aws.String("foo"),
 								},
 							},
 							AssociatePublicIpAddress: aws.Bool(true),
 							UserData:                 aws.String("userdata"),
-							SecurityGroups: []*string{
-								aws.String("sg-123"),
-								aws.String("sg-456"),
+							SecurityGroups: []string{
+								"sg-123",
+								"sg-456",
 							},
 						},
 					},
 				},
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					EbsOptimized: aws.Bool(true),
 
-					IamInstanceProfile: &ec2.IamInstanceProfile{
+					IamInstanceProfile: &ec2Types.IamInstanceProfile{
 						Arn: aws.String("profile-arn"),
 					},
 					ImageId:      aws.String("ami-123"),
 					InstanceId:   aws.String("i-foo"),
-					InstanceType: aws.String("t2.medium"),
+					InstanceType: "t2.medium",
 					KeyName:      aws.String("older-key"),
 
-					Placement: &ec2.Placement{
+					Placement: &ec2Types.Placement{
 						Affinity: aws.String("foo"),
 					},
 
-					SecurityGroups: []*ec2.GroupIdentifier{
+					SecurityGroups: []ec2Types.GroupIdentifier{
 						{
 							GroupName: aws.String("foo"),
 							GroupId:   aws.String("sg-123"),
@@ -435,8 +436,8 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 				},
 			},
 
-			want: &ec2.RequestLaunchTemplateData{
-				BlockDeviceMappings: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+			want: &ec2Types.RequestLaunchTemplateData{
+				BlockDeviceMappings: []ec2Types.LaunchTemplateBlockDeviceMappingRequest{
 					{
 						DeviceName: aws.String("foo"),
 					},
@@ -444,37 +445,37 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 
 				EbsOptimized: aws.Bool(true),
 
-				IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
+				IamInstanceProfile: &ec2Types.LaunchTemplateIamInstanceProfileSpecificationRequest{
 					Name: aws.String("profile-name"),
 				},
 
 				ImageId: aws.String("ami-12345"),
 
-				InstanceMarketOptions: &ec2.LaunchTemplateInstanceMarketOptionsRequest{
-					MarketType: aws.String(Spot),
-					SpotOptions: &ec2.LaunchTemplateSpotMarketOptionsRequest{
+				InstanceMarketOptions: &ec2Types.LaunchTemplateInstanceMarketOptionsRequest{
+					MarketType: Spot,
+					SpotOptions: &ec2Types.LaunchTemplateSpotMarketOptionsRequest{
 						MaxPrice: aws.String("1.5"),
 					},
 				},
 
 				KeyName: aws.String("current-key"),
 
-				Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
+				Monitoring: &ec2Types.LaunchTemplatesMonitoringRequest{
 					Enabled: aws.Bool(true),
 				},
 
-				Placement: &ec2.LaunchTemplatePlacementRequest{
+				Placement: &ec2Types.LaunchTemplatePlacementRequest{
 					Affinity: aws.String("foo"),
 				},
 
-				NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+				NetworkInterfaces: []ec2Types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 					{
 						AssociatePublicIpAddress: aws.Bool(true),
-						DeviceIndex:              aws.Int64(0),
+						DeviceIndex:              aws.Int32(0),
 						SubnetId:                 aws.String("subnet-123"),
-						Groups: []*string{
-							aws.String("sg-123"),
-							aws.String("sg-456"),
+						Groups: []string{
+							"sg-123",
+							"sg-456",
 						},
 					},
 				},
@@ -498,9 +499,9 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 func Test_instance_convertImageBlockDeviceMappings(t *testing.T) {
 	tests := []struct {
 		name string
-		BDMs []*ec2.BlockDeviceMapping
+		BDMs []ec2Types.BlockDeviceMapping
 		i    *instance
-		want []*ec2.LaunchTemplateBlockDeviceMappingRequest
+		want []ec2Types.LaunchTemplateBlockDeviceMappingRequest
 	}{
 		{
 			name: "nil block device mapping",
@@ -510,7 +511,7 @@ func Test_instance_convertImageBlockDeviceMappings(t *testing.T) {
 		},
 		{
 			name: "instance-store only, skipping one of the volumes from the BDMs",
-			BDMs: []*ec2.BlockDeviceMapping{
+			BDMs: []ec2Types.BlockDeviceMapping{
 				{
 					DeviceName:  aws.String("/dev/ephemeral0"),
 					Ebs:         nil,
@@ -524,7 +525,7 @@ func Test_instance_convertImageBlockDeviceMappings(t *testing.T) {
 				},
 			},
 			i: &instance{},
-			want: []*ec2.LaunchTemplateBlockDeviceMappingRequest{
+			want: []ec2Types.LaunchTemplateBlockDeviceMappingRequest{
 				{
 					DeviceName:  aws.String("/dev/ephemeral1"),
 					Ebs:         nil,
@@ -549,21 +550,21 @@ func Test_instance_createFleetInput(t *testing.T) {
 		i             *instance
 		ltName        *string
 		ltVersion     *string
-		instanceTypes []*string
+		instanceTypes []string
 		want          *ec2.CreateFleetInput
 	}{
 		{
 			name:      "test generating list of overrides with capacity-optimized-prioritized",
 			ltName:    aws.String("testLT"),
 			ltVersion: aws.String("$Latest"),
-			instanceTypes: []*string{
-				aws.String("instance-type1"),
-				aws.String("instance-type2"),
+			instanceTypes: []string{
+				"instance-type1",
+				"instance-type2",
 			},
 			i: &instance{
 				spotProduct: aws.String(LinuxSpotProduct),
 				odPrice:     2,
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					SubnetId: aws.String("subnet-id"),
 				},
 				asg: &autoScalingGroup{
@@ -571,18 +572,18 @@ func Test_instance_createFleetInput(t *testing.T) {
 						SpotAllocationStrategy: "capacity-optimized-prioritized",
 					},
 
-					Group: &autoscaling.Group{
+					AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
 						LaunchConfigurationName: aws.String("myLC"),
 					},
 					launchConfiguration: &launchConfiguration{
-						LaunchConfiguration: &autoscaling.LaunchConfiguration{
+						LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
 							IamInstanceProfile: aws.String("profile-name"),
 							ImageId:            aws.String("ami-12345"),
-							InstanceMonitoring: &autoscaling.InstanceMonitoring{
+							InstanceMonitoring: &autoscalingTypes.InstanceMonitoring{
 								Enabled: aws.Bool(true),
 							},
 							KeyName: aws.String("current-key"),
-							BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+							BlockDeviceMappings: []autoscalingTypes.BlockDeviceMapping{
 								{
 									DeviceName: aws.String("foo"),
 								},
@@ -602,37 +603,37 @@ func Test_instance_createFleetInput(t *testing.T) {
 				},
 			},
 			want: &ec2.CreateFleetInput{
-				LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
+				LaunchTemplateConfigs: []ec2Types.FleetLaunchTemplateConfigRequest{
 					{
-						LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+						LaunchTemplateSpecification: &ec2Types.FleetLaunchTemplateSpecificationRequest{
 							LaunchTemplateName: aws.String("testLT"),
 							Version:            aws.String("$Latest"),
 						},
-						Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
+						Overrides: []ec2Types.FleetLaunchTemplateOverridesRequest{
 							{
-								InstanceType: aws.String("instance-type1"),
+								InstanceType: "instance-type1",
 								Priority:     aws.Float64(0),
 								SubnetId:     aws.String("subnet-id"),
 							},
 							{
-								InstanceType: aws.String("instance-type2"),
+								InstanceType: "instance-type2",
 								Priority:     aws.Float64(1),
 								SubnetId:     aws.String("subnet-id"),
 							},
 						},
 					},
 				},
-				OnDemandOptions: &ec2.OnDemandOptionsRequest{
-					AllocationStrategy: aws.String("prioritized"),
+				OnDemandOptions: &ec2Types.OnDemandOptionsRequest{
+					AllocationStrategy: "prioritized",
 				},
-				SpotOptions: &ec2.SpotOptionsRequest{
-					AllocationStrategy: aws.String("capacity-optimized-prioritized"),
+				SpotOptions: &ec2Types.SpotOptionsRequest{
+					AllocationStrategy: "capacity-optimized-prioritized",
 					MaxTotalPrice:      aws.String("2"),
 				},
-				TagSpecifications: []*ec2.TagSpecification{
+				TagSpecifications: []ec2Types.TagSpecification{
 					{
-						ResourceType: aws.String("instance"),
-						Tags: []*ec2.Tag{
+						ResourceType: "instance",
+						Tags: []ec2Types.Tag{
 							{
 								Key:   aws.String("launched-by-autospotting"),
 								Value: aws.String("true"),
@@ -655,44 +656,44 @@ func Test_instance_createFleetInput(t *testing.T) {
 						},
 					},
 				},
-				TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
-					DefaultTargetCapacityType: aws.String("spot"),
-					SpotTargetCapacity:        aws.Int64(1),
-					TotalTargetCapacity:       aws.Int64(1),
+				TargetCapacitySpecification: &ec2Types.TargetCapacitySpecificationRequest{
+					DefaultTargetCapacityType: "spot",
+					SpotTargetCapacity:        aws.Int32(1),
+					TotalTargetCapacity:       aws.Int32(1),
 				},
-				Type: aws.String("instant"),
+				Type: "instant",
 			},
 		},
 		{
 			name:      "test generating list of overrides with capacity-optimized",
 			ltName:    aws.String("testLT"),
 			ltVersion: aws.String("$Latest"),
-			instanceTypes: []*string{
-				aws.String("instance-type1"),
-				aws.String("instance-type2"),
+			instanceTypes: []string{
+				"instance-type1",
+				"instance-type2",
 			},
 			i: &instance{
 				spotProduct: aws.String(LinuxSpotProduct),
 				odPrice:     2,
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					SubnetId: aws.String("subnet-id"),
 				},
 				asg: &autoScalingGroup{
 					config: AutoScalingConfig{
 						SpotAllocationStrategy: "capacity-optimized",
 					},
-					Group: &autoscaling.Group{
+					AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
 						LaunchConfigurationName: aws.String("myLC"),
 					},
 					launchConfiguration: &launchConfiguration{
-						LaunchConfiguration: &autoscaling.LaunchConfiguration{
+						LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
 							IamInstanceProfile: aws.String("profile-name"),
 							ImageId:            aws.String("ami-12345"),
-							InstanceMonitoring: &autoscaling.InstanceMonitoring{
+							InstanceMonitoring: &autoscalingTypes.InstanceMonitoring{
 								Enabled: aws.Bool(true),
 							},
 							KeyName: aws.String("current-key"),
-							BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+							BlockDeviceMappings: []autoscalingTypes.BlockDeviceMapping{
 								{
 									DeviceName: aws.String("foo"),
 								},
@@ -713,41 +714,41 @@ func Test_instance_createFleetInput(t *testing.T) {
 				},
 			},
 			want: &ec2.CreateFleetInput{
-				LaunchTemplateConfigs: []*ec2.FleetLaunchTemplateConfigRequest{
+				LaunchTemplateConfigs: []ec2Types.FleetLaunchTemplateConfigRequest{
 					{
-						LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+						LaunchTemplateSpecification: &ec2Types.FleetLaunchTemplateSpecificationRequest{
 							LaunchTemplateName: aws.String("testLT"),
 							Version:            aws.String("$Latest"),
 						},
-						Overrides: []*ec2.FleetLaunchTemplateOverridesRequest{
+						Overrides: []ec2Types.FleetLaunchTemplateOverridesRequest{
 							{
-								InstanceType: aws.String("instance-type1"),
+								InstanceType: "instance-type1",
 								SubnetId:     aws.String("subnet-id"),
 							},
 							{
-								InstanceType: aws.String("instance-type2"),
+								InstanceType: "instance-type2",
 								SubnetId:     aws.String("subnet-id"),
 							},
 						},
 					},
 				},
-				OnDemandOptions: &ec2.OnDemandOptionsRequest{
-					AllocationStrategy: aws.String("prioritized"),
+				OnDemandOptions: &ec2Types.OnDemandOptionsRequest{
+					AllocationStrategy: "prioritized",
 				},
-				SpotOptions: &ec2.SpotOptionsRequest{
-					AllocationStrategy: aws.String("capacity-optimized"),
+				SpotOptions: &ec2Types.SpotOptionsRequest{
+					AllocationStrategy: "capacity-optimized",
 					MaxTotalPrice:      aws.String("2"),
 				},
-				TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
-					DefaultTargetCapacityType: aws.String("spot"),
-					SpotTargetCapacity:        aws.Int64(1),
-					TotalTargetCapacity:       aws.Int64(1),
+				TargetCapacitySpecification: &ec2Types.TargetCapacitySpecificationRequest{
+					DefaultTargetCapacityType: "spot",
+					SpotTargetCapacity:        aws.Int32(1),
+					TotalTargetCapacity:       aws.Int32(1),
 				},
-				Type: aws.String("instant"),
-				TagSpecifications: []*ec2.TagSpecification{
+				Type: "instant",
+				TagSpecifications: []ec2Types.TagSpecification{
 					{
-						ResourceType: aws.String("instance"),
-						Tags: []*ec2.Tag{
+						ResourceType: "instance",
+						Tags: []ec2Types.Tag{
 							{
 								Key:   aws.String("launched-by-autospotting"),
 								Value: aws.String("true"),
@@ -789,7 +790,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 func Test_instance_createFleetLaunchTemplate(t *testing.T) {
 	tests := []struct {
 		name          string
-		ltData        *ec2.RequestLaunchTemplateData
+		ltData        *ec2Types.RequestLaunchTemplateData
 		asgName       string
 		cltErr        error
 		wantLTName    *string
@@ -823,7 +824,7 @@ func Test_instance_createFleetLaunchTemplate(t *testing.T) {
 				},
 				region: &region{
 					services: connections{
-						ec2: mockEC2{
+						ec2: mockEC2Client{
 							clterr: tt.cltErr,
 						},
 					},
@@ -853,7 +854,7 @@ func Test_instance_createFleetLaunchTemplate(t *testing.T) {
 }
 
 func TestDeduplicateTags(t *testing.T) {
-	inputTags := []*ec2.Tag{
+	inputTags := []ec2Types.Tag{
 		{Key: aws.String("Name"), Value: aws.String("Server1")},
 		{Key: aws.String("Environment"), Value: aws.String("Production")},
 		{Key: aws.String("Name"), Value: aws.String("Server2")},
@@ -862,7 +863,7 @@ func TestDeduplicateTags(t *testing.T) {
 		{Key: aws.String("Owner"), Value: aws.String("Bob")},
 	}
 
-	expectedTags := []*ec2.Tag{
+	expectedTags := []ec2Types.Tag{
 		{Key: aws.String("Name"), Value: aws.String("Server1")},
 		{Key: aws.String("Environment"), Value: aws.String("Production")},
 		{Key: aws.String("Owner"), Value: aws.String("Alice")},

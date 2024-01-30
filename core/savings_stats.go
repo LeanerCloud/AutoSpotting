@@ -26,7 +26,7 @@ const (
 
 type savingsStats struct {
 	ps              parameterStore
-	sns             sns.Client
+	sns             SNSAPI
 	topic           string
 	reportFrequency string
 	history         *savingsHistory

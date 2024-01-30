@@ -10,9 +10,12 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config/awserr"
-	autoscaling "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
-	ec2 "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+
+	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
 func TestAlreadyRunningInstanceCount(t *testing.T) {
@@ -38,9 +41,9 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"id-1": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameStopped},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameStopped},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: Spot,
 						},
 					},
@@ -56,16 +59,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"id-1": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: OnDemand,
 						},
 					},
 					"id-2": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: OnDemand,
 						},
 					},
@@ -81,16 +84,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"id-1": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: Spot,
 						},
 					},
@@ -106,16 +109,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"id-1": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: OnDemand,
 						},
 					},
 					"id-2": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: OnDemand,
 						},
 					},
@@ -131,16 +134,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"id-1": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: OnDemand,
 						},
 					},
 					"id-2": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: OnDemand,
 						},
 					},
@@ -156,16 +159,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"id-1": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: Spot,
 						},
 					},
@@ -181,16 +184,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"id-1": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: Spot,
 						},
 					},
@@ -206,16 +209,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"id-1": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameShuttingDown},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameShuttingDown},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: OnDemand,
 						},
 					},
@@ -231,16 +234,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"id-1": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: OnDemand,
 						},
 					},
@@ -256,16 +259,16 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 			asgInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"id-1": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 							InstanceLifecycle: Spot,
 						},
 					},
 					"id-2": {
-						Instance: &ec2.Instance{
-							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameStopped},
-							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+						Instance: &ec2Types.Instance{
+							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameStopped},
+							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 							InstanceLifecycle: OnDemand,
 						},
 					},
@@ -280,7 +283,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := autoScalingGroup{AutoScalingGroup: &autoscaling.AutoScalingGroup{}}
+			a := autoScalingGroup{AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{}}
 			a.name = tt.asgName
 			a.instances = tt.asgInstances
 			count, total := a.alreadyRunningInstanceCount(tt.spot, tt.availabilityZone)
@@ -307,69 +310,69 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 		{name: "ASG has no instance at all - 1 on-demand required",
 // 			asgInstances:    makeInstances(),
 // 			minOnDemand:     1,
-// 			desiredCapacity: aws.Int64(0),
+// 			desiredCapacity: aws.Int32(0),
 // 			expectedRun:     true,
 // 		},
 // 		{name: "ASG has no instance at all - 0 on-demand required",
 // 			asgInstances:    makeInstances(),
 // 			minOnDemand:     0,
-// 			desiredCapacity: aws.Int64(0),
+// 			desiredCapacity: aws.Int32(0),
 // 			expectedRun:     true,
 // 		},
 // 		{name: "ASG has no instance running - 1 on-demand required",
 // 			asgInstances: makeInstancesWithCatalog(
 // 				instanceMap{
 // 					"id-1": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: InstanceStateNameShuttingDown},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: InstanceStateNameShuttingDown},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 // 							InstanceLifecycle: Spot,
 // 						},
 // 					},
 // 					"id-2": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: InstanceStateNameShuttingDown},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: InstanceStateNameShuttingDown},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 // 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
 // 			),
 // 			minOnDemand:     1,
-// 			desiredCapacity: aws.Int64(0),
+// 			desiredCapacity: aws.Int32(0),
 // 			expectedRun:     true,
 // 		},
 // 		{name: "ASG has no instance running - 0 on-demand required",
 // 			asgInstances: makeInstancesWithCatalog(
 // 				instanceMap{
 // 					"id-1": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: InstanceStateNameShuttingDown},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: InstanceStateNameShuttingDown},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 // 							InstanceLifecycle: Spot,
 // 						},
 // 					},
 // 					"id-2": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: InstanceStateNameShuttingDown},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: InstanceStateNameShuttingDown},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 // 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
 // 			),
 // 			minOnDemand:     0,
-// 			desiredCapacity: aws.Int64(0),
+// 			desiredCapacity: aws.Int32(0),
 // 			expectedRun:     true,
 // 		},
 // 		{name: "ASG has not the required on-demand running",
 // 			asgInstances: makeInstancesWithCatalog(
 // 				instanceMap{
 // 					"id-1": {
-// 						Instance: &ec2.Instance{
+// 						Instance: &ec2Types.Instance{
 // 							InstanceId:        aws.String("id-1"),
-// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+// 							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 // 							InstanceLifecycle: Spot,
 // 						},
 // 						region: &region{
@@ -380,17 +383,17 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 						},
 // 					},
 // 					"id-2": {
-// 						Instance: &ec2.Instance{
+// 						Instance: &ec2Types.Instance{
 // 							InstanceId:        aws.String("id-2"),
-// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+// 							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 // 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
 // 			),
 // 			minOnDemand:     2,
-// 			desiredCapacity: aws.Int64(0),
+// 			desiredCapacity: aws.Int32(0),
 // 			expectedRun:     false,
 // 			regionASG: &region{
 // 				name: "regionTest",
@@ -404,115 +407,115 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 			asgInstances: makeInstancesWithCatalog(
 // 				instanceMap{
 // 					"id-1": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 // 							InstanceLifecycle: Spot,
 // 						},
 // 					},
 // 					"id-2": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 // 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
 // 			),
 // 			minOnDemand:     1,
-// 			desiredCapacity: aws.Int64(0),
+// 			desiredCapacity: aws.Int32(0),
 // 			expectedRun:     false,
 // 		},
 // 		{name: "ASG has only one remaining instance, less than enough on-demand",
 // 			asgInstances: makeInstancesWithCatalog(
 // 				instanceMap{
 // 					"id-1": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 // 							InstanceLifecycle: Spot,
 // 						},
 // 					},
 // 				},
 // 			),
 // 			minOnDemand:     1,
-// 			desiredCapacity: aws.Int64(1),
+// 			desiredCapacity: aws.Int32(1),
 // 			expectedRun:     false,
 // 		},
 // 		{name: "ASG has more than enough on-demand instances running but not desired capacity",
 // 			asgInstances: makeInstancesWithCatalog(
 // 				instanceMap{
 // 					"id-1": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 // 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 					"id-2": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 // 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
 // 			),
 // 			minOnDemand:     1,
-// 			desiredCapacity: aws.Int64(1),
+// 			desiredCapacity: aws.Int32(1),
 // 			expectedRun:     true,
 // 		},
 // 		{name: "ASG has more than enough on-demand instances running and desired capacity",
 // 			asgInstances: makeInstancesWithCatalog(
 // 				instanceMap{
 // 					"id-1": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 // 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 					"id-2": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 // 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 				},
 // 			),
 // 			minOnDemand:     1,
-// 			desiredCapacity: aws.Int64(4),
+// 			desiredCapacity: aws.Int32(4),
 // 			expectedRun:     true,
 // 		},
 // 		{name: "ASG has on-demand instances equal to the min on-demand number",
 // 			asgInstances: makeInstancesWithCatalog(
 // 				map[string]*instance{
 // 					"id-1": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1a")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1a")},
 // 							InstanceLifecycle: OnDemand,
 // 						},
 // 					},
 // 					"id-2": {
-// 						Instance: &ec2.Instance{
-// 							State:             &ec2.InstanceState{Name: ec2.InstanceStateNameRunning},
-// 							Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1b")},
+// 						Instance: &ec2Types.Instance{
+// 							State:             &ec2Types.InstanceState{Name: ec2Types.InstanceStateNameRunning},
+// 							Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1b")},
 // 							InstanceLifecycle: Spot,
 // 						},
 // 					},
 // 				},
 // 			),
 // 			minOnDemand:     1,
-// 			desiredCapacity: aws.Int64(2),
+// 			desiredCapacity: aws.Int32(2),
 // 			expectedRun:     false,
 // 		},
 // 	}
 
 // 	for _, tt := range tests {
 // 		t.Run(tt.name, func(t *testing.T) {
-// 			a := autoScalingGroup{Group: &autoscaling.Group{}}
+// 			a := autoScalingGroup{AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{}}
 // 			a.name = "asg-test"
 // 			a.DesiredCapacity = tt.desiredCapacity
 // 			a.instances = tt.asgInstances
@@ -539,10 +542,10 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 			instancesASG: makeInstancesWithCatalog(
 // 				map[string]*instance{
 // 					"1": {
-// 						Instance: &ec2.Instance{
+// 						Instance: &ec2Types.Instance{
 // 							InstanceId: aws.String("1"),
-// 							State: &ec2.InstanceState{
-// 								Name: ec2.InstanceStateNameRunning,
+// 							State: &ec2Types.InstanceState{
+// 								Name: ec2Types.InstanceStateNameRunning,
 // 							},
 // 						},
 // 						region: &region{
@@ -567,10 +570,10 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 			instancesASG: makeInstancesWithCatalog(
 // 				map[string]*instance{
 // 					"1": {
-// 						Instance: &ec2.Instance{
+// 						Instance: &ec2Types.Instance{
 // 							InstanceId: aws.String("1"),
-// 							State: &ec2.InstanceState{
-// 								Name: ec2.InstanceStateNameRunning,
+// 							State: &ec2Types.InstanceState{
+// 								Name: ec2Types.InstanceStateNameRunning,
 // 							},
 // 						},
 // 						region: &region{
@@ -620,21 +623,21 @@ func TestAttachSpotInstance(t *testing.T) {
 					autoScaling: mockASG{
 						aierr: nil,
 						dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
-							AutoScalingInstances: []*autoscaling.InstanceDetails{
+							AutoScalingInstances: []autoscalingTypes.AutoScalingInstanceDetails{
 								{
 									LifecycleState: aws.String("InService"),
 								},
 							},
 						},
 					},
-					ec2: mockEC2{
+					ec2: mockEC2Client{
 						dio: &ec2.DescribeInstancesOutput{
-							Reservations: []*ec2.Reservation{
+							Reservations: []ec2Types.Reservation{
 								{
-									Instances: []*ec2.Instance{
+									Instances: []ec2Types.Instance{
 										{
-											State: &ec2.InstanceState{
-												Name: aws.String("running"),
+											State: &ec2Types.InstanceState{
+												Name: "running",
 											},
 										},
 									},
@@ -652,17 +655,17 @@ func TestAttachSpotInstance(t *testing.T) {
 				name: "regionTest",
 				services: connections{
 					autoScaling: mockASG{
-						aierr: error(awserr.New("ValidationError", "Error", errors.New("attach"))),
+						aierr: errors.New("ValidationError"),
 						// aierr: errors.New("attach"),
 					},
-					ec2: mockEC2{
+					ec2: mockEC2Client{
 						dio: &ec2.DescribeInstancesOutput{
-							Reservations: []*ec2.Reservation{
+							Reservations: []ec2Types.Reservation{
 								{
-									Instances: []*ec2.Instance{
+									Instances: []ec2Types.Instance{
 										{
-											State: &ec2.InstanceState{
-												Name: aws.String("running"),
+											State: &ec2Types.InstanceState{
+												Name: "running",
 											},
 										},
 									},
@@ -673,7 +676,7 @@ func TestAttachSpotInstance(t *testing.T) {
 				},
 			},
 			instanceID: "1",
-			expected:   error(awserr.New("ValidationError", "Error", errors.New("attach"))),
+			expected:   errors.New("ValidationError"),
 		},
 	}
 	for _, tt := range tests {
@@ -681,10 +684,10 @@ func TestAttachSpotInstance(t *testing.T) {
 			// 	a := autoScalingGroup{
 			// 		name:   "testASG",
 			// 		region: tt.regionASG,
-			// 		Group: &autoscaling.Group{
+			// 		AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
 			// 			MaxSize:         aws.Int64(4),
 			// 			MinSize:         aws.Int64(2),
-			// 			DesiredCapacity: aws.Int64(3),
+			// 			DesiredCapacity: aws.Int32(3),
 			// 		},
 			// 	}
 			// 	err := a.attachSpotInstance(tt.instanceID, false)
@@ -704,7 +707,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 	}{
 		{name: "launch configuration already exists",
 			groupLC: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
 					LaunchConfigurationName: aws.String("foo"),
 				},
 			},
@@ -713,7 +716,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 			// 	services: connections{
 			// 		autoScaling: mockASG{
 			// 			dlco: &autoscaling.DescribeLaunchConfigurationsOutput{
-			// 				LaunchConfigurations: []*autoscaling.LaunchConfiguration{
+			// 				LaunchConfigurations: []*autoscalingTypes.LaunchConfiguration{
 			// 					{
 			// 						LaunchConfigurationName: aws.String("foo"),
 			// 					},
@@ -724,7 +727,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 			// },
 			expectedErr: nil,
 			expectedLC: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
 					LaunchConfigurationName: aws.String("foo"),
 				},
 			},
@@ -747,7 +750,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 					autoScaling: mockASG{
 						dlcerr: nil,
 						dlco: &autoscaling.DescribeLaunchConfigurationsOutput{
-							LaunchConfigurations: []*autoscaling.LaunchConfiguration{
+							LaunchConfigurations: []autoscalingTypes.LaunchConfiguration{
 								{
 									LaunchConfigurationName: aws.String("testLC"),
 								},
@@ -758,7 +761,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 			},
 			expectedErr: nil,
 			expectedLC: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
 					LaunchConfigurationName: aws.String("testLC"),
 				},
 			},
@@ -782,7 +785,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 			a := autoScalingGroup{
 				launchConfiguration: tt.groupLC,
 				region:              tt.regionASG,
-				Group: &autoscaling.Group{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
 					LaunchConfigurationName: tt.nameLC,
 				},
 			}
@@ -818,21 +821,21 @@ func TestLoadLaunchTemplate(t *testing.T) {
 	}{
 		{name: "launch template already exists",
 			groupLT: &launchTemplate{
-				LaunchTemplateVersion: &ec2.LaunchTemplateVersion{
+				LaunchTemplateVersion: &ec2Types.LaunchTemplateVersion{
 					LaunchTemplateId: aws.String("foo"),
 					VersionNumber:    aws.Int64(1),
 				},
-				Image: &ec2.Image{
+				Image: &ec2Types.Image{
 					ImageId: aws.String("bar"),
 				},
 			},
 			expectedErr: nil,
 			expectedLT: &launchTemplate{
-				LaunchTemplateVersion: &ec2.LaunchTemplateVersion{
+				LaunchTemplateVersion: &ec2Types.LaunchTemplateVersion{
 					LaunchTemplateId: aws.String("foo"),
 					VersionNumber:    aws.Int64(1),
 				},
-				Image: &ec2.Image{
+				Image: &ec2Types.Image{
 					ImageId: aws.String("bar"),
 				},
 			},
@@ -842,7 +845,7 @@ func TestLoadLaunchTemplate(t *testing.T) {
 			ltVer: nil,
 			regionASG: &region{
 				services: connections{
-					ec2: mockEC2{
+					ec2: mockEC2Client{
 						dltverr: nil},
 				},
 			},
@@ -854,14 +857,14 @@ func TestLoadLaunchTemplate(t *testing.T) {
 			ltVer: aws.Int64(1),
 			regionASG: &region{
 				services: connections{
-					ec2: mockEC2{
+					ec2: mockEC2Client{
 						dltverr: nil,
 						dltvo: &ec2.DescribeLaunchTemplateVersionsOutput{
-							LaunchTemplateVersions: []*ec2.LaunchTemplateVersion{
+							LaunchTemplateVersions: []ec2Types.LaunchTemplateVersion{
 								{
 									LaunchTemplateId: aws.String("foo"),
 									VersionNumber:    aws.Int64(1),
-									LaunchTemplateData: &ec2.ResponseLaunchTemplateData{
+									LaunchTemplateData: &ec2Types.ResponseLaunchTemplateData{
 										ImageId: aws.String("bar"),
 									},
 								},
@@ -869,7 +872,7 @@ func TestLoadLaunchTemplate(t *testing.T) {
 						},
 						damierr: nil,
 						damio: &ec2.DescribeImagesOutput{
-							Images: []*ec2.Image{
+							Images: []ec2Types.Image{
 								{
 									ImageId: aws.String("bar"),
 								},
@@ -880,14 +883,14 @@ func TestLoadLaunchTemplate(t *testing.T) {
 			},
 			expectedErr: nil,
 			expectedLT: &launchTemplate{
-				LaunchTemplateVersion: &ec2.LaunchTemplateVersion{
+				LaunchTemplateVersion: &ec2Types.LaunchTemplateVersion{
 					LaunchTemplateId: aws.String("foo"),
 					VersionNumber:    aws.Int64(1),
-					LaunchTemplateData: &ec2.ResponseLaunchTemplateData{
+					LaunchTemplateData: &ec2Types.ResponseLaunchTemplateData{
 						ImageId: aws.String("bar"),
 					},
 				},
-				Image: &ec2.Image{
+				Image: &ec2Types.Image{
 					ImageId: aws.String("bar"),
 				},
 			},
@@ -897,7 +900,7 @@ func TestLoadLaunchTemplate(t *testing.T) {
 			ltVer: aws.Int64(1),
 			regionASG: &region{
 				services: connections{
-					ec2: mockEC2{
+					ec2: mockEC2Client{
 						dltverr: errors.New("describe"),
 						dltvo:   nil,
 					},
@@ -912,8 +915,8 @@ func TestLoadLaunchTemplate(t *testing.T) {
 			a := autoScalingGroup{
 				launchTemplate: tt.groupLT,
 				region:         tt.regionASG,
-				Group: &autoscaling.Group{
-					LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					LaunchTemplate: &autoscalingTypes.LaunchTemplateSpecification{
 						LaunchTemplateId: tt.ltID,
 						Version:          aws.String("1"),
 					},
@@ -941,7 +944,7 @@ func TestLoadLaunchTemplate(t *testing.T) {
 func TestSetAutoScalingMaxSize(t *testing.T) {
 	tests := []struct {
 		name      string
-		maxSize   int64
+		maxSize   int32
 		regionASG *region
 		expected  error
 	}{
@@ -983,17 +986,17 @@ func TestSetAutoScalingMaxSize(t *testing.T) {
 func TestScanInstances(t *testing.T) {
 	tests := []struct {
 		name              string
-		ec2ASG            *autoscaling.Group
+		ec2ASG            *autoscalingTypes.AutoScalingGroup
 		regionInstances   *region
 		expectedInstances instanceMap
 	}{
 		{name: "multiple instances to scan",
 			regionInstances: &region{
 				services: connections{
-					ec2: &mockEC2{
+					ec2: &mockEC2Client{
 						dio: &ec2.DescribeInstancesOutput{},
 						damio: &ec2.DescribeImagesOutput{
-							Images: []*ec2.Image{
+							Images: []ec2Types.Image{
 								{
 									PlatformDetails: aws.String(LinuxSpotProduct),
 									ImageId:         aws.String("ami-12345"),
@@ -1005,9 +1008,9 @@ func TestScanInstances(t *testing.T) {
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"1": {
-							Instance: &ec2.Instance{
+							Instance: &ec2Types.Instance{
 								InstanceId: aws.String("1"),
-								Placement: &ec2.Placement{
+								Placement: &ec2Types.Placement{
 									AvailabilityZone: aws.String("az-1"),
 								},
 								InstanceLifecycle: Spot,
@@ -1026,9 +1029,9 @@ func TestScanInstances(t *testing.T) {
 							},
 						},
 						"2": {
-							Instance: &ec2.Instance{
+							Instance: &ec2Types.Instance{
 								InstanceId: aws.String("2"),
-								Placement: &ec2.Placement{
+								Placement: &ec2Types.Placement{
 									AvailabilityZone: aws.String("az-2"),
 								},
 							},
@@ -1048,29 +1051,29 @@ func TestScanInstances(t *testing.T) {
 					},
 				),
 			},
-			ec2ASG: &autoscaling.Group{
-				Instances: []*autoscaling.Instance{
+			ec2ASG: &autoscalingTypes.AutoScalingGroup{
+				Instances: []autoscalingTypes.Instance{
 					{
 						InstanceId:     aws.String("1"),
-						LifecycleState: aws.String("Running"),
+						LifecycleState: "running",
 					},
 					{
 						InstanceId:           aws.String("2"),
 						ProtectedFromScaleIn: aws.Bool(true),
 						AvailabilityZone:     aws.String("1a"),
-						LifecycleState:       aws.String("Running"),
+						LifecycleState:       "running",
 					},
 					{
 						InstanceId:     aws.String("3"),
-						LifecycleState: aws.String("Running"),
+						LifecycleState: "running",
 					},
 				},
 			},
 			expectedInstances: instanceMap{
 				"1": {
-					Instance: &ec2.Instance{
+					Instance: &ec2Types.Instance{
 						InstanceId: aws.String("1"),
-						Placement: &ec2.Placement{
+						Placement: &ec2Types.Placement{
 							AvailabilityZone: aws.String("az-1"),
 						},
 						InstanceLifecycle: Spot,
@@ -1091,9 +1094,9 @@ func TestScanInstances(t *testing.T) {
 					protected: false,
 				},
 				"2": {
-					Instance: &ec2.Instance{
+					Instance: &ec2Types.Instance{
 						InstanceId: aws.String("2"),
-						Placement: &ec2.Placement{
+						Placement: &ec2Types.Placement{
 							AvailabilityZone: aws.String("az-2"),
 						},
 					},
@@ -1119,10 +1122,10 @@ func TestScanInstances(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &autoScalingGroup{
-				name:        "testASG",
-				Group:       tt.ec2ASG,
-				region:      tt.regionInstances,
-				spotProduct: aws.String(LinuxSpotProduct),
+				name:             "testASG",
+				AutoScalingGroup: tt.ec2ASG,
+				region:           tt.regionInstances,
+				spotProduct:      aws.String(LinuxSpotProduct),
 			}
 			loadedInstances := a.scanInstances()
 			for _, v := range tt.expectedInstances {
@@ -1144,15 +1147,15 @@ func TestScanInstances(t *testing.T) {
 func Test_autoScalingGroup_hasMemberInstance(t *testing.T) {
 
 	tests := []struct {
-		name  string
-		Group *autoscaling.Group
-		inst  *instance
-		want  bool
+		name             string
+		AutoScalingGroup *autoscalingTypes.AutoScalingGroup
+		inst             *instance
+		want             bool
 	}{
 		{
 			name: "has member",
-			Group: &autoscaling.Group{
-				Instances: []*autoscaling.Instance{
+			AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+				Instances: []autoscalingTypes.Instance{
 					{InstanceId: aws.String("foo")},
 					{InstanceId: aws.String("bar")},
 					{InstanceId: aws.String("baz")},
@@ -1160,14 +1163,14 @@ func Test_autoScalingGroup_hasMemberInstance(t *testing.T) {
 			},
 			inst: &instance{
 				asg:      &autoScalingGroup{},
-				Instance: &ec2.Instance{InstanceId: aws.String("bar")},
+				Instance: &ec2Types.Instance{InstanceId: aws.String("bar")},
 			},
 			want: true,
 		},
 		{
 			name: "doesn't have member",
-			Group: &autoscaling.Group{
-				Instances: []*autoscaling.Instance{
+			AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+				Instances: []autoscalingTypes.Instance{
 					{InstanceId: aws.String("foo")},
 					{InstanceId: aws.String("bar")},
 					{InstanceId: aws.String("baz")},
@@ -1175,7 +1178,7 @@ func Test_autoScalingGroup_hasMemberInstance(t *testing.T) {
 			},
 			inst: &instance{
 				asg:      &autoScalingGroup{},
-				Instance: &ec2.Instance{InstanceId: aws.String("bazinga")},
+				Instance: &ec2Types.Instance{InstanceId: aws.String("bazinga")},
 			},
 			want: false,
 		},
@@ -1184,7 +1187,7 @@ func Test_autoScalingGroup_hasMemberInstance(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &autoScalingGroup{
-				Group: tt.Group,
+				AutoScalingGroup: tt.AutoScalingGroup,
 			}
 			if got := a.hasMemberInstance(tt.inst); got != tt.want {
 				t.Errorf("autoScalingGroup.hasMemberInstance() = %v, want %v", got, tt.want)
@@ -1203,19 +1206,19 @@ func Test_autoScalingGroup_needReplaceOnDemandInstances(t *testing.T) {
 		wantTotal   int64
 	}{
 		{
-			name:      "empty group",
+			name:      "empty autoscalinggroup",
 			instances: makeInstancesWithCatalog(instanceMap{}),
 			wantNeed:  true,
 			wantTotal: 0,
 		},
 		{
-			name:        "group with more on-demand instances than enough",
+			name:        "autoscalinggroup with more on-demand instances than enough",
 			minOnDemand: 0,
 			instances: makeInstancesWithCatalog(instanceMap{
 				"i-1": &instance{
-					Instance: &ec2.Instance{
-						State: &ec2.InstanceState{
-							Name: aws.String("running"),
+					Instance: &ec2Types.Instance{
+						State: &ec2Types.InstanceState{
+							Name: "running",
 						},
 					},
 				},
@@ -1224,13 +1227,13 @@ func Test_autoScalingGroup_needReplaceOnDemandInstances(t *testing.T) {
 			wantTotal: 1,
 		},
 		{
-			name:        "group with as much on-demand instances as desired",
+			name:        "autoscalinggroup with as much on-demand instances as desired",
 			minOnDemand: 1,
 			instances: makeInstancesWithCatalog(instanceMap{
 				"i-1": &instance{
-					Instance: &ec2.Instance{
-						State: &ec2.InstanceState{
-							Name: aws.String("running"),
+					Instance: &ec2Types.Instance{
+						State: &ec2Types.InstanceState{
+							Name: "running",
 						},
 					},
 				},
@@ -1239,13 +1242,13 @@ func Test_autoScalingGroup_needReplaceOnDemandInstances(t *testing.T) {
 			wantTotal: 1,
 		},
 		{
-			name:        "group with fewer on-demand instances than desired",
+			name:        "autoscalinggroup with fewer on-demand instances than desired",
 			minOnDemand: 2,
 			instances: makeInstancesWithCatalog(instanceMap{
 				"i-1": &instance{
-					Instance: &ec2.Instance{
-						State: &ec2.InstanceState{
-							Name: aws.String("running"),
+					Instance: &ec2Types.Instance{
+						State: &ec2Types.InstanceState{
+							Name: "running",
 						},
 					},
 				},
@@ -1277,8 +1280,8 @@ func Test_autoScalingGroup_needReplaceOnDemandInstances(t *testing.T) {
 func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 	asgNoInstances := autoScalingGroup{
 		spotProduct: aws.String(LinuxSpotProduct),
-		Group: &autoscaling.Group{
-			DesiredCapacity: aws.Int64(0),
+		AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+			DesiredCapacity: aws.Int32(0),
 		},
 		region: &region{
 			conf: &Config{
@@ -1295,14 +1298,14 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 
 	asgCantTerminateOnDemandInstance := autoScalingGroup{
 		spotProduct: aws.String(LinuxSpotProduct),
-		Group: &autoscaling.Group{
-			DesiredCapacity: aws.Int64(1),
-			Instances: []*autoscaling.Instance{
+		AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+			DesiredCapacity: aws.Int32(1),
+			Instances: []autoscalingTypes.Instance{
 				{
 					InstanceId:           aws.String("i-ondemand"),
 					InstanceType:         aws.String("m5.large"),
 					ProtectedFromScaleIn: aws.Bool(false),
-					LifecycleState:       aws.String("Running"),
+					LifecycleState:       "running",
 				},
 			},
 		},
@@ -1330,16 +1333,16 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 			instances: makeInstancesWithCatalog(
 				instanceMap{
 					"i-ondemand": {
-						Instance: &ec2.Instance{
+						Instance: &ec2Types.Instance{
 							InstanceId:   aws.String("i-ondemand"),
-							InstanceType: aws.String("m5.large"),
+							InstanceType: "m5.large",
 							ImageId:      aws.String("ami-12345678"),
 
-							Placement: &ec2.Placement{
+							Placement: &ec2Types.Placement{
 								AvailabilityZone: aws.String("us-east-1a"),
 							},
-							State: &ec2.InstanceState{
-								Name: ec2.InstanceStateNameRunning,
+							State: &ec2Types.InstanceState{
+								Name: ec2Types.InstanceStateNameRunning,
 							},
 						},
 						odPrice: 30.3,
@@ -1356,11 +1359,11 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 					},
 				}),
 			services: connections{
-				ec2: mockEC2{
+				ec2: mockEC2Client{
 					diao: &ec2.DescribeInstanceAttributeOutput{},
 
 					damio: &ec2.DescribeImagesOutput{
-						Images: []*ec2.Image{
+						Images: []ec2Types.Image{
 							{
 								PlatformDetails: aws.String(LinuxSpotProduct),
 								ImageId:         aws.String("ami-12345678"),
@@ -1374,14 +1377,14 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 
 	asgTerminateOnDemandInstance := autoScalingGroup{
 
-		Group: &autoscaling.Group{
-			DesiredCapacity: aws.Int64(1),
-			Instances: []*autoscaling.Instance{
+		AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+			DesiredCapacity: aws.Int32(1),
+			Instances: []autoscalingTypes.Instance{
 				{
 					InstanceId:           aws.String("i-ondemand"),
 					InstanceType:         aws.String("m5.large"),
 					ProtectedFromScaleIn: aws.Bool(false),
-					LifecycleState:       aws.String("Running"),
+					LifecycleState:       "running",
 				},
 			},
 		},
@@ -1410,15 +1413,15 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 			instances: makeInstancesWithCatalog(
 				instanceMap{
 					"i-ondemand": {
-						Instance: &ec2.Instance{
+						Instance: &ec2Types.Instance{
 							InstanceId:   aws.String("i-ondemand"),
-							InstanceType: aws.String("m5.large"),
+							InstanceType: "m5.large",
 							ImageId:      aws.String("ami-12345678"),
-							Placement: &ec2.Placement{
+							Placement: &ec2Types.Placement{
 								AvailabilityZone: aws.String("us-east-1a"),
 							},
-							State: &ec2.InstanceState{
-								Name: ec2.InstanceStateNameRunning,
+							State: &ec2Types.InstanceState{
+								Name: ec2Types.InstanceStateNameRunning,
 							},
 						},
 						odPrice: 30.3,
@@ -1435,10 +1438,10 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 					},
 				}),
 			services: connections{
-				ec2: mockEC2{
+				ec2: mockEC2Client{
 					diao: &ec2.DescribeInstanceAttributeOutput{},
 					damio: &ec2.DescribeImagesOutput{
-						Images: []*ec2.Image{
+						Images: []ec2Types.Image{
 							{
 								PlatformDetails: aws.String(LinuxSpotProduct),
 								ImageId:         aws.String("ami-12345678"),
@@ -1458,8 +1461,8 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 		{name: "should not run",
 
 			asg: &autoScalingGroup{
-				spotProduct: aws.String(LinuxSpotProduct),
-				Group:       &autoscaling.Group{},
+				spotProduct:      aws.String(LinuxSpotProduct),
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{},
 				region: &region{
 					conf: &Config{
 						AutoScalingConfig: AutoScalingConfig{
@@ -1514,8 +1517,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		{
 			name: "Case 1: No instances, should return false",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{},
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{},
 				},
 				config: AutoScalingConfig{
 					NumberOfInstanceTypesPerAZ: 3,
@@ -1528,8 +1531,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		{
 			name: "Case 2: Instances present but different AZ, should return false",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{
 							InstanceId:       aws.String("i-spot1"),
 							InstanceType:     aws.String("t2.micro"),
@@ -1549,16 +1552,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot1": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot1"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1574,16 +1577,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot2": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot2"),
-									InstanceType:      aws.String("t3.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t3.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1609,8 +1612,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		{
 			name: "Case 3: Instances present in same AZ, but different types and below limit, should return false",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{
 							InstanceId:       aws.String("i-spot1"),
 							InstanceType:     aws.String("t2.micro"),
@@ -1630,16 +1633,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot1": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot1"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1655,16 +1658,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot2": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot2"),
-									InstanceType:      aws.String("t3.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t3.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1689,8 +1692,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		{
 			name: "Case 4: Instances present in same AZ, and would be too many of the same type, should return true",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{
 							InstanceId:       aws.String("i-spot1"),
 							InstanceType:     aws.String("t2.micro"),
@@ -1710,16 +1713,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot1": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot1"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1735,16 +1738,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot2": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot2"),
-									InstanceType:      aws.String("t3.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t3.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1769,8 +1772,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		{
 			name: "Case 5: Instances present in same AZ, different type, but exceeds limit, should return false",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 
 						{
 							InstanceId:       aws.String("i-spot1"),
@@ -1796,16 +1799,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot1": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot1"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1821,16 +1824,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot2": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot2"),
-									InstanceType:      aws.String("t3.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t3.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1846,16 +1849,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot3": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot3"),
-									InstanceType:      aws.String("m3.large"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "m3.large",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1879,10 +1882,10 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		},
 
 		{
-			name: "Case 6: Instances present in same AZ, same type, exceeds limit but wouldn't imbalance the group, should return false",
+			name: "Case 6: Instances present in same AZ, same type, exceeds limit but wouldn't imbalance the autoscalinggroup, should return false",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{
 							InstanceId:       aws.String("i-spot4"),
 							InstanceType:     aws.String("t2.micro"),
@@ -1907,16 +1910,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot4": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot4"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1932,16 +1935,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot5": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot5"),
-									InstanceType:      aws.String("t3.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t3.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1957,16 +1960,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot6": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot6"),
-									InstanceType:      aws.String("m5.large"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "m5.large",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -1990,10 +1993,10 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		},
 
 		{
-			name: "Case 7: Instances present in same AZ, same type, exceeds limit and would imbalance the group, should return true",
+			name: "Case 7: Instances present in same AZ, same type, exceeds limit and would imbalance the autoscalinggroup, should return true",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{
 							InstanceId:       aws.String("i-spot4"),
 							InstanceType:     aws.String("t2.micro"),
@@ -2023,16 +2026,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot4": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot4"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2048,16 +2051,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot5": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot5"),
-									InstanceType:      aws.String("t3.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t3.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2073,16 +2076,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot6": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot6"),
-									InstanceType:      aws.String("m5.large"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "m5.large",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2098,16 +2101,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot7": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot7"),
-									InstanceType:      aws.String("m5.large"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "m5.large",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2131,10 +2134,10 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		},
 
 		{
-			name: "Case 8: Instances present in same AZ, same type, exceeds limit and would not imbalance the group, should return false",
+			name: "Case 8: Instances present in same AZ, same type, exceeds limit and would not imbalance the autoscalinggroup, should return false",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{
 							InstanceId:       aws.String("i-spot4"),
 							InstanceType:     aws.String("t2.micro"),
@@ -2164,16 +2167,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot4": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot4"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2189,16 +2192,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot5": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot5"),
-									InstanceType:      aws.String("t3.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t3.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2214,16 +2217,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot6": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot6"),
-									InstanceType:      aws.String("m5.large"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "m5.large",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 2.0,
@@ -2239,16 +2242,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot7": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot7"),
-									InstanceType:      aws.String("c5.large"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "c5.large",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 2.5,
@@ -2274,8 +2277,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		{
 			name: "Case 9: Multiple instances in same AZ and of same type, below limit, should return true",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{InstanceId: aws.String("i-spot4"), InstanceType: aws.String("t2.micro"), AvailabilityZone: aws.String("us-east-1a")},
 						{InstanceId: aws.String("i-spot5"), InstanceType: aws.String("t2.micro"), AvailabilityZone: aws.String("us-east-1a")},
 					},
@@ -2287,16 +2290,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot4": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot4"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2312,16 +2315,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot5": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot5"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2347,8 +2350,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		{
 			name: "Case 10: Multiple instances of different types in same AZ, just hitting the limit, should return false",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{
 							InstanceId:       aws.String("i-spot4"),
 							InstanceType:     aws.String("t2.micro"),
@@ -2373,16 +2376,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot4": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot4"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2398,16 +2401,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot5": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot5"),
-									InstanceType:      aws.String("t3.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t3.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2423,16 +2426,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot6": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot6"),
-									InstanceType:      aws.String("m5.large"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "m5.large",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2458,8 +2461,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		{
 			name: "Case 11: Multiple instances in different AZs of the same type, should return true",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{
 							InstanceId:       aws.String("i-spot4"),
 							InstanceType:     aws.String("t2.micro"),
@@ -2479,16 +2482,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot4": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot4"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2504,16 +2507,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot5": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot5"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2539,8 +2542,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		{
 			name: "Case 12: Instances exceed limit in one AZ but not the other, should return true",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{
 							InstanceId:       aws.String("i-spot1"),
 							InstanceType:     aws.String("t2.micro"),
@@ -2580,17 +2583,17 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot1": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:   aws.String("i-spot1"),
-									InstanceType: aws.String("t2.micro"),
+									InstanceType: "t2.micro",
 									ImageId:      aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
-									InstanceLifecycle: aws.String("spot"),
+									InstanceLifecycle: "spot",
 								},
 								odPrice: 1.0,
 								typeInfo: instanceTypeInformation{
@@ -2605,17 +2608,17 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot2": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:   aws.String("i-spot2"),
-									InstanceType: aws.String("t2.micro"),
+									InstanceType: "t2.micro",
 									ImageId:      aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
-									InstanceLifecycle: aws.String("spot"),
+									InstanceLifecycle: "spot",
 								},
 								odPrice: 1.0,
 								typeInfo: instanceTypeInformation{
@@ -2630,17 +2633,17 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot3": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:   aws.String("i-spot3"),
-									InstanceType: aws.String("t3.micro"),
+									InstanceType: "t3.micro",
 									ImageId:      aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
-									InstanceLifecycle: aws.String("spot"),
+									InstanceLifecycle: "spot",
 								},
 								odPrice: 1.0,
 								typeInfo: instanceTypeInformation{
@@ -2655,17 +2658,17 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot4": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:   aws.String("i-spot4"),
-									InstanceType: aws.String("m5.large"),
+									InstanceType: "m5.large",
 									ImageId:      aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
-									InstanceLifecycle: aws.String("spot"),
+									InstanceLifecycle: "spot",
 								},
 								odPrice: 1.0,
 								typeInfo: instanceTypeInformation{
@@ -2680,17 +2683,17 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot5": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:   aws.String("i-spot5"),
-									InstanceType: aws.String("t2.micro"),
+									InstanceType: "t2.micro",
 									ImageId:      aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
-									InstanceLifecycle: aws.String("spot"),
+									InstanceLifecycle: "spot",
 								},
 								odPrice: 1.0,
 								typeInfo: instanceTypeInformation{
@@ -2705,17 +2708,17 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot6": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:   aws.String("i-spot6"),
-									InstanceType: aws.String("t3.micro"),
+									InstanceType: "t3.micro",
 									ImageId:      aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
-									InstanceLifecycle: aws.String("spot"),
+									InstanceLifecycle: "spot",
 								},
 								odPrice: 1.0,
 								typeInfo: instanceTypeInformation{
@@ -2741,8 +2744,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		{
 			name: "Case 13: Instances exceed limit in one AZ but not the other, should return true",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{
 							InstanceId:       aws.String("i-spot6"),
 							InstanceType:     aws.String("t2.micro"),
@@ -2782,16 +2785,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot6": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot6"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2807,16 +2810,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot7": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot7"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2832,16 +2835,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot8": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot8"),
-									InstanceType:      aws.String("t3.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t3.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2857,16 +2860,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot9": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot9"),
-									InstanceType:      aws.String("m5.large"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "m5.large",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1a"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2882,16 +2885,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot10": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot10"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2907,16 +2910,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 								},
 							},
 							"i-spot11": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot11"),
-									InstanceType:      aws.String("t3.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t3.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,
@@ -2942,8 +2945,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 		{
 			name: "Case 14: No instances in the desired AZ, but instances of the desired type in another AZ, should return false",
 			asg: autoScalingGroup{
-				Group: &autoscaling.Group{
-					Instances: []*autoscaling.Instance{
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					Instances: []autoscalingTypes.Instance{
 						{
 							InstanceId:       aws.String("i-spot11"),
 							InstanceType:     aws.String("t2.micro"),
@@ -2958,16 +2961,16 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"i-spot11": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("i-spot11"),
-									InstanceType:      aws.String("t2.micro"),
-									InstanceLifecycle: aws.String("spot"),
+									InstanceType:      "t2.micro",
+									InstanceLifecycle: "spot",
 									ImageId:           aws.String("ami-12345678"),
-									Placement: &ec2.Placement{
+									Placement: &ec2Types.Placement{
 										AvailabilityZone: aws.String("us-east-1b"),
 									},
-									State: &ec2.InstanceState{
-										Name: ec2.InstanceStateNameRunning,
+									State: &ec2Types.InstanceState{
+										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
 								odPrice: 1.0,

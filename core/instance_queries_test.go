@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -18,31 +18,31 @@ func TestIsSpot(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		lifeCycle *string
+		lifeCycle string
 		expected  bool
 	}{
 		{name: "LifeCycle is nil",
-			lifeCycle: nil,
+			lifeCycle: "",
 			expected:  false,
 		},
 		{name: "LifeCycle is not nil but not spot",
-			lifeCycle: aws.String("something"),
+			lifeCycle: "something",
 			expected:  false,
 		},
 		{name: "LifeCycle is not nil and is spot",
-			lifeCycle: aws.String(Spot),
+			lifeCycle: Spot,
 			expected:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := &instance{Instance: &ec2.Instance{}}
-			i.InstanceLifecycle = tt.lifeCycle
+			i := &instance{Instance: &ec2Types.Instance{}}
+			i.InstanceLifecycle = ec2Types.InstanceLifecycleType(tt.lifeCycle)
 			retValue := i.isSpot()
 			if retValue != tt.expected {
-				if tt.lifeCycle != nil {
-					t.Errorf("Value received for '%v': %t expected %t", *tt.lifeCycle, retValue, tt.expected)
+				if tt.lifeCycle != "" {
+					t.Errorf("Value received for '%v': %t expected %t", tt.lifeCycle, retValue, tt.expected)
 				} else {
 					t.Errorf("Value received for '%v': %t expected %t", tt.lifeCycle, retValue, tt.expected)
 				}
@@ -128,8 +128,8 @@ func TestIsEBSCompatible(t *testing.T) {
 				EBSThroughput: 100,
 			},
 			instanceInfo: instance{
-				Instance: &ec2.Instance{
-					InstanceType: aws.String("c3.foo"),
+				Instance: &ec2Types.Instance{
+					InstanceType: "c3.foo",
 				},
 				typeInfo: instanceTypeInformation{
 					EBSThroughput: 200,
@@ -250,8 +250,8 @@ func TestIsPriceCompatible(t *testing.T) {
 				asg: &autoScalingGroup{
 					spotProduct: aws.String(LinuxSpotProduct),
 				},
-				Instance: &ec2.Instance{
-					Placement: &ec2.Placement{
+				Instance: &ec2Types.Instance{
+					Placement: &ec2Types.Placement{
 						AvailabilityZone: tt.availabilityZone,
 					}},
 				odPrice: tt.instancePrice,
@@ -488,41 +488,41 @@ func TestIsVirtualizationCompatible(t *testing.T) {
 	tests := []struct {
 		name                       string
 		spotVirtualizationTypes    []string
-		instanceVirtualizationType *string
+		instanceVirtualizationType string
 		expected                   bool
 	}{
 		{name: "Spot's virtualization includes instance's one (pv case)",
 			spotVirtualizationTypes:    []string{"PV", "HVM"},
-			instanceVirtualizationType: aws.String("paravirtual"),
+			instanceVirtualizationType: "paravirtual",
 			expected:                   true,
 		},
 		{name: "Spot's virtualization includes instance's one (hvm case)",
 			spotVirtualizationTypes:    []string{"PV", "HVM"},
-			instanceVirtualizationType: aws.String("hvm"),
+			instanceVirtualizationType: "hvm",
 			expected:                   true,
 		},
 		{name: "Spot's virtualization does not include any type",
 			spotVirtualizationTypes:    []string{},
-			instanceVirtualizationType: aws.String("hvm"),
+			instanceVirtualizationType: "hvm",
 			expected:                   true,
 		},
 		{name: "Spot's virtualization doesn't include instance's one (pv case)",
 			spotVirtualizationTypes:    []string{"HVM"},
-			instanceVirtualizationType: aws.String("paravirtual"),
+			instanceVirtualizationType: "paravirtual",
 			expected:                   false,
 		},
 		{name: "Spot's virtualization doesn't include instance's one (hvm case)",
 			spotVirtualizationTypes:    []string{"PV"},
-			instanceVirtualizationType: aws.String("hvm"),
+			instanceVirtualizationType: "hvm",
 			expected:                   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := &instance{Instance: &ec2.Instance{
-				VirtualizationType: tt.instanceVirtualizationType,
-				InstanceType:       aws.String("dummy"),
+			i := &instance{Instance: &ec2Types.Instance{
+				VirtualizationType: ec2Types.VirtualizationType(tt.instanceVirtualizationType),
+				InstanceType:       "dummy",
 			}}
 			retValue := i.isVirtualizationCompatible(tt.spotVirtualizationTypes)
 			if retValue != tt.expected {
@@ -604,11 +604,11 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				},
 			},
 			instanceInfo: &instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId:         aws.String("i-dummy"),
-					InstanceType:       aws.String("typeX"),
-					VirtualizationType: aws.String("paravirtual"),
-					Placement: &ec2.Placement{
+					InstanceType:       "typeX",
+					VirtualizationType: "paravirtual",
+					Placement: &ec2Types.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
 					},
 				},
@@ -630,17 +630,17 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"id-1": {
-							Instance: &ec2.Instance{
+							Instance: &ec2Types.Instance{
 								InstanceId:        aws.String("id-1"),
-								InstanceType:      aws.String("typeX"),
-								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
-								InstanceLifecycle: aws.String(Spot),
+								InstanceType:      "typeX",
+								Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1")},
+								InstanceLifecycle: Spot,
 							},
 						},
 					},
 				),
-				Group: &autoscaling.Group{
-					DesiredCapacity: aws.Int64(4),
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					DesiredCapacity: aws.Int32(4),
 				},
 			},
 			expectedCandidateList: []string{"type1", "type2"},
@@ -688,11 +688,11 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				},
 			},
 			instanceInfo: &instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId:         aws.String("i-dummy"),
-					InstanceType:       aws.String("typeX"),
-					VirtualizationType: aws.String("paravirtual"),
-					Placement: &ec2.Placement{
+					InstanceType:       "typeX",
+					VirtualizationType: "paravirtual",
+					Placement: &ec2Types.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
 					},
 				},
@@ -717,17 +717,17 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 							typeInfo: instanceTypeInformation{
 								PhysicalProcessor: "Intel",
 							},
-							Instance: &ec2.Instance{
+							Instance: &ec2Types.Instance{
 								InstanceId:        aws.String("id-1"),
-								InstanceType:      aws.String("typeX"),
-								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
-								InstanceLifecycle: aws.String(Spot),
+								InstanceType:      "typeX",
+								Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1")},
+								InstanceLifecycle: Spot,
 							},
 						},
 					},
 				),
-				Group: &autoscaling.Group{
-					DesiredCapacity: aws.Int64(4),
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					DesiredCapacity: aws.Int32(4),
 				},
 			},
 			disallowedList:        "type*",
@@ -776,11 +776,11 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				},
 			},
 			instanceInfo: &instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId:         aws.String("i-dummy"),
-					InstanceType:       aws.String("typeX"),
-					VirtualizationType: aws.String("paravirtual"),
-					Placement: &ec2.Placement{
+					InstanceType:       "typeX",
+					VirtualizationType: "paravirtual",
+					Placement: &ec2Types.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
 					},
 				},
@@ -802,17 +802,17 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"id-1": {
-							Instance: &ec2.Instance{
+							Instance: &ec2Types.Instance{
 								InstanceId:        aws.String("id-1"),
-								InstanceType:      aws.String("typeX"),
-								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
-								InstanceLifecycle: aws.String(Spot),
+								InstanceType:      "typeX",
+								Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1")},
+								InstanceLifecycle: Spot,
 							},
 						},
 					},
 				),
-				Group: &autoscaling.Group{
-					DesiredCapacity: aws.Int64(4),
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					DesiredCapacity: aws.Int32(4),
 				},
 			},
 			allowedList:           "asdf*",
@@ -861,11 +861,11 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				},
 			},
 			instanceInfo: &instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId:         aws.String("i-dummy"),
-					InstanceType:       aws.String("typeX"),
-					VirtualizationType: aws.String("paravirtual"),
-					Placement: &ec2.Placement{
+					InstanceType:       "typeX",
+					VirtualizationType: "paravirtual",
+					Placement: &ec2Types.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
 					},
 				},
@@ -887,17 +887,17 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"id-1": {
-							Instance: &ec2.Instance{
+							Instance: &ec2Types.Instance{
 								InstanceId:        aws.String("id-1"),
-								InstanceType:      aws.String("typeX"),
-								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
-								InstanceLifecycle: aws.String(Spot),
+								InstanceType:      "typeX",
+								Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1")},
+								InstanceLifecycle: Spot,
 							},
 						},
 					},
 				),
-				Group: &autoscaling.Group{
-					DesiredCapacity: aws.Int64(4),
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					DesiredCapacity: aws.Int32(4),
 				},
 			},
 
@@ -947,11 +947,11 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				},
 			},
 			instanceInfo: &instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId:         aws.String("i-dummy"),
-					InstanceType:       aws.String("typeX"),
-					VirtualizationType: aws.String("paravirtual"),
-					Placement: &ec2.Placement{
+					InstanceType:       "typeX",
+					VirtualizationType: "paravirtual",
+					Placement: &ec2Types.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
 					},
 				},
@@ -973,18 +973,18 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"id-1": {
-							Instance: &ec2.Instance{
+							Instance: &ec2Types.Instance{
 								InstanceId:        aws.String("id-1"),
-								InstanceType:      aws.String("typeX"),
-								Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
-								InstanceLifecycle: aws.String(Spot),
+								InstanceType:      "typeX",
+								Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1")},
+								InstanceLifecycle: Spot,
 							},
 							odPrice: 0.45,
 						},
 					},
 				),
-				Group: &autoscaling.Group{
-					DesiredCapacity: aws.Int64(4),
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					DesiredCapacity: aws.Int32(4),
 				},
 			},
 			expectedCandidateList: nil,
@@ -1002,7 +1002,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 			retValue, err := i.getCompatibleSpotInstanceTypesList("", allowedList, disallowedList)
 			var retInstTypes []string
 			for _, retval := range retValue {
-				retInstTypes = append(retInstTypes, *retval)
+				retInstTypes = append(retInstTypes, retval)
 			}
 			if err == nil && tt.expectedError != err {
 				t.Errorf("1 Error received: %v expected %v", err, tt.expectedError.Error())
@@ -1086,7 +1086,7 @@ func TestGetPriceToBid(t *testing.T) {
 				name: "us-east-1",
 				conf: cfg,
 			},
-			Instance: &ec2.Instance{
+			Instance: &ec2Types.Instance{
 				InstanceId: aws.String("i-0000000"),
 			},
 		}
@@ -1273,7 +1273,7 @@ func Test_instance_isUnattachedSpotInstanceLaunchedForAnEnabledASG(t *testing.T)
 		{
 			name: "on-demand instance",
 			i: &instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId: aws.String("id-1"),
 				},
 				region: &region{
@@ -1284,9 +1284,9 @@ func Test_instance_isUnattachedSpotInstanceLaunchedForAnEnabledASG(t *testing.T)
 								instances: makeInstancesWithCatalog(
 									instanceMap{
 										"id-2": {
-											Instance: &ec2.Instance{
+											Instance: &ec2Types.Instance{
 												InstanceId: aws.String("id-2"),
-												Tags:       []*ec2.Tag{},
+												Tags:       []ec2Types.Tag{},
 											},
 										},
 									},
@@ -1302,10 +1302,10 @@ func Test_instance_isUnattachedSpotInstanceLaunchedForAnEnabledASG(t *testing.T)
 		{
 			name: "unattached spot instance launched for another ASG",
 			i: &instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId:        aws.String("id-1"),
-					InstanceLifecycle: aws.String("spot"),
-					Tags: []*ec2.Tag{{
+					InstanceLifecycle: Spot,
+					Tags: []ec2Types.Tag{{
 						Key:   aws.String("launched-for-asg"),
 						Value: aws.String("another-asg"),
 					},
@@ -1319,9 +1319,9 @@ func Test_instance_isUnattachedSpotInstanceLaunchedForAnEnabledASG(t *testing.T)
 								instances: makeInstancesWithCatalog(
 									instanceMap{
 										"id-2": {
-											Instance: &ec2.Instance{
+											Instance: &ec2Types.Instance{
 												InstanceId: aws.String("id-2"),
-												Tags:       []*ec2.Tag{},
+												Tags:       []ec2Types.Tag{},
 											},
 										},
 									},
@@ -1337,10 +1337,10 @@ func Test_instance_isUnattachedSpotInstanceLaunchedForAnEnabledASG(t *testing.T)
 		{
 			name: "unattached spot instance launched for this ASG",
 			i: &instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId:        aws.String("id-1"),
-					InstanceLifecycle: aws.String("spot"),
-					Tags: []*ec2.Tag{{
+					InstanceLifecycle: Spot,
+					Tags: []ec2Types.Tag{{
 						Key:   aws.String("launched-for-asg"),
 						Value: aws.String("mygroup"),
 					},
@@ -1354,18 +1354,18 @@ func Test_instance_isUnattachedSpotInstanceLaunchedForAnEnabledASG(t *testing.T)
 								instances: makeInstancesWithCatalog(
 									instanceMap{
 										"id-2": {
-											Instance: &ec2.Instance{
+											Instance: &ec2Types.Instance{
 												InstanceId: aws.String("id-2"),
-												Tags:       []*ec2.Tag{},
+												Tags:       []ec2Types.Tag{},
 											},
 										},
 									},
 								),
 							},
-							Group: &autoscaling.Group{
+							AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
 								// AutoScalingGroupName: "",
 
-								Instances: []*autoscaling.Instance{
+								Instances: []autoscalingTypes.Instance{
 									{
 										InstanceId: aws.String("id-2"),
 									},
@@ -1381,10 +1381,10 @@ func Test_instance_isUnattachedSpotInstanceLaunchedForAnEnabledASG(t *testing.T)
 		{
 			name: "already attached spot instance launched for this ASG",
 			i: &instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId:        aws.String("id-1"),
-					InstanceLifecycle: aws.String("spot"),
-					Tags: []*ec2.Tag{{
+					InstanceLifecycle: Spot,
+					Tags: []ec2Types.Tag{{
 						Key:   aws.String("launched-for-asg"),
 						Value: aws.String("mygroup"),
 					},
@@ -1398,18 +1398,18 @@ func Test_instance_isUnattachedSpotInstanceLaunchedForAnEnabledASG(t *testing.T)
 								instances: makeInstancesWithCatalog(
 									instanceMap{
 										"id-2": {
-											Instance: &ec2.Instance{
+											Instance: &ec2Types.Instance{
 												InstanceId: aws.String("id-1"),
-												Tags:       []*ec2.Tag{},
+												Tags:       []ec2Types.Tag{},
 											},
 										},
 									},
 								),
 							},
-							Group: &autoscaling.Group{
+							AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
 								// AutoScalingGroupName: "",
 
-								Instances: []*autoscaling.Instance{
+								Instances: []autoscalingTypes.Instance{
 									{
 										InstanceId: aws.String("id-1"),
 									},
@@ -1466,20 +1466,20 @@ func Test_instance_getReplacementTargetASGName(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		instance *ec2.Instance
+		instance *ec2Types.Instance
 		want     *string
 	}{
 		{
 			name: "instance has no tags",
-			instance: &ec2.Instance{
+			instance: &ec2Types.Instance{
 				Tags: nil,
 			},
 			want: nil,
 		},
 		{
 			name: "instance has the expected tag",
-			instance: &ec2.Instance{
-				Tags: []*ec2.Tag{
+			instance: &ec2Types.Instance{
+				Tags: []ec2Types.Tag{
 					{
 						Key:   aws.String("launched-for-asg"),
 						Value: aws.String("mygroup"),

@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go/aws"
 )
 
 func TestMake(t *testing.T) {
@@ -31,31 +31,31 @@ func TestAdd(t *testing.T) {
 	}{
 		{name: "map contains a nil pointer",
 			catalog: instanceMap{
-				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"inst1": {Instance: &ec2Types.Instance{InstanceId: aws.String("1")}},
 				"inst2": nil,
 			},
 			expected: instanceMap{
-				"1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"1": {Instance: &ec2Types.Instance{InstanceId: aws.String("1")}},
 			},
 		},
 		{name: "map has 1 instance",
 			catalog: instanceMap{
-				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"inst1": {Instance: &ec2Types.Instance{InstanceId: aws.String("1")}},
 			},
 			expected: instanceMap{
-				"1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
+				"1": {Instance: &ec2Types.Instance{InstanceId: aws.String("1")}},
 			},
 		},
 		{name: "map has several instances",
 			catalog: instanceMap{
-				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
-				"inst2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
-				"inst3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+				"inst1": {Instance: &ec2Types.Instance{InstanceId: aws.String("1")}},
+				"inst2": {Instance: &ec2Types.Instance{InstanceId: aws.String("2")}},
+				"inst3": {Instance: &ec2Types.Instance{InstanceId: aws.String("3")}},
 			},
 			expected: instanceMap{
-				"1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
-				"2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
-				"3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+				"1": {Instance: &ec2Types.Instance{InstanceId: aws.String("1")}},
+				"2": {Instance: &ec2Types.Instance{InstanceId: aws.String("2")}},
+				"3": {Instance: &ec2Types.Instance{InstanceId: aws.String("3")}},
 			},
 		},
 	}
@@ -83,18 +83,18 @@ func TestGet(t *testing.T) {
 	}{
 		{name: "map contains the required instance",
 			catalog: instanceMap{
-				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
-				"inst2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
-				"inst3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+				"inst1": {Instance: &ec2Types.Instance{InstanceId: aws.String("1")}},
+				"inst2": {Instance: &ec2Types.Instance{InstanceId: aws.String("2")}},
+				"inst3": {Instance: &ec2Types.Instance{InstanceId: aws.String("3")}},
 			},
 			idToGet:  "inst2",
-			expected: &instance{Instance: &ec2.Instance{InstanceId: aws.String("2")}},
+			expected: &instance{Instance: &ec2Types.Instance{InstanceId: aws.String("2")}},
 		},
 		{name: "catalog doesn't contain the instance",
 			catalog: instanceMap{
-				"inst1": {Instance: &ec2.Instance{InstanceId: aws.String("1")}},
-				"inst2": {Instance: &ec2.Instance{InstanceId: aws.String("2")}},
-				"inst3": {Instance: &ec2.Instance{InstanceId: aws.String("3")}},
+				"inst1": {Instance: &ec2Types.Instance{InstanceId: aws.String("1")}},
+				"inst2": {Instance: &ec2Types.Instance{InstanceId: aws.String("2")}},
+				"inst3": {Instance: &ec2Types.Instance{InstanceId: aws.String("3")}},
 			},
 			idToGet:  "7",
 			expected: nil,

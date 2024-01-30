@@ -6,31 +6,32 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
 func TestTerminate(t *testing.T) {
 	tests := []struct {
 		name     string
-		tags     []*ec2.Tag
+		tags     []*ec2Types.Tag
 		inst     *instance
 		expected error
 	}{
 		{
 			name: "no issue with terminate",
-			tags: []*ec2.Tag{},
+			tags: []*ec2Types.Tag{},
 			inst: &instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId: aws.String("id1"),
-					State: &ec2.InstanceState{
-						Name: aws.String(ec2.InstanceStateNameRunning),
+					State: &ec2Types.InstanceState{
+						Name: ec2Types.InstanceStateNameRunning,
 					},
 				},
 				region: &region{
 					services: connections{
-						ec2: mockEC2{
+						ec2: mockEC2Client{
 							tierr: nil,
 						},
 					},
@@ -40,17 +41,17 @@ func TestTerminate(t *testing.T) {
 		},
 		{
 			name: "issue with terminate",
-			tags: []*ec2.Tag{},
+			tags: []*ec2Types.Tag{},
 			inst: &instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId: aws.String("id1"),
-					State: &ec2.InstanceState{
-						Name: aws.String(ec2.InstanceStateNameRunning),
+					State: &ec2Types.InstanceState{
+						Name: ec2Types.InstanceStateNameRunning,
 					},
 				},
 				region: &region{
 					services: connections{
-						ec2: mockEC2{
+						ec2: mockEC2Client{
 							tierr: errors.New(""),
 						},
 					},
@@ -78,10 +79,10 @@ func Test_instance_handleInstanceStates(t *testing.T) {
 		{
 			name: "not running instance",
 			instance: instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId: aws.String("i-dummy"),
-					State: &ec2.InstanceState{
-						Name: aws.String("stopped"),
+					State: &ec2Types.InstanceState{
+						Name: ec2Types.InstanceStateNameStopped,
 					},
 				},
 				region: &region{
@@ -94,10 +95,10 @@ func Test_instance_handleInstanceStates(t *testing.T) {
 		{
 			name: "running instance",
 			instance: instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId: aws.String("i-dummy"),
-					State: &ec2.InstanceState{
-						Name: aws.String("running"),
+					State: &ec2Types.InstanceState{
+						Name: ec2Types.InstanceStateNameRunning,
 					},
 				},
 				region: &region{
@@ -140,11 +141,11 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 		{
 			name: "happy-path-no-errors",
 			instance: instance{
-				Instance: &ec2.Instance{
+				Instance: &ec2Types.Instance{
 					InstanceId:         aws.String("i-dummy"),
-					InstanceType:       aws.String("t2.micro"),
-					VirtualizationType: aws.String("paravirtual"),
-					Placement: &ec2.Placement{
+					InstanceType:       ec2Types.InstanceTypeT2Micro,
+					VirtualizationType: ec2Types.VirtualizationTypeParavirtual,
+					Placement: &ec2Types.Placement{
 						AvailabilityZone: aws.String("eu-central-1"),
 					},
 				},
@@ -166,9 +167,9 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 				odPrice: 0.75,
 				asg: &autoScalingGroup{
 					spotProduct: aws.String(LinuxSpotProduct),
-					Group: &autoscaling.Group{
-						DesiredCapacity: aws.Int64(4),
-						Instances: []*autoscaling.Instance{
+					AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+						DesiredCapacity: aws.Int32(4),
+						Instances: []autoscalingTypes.Instance{
 							{
 								InstanceId:       aws.String("id-1"),
 								InstanceType:     aws.String("typeX"),
@@ -179,11 +180,11 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 					instances: makeInstancesWithCatalog(
 						instanceMap{
 							"id-1": {
-								Instance: &ec2.Instance{
+								Instance: &ec2Types.Instance{
 									InstanceId:        aws.String("id-1"),
-									InstanceType:      aws.String("typeX"),
-									Placement:         &ec2.Placement{AvailabilityZone: aws.String("eu-west-1")},
-									InstanceLifecycle: aws.String(Spot),
+									InstanceType:      "typeX",
+									Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1")},
+									InstanceLifecycle: Spot,
 								},
 							},
 						},
@@ -261,13 +262,13 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 						},
 					},
 					services: connections{
-						ec2: mockEC2{
+						ec2: mockEC2Client{
 							cferr: nil,
 							cfo: &ec2.CreateFleetOutput{
-								Instances: []*ec2.CreateFleetInstance{
+								Instances: []ec2Types.CreateFleetInstance{
 									{
-										InstanceIds: []*string{
-											aws.String("i-dummy-spot-instance-id"),
+										InstanceIds: []string{
+											"i-dummy-spot-instance-id",
 										},
 									},
 								},

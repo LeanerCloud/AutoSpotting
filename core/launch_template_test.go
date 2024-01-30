@@ -6,8 +6,8 @@ package autospotting
 import (
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go/aws"
 )
 
 func Test_countLaunchTemplateEphemeralVolumes(t *testing.T) {
@@ -24,9 +24,9 @@ func Test_countLaunchTemplateEphemeralVolumes(t *testing.T) {
 		{
 			name: "empty BlockDeviceMappings",
 			lt: &launchTemplate{
-				LaunchTemplateVersion: &ec2.LaunchTemplateVersion{},
-				Image: &ec2.Image{
-					BlockDeviceMappings: []*ec2.BlockDeviceMapping{
+				LaunchTemplateVersion: &ec2Types.LaunchTemplateVersion{},
+				Image: &ec2Types.Image{
+					BlockDeviceMappings: []ec2Types.BlockDeviceMapping{
 						{},
 					},
 				},
@@ -36,9 +36,9 @@ func Test_countLaunchTemplateEphemeralVolumes(t *testing.T) {
 		{
 			name: "mix of valid and invalid configuration",
 			lt: &launchTemplate{
-				LaunchTemplateVersion: &ec2.LaunchTemplateVersion{},
-				Image: &ec2.Image{
-					BlockDeviceMappings: []*ec2.BlockDeviceMapping{
+				LaunchTemplateVersion: &ec2Types.LaunchTemplateVersion{},
+				Image: &ec2Types.Image{
+					BlockDeviceMappings: []ec2Types.BlockDeviceMapping{
 						{VirtualName: aws.String("ephemeral")},
 						{},
 					},
@@ -49,9 +49,9 @@ func Test_countLaunchTemplateEphemeralVolumes(t *testing.T) {
 		{
 			name: "valid configuration",
 			lt: &launchTemplate{
-				LaunchTemplateVersion: &ec2.LaunchTemplateVersion{},
-				Image: &ec2.Image{
-					BlockDeviceMappings: []*ec2.BlockDeviceMapping{
+				LaunchTemplateVersion: &ec2Types.LaunchTemplateVersion{},
+				Image: &ec2Types.Image{
+					BlockDeviceMappings: []ec2Types.BlockDeviceMapping{
 						{VirtualName: aws.String("ephemeral")},
 						{VirtualName: aws.String("ephemeral")},
 					},

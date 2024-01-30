@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	ssmTypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
+	"github.com/aws/aws-sdk-go/aws"
 )
 
 func Test_savingsStats_formatSavings(t *testing.T) {
@@ -65,7 +65,7 @@ func Test_savingsStats_calculateLast24HoursTotalSavings(t *testing.T) {
 		{
 			name: "2 dollar today and 0.3 dollar yesterday",
 			history: &savingsHistory{
-				hourlyHistory: []*ssm.ParameterHistory{
+				hourlyHistory: []*ssmTypes.ParameterHistory{
 					{
 						LastModifiedDate: &today1,
 						Value:            aws.String("0.5"),
@@ -114,7 +114,7 @@ func Test_savingsStats_calculateLast7DaysTotalSavings(t *testing.T) {
 		{
 			name: "2 dollar this week and 0.3 dollar last week hourly",
 			history: &savingsHistory{
-				hourlyHistory: []*ssm.ParameterHistory{
+				hourlyHistory: []*ssmTypes.ParameterHistory{
 					{
 						LastModifiedDate: &day1,
 						Value:            aws.String("0.5"),
@@ -138,7 +138,7 @@ func Test_savingsStats_calculateLast7DaysTotalSavings(t *testing.T) {
 		{
 			name: "2 dollar this week and 0.3 dollar last week daily",
 			history: &savingsHistory{
-				dailyHistory: []*ssm.ParameterHistory{
+				dailyHistory: []*ssmTypes.ParameterHistory{
 					{
 						LastModifiedDate: &day1,
 						Value:            aws.String("0.5"),
@@ -189,7 +189,7 @@ func Test_savingsStats_calculateLast30DaysTotalSavings(t *testing.T) {
 		{
 			name: "2 dollar this month and 0.3 dollar last month hourly",
 			history: &savingsHistory{
-				hourlyHistory: []*ssm.ParameterHistory{ // all these will be ignored in the calculation
+				hourlyHistory: []*ssmTypes.ParameterHistory{ // all these will be ignored in the calculation
 					{
 						LastModifiedDate: &day1,
 						Value:            aws.String("0.5"),
@@ -213,7 +213,7 @@ func Test_savingsStats_calculateLast30DaysTotalSavings(t *testing.T) {
 		{
 			name: "2.5 dollar this month and 0.4 dollar last month daily",
 			history: &savingsHistory{
-				dailyHistory: []*ssm.ParameterHistory{
+				dailyHistory: []*ssmTypes.ParameterHistory{
 					{
 						LastModifiedDate: &day1,
 						Value:            aws.String("1"),
@@ -267,7 +267,7 @@ func Test_savingsStats_calculateLast12MonthsTotalSavings(t *testing.T) {
 		{
 			name: "2 dollar this month and 0.3 dollar last month hourly", //ignored in the calculation
 			history: &savingsHistory{
-				hourlyHistory: []*ssm.ParameterHistory{
+				hourlyHistory: []*ssmTypes.ParameterHistory{
 					{
 						LastModifiedDate: &day1,
 						Value:            aws.String("0.5"),
@@ -291,7 +291,7 @@ func Test_savingsStats_calculateLast12MonthsTotalSavings(t *testing.T) {
 		{
 			name: "2.5 dollar this month and 0.4 dollar last month daily", //ignored in the calculation
 			history: &savingsHistory{
-				dailyHistory: []*ssm.ParameterHistory{
+				dailyHistory: []*ssmTypes.ParameterHistory{
 					{
 						LastModifiedDate: &day1,
 						Value:            aws.String("1"),
@@ -315,13 +315,13 @@ func Test_savingsStats_calculateLast12MonthsTotalSavings(t *testing.T) {
 		{
 			name: "2.5 dollar this year and 0.4 dollar last year monthly",
 			history: &savingsHistory{
-				dailyHistory: []*ssm.ParameterHistory{
+				dailyHistory: []*ssmTypes.ParameterHistory{
 					{
 						LastModifiedDate: &yesterday,
 						Value:            aws.String("3"), //ignored in the calculation
 					},
 				},
-				monthlyHistory: []*ssm.ParameterHistory{
+				monthlyHistory: []*ssmTypes.ParameterHistory{
 					{
 						LastModifiedDate: &day1,
 						Value:            aws.String("1"),

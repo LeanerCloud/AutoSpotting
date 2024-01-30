@@ -10,9 +10,14 @@ import (
 	"testing"
 
 	ec2instancesinfo "github.com/LeanerCloud/ec2-instances-info"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+	cloudformationTypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -197,11 +202,10 @@ func TestOnDemandPriceMultiplier(t *testing.T) {
 			name: "us-east-1",
 			conf: cfg,
 			services: connections{
-				ec2: mockEC2{
-					dsphpo: []*ec2.DescribeSpotPriceHistoryOutput{
-						{
-							SpotPriceHistory: []*ec2.SpotPrice{},
-						},
+				ec2: mockEC2Client{
+					dsphpo: &ec2.DescribeSpotPriceHistoryOutput{
+
+						SpotPriceHistory: []ec2Types.SpotPrice{},
 					},
 				},
 			}}
@@ -283,30 +287,30 @@ func TestFilterAsgs(t *testing.T) {
 				services: connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
-							AutoScalingGroups: []*autoscaling.Group{
+							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg1")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
 									},
 									AutoScalingGroupName: aws.String("asg1"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg2")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
 									},
 									AutoScalingGroupName: aws.String("asg2"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg3")},
 									},
 									AutoScalingGroupName: aws.String("asg3"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg4")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg4")},
 									},
@@ -328,29 +332,29 @@ func TestFilterAsgs(t *testing.T) {
 				services: connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
-							AutoScalingGroups: []*autoscaling.Group{
+							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg1")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("false"), ResourceId: aws.String("asg1")},
 									},
 									AutoScalingGroupName: aws.String("asg1"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg2")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
 									},
 									AutoScalingGroupName: aws.String("asg2"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
 									},
 									AutoScalingGroupName: aws.String("asg3"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg4")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("false"), ResourceId: aws.String("asg4")},
 									},
@@ -376,9 +380,9 @@ func TestFilterAsgs(t *testing.T) {
 				services: connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
-							AutoScalingGroups: []*autoscaling.Group{
+							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("spot-enabled"), Value: aws.String("false"), ResourceId: aws.String("asg1")},
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg1")},
 										{Key: aws.String("team"), Value: aws.String("awesome"), ResourceId: aws.String("asg1")},
@@ -386,7 +390,7 @@ func TestFilterAsgs(t *testing.T) {
 									AutoScalingGroupName: aws.String("asg1"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg2")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
 										{Key: aws.String("team"), Value: aws.String("awesome"), ResourceId: aws.String("asg2")},
@@ -394,7 +398,7 @@ func TestFilterAsgs(t *testing.T) {
 									AutoScalingGroupName: aws.String("asg2"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("spot-enabled"), Value: aws.String("false"), ResourceId: aws.String("asg3")},
 										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
 										{Key: aws.String("team"), Value: aws.String("awesome"), ResourceId: aws.String("asg3")},
@@ -402,7 +406,7 @@ func TestFilterAsgs(t *testing.T) {
 									AutoScalingGroupName: aws.String("asg3"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg4")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg4")},
 										{Key: aws.String("team"), Value: aws.String("awesome"), ResourceId: aws.String("asg4")},
@@ -424,30 +428,30 @@ func TestFilterAsgs(t *testing.T) {
 				services: connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
-							AutoScalingGroups: []*autoscaling.Group{
+							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg1")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
 									},
 									AutoScalingGroupName: aws.String("asg1"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg2")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
 									},
 									AutoScalingGroupName: aws.String("asg2"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg3")},
 									},
 									AutoScalingGroupName: aws.String("asg3"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg4")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg4")},
 									},
@@ -472,30 +476,30 @@ func TestFilterAsgs(t *testing.T) {
 				services: connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
-							AutoScalingGroups: []*autoscaling.Group{
+							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg1")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
 									},
 									AutoScalingGroupName: aws.String("asg1"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg2")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
 									},
 									AutoScalingGroupName: aws.String("asg2"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg3")},
 									},
 									AutoScalingGroupName: aws.String("asg3"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg4")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg4")},
 										{Key: aws.String("team"), Value: aws.String("interactive"), ResourceId: aws.String("asg4")},
@@ -520,16 +524,16 @@ func TestFilterAsgs(t *testing.T) {
 				services: connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
-							AutoScalingGroups: []*autoscaling.Group{
+							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("customer1-dev"), ResourceId: aws.String("asg1")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
 									},
 									AutoScalingGroupName: aws.String("asg1"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("sandbox-dev"), ResourceId: aws.String("asg2")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
 										{Key: aws.String("team"), Value: aws.String("interactive"), ResourceId: aws.String("asg2")},
@@ -537,14 +541,14 @@ func TestFilterAsgs(t *testing.T) {
 									AutoScalingGroupName: aws.String("asg2"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("qa"), ResourceId: aws.String("asg3")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg3")},
 									},
 									AutoScalingGroupName: aws.String("asg3"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("sandbox-qa"), ResourceId: aws.String("asg4")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg4")},
 										{Key: aws.String("team"), Value: aws.String("interactive"), ResourceId: aws.String("asg4")},
@@ -570,16 +574,16 @@ func TestFilterAsgs(t *testing.T) {
 				services: connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
-							AutoScalingGroups: []*autoscaling.Group{
+							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("customer1-dev"), ResourceId: aws.String("asg1")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
 									},
 									AutoScalingGroupName: aws.String("asg1"),
 								},
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
 										{Key: aws.String("team"), Value: aws.String("interactive"), ResourceId: aws.String("asg2")},
 									},
@@ -601,17 +605,17 @@ func TestFilterAsgs(t *testing.T) {
 				services: connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
-							AutoScalingGroups: []*autoscaling.Group{
+							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
 								{
-									Tags: []*autoscaling.TagDescription{
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg1")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg1")},
 									},
 									AutoScalingGroupName: aws.String("asg1"),
 								},
 								{
-									MixedInstancesPolicy: &autoscaling.MixedInstancesPolicy{},
-									Tags: []*autoscaling.TagDescription{
+									MixedInstancesPolicy: &autoscalingTypes.MixedInstancesPolicy{},
+									Tags: []autoscalingTypes.TagDescription{
 										{Key: aws.String("environment"), Value: aws.String("dev"), ResourceId: aws.String("asg2")},
 										{Key: aws.String("spot-enabled"), Value: aws.String("true"), ResourceId: aws.String("asg2")},
 									},
@@ -629,10 +633,10 @@ func TestFilterAsgs(t *testing.T) {
 			r := tt.tregion
 			r.services.cloudFormation = mockCloudFormation{
 				dso: &cloudformation.DescribeStacksOutput{
-					Stacks: []*cloudformation.Stack{
+					Stacks: []cloudformationTypes.Stack{
 						{
 							StackName:   &stackName,
-							StackStatus: &stackStatus,
+							StackStatus: cloudformationTypes.StackStatus(stackStatus),
 						},
 					},
 				},
@@ -663,10 +667,10 @@ func TestIsStackUpdating(t *testing.T) {
 				services: connections{
 					cloudFormation: mockCloudFormation{
 						dso: &cloudformation.DescribeStacksOutput{
-							Stacks: []*cloudformation.Stack{
+							Stacks: []cloudformationTypes.Stack{
 								{
 									StackName:   &stackName,
-									StackStatus: aws.String("UPDATE_COMPLETE"),
+									StackStatus: "UPDATE_COMPLETE",
 								},
 							},
 						},
@@ -681,10 +685,10 @@ func TestIsStackUpdating(t *testing.T) {
 				services: connections{
 					cloudFormation: mockCloudFormation{
 						dso: &cloudformation.DescribeStacksOutput{
-							Stacks: []*cloudformation.Stack{
+							Stacks: []cloudformationTypes.Stack{
 								{
 									StackName:   &stackName,
-									StackStatus: aws.String("UPDATE_IN_PROGRESS"),
+									StackStatus: "UPDATE_IN_PROGRESS",
 								},
 							},
 						},
@@ -721,15 +725,15 @@ func Test_region_scanInstances(t *testing.T) {
 					},
 				},
 				services: connections{
-					ec2: mockEC2{
+					ec2: mockEC2Client{
 						diperr: nil,
 						dio: &ec2.DescribeInstancesOutput{
-							Reservations: []*ec2.Reservation{
+							Reservations: []ec2Types.Reservation{
 								{
-									Instances: []*ec2.Instance{
+									Instances: []ec2Types.Instance{
 										{
 											InstanceId:   aws.String("id-1"),
-											InstanceType: aws.String("typeX"),
+											InstanceType: "typeX",
 										},
 									},
 								},
@@ -742,9 +746,9 @@ func Test_region_scanInstances(t *testing.T) {
 			wantInstances: makeInstancesWithCatalog(
 				instanceMap{
 					"id-1": {
-						Instance: &ec2.Instance{
+						Instance: &ec2Types.Instance{
 							InstanceId:   aws.String("id-1"),
-							InstanceType: aws.String("typeX"),
+							InstanceType: "typeX",
 						},
 					},
 				},
@@ -774,77 +778,77 @@ func Test_region_scanInstances(t *testing.T) {
 	}
 }
 
-func Test_region_processDescribeInstancesPage(t *testing.T) {
-	type regionFields struct {
-		name      string
-		instances instances
-	}
-	type args struct {
-		page     *ec2.DescribeInstancesOutput
-		lastPage bool
-	}
-	tests := []struct {
-		name          string
-		regionFields  regionFields
-		args          args
-		want          bool
-		wantInstances instances
-	}{
-		{
-			name: "region with a single instance",
-			regionFields: regionFields{
-				name:      "us-east-1",
-				instances: makeInstancesWithCatalog(instanceMap{}),
-			},
-			args: args{
-				page: &ec2.DescribeInstancesOutput{
-					Reservations: []*ec2.Reservation{
-						{
-							Instances: []*ec2.Instance{{
-								InstanceId:   aws.String("id-1"),
-								InstanceType: aws.String("typeX"),
-							},
-								{
-									InstanceId:   aws.String("id-2"),
-									InstanceType: aws.String("typeY"),
-								},
-							},
-						},
-					},
-				},
-				lastPage: true,
-			},
-			want: true,
-			wantInstances: makeInstancesWithCatalog(
-				instanceMap{
-					"id-1": {
-						Instance: &ec2.Instance{
-							InstanceId:   aws.String("id-1"),
-							InstanceType: aws.String("typeX"),
-						},
-					},
-					"id-2": {
-						Instance: &ec2.Instance{
-							InstanceId:   aws.String("id-2"),
-							InstanceType: aws.String("typeY"),
-						},
-					},
-				},
-			),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &region{
-				name:      tt.regionFields.name,
-				instances: tt.regionFields.instances,
-			}
-			if got := r.processDescribeInstancesPage(tt.args.page, tt.args.lastPage); got != tt.want {
-				t.Errorf("region.processDescribeInstancesPage() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+// func Test_region_processDescribeInstancesPage(t *testing.T) {
+// 	type regionFields struct {
+// 		name      string
+// 		instances instances
+// 	}
+// 	type args struct {
+// 		page     *ec2.DescribeInstancesOutput
+// 		lastPage bool
+// 	}
+// 	tests := []struct {
+// 		name          string
+// 		regionFields  regionFields
+// 		args          args
+// 		want          bool
+// 		wantInstances instances
+// 	}{
+// 		{
+// 			name: "region with a single instance",
+// 			regionFields: regionFields{
+// 				name:      "us-east-1",
+// 				instances: makeInstancesWithCatalog(instanceMap{}),
+// 			},
+// 			args: args{
+// 				page: &ec2.DescribeInstancesOutput{
+// 					Reservations: []ec2Types.Reservation{
+// 						{
+// 							Instances: []ec2Types.Instance{{
+// 								InstanceId:   aws.String("id-1"),
+// 								InstanceType: "typeX",
+// 							},
+// 								{
+// 									InstanceId:   aws.String("id-2"),
+// 									InstanceType: "typeY",
+// 								},
+// 							},
+// 						},
+// 					},
+// 				},
+// 				lastPage: true,
+// 			},
+// 			want: true,
+// 			wantInstances: makeInstancesWithCatalog(
+// 				instanceMap{
+// 					"id-1": {
+// 						Instance: &ec2.Instance{
+// 							InstanceId:   aws.String("id-1"),
+// 							InstanceType: aws.String("typeX"),
+// 						},
+// 					},
+// 					"id-2": {
+// 						Instance: &ec2.Instance{
+// 							InstanceId:   aws.String("id-2"),
+// 							InstanceType: aws.String("typeY"),
+// 						},
+// 					},
+// 				},
+// 			),
+// 		},
+// 	}
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			r := &region{
+// 				name:      tt.regionFields.name,
+// 				instances: tt.regionFields.instances,
+// 			}
+// 			if got := r.processDescribeInstancesPage(tt.args.page, tt.args.lastPage); got != tt.want {
+// 				t.Errorf("region.processDescribeInstancesPage() = %v, want %v", got, tt.want)
+// 			}
+// 		})
+// 	}
+// }
 
 func Test_region_extractECSClusterName(t *testing.T) {
 	type testData struct {

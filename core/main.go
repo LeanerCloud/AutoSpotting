@@ -33,7 +33,7 @@ var totalSavings float64
 // entrypoints of this library
 type AutoSpotting struct {
 	config      *Config
-	mainEC2Conn *ec2.Client
+	mainEC2Conn EC2API
 }
 
 var as *AutoSpotting
@@ -160,7 +160,7 @@ func (a *AutoSpotting) processRegions(regions []string) {
 	}
 
 	ssmClient := ssm.NewFromConfig(cfg)
-	ps := parameterStore{svc: *ssmClient}
+	ps := parameterStore{svc: ssmClient}
 	mpSvc := marketplacemetering.NewFromConfig(cfg)
 	snsClient := sns.NewFromConfig(cfg)
 
@@ -169,7 +169,7 @@ func (a *AutoSpotting) processRegions(regions []string) {
 		ps:    ps,
 		svs: savingsStats{
 			ps:              ps,
-			sns:             *snsClient,
+			sns:             snsClient,
 			topic:           a.config.NotificationSNSTopic,
 			reportFrequency: a.config.SavingsReportsFrequency,
 		},

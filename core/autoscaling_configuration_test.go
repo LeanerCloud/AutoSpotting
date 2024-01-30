@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	autoscaling "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/davecgh/go-spew/spew"
 )
 
@@ -40,7 +40,7 @@ func TestLoadSpotPriceBufferPercentage(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		a := autoScalingGroup{Group: &autoscaling.Group{}}
+		a := autoScalingGroup{AutoScalingGroup: &autoscaling.AutoScalingGroup{}}
 		value, loading := a.loadSpotPriceBufferPercentage(tt.tagValue)
 
 		if value != tt.valueExpected || loading != tt.loadingExpected {
@@ -54,17 +54,17 @@ func TestGetTagValue(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		asgTags  []*autoscaling.TagDescription
+		asgTags  []autoscaling.TagDescription
 		tagKey   string
 		expected *string
 	}{
 		{name: "Tag can't be found in ASG (no tags)",
-			asgTags:  []*autoscaling.TagDescription{},
+			asgTags:  []autoscaling.TagDescription{},
 			tagKey:   "spot-enabled",
 			expected: nil,
 		},
 		{name: "Tag can't be found in ASG (many tags)",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -78,7 +78,7 @@ func TestGetTagValue(t *testing.T) {
 			expected: nil,
 		},
 		{name: "Tag can be found in ASG (many tags)",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -99,7 +99,7 @@ func TestGetTagValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := autoScalingGroup{Group: &autoscaling.Group{}}
+			a := autoScalingGroup{AutoScalingGroup: &autoscaling.AutoScalingGroup{}}
 			a.Tags = tt.asgTags
 			retValue := a.getTagValue(tt.tagKey)
 			if tt.expected == nil && retValue != tt.expected {
@@ -114,21 +114,21 @@ func TestGetTagValue(t *testing.T) {
 func TestLoadConfOnDemand(t *testing.T) {
 	tests := []struct {
 		name            string
-		asgTags         []*autoscaling.TagDescription
+		asgTags         []autoscaling.TagDescription
 		asgInstances    instances
-		maxSize         *int64
+		maxSize         *int32
 		numberExpected  int64
 		loadingExpected bool
 	}{
 		{name: "ASG does not have any conf tags",
-			asgTags:         []*autoscaling.TagDescription{},
+			asgTags:         []autoscaling.TagDescription{},
 			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
 		{name: "Percentage value not a number",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -139,12 +139,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 				},
 			},
 			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
 		{name: "Percentage value out of range (0-100)",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -155,12 +155,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 				},
 			},
 			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
 		{name: "Percentage value out of range - negative (0-100)",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -171,12 +171,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 				},
 			},
 			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
 		{name: "Percentage equals 0.00%",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -190,12 +190,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 				instanceMap{
 					"id-1": {}},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  0,
 			loadingExpected: true,
 		},
 		{name: "Percentage equals 33.0%",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -212,12 +212,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 					"id-3": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  1,
 			loadingExpected: true,
 		},
 		{name: "Percentage equals 75.0%",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -234,12 +234,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 					"id-3": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  2,
 			loadingExpected: true,
 		},
 		{name: "Percentage equals 100.0%",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -256,12 +256,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 					"id-3": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  3,
 			loadingExpected: true,
 		},
 		{name: "Number passed is text",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -272,12 +272,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 				},
 			},
 			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
 		{name: "Number passed is an invalid integer",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -288,12 +288,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 				},
 			},
 			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
 		{name: "Number passed out of range (negative)",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -304,12 +304,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 				},
 			},
 			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
 		{name: "Number superior to ASG size",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -326,12 +326,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 					"id-3": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
 		{name: "Number is valid 1",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -348,12 +348,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 					"id-3": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  1,
 			loadingExpected: true,
 		},
 		{name: "Number is invalid so percentage value is used",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -375,12 +375,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 					"id-4": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  3,
 			loadingExpected: true,
 		},
 		{name: "Both number and percentage are invalid",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -394,13 +394,13 @@ func TestLoadConfOnDemand(t *testing.T) {
 					Value: aws.String("200"),
 				},
 			},
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			asgInstances:    makeInstances(),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
 		{name: "Number lower than percentage and both valid so take the percentage",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -426,12 +426,12 @@ func TestLoadConfOnDemand(t *testing.T) {
 					"id-8": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  6,
 			loadingExpected: true,
 		},
 		{name: "Number higher than percentage and both valid so take the number",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -453,7 +453,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 					"id-4": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  3,
 			loadingExpected: true,
 		},
@@ -461,7 +461,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := autoScalingGroup{Group: &autoscaling.Group{}}
+			a := autoScalingGroup{AutoScalingGroup: &autoscaling.AutoScalingGroup{}}
 			a.Tags = tt.asgTags
 			a.instances = tt.asgInstances
 			a.MaxSize = tt.maxSize
@@ -496,7 +496,7 @@ func TestLoadBiddingPolicy(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		a := autoScalingGroup{Group: &autoscaling.Group{}}
+		a := autoScalingGroup{AutoScalingGroup: &autoscaling.AutoScalingGroup{}}
 		value, _ := a.loadBiddingPolicy(tt.tagValue)
 
 		if value != tt.valueExpected {
@@ -509,12 +509,12 @@ func TestLoadBiddingPolicy(t *testing.T) {
 func TestLoadConfSpot(t *testing.T) {
 	tests := []struct {
 		name            string
-		asgTags         []*autoscaling.TagDescription
+		asgTags         []autoscaling.TagDescription
 		loadingExpected bool
 		valueExpected   string
 	}{
 		{name: "Loading a fake tag",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -524,7 +524,7 @@ func TestLoadConfSpot(t *testing.T) {
 			valueExpected:   "normal",
 		},
 		{name: "Loading a false tag",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -538,7 +538,7 @@ func TestLoadConfSpot(t *testing.T) {
 			valueExpected:   "aggressive",
 		},
 		{name: "Loading a true tag",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -557,7 +557,7 @@ func TestLoadConfSpot(t *testing.T) {
 			AutoScalingConfig: AutoScalingConfig{
 				BiddingPolicy: "normal",
 			}}
-		a := autoScalingGroup{Group: &autoscaling.Group{},
+		a := autoScalingGroup{AutoScalingGroup: &autoscaling.AutoScalingGroup{},
 			region: &region{
 				name: "us-east-1",
 				conf: cfg,
@@ -578,12 +578,12 @@ func TestLoadConfSpot(t *testing.T) {
 func TestLoadConfSpotPrice(t *testing.T) {
 	tests := []struct {
 		name            string
-		asgTags         []*autoscaling.TagDescription
+		asgTags         []autoscaling.TagDescription
 		loadingExpected bool
 		valueExpected   float64
 	}{
 		{name: "Loading a fake tag",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -593,7 +593,7 @@ func TestLoadConfSpotPrice(t *testing.T) {
 			valueExpected:   10.0,
 		},
 		{name: "Loading the right tag",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -607,7 +607,7 @@ func TestLoadConfSpotPrice(t *testing.T) {
 			valueExpected:   15.0,
 		},
 		{name: "Loading a false tag",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -626,7 +626,7 @@ func TestLoadConfSpotPrice(t *testing.T) {
 			AutoScalingConfig: AutoScalingConfig{
 				SpotPriceBufferPercentage: 10.0,
 			}}
-		a := autoScalingGroup{Group: &autoscaling.Group{},
+		a := autoScalingGroup{AutoScalingGroup: &autoscaling.AutoScalingGroup{},
 			region: &region{
 				name: "us-east-1",
 				conf: cfg,
@@ -646,15 +646,15 @@ func TestLoadConfSpotPrice(t *testing.T) {
 func TestLoadConfigFromTags(t *testing.T) {
 	tests := []struct {
 		name            string
-		asgTags         []*autoscaling.TagDescription
+		asgTags         []autoscaling.TagDescription
 		asgInstances    instances
-		maxSize         *int64
+		maxSize         *int32
 		regionalCfg     *Config
 		loadingExpected bool
 		expectedConfig  AutoScalingConfig
 	}{
 		{name: OnDemandPercentageTag + " OD percentage value not a number",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -673,7 +673,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 				},
 			},
 			asgInstances: makeInstances(),
-			maxSize:      aws.Int64(10),
+			maxSize:      aws.Int32(10),
 			regionalCfg: &Config{
 				AutoScalingConfig: AutoScalingConfig{
 					BiddingPolicy:             "normal",
@@ -683,7 +683,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 			expectedConfig:  AutoScalingConfig{},
 		},
 		{name: OnDemandNumberTag + " OD number is invalid so percentage value is used",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -713,7 +713,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 					"id-4": {},
 				},
 			),
-			maxSize: aws.Int64(10),
+			maxSize: aws.Int32(10),
 			regionalCfg: &Config{
 				AutoScalingConfig: AutoScalingConfig{
 					BiddingPolicy:             "normal",
@@ -725,7 +725,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 			},
 		},
 		{name: "OD price multiplier",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -745,7 +745,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 			},
 		},
 		{name: "OD price multiplier incorrect value",
-			asgTags: []*autoscaling.TagDescription{
+			asgTags: []autoscaling.TagDescription{
 				{
 					Key:   aws.String("Name"),
 					Value: aws.String("asg-test"),
@@ -768,7 +768,7 @@ func TestLoadConfigFromTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := autoScalingGroup{Group: &autoscaling.Group{},
+			a := autoScalingGroup{AutoScalingGroup: &autoscaling.AutoScalingGroup{},
 				region: &region{
 					name: "us-east-1",
 					conf: tt.regionalCfg,
@@ -795,7 +795,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		name            string
 		asgInstances    instances
 		region          *region
-		maxSize         *int64
+		maxSize         *int32
 		numberExpected  int64
 		loadingExpected bool
 	}{
@@ -808,7 +808,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					}},
 			},
 			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
@@ -821,7 +821,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					}},
 			},
 			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
@@ -834,7 +834,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					}},
 			},
 			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
@@ -853,7 +853,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					"id-3": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  1,
 			loadingExpected: true,
 		},
@@ -872,7 +872,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					"id-3": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  2,
 			loadingExpected: true,
 		},
@@ -891,7 +891,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					"id-3": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  3,
 			loadingExpected: true,
 		},
@@ -904,7 +904,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					}},
 			},
 			asgInstances:    makeInstances(),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
@@ -923,7 +923,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					"id-3": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
 		},
@@ -942,7 +942,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					"id-3": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  1,
 			loadingExpected: true,
 		},
@@ -962,7 +962,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					"id-4": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  2,
 			loadingExpected: true,
 		},
@@ -982,7 +982,7 @@ func TestLoadDefaultConf(t *testing.T) {
 					"id-4": {},
 				},
 			),
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			numberExpected:  3,
 			loadingExpected: true,
 		},
@@ -994,7 +994,7 @@ func TestLoadDefaultConf(t *testing.T) {
 						MinOnDemandPercentage: 142.2,
 					}},
 			},
-			maxSize:         aws.Int64(10),
+			maxSize:         aws.Int32(10),
 			asgInstances:    makeInstances(),
 			numberExpected:  DefaultMinOnDemandValue,
 			loadingExpected: false,
@@ -1003,7 +1003,7 @@ func TestLoadDefaultConf(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := autoScalingGroup{Group: &autoscaling.Group{}}
+			a := autoScalingGroup{AutoScalingGroup: &autoscaling.AutoScalingGroup{}}
 			a.instances = tt.asgInstances
 			a.MaxSize = tt.maxSize
 			a.region = tt.region
@@ -1021,16 +1021,16 @@ func TestLoadDefaultConf(t *testing.T) {
 func Test_autoScalingGroup_LoadCronSchedule(t *testing.T) {
 
 	tests := []struct {
-		name    string
-		Group   *autoscaling.Group
-		asgName string
-		region  *region
-		config  AutoScalingConfig
-		want    string
+		name             string
+		AutoScalingGroup *autoscaling.AutoScalingGroup
+		asgName          string
+		region           *region
+		config           AutoScalingConfig
+		want             string
 	}{
 		{
-			name:  "No tag set on the group",
-			Group: &autoscaling.Group{},
+			name:             "No tag set on the group",
+			AutoScalingGroup: &autoscaling.AutoScalingGroup{},
 			region: &region{
 				conf: &Config{
 					AutoScalingConfig: AutoScalingConfig{
@@ -1042,8 +1042,8 @@ func Test_autoScalingGroup_LoadCronSchedule(t *testing.T) {
 		},
 		{
 			name: "Tag set on the group",
-			Group: &autoscaling.Group{
-				Tags: []*autoscaling.TagDescription{
+			AutoScalingGroup: &autoscaling.AutoScalingGroup{
+				Tags: []autoscaling.TagDescription{
 					{
 						Key:   aws.String(ScheduleTag),
 						Value: aws.String("3 4"),
@@ -1063,10 +1063,10 @@ func Test_autoScalingGroup_LoadCronSchedule(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &autoScalingGroup{
-				Group:  tt.Group,
-				name:   tt.asgName,
-				region: tt.region,
-				config: tt.config,
+				AutoScalingGroup: tt.AutoScalingGroup,
+				name:             tt.asgName,
+				region:           tt.region,
+				config:           tt.config,
 			}
 			a.LoadCronSchedule()
 			got := a.config.CronSchedule
@@ -1080,16 +1080,16 @@ func Test_autoScalingGroup_LoadCronSchedule(t *testing.T) {
 func Test_autoScalingGroup_LoadCronTimezone(t *testing.T) {
 
 	tests := []struct {
-		name    string
-		Group   *autoscaling.Group
-		asgName string
-		region  *region
-		config  AutoScalingConfig
-		want    string
+		name             string
+		AutoScalingGroup *autoscaling.AutoScalingGroup
+		asgName          string
+		region           *region
+		config           AutoScalingConfig
+		want             string
 	}{
 		{
-			name:  "No tag set on the group",
-			Group: &autoscaling.Group{},
+			name:             "No tag set on the group",
+			AutoScalingGroup: &autoscaling.AutoScalingGroup{},
 			region: &region{
 				conf: &Config{
 					AutoScalingConfig: AutoScalingConfig{
@@ -1101,8 +1101,8 @@ func Test_autoScalingGroup_LoadCronTimezone(t *testing.T) {
 		},
 		{
 			name: "Tag set on the group",
-			Group: &autoscaling.Group{
-				Tags: []*autoscaling.TagDescription{
+			AutoScalingGroup: &autoscaling.AutoScalingGroup{
+				Tags: []autoscaling.TagDescription{
 					{
 						Key:   aws.String(TimezoneTag),
 						Value: aws.String("Europe/London"),
@@ -1122,10 +1122,10 @@ func Test_autoScalingGroup_LoadCronTimezone(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &autoScalingGroup{
-				Group:  tt.Group,
-				name:   tt.asgName,
-				region: tt.region,
-				config: tt.config,
+				AutoScalingGroup: tt.AutoScalingGroup,
+				name:             tt.asgName,
+				region:           tt.region,
+				config:           tt.config,
 			}
 			a.LoadCronTimezone()
 			got := a.config.CronTimezone
@@ -1139,15 +1139,15 @@ func Test_autoScalingGroup_LoadCronTimezone(t *testing.T) {
 func Test_autoScalingGroup_LoadCronScheduleState(t *testing.T) {
 
 	tests := []struct {
-		name   string
-		Group  *autoscaling.Group
-		region *region
-		config AutoScalingConfig
-		want   string
+		name             string
+		AutoScalingGroup *autoscaling.AutoScalingGroup
+		region           *region
+		config           AutoScalingConfig
+		want             string
 	}{
 		{
-			name:  "No tag set on the group",
-			Group: &autoscaling.Group{},
+			name:             "No tag set on the group",
+			AutoScalingGroup: &autoscaling.AutoScalingGroup{},
 			region: &region{
 				conf: &Config{
 					AutoScalingConfig: AutoScalingConfig{
@@ -1159,8 +1159,8 @@ func Test_autoScalingGroup_LoadCronScheduleState(t *testing.T) {
 		},
 		{
 			name: "Tag set on the group",
-			Group: &autoscaling.Group{
-				Tags: []*autoscaling.TagDescription{
+			AutoScalingGroup: &autoscaling.AutoScalingGroup{
+				Tags: []autoscaling.TagDescription{
 					{
 						Key:   aws.String(CronScheduleStateTag),
 						Value: aws.String("off"),
@@ -1180,9 +1180,9 @@ func Test_autoScalingGroup_LoadCronScheduleState(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &autoScalingGroup{
-				Group:  tt.Group,
-				region: tt.region,
-				config: tt.config,
+				AutoScalingGroup: tt.AutoScalingGroup,
+				region:           tt.region,
+				config:           tt.config,
 			}
 			a.LoadCronScheduleState()
 			got := a.config.CronScheduleState
@@ -1196,17 +1196,17 @@ func Test_autoScalingGroup_LoadCronScheduleState(t *testing.T) {
 func Test_autoScalingGroup_loadSpotAllocationStrategy(t *testing.T) {
 
 	tests := []struct {
-		name       string
-		asgName    string
-		group      *autoscaling.Group
-		asgTags    []*autoscaling.TagDescription
-		region     *region
-		want       bool
-		wantConfig AutoScalingConfig
+		name             string
+		asgName          string
+		AutoScalingGroup *autoscaling.AutoScalingGroup
+		asgTags          []autoscaling.TagDescription
+		region           *region
+		want             bool
+		wantConfig       AutoScalingConfig
 	}{
 		{
-			name:  "No tag set on the group, use region config",
-			group: &autoscaling.Group{},
+			name:             "No tag set on the group, use region config",
+			AutoScalingGroup: &autoscaling.AutoScalingGroup{},
 			region: &region{
 				conf: &Config{
 					AutoScalingConfig: AutoScalingConfig{
@@ -1221,8 +1221,8 @@ func Test_autoScalingGroup_loadSpotAllocationStrategy(t *testing.T) {
 		},
 		{
 			name: "Tag set on the group",
-			group: &autoscaling.Group{
-				Tags: []*autoscaling.TagDescription{
+			AutoScalingGroup: &autoscaling.AutoScalingGroup{
+				Tags: []autoscaling.TagDescription{
 					{
 						Key:   aws.String(SpotAllocationStrategyTag),
 						Value: aws.String("bar"),
@@ -1246,9 +1246,9 @@ func Test_autoScalingGroup_loadSpotAllocationStrategy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &autoScalingGroup{
-				name:   tt.asgName,
-				region: tt.region,
-				Group:  tt.group,
+				name:             tt.asgName,
+				region:           tt.region,
+				AutoScalingGroup: tt.AutoScalingGroup,
 			}
 			if got := a.loadSpotAllocationStrategy(); got != tt.want {
 				t.Errorf("autoScalingGroup.loadSpotAllocationStrategy() = %v, want %v", got, tt.want)

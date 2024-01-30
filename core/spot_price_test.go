@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
 func Test_fetch(t *testing.T) {
@@ -18,45 +19,41 @@ func Test_fetch(t *testing.T) {
 		config           *spotPrices
 		duration         time.Duration
 		availabilityZone *string
-		instanceTypes    []*string
-		data             []*ec2.SpotPrice
+		instanceTypes    []ec2Types.InstanceType
+		data             []ec2Types.SpotPrice
 		err              error
 	}{
 		{
 			name: "error",
 			config: &spotPrices{
-				data: []*ec2.SpotPrice{},
+				data: []ec2Types.SpotPrice{},
 				conn: connections{
-					ec2: mockEC2{
-						dsphpo: []*ec2.DescribeSpotPriceHistoryOutput{
-							{
-								SpotPriceHistory: []*ec2.SpotPrice{},
-							},
+					ec2: mockEC2Client{
+						dsphpo: &ec2.DescribeSpotPriceHistoryOutput{
+							SpotPriceHistory: []ec2Types.SpotPrice{},
 						},
 						dsphperr: errors.New("error"),
 					},
 				},
 			},
-			data: []*ec2.SpotPrice{},
+			data: []ec2Types.SpotPrice{},
 			err:  errors.New("error"),
 		},
 		{
 			name: "ok",
 			config: &spotPrices{
-				data: []*ec2.SpotPrice{},
+				data: []ec2Types.SpotPrice{},
 				conn: connections{
-					ec2: mockEC2{
-						dsphpo: []*ec2.DescribeSpotPriceHistoryOutput{
-							{
-								SpotPriceHistory: []*ec2.SpotPrice{
-									{SpotPrice: aws.String("1")},
-								},
+					ec2: mockEC2Client{
+						dsphpo: &ec2.DescribeSpotPriceHistoryOutput{
+							SpotPriceHistory: []ec2Types.SpotPrice{
+								{SpotPrice: aws.String("1")},
 							},
 						},
 					},
 				},
 			},
-			data: []*ec2.SpotPrice{
+			data: []ec2Types.SpotPrice{
 				{SpotPrice: aws.String("1")},
 			},
 			err: errors.New(""),
@@ -64,26 +61,21 @@ func Test_fetch(t *testing.T) {
 		{
 			name: "paginated output",
 			config: &spotPrices{
-				data: []*ec2.SpotPrice{},
+				data: []ec2Types.SpotPrice{},
 				conn: connections{
-					ec2: mockEC2{
-						dsphpo: []*ec2.DescribeSpotPriceHistoryOutput{
-							{
-								SpotPriceHistory: []*ec2.SpotPrice{
-									{SpotPrice: aws.String("1")},
-								},
-							},
-							{
-								SpotPriceHistory: []*ec2.SpotPrice{
-									{SpotPrice: aws.String("2")},
-								},
+					ec2: mockEC2Client{
+						dsphpo: &ec2.DescribeSpotPriceHistoryOutput{
+
+							SpotPriceHistory: []ec2Types.SpotPrice{
+								{SpotPrice: aws.String("1")},
+								{SpotPrice: aws.String("2")},
 							},
 						},
 						dsphperr: nil,
 					},
 				},
 			},
-			data: []*ec2.SpotPrice{
+			data: []ec2Types.SpotPrice{
 				{SpotPrice: aws.String("1")},
 				{SpotPrice: aws.String("2")},
 			},

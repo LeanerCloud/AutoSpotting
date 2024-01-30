@@ -6,8 +6,8 @@ package autospotting
 import (
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
+	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	"github.com/aws/aws-sdk-go/aws"
 )
 
 func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
@@ -19,7 +19,7 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "empty launchConfiguration",
 			lc: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
+				LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
 					BlockDeviceMappings: nil,
 				},
 			},
@@ -28,8 +28,8 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "empty BlockDeviceMappings",
 			lc: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
-					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+				LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
+					BlockDeviceMappings: []autoscalingTypes.BlockDeviceMapping{
 						{},
 					},
 				},
@@ -39,8 +39,8 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "mix of valid and invalid configuration",
 			lc: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
-					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+				LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
+					BlockDeviceMappings: []autoscalingTypes.BlockDeviceMapping{
 						{VirtualName: aws.String("ephemeral")},
 						{},
 					},
@@ -51,8 +51,8 @@ func Test_countLaunchConfigEphemeralVolumes(t *testing.T) {
 		{
 			name: "valid configuration",
 			lc: &launchConfiguration{
-				LaunchConfiguration: &autoscaling.LaunchConfiguration{
-					BlockDeviceMappings: []*autoscaling.BlockDeviceMapping{
+				LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
+					BlockDeviceMappings: []autoscalingTypes.BlockDeviceMapping{
 						{VirtualName: aws.String("ephemeral")},
 						{VirtualName: aws.String("ephemeral")},
 					},

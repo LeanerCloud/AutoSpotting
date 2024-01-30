@@ -12,8 +12,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go/aws"
 )
 
 func TestMain(m *testing.M) {
@@ -42,14 +43,14 @@ func Test_getRegions(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		ec2conn mockEC2
+		ec2conn mockEC2Client
 		want    []string
 		wantErr error
 	}{{
 		name: "return some regions",
-		ec2conn: mockEC2{
+		ec2conn: mockEC2Client{
 			dro: &ec2.DescribeRegionsOutput{
-				Regions: []*ec2.Region{
+				Regions: []ec2Types.Region{
 					{RegionName: aws.String("foo")},
 					{RegionName: aws.String("bar")},
 				},
@@ -61,10 +62,10 @@ func Test_getRegions(t *testing.T) {
 	},
 		{
 			name: "return an error",
-			ec2conn: mockEC2{
+			ec2conn: mockEC2Client{
 
 				dro: &ec2.DescribeRegionsOutput{
-					Regions: []*ec2.Region{
+					Regions: []ec2Types.Region{
 						{RegionName: aws.String("foo")},
 						{RegionName: aws.String("bar")},
 					},

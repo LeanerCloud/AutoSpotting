@@ -578,11 +578,11 @@ func (r *region) calculateSavings() float64 {
 	log.Printf("Total savings in %s: %f\n", r.name, savings)
 
 	ss := savingsStats{
-		sns:             *r.services.sns,
+		sns:             r.services.sns,
 		topic:           r.conf.NotificationSNSTopic,
 		reportFrequency: r.conf.SavingsReportsFrequency,
 		ps: parameterStore{
-			svc: *r.services.ssm,
+			svc: r.services.ssm,
 		},
 	}
 	ss.persistHourlyASGSavings(r.name, asgSavings)
