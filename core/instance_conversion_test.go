@@ -196,7 +196,7 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 	tests := []struct {
 		name string
 		inst instance
-		want []*string
+		want []string
 	}{
 		{
 			name: "missing SGs",
@@ -205,7 +205,7 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 					SecurityGroups: []ec2Types.GroupIdentifier{},
 				},
 			},
-			want: []*string{},
+			want: []string{},
 		},
 		{
 			name: "single SG",
@@ -217,7 +217,7 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 					}},
 				},
 			},
-			want: []*string{aws.String("sg-123")},
+			want: []string{"sg-123"},
 		},
 		{
 			name: "multiple SGs",
@@ -234,7 +234,7 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 					},
 				},
 			},
-			want: []*string{aws.String("sg-123"), aws.String("sg-456")},
+			want: []string{"sg-123", "sg-456"},
 		},
 	}
 	for _, tt := range tests {

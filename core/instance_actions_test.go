@@ -143,6 +143,7 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 			instance: instance{
 				Instance: &ec2Types.Instance{
 					InstanceId:         aws.String("i-dummy"),
+					ImageId:            aws.String("ami-dummy"),
 					InstanceType:       ec2Types.InstanceTypeT2Micro,
 					VirtualizationType: ec2Types.VirtualizationTypeParavirtual,
 					Placement: &ec2Types.Placement{

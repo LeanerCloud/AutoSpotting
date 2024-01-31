@@ -143,13 +143,13 @@ func (a *AutoSpotting) processRegions(regions []string) {
 	for _, r := range regions {
 		wg.Add(1)
 		r := region{name: r, conf: a.config}
-		go func(r region) {
+		go func(r *region) {
 			s := r.calculateSavings()
 			savingsMutex.Lock()
 			totalSavings += s
 			savingsMutex.Unlock()
 			wg.Done()
-		}(r)
+		}(&r)
 	}
 	wg.Wait()
 
