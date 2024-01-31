@@ -23,7 +23,7 @@ import (
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
-func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64 {
+func (i *instance) calculatePrice(spotCandidate *instanceTypeInformation) float64 {
 
 	spotProduct := i.asg.getSpotProduct()
 
@@ -41,7 +41,7 @@ func (i *instance) calculatePrice(spotCandidate instanceTypeInformation) float64
 	}
 
 	debug.Println("\tSpot price: ", spotPrice)
-	debug.Println("\tInstance price: ", i.odPrice)
+	debug.Println("\tInstance price: ", i.initialPrice)
 	return spotPrice
 }
 
@@ -206,7 +206,7 @@ func (i *instance) belongsToEnabledASG() (bool, *autoScalingGroup) {
 				continue
 			}
 
-			i.odPrice = i.typeInfo.pricing[*spotProduct].onDemand
+			i.initialPrice = i.typeInfo.pricing[*spotProduct].onDemand
 			log.Printf("%s: %s instace %s belongs to enabled ASG %s",
 				i.region.name, lifecycle, *i.InstanceId, i.asg.name)
 			return true, &asg
@@ -272,7 +272,7 @@ func (i *instance) isPriceCompatible(spotPrice float64) bool {
 		return false
 	}
 
-	if spotPrice <= i.odPrice {
+	if spotPrice <= i.initialPrice {
 		return true
 	}
 
@@ -465,7 +465,7 @@ func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string,
 	// instance type.
 
 	log.Printf("Generating list of compatible instance types for %s with price %f",
-		i.InstanceType, i.odPrice)
+		i.InstanceType, i.initialPrice)
 
 	lcMappings := i.asg.launchConfiguration.countLaunchConfigEphemeralVolumes()
 	ltMappings := i.asg.launchTemplate.countLaunchTemplateEphemeralVolumes()
@@ -489,10 +489,10 @@ func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string,
 		candidate := i.region.instanceTypeInformation[k]
 
 		candidatePrice := i.calculatePrice(candidate)
-		debug.Println("Comparing current type", current.instanceType, "with price", i.odPrice,
+		debug.Println("Comparing current type", current.instanceType, "with price", i.initialPrice,
 			"with candidate", candidate.instanceType, "with price", candidatePrice)
 
-		if i.isAllowed(candidate.instanceType, allowedList, disallowedList) && i.isCompatible(&candidate, candidatePrice, attachedVolumesNumber) {
+		if i.isAllowed(candidate.instanceType, allowedList, disallowedList) && i.isCompatible(candidate, candidatePrice, attachedVolumesNumber) {
 			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice, candidate.generationDelta})
 			log.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candidates list for instance", *i.InstanceId)
 		} else if candidate.instanceType != "" {

@@ -63,7 +63,7 @@ func TestIsEBSCompatible(t *testing.T) {
 				EBSThroughput: 0,
 			},
 			instanceInfo: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					EBSThroughput: 0,
 				},
 				asg: &autoScalingGroup{
@@ -79,7 +79,7 @@ func TestIsEBSCompatible(t *testing.T) {
 				EBSThroughput: 100,
 			},
 			instanceInfo: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					EBSThroughput: 100,
 				},
 				asg: &autoScalingGroup{
@@ -95,7 +95,7 @@ func TestIsEBSCompatible(t *testing.T) {
 				EBSThroughput: 200,
 			},
 			instanceInfo: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					EBSThroughput: 100,
 				},
 				asg: &autoScalingGroup{
@@ -111,7 +111,7 @@ func TestIsEBSCompatible(t *testing.T) {
 				EBSThroughput: 100,
 			},
 			instanceInfo: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					EBSThroughput: 200,
 				},
 				asg: &autoScalingGroup{
@@ -131,7 +131,7 @@ func TestIsEBSCompatible(t *testing.T) {
 				Instance: &ec2Types.Instance{
 					InstanceType: "c3.foo",
 				},
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					EBSThroughput: 200,
 				},
 				asg: &autoScalingGroup{
@@ -148,7 +148,7 @@ func TestIsEBSCompatible(t *testing.T) {
 				EBSThroughput: 0,
 			},
 			instanceInfo: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					EBSThroughput: 100,
 				},
 				asg: &autoScalingGroup{
@@ -164,7 +164,7 @@ func TestIsEBSCompatible(t *testing.T) {
 				EBSThroughput: 100,
 			},
 			instanceInfo: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					EBSThroughput: 0,
 				},
 				asg: &autoScalingGroup{
@@ -254,9 +254,9 @@ func TestIsPriceCompatible(t *testing.T) {
 					Placement: &ec2Types.Placement{
 						AvailabilityZone: tt.availabilityZone,
 					}},
-				odPrice: tt.instancePrice,
+				initialPrice: tt.instancePrice,
 			}
-			candidate := instanceTypeInformation{pricing: prices{}}
+			candidate := &instanceTypeInformation{pricing: prices{}}
 			candidate.pricing = tt.spotPrices
 			spotPrice := i.calculatePrice(candidate)
 			retValue := i.isPriceCompatible(spotPrice)
@@ -345,7 +345,7 @@ func TestIsClassCompatible(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := &instance{typeInfo: instanceTypeInformation{
+			i := &instance{typeInfo: &instanceTypeInformation{
 				vCPU:              tt.instanceCPU,
 				memory:            tt.instanceMemory,
 				PhysicalProcessor: "Intel",
@@ -475,7 +475,7 @@ func TestIsStorageCompatible(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			i := &instance{typeInfo: tt.instanceInfo}
+			i := &instance{typeInfo: &tt.instanceInfo}
 			retValue := i.isStorageCompatible(tt.spotInfo, tt.attachedVolumes)
 			if retValue != tt.expected {
 				t.Errorf("Value received: %t expected %t", retValue, tt.expected)
@@ -535,7 +535,7 @@ func TestIsVirtualizationCompatible(t *testing.T) {
 func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T) {
 	tests := []struct {
 		name                  string
-		spotInfos             map[string]instanceTypeInformation
+		spotInfos             map[string]*instanceTypeInformation
 		instanceInfo          *instance
 		asg                   *autoScalingGroup
 		expectedCandidateList []string
@@ -544,7 +544,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 		disallowedList        string
 	}{
 		{name: "better/cheaper spot instance found",
-			spotInfos: map[string]instanceTypeInformation{
+			spotInfos: map[string]*instanceTypeInformation{
 				"1": {
 					instanceType: "type1", // cheapest, cheaper than ondemand
 					pricing: prices{
@@ -612,7 +612,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 						AvailabilityZone: aws.String("eu-central-1"),
 					},
 				},
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					instanceType:             "typeX",
 					PhysicalProcessor:        "Intel",
 					vCPU:                     10,
@@ -621,8 +621,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					instanceStoreDeviceSize:  50.0,
 					instanceStoreIsSSD:       false,
 				},
-				odPrice: 0.75,
-				region:  &region{},
+				initialPrice: 0.75,
+				region:       &region{},
 			},
 			asg: &autoScalingGroup{
 				spotProduct: aws.String(LinuxSpotProduct),
@@ -647,7 +647,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 			expectedError:         nil,
 		},
 		{name: "better/cheaper spot instance found but marked as disallowed",
-			spotInfos: map[string]instanceTypeInformation{
+			spotInfos: map[string]*instanceTypeInformation{
 				"1": {
 					instanceType: "type1",
 					pricing: prices{
@@ -696,7 +696,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 						AvailabilityZone: aws.String("eu-central-1"),
 					},
 				},
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					instanceType:             "typeX",
 					vCPU:                     10,
 					PhysicalProcessor:        "Intel",
@@ -705,8 +705,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					instanceStoreDeviceSize:  50.0,
 					instanceStoreIsSSD:       false,
 				},
-				odPrice: 0.75,
-				region:  &region{},
+				initialPrice: 0.75,
+				region:       &region{},
 			},
 			asg: &autoScalingGroup{
 				spotProduct: aws.String(LinuxSpotProduct),
@@ -714,7 +714,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 				instances: makeInstancesWithCatalog(
 					instanceMap{
 						"id-1": {
-							typeInfo: instanceTypeInformation{
+							typeInfo: &instanceTypeInformation{
 								PhysicalProcessor: "Intel",
 							},
 							Instance: &ec2Types.Instance{
@@ -735,7 +735,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 			expectedError:         errors.New("no cheaper spot instance types could be found"),
 		},
 		{name: "better/cheaper spot instance found but not marked as allowed",
-			spotInfos: map[string]instanceTypeInformation{
+			spotInfos: map[string]*instanceTypeInformation{
 				"1": {
 					instanceType: "type1",
 					pricing: prices{
@@ -784,7 +784,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 						AvailabilityZone: aws.String("eu-central-1"),
 					},
 				},
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					instanceType:             "typeX",
 					PhysicalProcessor:        "Intel",
 					vCPU:                     10,
@@ -793,8 +793,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					instanceStoreDeviceSize:  50.0,
 					instanceStoreIsSSD:       false,
 				},
-				odPrice: 0.75,
-				region:  &region{},
+				initialPrice: 0.75,
+				region:       &region{},
 			},
 			asg: &autoScalingGroup{
 				spotProduct: aws.String(LinuxSpotProduct),
@@ -820,7 +820,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 			expectedError:         errors.New("no cheaper spot instance types could be found"),
 		},
 		{name: "better/cheaper spot instance found and marked as allowed",
-			spotInfos: map[string]instanceTypeInformation{
+			spotInfos: map[string]*instanceTypeInformation{
 				"1": {
 					instanceType: "type1",
 					pricing: prices{
@@ -869,7 +869,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 						AvailabilityZone: aws.String("eu-central-1"),
 					},
 				},
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					instanceType:             "typeX",
 					vCPU:                     10,
 					PhysicalProcessor:        "Intel",
@@ -878,8 +878,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					instanceStoreDeviceSize:  50.0,
 					instanceStoreIsSSD:       false,
 				},
-				odPrice: 0.75,
-				region:  &region{},
+				initialPrice: 0.75,
+				region:       &region{},
 			},
 			asg: &autoScalingGroup{
 				name:        "test-asg",
@@ -906,7 +906,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 			expectedError:         nil,
 		},
 		{name: "better/cheaper spot instance not found",
-			spotInfos: map[string]instanceTypeInformation{
+			spotInfos: map[string]*instanceTypeInformation{
 				"1": {
 					instanceType: "type1",
 					pricing: prices{
@@ -955,7 +955,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 						AvailabilityZone: aws.String("eu-central-1"),
 					},
 				},
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					instanceType:             "typeX",
 					vCPU:                     10,
 					PhysicalProcessor:        "Intel",
@@ -964,8 +964,8 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 					instanceStoreDeviceSize:  50.0,
 					instanceStoreIsSSD:       false,
 				},
-				odPrice: 0.45,
-				region:  &region{},
+				initialPrice: 0.45,
+				region:       &region{},
 			},
 			asg: &autoScalingGroup{
 				name:        "test-asg",
@@ -979,7 +979,7 @@ func Test_getCompatibleSpotInstanceTypesListSortedAscendingByPrice(t *testing.T)
 								Placement:         &ec2Types.Placement{AvailabilityZone: aws.String("eu-west-1")},
 								InstanceLifecycle: Spot,
 							},
-							odPrice: 0.45,
+							initialPrice: 0.45,
 						},
 					},
 				),
@@ -1113,7 +1113,7 @@ func Test_instance_isSameArch(t *testing.T) {
 		{
 			name: "Same architecture: both Intel",
 			Instance: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					PhysicalProcessor: "Intel",
 				},
 			},
@@ -1126,7 +1126,7 @@ func Test_instance_isSameArch(t *testing.T) {
 		{
 			name: "Same architecture: both AMD",
 			Instance: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					PhysicalProcessor: "AMD",
 				},
 			},
@@ -1139,7 +1139,7 @@ func Test_instance_isSameArch(t *testing.T) {
 		{
 			name: "Same architecture: Intel and AMD",
 			Instance: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					PhysicalProcessor: "Intel",
 				},
 			},
@@ -1152,7 +1152,7 @@ func Test_instance_isSameArch(t *testing.T) {
 		{
 			name: "Same architecture: AMD and Intel",
 			Instance: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					PhysicalProcessor: "AMD",
 				},
 			},
@@ -1165,7 +1165,7 @@ func Test_instance_isSameArch(t *testing.T) {
 		{
 			name: "Same architecture: Intel and Variable",
 			Instance: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					PhysicalProcessor: "Intel",
 				},
 			},
@@ -1178,7 +1178,7 @@ func Test_instance_isSameArch(t *testing.T) {
 		{
 			name: "Same architecture: Variable and Intel",
 			Instance: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					PhysicalProcessor: "Variable",
 				},
 			},
@@ -1191,7 +1191,7 @@ func Test_instance_isSameArch(t *testing.T) {
 		{
 			name: "Same architecture, both ARM-based",
 			Instance: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					PhysicalProcessor: "AWS",
 				},
 			},
@@ -1204,7 +1204,7 @@ func Test_instance_isSameArch(t *testing.T) {
 		{
 			name: "Different architecture, Intel and ARM",
 			Instance: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					PhysicalProcessor: "Intel",
 				},
 			},
@@ -1217,7 +1217,7 @@ func Test_instance_isSameArch(t *testing.T) {
 		{
 			name: "Different architecture, AMD and ARM",
 			Instance: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					PhysicalProcessor: "Intel",
 				},
 			},
@@ -1230,7 +1230,7 @@ func Test_instance_isSameArch(t *testing.T) {
 		{
 			name: "Different architecture, ARM and Intel",
 			Instance: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					PhysicalProcessor: "AWS",
 				},
 			},
@@ -1243,7 +1243,7 @@ func Test_instance_isSameArch(t *testing.T) {
 		{
 			name: "Different architecture, ARM and AMD",
 			Instance: instance{
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					PhysicalProcessor: "AWS",
 				},
 			},

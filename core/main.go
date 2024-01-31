@@ -142,7 +142,7 @@ func (a *AutoSpotting) processRegions(regions []string) {
 
 	for _, r := range regions {
 		wg.Add(1)
-		r := region{name: r, conf: a.config}
+		r := region{name: r, conf: a.config, services: &connections{}}
 		go func(r *region) {
 			s := r.calculateSavings()
 			savingsMutex.Lock()
@@ -193,11 +193,12 @@ func (a *AutoSpotting) processRegions(regions []string) {
 
 	for _, r := range regions {
 		wg.Add(1)
-		r := region{name: r, conf: a.config, autospotting: a}
+		r := region{name: r, conf: a.config,
+			autospotting: a, services: &connections{}}
 
 		go func() {
 			if r.enabled() {
-				log.Printf("Enabled to run in %s, processing region.\n", r.name)
+				debug.Printf("Enabled to run in %s, processing region.\n", r.name)
 				r.processRegion()
 			} else {
 				debug.Println("Not enabled to run in", r.name)
@@ -337,6 +338,7 @@ func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
 		a.handleLifecycleHookEvent(*cloudwatchEvent)
 	} else if eventType == ScheduledEventCode {
 		// Cron Scheduling
+		log.Println("Handling as cron event")
 		a.ProcessCronEvent()
 	}
 
@@ -383,7 +385,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 		return fmt.Errorf("unexpected event: %#v", ctEvent)
 	}
 
-	r := region{name: regionName, conf: a.config, services: connections{}}
+	r := region{name: regionName, conf: a.config, services: &connections{}}
 
 	if !r.enabled() {
 		return fmt.Errorf("region %s is not enabled", r.name)
@@ -438,7 +440,7 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 }
 
 func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID string, state string, sqsReceiptHandle *string) error {
-	r := &region{name: regionName, conf: a.config, services: connections{}}
+	r := &region{name: regionName, conf: a.config, services: &connections{}}
 
 	if !r.enabled() {
 		return fmt.Errorf("region %s is not enabled", regionName)
@@ -493,6 +495,8 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 	var err error
 	lifecycle := "on-demand"
 
+	log.Printf("Handling instance launch as on-demand for instance %s", *i.InstanceId)
+
 	if i.InstanceLifecycle != "" {
 		lifecycle = string(i.InstanceLifecycle)
 	}
@@ -534,11 +538,10 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 
 	// we anyway need to delete the message, but if we delete it now,
 	// the queue will allow us to process more instances in parallel
-	if a.config.AllowParallelInstanceReplacements {
+
+	if sqsReceiptHandle != nil {
 		i.region.sqsDeleteMessage(i.InstanceId, OnDemand, sqsReceiptHandle)
 	}
-
-	defer i.region.sqsDeleteMessage(i.InstanceId, OnDemand, sqsReceiptHandle)
 
 	log.Printf("%s instance %s belongs to an enabled ASG and should be "+
 		"replaced with spot", i.region.name, *i.InstanceId)
@@ -565,6 +568,9 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 		return err
 	}
 
+	log.Printf("Swapping new instance %s against existing instance %s",
+		*spotInstanceID, *i.InstanceId)
+
 	spotInstance := r.instances.get(*spotInstanceID)
 	if _, err := spotInstance.swapWithGroupMember(i.asg, nil); err != nil {
 		log.Printf("%s, couldn't perform spot replacement of %s: %s ",
@@ -575,7 +581,7 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 }
 
 func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName string) (*string, error) {
-	r := &region{name: regionName, conf: a.config, services: connections{}}
+	r := &region{name: regionName, conf: a.config, services: &connections{}}
 
 	if !r.enabled() {
 		return nil, fmt.Errorf("region %s is not enabled", regionName)

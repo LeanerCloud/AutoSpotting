@@ -2,7 +2,6 @@ package autospotting
 
 import (
 	"context"
-	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -128,7 +127,7 @@ func (c *connections) setConfig(ctx context.Context, region string) error {
 }
 
 func (c *connections) connect(region, mainRegion string) error {
-	log.Println("Creating service connections in", region)
+	debug.Println("Creating service connections in", region)
 
 	ctx := context.TODO()
 
@@ -164,6 +163,6 @@ func (c *connections) connect(region, mainRegion string) error {
 
 	c.region = region
 
-	log.Println("Created service connections in", region)
+	debug.Println("Created service connections in", region)
 	return nil
 }

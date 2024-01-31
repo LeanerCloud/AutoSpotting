@@ -377,7 +377,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 						},
 // 						region: &region{
 // 							name: "test-region",
-// 							services: connections{
+// 							services: &connections{
 // 								ec2: &mockEC2{},
 // 							},
 // 						},
@@ -397,7 +397,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 			expectedRun:     false,
 // 			regionASG: &region{
 // 				name: "regionTest",
-// 				services: connections{
+// 				services: &connections{
 // 					autoScaling: mockASG{},
 // 				},
 // 				conf: &Config{},
@@ -549,7 +549,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 							},
 // 						},
 // 						region: &region{
-// 							services: connections{
+// 							services: &connections{
 // 								ec2: mockEC2{},
 // 							},
 // 						},
@@ -558,7 +558,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 			),
 // 			regionASG: &region{
 // 				name: "regionTest",
-// 				services: connections{
+// 				services: &connections{
 // 					autoScaling: mockASG{tiiasgerr: nil},
 // 				},
 // 				conf: &Config{},
@@ -577,7 +577,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 							},
 // 						},
 // 						region: &region{
-// 							services: connections{
+// 							services: &connections{
 // 								ec2: mockEC2{},
 // 							},
 // 						},
@@ -586,7 +586,7 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 // 			),
 // 			regionASG: &region{
 // 				name: "regionTest",
-// 				services: connections{
+// 				services: &connections{
 // 					autoScaling: mockASG{tiiasgerr: errors.New("terminate-asg")},
 // 				},
 // 				conf: &Config{},
@@ -619,7 +619,7 @@ func TestAttachSpotInstance(t *testing.T) {
 		{name: "no err during attach",
 			regionASG: &region{
 				name: "regionTest",
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						aierr: nil,
 						dasio: &autoscaling.DescribeAutoScalingInstancesOutput{
@@ -653,7 +653,7 @@ func TestAttachSpotInstance(t *testing.T) {
 		{name: "err during attach",
 			regionASG: &region{
 				name: "regionTest",
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						aierr: errors.New("ValidationError"),
 						// aierr: errors.New("attach"),
@@ -713,7 +713,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 			},
 			// nameLC: aws.String("foo"),
 			// regionASG: &region{
-			// 	services: connections{
+			// 	services: &connections{
 			// 		autoScaling: mockASG{
 			// 			dlco: &autoscaling.DescribeLaunchConfigurationsOutput{
 			// 				LaunchConfigurations: []*autoscalingTypes.LaunchConfiguration{
@@ -735,7 +735,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 		{name: "nil launch configuration name",
 			nameLC: nil,
 			regionASG: &region{
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						dlcerr: nil},
 				},
@@ -746,7 +746,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 		{name: "no err during get launch configuration",
 			nameLC: aws.String("testLC"),
 			regionASG: &region{
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						dlcerr: nil,
 						dlco: &autoscaling.DescribeLaunchConfigurationsOutput{
@@ -769,7 +769,7 @@ func TestLoadLaunchConfiguration(t *testing.T) {
 		{name: "err during get launch configuration",
 			nameLC: aws.String("testLC"),
 			regionASG: &region{
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						dlcerr: errors.New("describe"),
 						dlco:   nil,
@@ -844,7 +844,7 @@ func TestLoadLaunchTemplate(t *testing.T) {
 			ltID:  nil,
 			ltVer: nil,
 			regionASG: &region{
-				services: connections{
+				services: &connections{
 					ec2: mockEC2Client{
 						dltverr: nil},
 				},
@@ -856,7 +856,7 @@ func TestLoadLaunchTemplate(t *testing.T) {
 			ltID:  aws.String("foo"),
 			ltVer: aws.Int64(1),
 			regionASG: &region{
-				services: connections{
+				services: &connections{
 					ec2: mockEC2Client{
 						dltverr: nil,
 						dltvo: &ec2.DescribeLaunchTemplateVersionsOutput{
@@ -899,7 +899,7 @@ func TestLoadLaunchTemplate(t *testing.T) {
 			ltID:  aws.String("foo"),
 			ltVer: aws.Int64(1),
 			regionASG: &region{
-				services: connections{
+				services: &connections{
 					ec2: mockEC2Client{
 						dltverr: errors.New("describe"),
 						dltvo:   nil,
@@ -951,7 +951,7 @@ func TestSetAutoScalingMaxSize(t *testing.T) {
 		{name: "err during set autoscaling max size",
 			maxSize: 4,
 			regionASG: &region{
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						uasgerr: errors.New("update"),
 					},
@@ -962,7 +962,7 @@ func TestSetAutoScalingMaxSize(t *testing.T) {
 		{name: "no err during set autoscaling max size",
 			maxSize: 4,
 			regionASG: &region{
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						uasgerr: nil,
 					},
@@ -992,7 +992,7 @@ func TestScanInstances(t *testing.T) {
 	}{
 		{name: "multiple instances to scan",
 			regionInstances: &region{
-				services: connections{
+				services: &connections{
 					ec2: &mockEC2Client{
 						dio: &ec2.DescribeInstancesOutput{},
 						damio: &ec2.DescribeImagesOutput{
@@ -1015,7 +1015,7 @@ func TestScanInstances(t *testing.T) {
 								},
 								InstanceLifecycle: Spot,
 							},
-							typeInfo: instanceTypeInformation{
+							typeInfo: &instanceTypeInformation{
 								pricing: prices{
 									LinuxSpotProduct: {
 										onDemand: 0.5,
@@ -1035,7 +1035,7 @@ func TestScanInstances(t *testing.T) {
 									AvailabilityZone: aws.String("az-2"),
 								},
 							},
-							typeInfo: instanceTypeInformation{
+							typeInfo: &instanceTypeInformation{
 								pricing: prices{
 									LinuxSpotProduct: {
 										onDemand: 0.8,
@@ -1052,6 +1052,7 @@ func TestScanInstances(t *testing.T) {
 				),
 			},
 			ec2ASG: &autoscalingTypes.AutoScalingGroup{
+				AutoScalingGroupName: aws.String("ASGName"),
 				Instances: []autoscalingTypes.Instance{
 					{
 						InstanceId:     aws.String("1"),
@@ -1078,7 +1079,7 @@ func TestScanInstances(t *testing.T) {
 						},
 						InstanceLifecycle: Spot,
 					},
-					typeInfo: instanceTypeInformation{
+					typeInfo: &instanceTypeInformation{
 						pricing: prices{
 							LinuxSpotProduct: {
 								onDemand: 0.5,
@@ -1090,8 +1091,8 @@ func TestScanInstances(t *testing.T) {
 							},
 						},
 					},
-					odPrice:   0.1,
-					protected: false,
+					initialPrice: 0.1,
+					protected:    false,
 				},
 				"2": {
 					Instance: &ec2Types.Instance{
@@ -1100,7 +1101,7 @@ func TestScanInstances(t *testing.T) {
 							AvailabilityZone: aws.String("az-2"),
 						},
 					},
-					typeInfo: instanceTypeInformation{
+					typeInfo: &instanceTypeInformation{
 						pricing: prices{
 							LinuxSpotProduct: {
 								onDemand: 0.8,
@@ -1112,8 +1113,8 @@ func TestScanInstances(t *testing.T) {
 							},
 						},
 					},
-					odPrice:   0.8,
-					protected: true,
+					initialPrice: 0.8,
+					protected:    true,
 				},
 			},
 		},
@@ -1281,7 +1282,8 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 	asgNoInstances := autoScalingGroup{
 		spotProduct: aws.String(LinuxSpotProduct),
 		AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
-			DesiredCapacity: aws.Int32(0),
+			DesiredCapacity:      aws.Int32(0),
+			AutoScalingGroupName: aws.String("ASGName1"),
 		},
 		region: &region{
 			conf: &Config{
@@ -1299,7 +1301,8 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 	asgCantTerminateOnDemandInstance := autoScalingGroup{
 		spotProduct: aws.String(LinuxSpotProduct),
 		AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
-			DesiredCapacity: aws.Int32(1),
+			AutoScalingGroupName: aws.String("ASGName2"),
+			DesiredCapacity:      aws.Int32(1),
 			Instances: []autoscalingTypes.Instance{
 				{
 					InstanceId:           aws.String("i-ondemand"),
@@ -1310,7 +1313,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 			},
 		},
 		region: &region{
-			instanceTypeInformation: map[string]instanceTypeInformation{
+			instanceTypeInformation: map[string]*instanceTypeInformation{
 				"m5.large": {
 					pricing: prices{
 						LinuxSpotProduct: {
@@ -1345,8 +1348,8 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 								Name: ec2Types.InstanceStateNameRunning,
 							},
 						},
-						odPrice: 30.3,
-						typeInfo: instanceTypeInformation{
+						initialPrice: 30.3,
+						typeInfo: &instanceTypeInformation{
 							pricing: prices{
 								LinuxSpotProduct: {
 									onDemand: 30.3,
@@ -1358,7 +1361,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 						},
 					},
 				}),
-			services: connections{
+			services: &connections{
 				ec2: mockEC2Client{
 					diao: &ec2.DescribeInstanceAttributeOutput{},
 
@@ -1378,7 +1381,8 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 	asgTerminateOnDemandInstance := autoScalingGroup{
 
 		AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
-			DesiredCapacity: aws.Int32(1),
+			AutoScalingGroupName: aws.String("ASGName"),
+			DesiredCapacity:      aws.Int32(1),
 			Instances: []autoscalingTypes.Instance{
 				{
 					InstanceId:           aws.String("i-ondemand"),
@@ -1398,7 +1402,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 				Version:    "nightly",
 				FinalRecap: make(map[string][]string),
 			},
-			instanceTypeInformation: map[string]instanceTypeInformation{
+			instanceTypeInformation: map[string]*instanceTypeInformation{
 				"m5.large": {
 					pricing: prices{
 						LinuxSpotProduct: {
@@ -1424,8 +1428,8 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 								Name: ec2Types.InstanceStateNameRunning,
 							},
 						},
-						odPrice: 30.3,
-						typeInfo: instanceTypeInformation{
+						initialPrice: 30.3,
+						typeInfo: &instanceTypeInformation{
 							pricing: prices{
 								LinuxSpotProduct: {
 									onDemand: 30.3,
@@ -1437,7 +1441,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 						},
 					},
 				}),
-			services: connections{
+			services: &connections{
 				ec2: mockEC2Client{
 					diao: &ec2.DescribeInstanceAttributeOutput{},
 					damio: &ec2.DescribeImagesOutput{
@@ -1461,8 +1465,10 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 		{name: "should not run",
 
 			asg: &autoScalingGroup{
-				spotProduct:      aws.String(LinuxSpotProduct),
-				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{},
+				spotProduct: aws.String(LinuxSpotProduct),
+				AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+					AutoScalingGroupName: aws.String("ASGName"),
+				},
 				region: &region{
 					conf: &Config{
 						AutoScalingConfig: AutoScalingConfig{
@@ -1498,6 +1504,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
 			if got := tt.asg.cronEventAction(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("autoScalingGroup.cronEventAction() \ngot %#v, \nwant %#v", got, tt.want)
 			}
@@ -1564,8 +1571,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -1589,8 +1596,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -1645,8 +1652,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -1670,8 +1677,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.1,
@@ -1725,8 +1732,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -1750,8 +1757,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.1,
@@ -1811,8 +1818,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -1836,8 +1843,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.1,
@@ -1861,8 +1868,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 2.1,
@@ -1922,8 +1929,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -1947,8 +1954,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.1,
@@ -1972,8 +1979,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 2.0,
@@ -2038,8 +2045,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2063,8 +2070,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.1,
@@ -2088,8 +2095,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 2.1,
@@ -2113,8 +2120,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 2.1,
@@ -2179,8 +2186,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2204,8 +2211,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.1,
@@ -2229,8 +2236,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 2.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 2.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 2.0,
@@ -2254,8 +2261,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 2.5,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 2.5,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 2.5,
@@ -2302,8 +2309,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2327,8 +2334,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2388,8 +2395,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2413,8 +2420,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.1,
@@ -2438,8 +2445,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 2.1,
@@ -2494,8 +2501,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2519,8 +2526,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2595,8 +2602,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 									},
 									InstanceLifecycle: "spot",
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2620,8 +2627,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 									},
 									InstanceLifecycle: "spot",
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.1,
@@ -2645,8 +2652,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 									},
 									InstanceLifecycle: "spot",
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 2.1,
@@ -2670,8 +2677,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 									},
 									InstanceLifecycle: "spot",
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2695,8 +2702,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 									},
 									InstanceLifecycle: "spot",
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.1,
@@ -2720,8 +2727,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 									},
 									InstanceLifecycle: "spot",
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.1,
@@ -2797,8 +2804,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2822,8 +2829,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2847,8 +2854,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2872,8 +2879,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2897,8 +2904,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2922,8 +2929,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,
@@ -2973,8 +2980,8 @@ func TestHaveTooManyInstancesOfInstanceType(t *testing.T) {
 										Name: ec2Types.InstanceStateNameRunning,
 									},
 								},
-								odPrice: 1.0,
-								typeInfo: instanceTypeInformation{
+								initialPrice: 1.0,
+								typeInfo: &instanceTypeInformation{
 									pricing: prices{
 										LinuxSpotProduct: {
 											onDemand: 1.0,

@@ -30,7 +30,7 @@ func TestTerminate(t *testing.T) {
 					},
 				},
 				region: &region{
-					services: connections{
+					services: &connections{
 						ec2: mockEC2Client{
 							tierr: nil,
 						},
@@ -50,7 +50,7 @@ func TestTerminate(t *testing.T) {
 					},
 				},
 				region: &region{
-					services: connections{
+					services: &connections{
 						ec2: mockEC2Client{
 							tierr: errors.New(""),
 						},
@@ -112,12 +112,12 @@ func Test_instance_handleInstanceStates(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			i := &instance{
-				Instance:  tt.instance.Instance,
-				typeInfo:  tt.instance.typeInfo,
-				odPrice:   tt.instance.odPrice,
-				region:    tt.instance.region,
-				protected: tt.instance.protected,
-				asg:       tt.instance.asg,
+				Instance:     tt.instance.Instance,
+				typeInfo:     tt.instance.typeInfo,
+				initialPrice: tt.instance.initialPrice,
+				region:       tt.instance.region,
+				protected:    tt.instance.protected,
+				asg:          tt.instance.asg,
 			}
 			got, err := i.handleInstanceStates()
 			if (err != nil) != tt.wantErr {
@@ -151,7 +151,7 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 					},
 				},
 
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					instanceType:             "typeX",
 					PhysicalProcessor:        "Intel",
 					vCPU:                     10,
@@ -165,7 +165,7 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 						},
 					},
 				},
-				odPrice: 0.75,
+				initialPrice: 0.75,
 				asg: &autoScalingGroup{
 					spotProduct: aws.String(LinuxSpotProduct),
 					AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
@@ -203,7 +203,7 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 					},
 				},
 				region: &region{
-					instanceTypeInformation: map[string]instanceTypeInformation{
+					instanceTypeInformation: map[string]*instanceTypeInformation{
 						"1": {
 							instanceType: "type1", // cheapest, cheaper than ondemand
 							pricing: prices{
@@ -262,7 +262,7 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 							virtualizationTypes:      []string{"PV", "else"},
 						},
 					},
-					services: connections{
+					services: &connections{
 						ec2: mockEC2Client{
 							cferr: nil,
 							cfo: &ec2.CreateFleetOutput{
@@ -286,12 +286,12 @@ func Test_instance_launchSpotReplacement(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			i := &instance{
-				Instance:  tt.instance.Instance,
-				typeInfo:  tt.instance.typeInfo,
-				odPrice:   tt.instance.odPrice,
-				region:    tt.instance.region,
-				protected: tt.instance.protected,
-				asg:       tt.instance.asg,
+				Instance:     tt.instance.Instance,
+				typeInfo:     tt.instance.typeInfo,
+				initialPrice: tt.instance.initialPrice,
+				region:       tt.instance.region,
+				protected:    tt.instance.protected,
+				asg:          tt.instance.asg,
 			}
 			got, err := i.launchSpotReplacement()
 			if (err != nil) != tt.wantErr {

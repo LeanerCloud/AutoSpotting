@@ -27,7 +27,7 @@ func Test_fetch(t *testing.T) {
 			name: "error",
 			config: &spotPrices{
 				data: []ec2Types.SpotPrice{},
-				conn: connections{
+				conn: &connections{
 					ec2: mockEC2Client{
 						dsphpo: &ec2.DescribeSpotPriceHistoryOutput{
 							SpotPriceHistory: []ec2Types.SpotPrice{},
@@ -43,7 +43,7 @@ func Test_fetch(t *testing.T) {
 			name: "ok",
 			config: &spotPrices{
 				data: []ec2Types.SpotPrice{},
-				conn: connections{
+				conn: &connections{
 					ec2: mockEC2Client{
 						dsphpo: &ec2.DescribeSpotPriceHistoryOutput{
 							SpotPriceHistory: []ec2Types.SpotPrice{
@@ -62,7 +62,7 @@ func Test_fetch(t *testing.T) {
 			name: "paginated output",
 			config: &spotPrices{
 				data: []ec2Types.SpotPrice{},
-				conn: connections{
+				conn: &connections{
 					ec2: mockEC2Client{
 						dsphpo: &ec2.DescribeSpotPriceHistoryOutput{
 

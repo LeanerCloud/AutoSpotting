@@ -15,7 +15,7 @@ import (
 
 type spotPrices struct {
 	data []ec2Types.SpotPrice
-	conn connections
+	conn *connections
 }
 
 func (s *spotPrices) fetch(

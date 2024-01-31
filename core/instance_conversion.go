@@ -232,7 +232,7 @@ func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2Types
 	if i.asg != nil && i.asg.config.OnDemandPriceMultiplier != 0 {
 		mp = i.asg.config.OnDemandPriceMultiplier
 	}
-	i.odPrice = odPrice * mp
+	i.initialPrice = odPrice * mp
 
 	placement := ec2Types.LaunchTemplatePlacementRequest(*i.Placement)
 
@@ -260,7 +260,7 @@ func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2Types
 		ltData.InstanceMarketOptions = &ec2Types.LaunchTemplateInstanceMarketOptionsRequest{
 			MarketType: Spot,
 			SpotOptions: &ec2Types.LaunchTemplateSpotMarketOptionsRequest{
-				MaxPrice: aws.String(strconv.FormatFloat(i.odPrice, 'g', 10, 64)),
+				MaxPrice: aws.String(strconv.FormatFloat(i.initialPrice, 'g', 10, 64)),
 			},
 		}
 	}
@@ -324,7 +324,7 @@ func (i *instance) createFleetInput(ltName *string, ltVersion *string, instanceT
 		},
 		SpotOptions: &ec2Types.SpotOptionsRequest{
 			AllocationStrategy: ec2Types.SpotAllocationStrategy(i.asg.config.SpotAllocationStrategy),
-			MaxTotalPrice:      aws.String(strconv.FormatFloat(i.odPrice, 'g', 10, 64)),
+			MaxTotalPrice:      aws.String(strconv.FormatFloat(i.initialPrice, 'g', 10, 64)),
 		},
 		OnDemandOptions: &ec2Types.OnDemandOptionsRequest{
 			AllocationStrategy: "prioritized",
@@ -364,7 +364,7 @@ func (i *instance) generateTagsList() []ec2Types.TagSpecification {
 			},
 			{
 				Key:   aws.String("odPrice"),
-				Value: aws.String(strconv.FormatFloat(i.odPrice, 'f', -1, 32)),
+				Value: aws.String(strconv.FormatFloat(i.initialPrice, 'f', -1, 32)),
 			},
 		},
 	}

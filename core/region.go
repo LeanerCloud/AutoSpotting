@@ -45,12 +45,12 @@ type region struct {
 	autospotting *AutoSpotting
 	conf         *Config
 	// The key in this map is the instance type.
-	instanceTypeInformation map[string]instanceTypeInformation
+	instanceTypeInformation map[string]*instanceTypeInformation
 
 	instances instances
 
 	enabledASGs []autoScalingGroup
-	services    connections
+	services    *connections
 
 	tagsToFilterASGsBy []Tag
 
@@ -101,18 +101,12 @@ func (r *region) enabled() bool {
 
 func (r *region) processRegion() {
 
-	log.Println("Creating connections to the required AWS services in", r.name)
+	debug.Println("Creating connections to the required AWS services in", r.name)
 	r.services.connect(r.name, r.conf.MainRegion)
 	// only process the regions where we have AutoScaling groups set to be handled
 
 	// setup the filters for asg matching
 	r.setupAsgFilters()
-
-	log.Println("Scanning instances in", r.name)
-	err := r.scanInstances()
-	if err != nil {
-		log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
-	}
 
 	log.Println("Scanning for enabled AutoScaling groups in ", r.name)
 	r.scanForEnabledAutoScalingGroups()
@@ -123,10 +117,20 @@ func (r *region) processRegion() {
 		log.Println("Scanning full instance information in", r.name)
 		r.determineInstanceTypeInformation(r.conf)
 
+		err := r.scanInstances()
+		if err != nil {
+			log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
+		}
+
 		log.Println("Processing enabled AutoScaling groups in", r.name)
 		r.processEnabledAutoScalingGroups()
 	} else {
 		log.Println(r.name, "has no enabled AutoScaling groups")
+	}
+
+	err := r.scanInstances()
+	if err != nil {
+		log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
 	}
 	r.reapUnattachedInstances()
 	r.reapDuplicatedInstances()
@@ -181,6 +185,7 @@ func (r *region) processDescribeInstancesPage(page *ec2.DescribeInstancesOutput)
 }
 
 func (r *region) scanInstances() error {
+	log.Println("Scanning instances in", r.name)
 	svc := r.services.ec2
 	input := &ec2.DescribeInstancesInput{
 		Filters: []ec2Types.Filter{
@@ -207,8 +212,6 @@ func (r *region) scanInstances() error {
 		r.processDescribeInstancesPage(page)
 
 	}
-
-	debug.Println(r.instances.dump())
 
 	return nil
 }
@@ -249,9 +252,7 @@ func (r *region) addInstance(inst *ec2Types.Instance) {
 
 func (r *region) determineInstanceTypeInformation(cfg *Config) {
 
-	r.instanceTypeInformation = make(map[string]instanceTypeInformation)
-
-	var info instanceTypeInformation
+	r.instanceTypeInformation = make(map[string]*instanceTypeInformation)
 
 	itfic := make(instanceTypeFamilyInfoCache)
 	itmgc := make(instanceTypeMaxGenerationCache)
@@ -281,6 +282,8 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 			spot:     make(spotPriceMap),
 		}
 
+		var info instanceTypeInformation
+
 		// if at this point the instance price is still zero, then that
 		// particular instance type doesn't even exist in the current
 		// region, so we don't even need to create an empty spot pricing
@@ -306,7 +309,10 @@ func (r *region) determineInstanceTypeInformation(cfg *Config) {
 				info.instanceStoreDeviceCount = it.Storage.Devices
 				info.instanceStoreIsSSD = it.Storage.SSD
 			}
-			r.instanceTypeInformation[it.InstanceType] = info
+			debug.Printf("Adding instance type information for instance type %s, with memory %.2f",
+				it.InstanceType, it.Memory)
+
+			r.instanceTypeInformation[it.InstanceType] = &info
 		}
 	}
 	// this is safe to do once outside of the loop because the call will only
@@ -334,26 +340,33 @@ func (r *region) requestSpotPrices() error {
 	// log.Println("Spot Price list in ", r.name, ":\n", s.data)
 
 	for _, priceInfo := range s.data {
+		if priceInfo.AvailabilityZone == nil || priceInfo.SpotPrice == nil {
+			log.Printf("Missing spot price or availability zone information, skipping entry: %#v", priceInfo)
+			continue
+		}
 
 		instType, az := priceInfo.InstanceType, *priceInfo.AvailabilityZone
 
-		// failure to parse this means that the instance is not available on the
-		// spot market
+		// failure to parse this means that the instance is not available on the spot market
 		price, err := strconv.ParseFloat(*priceInfo.SpotPrice, 64)
 		if err != nil {
-			debug.Println(r.name, "Instance type ", instType,
-				"is not available on the spot market")
+			log.Println(r.name, "Instance type ", instType, "is not available on the spot market")
 			continue
 		}
 
-		if r.instanceTypeInformation[string(instType)].pricing[string(priceInfo.ProductDescription)].spot == nil {
-			debug.Println(r.name, "Instance data missing for", instType, "in", az,
-				"skipping because this region is currently not supported")
+		instanceTypeInfo, ok := r.instanceTypeInformation[string(instType)]
+		if !ok || instanceTypeInfo.pricing == nil {
+			debug.Println(r.name, "No instance type information or pricing for", instType)
 			continue
 		}
 
-		r.instanceTypeInformation[string(instType)].pricing[string(priceInfo.ProductDescription)].spot[az] = price
+		productDescription := string(priceInfo.ProductDescription)
+		if instanceTypeInfo.pricing[productDescription].spot == nil {
+			log.Println(r.name, "Instance data missing for", instType, "in", az, "skipping because this region is currently not supported")
+			continue
+		}
 
+		instanceTypeInfo.pricing[productDescription].spot[az] = price
 	}
 
 	return nil
@@ -436,6 +449,7 @@ func (r *region) findMatchingASGsInPageOfResults(groups []autoscalingTypes.AutoS
 	tagCloudFormationStackName := Tag{Key: "aws:cloudformation:stack-name", Value: "*"}
 
 	for _, group := range groups {
+		myGroup := group
 		asgName := *group.AutoScalingGroupName
 
 		groupMatchesExpectedTags := isASGWithMatchingTags(&group, tagsToMatch)
@@ -462,7 +476,7 @@ func (r *region) findMatchingASGsInPageOfResults(groups []autoscalingTypes.AutoS
 			"currently configured  filtering mode (%s) and tag filters are aligned\n",
 			asgName, r.conf.TagFilteringMode)
 		asgs = append(asgs, autoScalingGroup{
-			AutoScalingGroup: &group,
+			AutoScalingGroup: &myGroup,
 			name:             asgName,
 			region:           r,
 		})
@@ -507,6 +521,7 @@ func (r *region) processEnabledAutoScalingGroups() {
 
 		r.wg.Add(1)
 		go func(a autoScalingGroup) {
+			log.Printf("Processing enabled autoscaling group %s", a.name)
 			action := a.cronEventAction()
 			action.run()
 			r.wg.Done()
@@ -551,16 +566,16 @@ func (r *region) calculateSavings() float64 {
 
 	r.services.connect(r.name, r.conf.MainRegion)
 
-	log.Println("Scanning full instance information in", r.name)
+	debug.Println("Scanning full instance information in", r.name)
 	r.determineInstanceTypeInformation(r.conf)
 
-	log.Println("Scanning instances in", r.name)
+	debug.Println("Scanning instances in", r.name)
 	err := r.scanInstances()
 	if err != nil {
 		log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
 	}
 
-	log.Println("Calculating AutoSpotting savings in", r.name)
+	debug.Println("Calculating AutoSpotting savings in", r.name)
 
 	for inst := range r.instances.instances() {
 
@@ -575,7 +590,7 @@ func (r *region) calculateSavings() float64 {
 			}
 		}
 	}
-	log.Printf("Total savings in %s: %f\n", r.name, savings)
+	debug.Printf("Total savings in %s: %f\n", r.name, savings)
 
 	ss := savingsStats{
 		sns:             r.services.sns,
@@ -640,7 +655,7 @@ func (r *region) tagResource(resourceID *string, tagKey string, tagValue string)
 }
 func (r *region) reapDuplicatedInstances() error {
 	tagKey := "launched-for-replacing-instance"
-	log.Println("Starting the reaping of duplicated instances process")
+	debug.Println("Starting the reaping of duplicated instances process")
 
 	// Map to hold instances by their launched-for-replacing-instance tag value.
 	instancesByTag := make(map[string][]*instance)
@@ -655,7 +670,7 @@ func (r *region) reapDuplicatedInstances() error {
 		}
 	}
 
-	log.Printf("Checking for duplicated instances with tag key: %s", tagKey)
+	debug.Printf("Checking for duplicated instances with tag key: %s", tagKey)
 	// Iterate over the map to find duplicates and terminate the newest.
 	for tagValue, instances := range instancesByTag {
 		if len(instances) > 1 {
@@ -674,7 +689,7 @@ func (r *region) reapDuplicatedInstances() error {
 		}
 	}
 
-	log.Println("Completed the reaping of duplicated instances process")
+	debug.Printf("Completed the reaping of duplicated instances process in %s", r.name)
 	return nil
 }
 
@@ -695,9 +710,12 @@ func findNewestInstance(instances []*instance) *instance {
 	return newest
 }
 func (r *region) findASGForInstance(inst *instance) (*autoScalingGroup, error) {
+	asgName := inst.getReplacementTargetASGName()
+	r.scanForEnabledAutoScalingGroups()
+
 	log.Printf("Finding ASG for instance: %s", *inst.InstanceId)
 	for _, asg := range r.enabledASGs {
-		if asg.containsInstance(inst) {
+		if asg.name == *asgName && asg.containsInstance(inst) {
 			log.Printf("Found ASG: %s for instance: %s", asg.name, *inst.InstanceId)
 			return &asg, nil
 		}

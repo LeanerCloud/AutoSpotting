@@ -5,8 +5,6 @@ package autospotting
 
 import (
 	"sync"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 // The key in this map is the instance ID, useful for quick retrieval of
@@ -25,11 +23,10 @@ type instances interface {
 	count64() int64
 	make()
 	instances() <-chan *instance
-	dump() string
 }
 
 type acceptableInstance struct {
-	instanceTI      instanceTypeInformation
+	instanceTI      *instanceTypeInformation
 	price           float64
 	generationDelta int64
 }
@@ -60,11 +57,6 @@ func makeInstancesWithCatalog(catalog instanceMap) instances {
 	return &instanceManager{catalog: catalog}
 }
 
-func (is *instanceManager) dump() string {
-	is.RLock()
-	defer is.RUnlock()
-	return spew.Sdump(is.catalog)
-}
 func (is *instanceManager) make() {
 	is.Lock()
 	is.catalog = make(instanceMap)

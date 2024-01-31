@@ -259,7 +259,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 			name: "createLaunchTemplateData() with simple LC",
 			inst: instance{
 				spotProduct: aws.String(LinuxSpotProduct),
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					pricing: prices{
 						LinuxSpotProduct: {
 							onDemand: 1.5,
@@ -267,7 +267,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					},
 				},
 				region: &region{
-					services: connections{
+					services: &connections{
 						ec2: mockEC2Client{
 							damio: &ec2.DescribeImagesOutput{
 								Images: []ec2Types.Image{},
@@ -359,7 +359,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 			name: "createLaunchTemplateData() with full launch configuration",
 			inst: instance{
 				spotProduct: aws.String(LinuxSpotProduct),
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					pricing: prices{
 						LinuxSpotProduct: {
 							onDemand: 1.5,
@@ -367,7 +367,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 					},
 				},
 				region: &region{
-					services: connections{
+					services: &connections{
 						ec2: mockEC2Client{
 							damio: &ec2.DescribeImagesOutput{
 								Images: []ec2Types.Image{},
@@ -562,8 +562,8 @@ func Test_instance_createFleetInput(t *testing.T) {
 				"instance-type2",
 			},
 			i: &instance{
-				spotProduct: aws.String(LinuxSpotProduct),
-				odPrice:     2,
+				spotProduct:  aws.String(LinuxSpotProduct),
+				initialPrice: 2,
 				Instance: &ec2Types.Instance{
 					SubnetId: aws.String("subnet-id"),
 				},
@@ -594,7 +594,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 					},
 				},
 				region: &region{},
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					pricing: prices{
 						LinuxSpotProduct: {
 							onDemand: 1,
@@ -673,8 +673,8 @@ func Test_instance_createFleetInput(t *testing.T) {
 				"instance-type2",
 			},
 			i: &instance{
-				spotProduct: aws.String(LinuxSpotProduct),
-				odPrice:     2,
+				spotProduct:  aws.String(LinuxSpotProduct),
+				initialPrice: 2,
 				Instance: &ec2Types.Instance{
 					SubnetId: aws.String("subnet-id"),
 				},
@@ -705,7 +705,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 				},
 
 				region: &region{},
-				typeInfo: instanceTypeInformation{
+				typeInfo: &instanceTypeInformation{
 					pricing: prices{
 						LinuxSpotProduct: {
 							onDemand: 1,
@@ -823,7 +823,7 @@ func Test_instance_createFleetLaunchTemplate(t *testing.T) {
 					name: tt.asgName,
 				},
 				region: &region{
-					services: connections{
+					services: &connections{
 						ec2: mockEC2Client{
 							clterr: tt.cltErr,
 						},

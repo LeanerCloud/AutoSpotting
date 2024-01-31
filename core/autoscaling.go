@@ -232,12 +232,19 @@ func (a *autoScalingGroup) willCauseInstanceTypeImbalance(instanceType, az strin
 }
 func (a *autoScalingGroup) cronEventAction() runer {
 
+	log.Println(a.region.name, a.name, "Starting cronEventAction")
+
 	a.scanInstances()
+	debug.Println(a.region.name, a.name, "Completed scanInstances")
+
 	a.loadDefaultConfig()
+	debug.Println(a.region.name, a.name, "Completed loadDefaultConfig")
+
 	a.loadConfigFromTags()
+	debug.Println(a.region.name, a.name, "Completed loadConfigFromTags")
 
 	shouldRun := cronRunAction(time.Now(), a.config.CronSchedule, a.config.CronTimezone, a.config.CronScheduleState)
-	debug.Println(a.region.name, a.name, "Should take replacement actions:", shouldRun)
+	debug.Println(a.region.name, a.name, "CronRunAction evaluated:", shouldRun)
 
 	if !shouldRun {
 		log.Println(a.region.name, a.name,
@@ -245,10 +252,15 @@ func (a *autoScalingGroup) cronEventAction() runer {
 		return skipRun{reason: "outside-cron-schedule"}
 	}
 
+	debug.Printf("ASG %s has following instances: %#v", a.name, a.Instances)
+
 	a.clearScaleInProtectionOfSpotInstancesInDownsizedASGs()
+	debug.Println(a.region.name, a.name, "Completed clearScaleInProtectionOfSpotInstancesInDownsizedASGs")
 
 	onDemandInstance := a.getInstance(nil, true)
-
+	if onDemandInstance != nil && onDemandInstance.InstanceId != nil {
+		debug.Println(a.region.name, a.name, "onDemandInstance acquired: ", *onDemandInstance.InstanceId)
+	}
 	if onDemandInstance == nil {
 		log.Println(a.region.name, a.name,
 			"No running unprotected on-demand instances were found, nothing to do here...")
@@ -256,7 +268,7 @@ func (a *autoScalingGroup) cronEventAction() runer {
 	}
 
 	onDemandInstance.typeInfo = a.region.instanceTypeInformation[string(onDemandInstance.InstanceType)]
-	onDemandInstance.odPrice = onDemandInstance.getODPrice()
+	onDemandInstance.initialPrice = onDemandInstance.getODPrice()
 
 	debug.Printf("Instance data: %v", onDemandInstance)
 
@@ -269,16 +281,12 @@ func (a *autoScalingGroup) cronEventAction() runer {
 		return skipRun{reason: "not-allowed-to-replace-more-instances"}
 	}
 
-	if onDemandInstance == nil {
-		log.Println(a.region.name, a.name,
-			"No running unprotected on-demand instances were found, nothing to do here...")
-
-		return skipRun{reason: "no-instances-to-replace"}
-	}
-
 	recapText := fmt.Sprintf("%s Triggered replacement for on-demand instance %s", a.name, *onDemandInstance.Instance.InstanceId)
 	a.region.conf.FinalRecap[a.region.name] = append(a.region.conf.FinalRecap[a.region.name], recapText)
 
+	log.Printf("%s CronEvent: returning action to replace on demand instance %s in asg %s",
+		a.region.name, *onDemandInstance.InstanceId, a.name)
+	debug.Println(a.region.name, a.name, "Exiting cronEventAction")
 	return replaceAndTerminateInstance{target{
 		autospotting:     a.autospotting,
 		onDemandInstance: onDemandInstance,
@@ -347,6 +355,9 @@ func (a *autoScalingGroup) scanInstances() instances {
 	log.Println("Adding instances to", a.name)
 	a.instances = makeInstances()
 	for _, inst := range a.Instances {
+		debug.Printf("Adding instance %s to ASG %s with ASG ID %s",
+			*inst.InstanceId, a.name, *a.AutoScalingGroupName)
+
 		i := a.region.instances.get(*inst.InstanceId)
 
 		if i == nil {
@@ -376,10 +387,16 @@ func (a *autoScalingGroup) scanInstances() instances {
 			}
 		}
 
+		if i.typeInfo == nil || i.typeInfo.pricing == nil {
+			log.Printf("Missing type information or pricing for instance %s, continuing...", *inst.InstanceId)
+		}
+
 		if i.isSpot() {
-			i.odPrice = i.typeInfo.pricing[*spotProduct].spot[*i.Placement.AvailabilityZone]
+			log.Printf("Setting initial price for instance %s as Spot", *inst.InstanceId)
+			i.initialPrice = i.typeInfo.pricing[*spotProduct].spot[*i.Placement.AvailabilityZone]
 		} else {
-			i.odPrice = i.typeInfo.pricing[*spotProduct].onDemand
+			log.Printf("Setting initial price for instance %s as OnDemand for %s ", *inst.InstanceId, *spotProduct)
+			i.initialPrice = i.typeInfo.pricing[*spotProduct].onDemand
 		}
 
 		// Avoid adding instance in Terminating (Wait|Proceed) Lifecycle State
@@ -401,6 +418,20 @@ func (a *autoScalingGroup) getInstance(
 ) *instance {
 
 	for i := range a.instances.instances() {
+
+		found := false
+		for _, in := range a.Instances {
+			debug.Printf("checking if ASG instance %s exists as instance ID %s in asg %s",
+				*in.InstanceId, *in.InstanceId, a.name)
+			if *in.InstanceId == *i.InstanceId {
+				found = true
+			}
+		}
+		if !found {
+			log.Printf("Instance %s not found in the ASG %s",
+				*i.InstanceId, a.name)
+			continue
+		}
 
 		// instance is running
 		if i.State.Name == ec2Types.InstanceStateNameRunning {
@@ -573,6 +604,18 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	i *instance, wait bool, decreaseCapacity bool) error {
 	lifecycle := i.getLifecycleValue()
 
+	var found bool
+	for _, instance := range a.Instances {
+		if *instance.InstanceId == *i.InstanceId {
+			found = true
+		}
+	}
+	if !found {
+		log.Printf("%s Not terminating %s instance: %s because it is not in the ASG %s",
+			a.region.name, lifecycle, *i.InstanceId, a.name)
+		return nil
+	}
+
 	//return if we can't terminate the instance
 	if !i.canTerminate() {
 		log.Printf("%s %s Not terminating %s instance: %s because it is already terminated or terminating\n",
@@ -587,7 +630,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 				lifecycle, *i.InstanceId, err.Error())
 		}
 
-		if err := a.waitForInstanceStatus(i.InstanceId, "InService", lifecycle, 80); err != nil {
+		if err := a.waitForInstanceStatus(i.InstanceId, "InService", lifecycle, 5); err != nil {
 			log.Printf("Instance %s is still not InService, trying to terminate it anyway.",
 				*i.InstanceId)
 		}
@@ -750,7 +793,7 @@ func (a *autoScalingGroup) suspendProcesses(processes []string) {
 
 func (a *autoScalingGroup) resumeProcesses(processes []string, delay time.Duration) {
 
-	log.Printf("Resuming processes on ASG %s, waiting for %f minutes", a.name, delay.Minutes())
+	log.Printf("Resuming processes on ASG %s, waiting for %.0f seconds", a.name, delay.Seconds())
 	time.Sleep(delay * a.region.conf.SleepMultiplier)
 	log.Printf("Resuming processes on ASG %s, waiting complete, performing API call", a.name)
 

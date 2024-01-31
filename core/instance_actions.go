@@ -215,7 +215,7 @@ func handleASGSizeAdjustments(asg *autoScalingGroup) {
 
 func (i *instance) getLifecycleValue() string {
 	defaultValue := "on-demand"
-	if i != nil {
+	if i != nil && i.InstanceLifecycle != "" {
 		return string(i.InstanceLifecycle)
 	}
 	return defaultValue
@@ -295,6 +295,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 
 	odInstance, err := getReplacementInstance(i, instancetoReplace)
 	if err != nil {
+		log.Printf("Couldn't find replacement instance for %s", *instancetoReplace.InstanceId)
 		return nil, err
 	}
 

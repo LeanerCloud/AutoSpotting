@@ -201,7 +201,7 @@ func TestOnDemandPriceMultiplier(t *testing.T) {
 		r := region{
 			name: "us-east-1",
 			conf: cfg,
-			services: connections{
+			services: &connections{
 				ec2: mockEC2Client{
 					dsphpo: &ec2.DescribeSpotPriceHistoryOutput{
 
@@ -284,7 +284,7 @@ func TestFilterAsgs(t *testing.T) {
 			tregion: &region{
 				tagsToFilterASGsBy: []Tag{{Key: "spot-enabled", Value: "true"}},
 				conf:               &Config{},
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
 							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
@@ -329,7 +329,7 @@ func TestFilterAsgs(t *testing.T) {
 			tregion: &region{
 				tagsToFilterASGsBy: []Tag{{Key: "spot-enabled", Value: "false"}},
 				conf:               &Config{TagFilteringMode: "opt-out"},
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
 							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
@@ -377,7 +377,7 @@ func TestFilterAsgs(t *testing.T) {
 					{Key: "environment", Value: "dev"},
 				},
 				conf: &Config{TagFilteringMode: "opt-out"},
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
 							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
@@ -425,7 +425,7 @@ func TestFilterAsgs(t *testing.T) {
 			tregion: &region{
 				tagsToFilterASGsBy: []Tag{{Key: "spot-enabled", Value: "true"}, {Key: "environment", Value: "qa"}},
 				conf:               &Config{},
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
 							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
@@ -473,7 +473,7 @@ func TestFilterAsgs(t *testing.T) {
 					{Key: "team", Value: "interactive"},
 				},
 				conf: &Config{},
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
 							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
@@ -521,7 +521,7 @@ func TestFilterAsgs(t *testing.T) {
 					{Key: "team", Value: "interactive"},
 				},
 				conf: &Config{},
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
 							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
@@ -571,7 +571,7 @@ func TestFilterAsgs(t *testing.T) {
 					{Key: "team", Value: "interactive"},
 				},
 				conf: &Config{},
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
 							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
@@ -602,7 +602,7 @@ func TestFilterAsgs(t *testing.T) {
 			tregion: &region{
 				tagsToFilterASGsBy: []Tag{{Key: "spot-enabled", Value: "true"}},
 				conf:               &Config{},
-				services: connections{
+				services: &connections{
 					autoScaling: mockASG{
 						dasgo: &autoscaling.DescribeAutoScalingGroupsOutput{
 							AutoScalingGroups: []autoscalingTypes.AutoScalingGroup{
@@ -664,7 +664,7 @@ func TestIsStackUpdating(t *testing.T) {
 		{
 			name: "Stack is not updating",
 			region: &region{
-				services: connections{
+				services: &connections{
 					cloudFormation: mockCloudFormation{
 						dso: &cloudformation.DescribeStacksOutput{
 							Stacks: []cloudformationTypes.Stack{
@@ -682,7 +682,7 @@ func TestIsStackUpdating(t *testing.T) {
 		{
 			name: "Stack is updating",
 			region: &region{
-				services: connections{
+				services: &connections{
 					cloudFormation: mockCloudFormation{
 						dso: &cloudformation.DescribeStacksOutput{
 							Stacks: []cloudformationTypes.Stack{
@@ -724,7 +724,7 @@ func Test_region_scanInstances(t *testing.T) {
 						MinOnDemandNumber: 2,
 					},
 				},
-				services: connections{
+				services: &connections{
 					ec2: mockEC2Client{
 						diperr: nil,
 						dio: &ec2.DescribeInstancesOutput{
