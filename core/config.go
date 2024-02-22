@@ -172,11 +172,11 @@ func ParseConfig(conf *Config) {
 			"\tAccepts a list of comma or whitespace separated instance types (supports globs).\n"+
 			"\tExample: ./AutoSpotting -disallowed_instance_types 't2.*,c4.xlarge'\n")
 
-	flagSet.Int64Var(&conf.NumberOfInstanceTypesPerAZ, "instance_types_per_az", 2,
+	flagSet.UintVar(&conf.NumberOfInstanceTypesPerAZ, "instance_types_per_az", 2,
 		"\n\tNumber of instance types to diversify over for each availability zone.\n\t"+
 			"Can be overridden on a per-group basis using the tag "+NumberOfInstanceTypesPerAZTag+".\n")
 
-	flagSet.Int64Var(&conf.MinOnDemandNumber, "min_on_demand_number", DefaultMinOnDemandValue,
+	flagSet.UintVar(&conf.MinOnDemandNumber, "min_on_demand_number", DefaultMinOnDemandValue,
 		"\n\tNumber of on-demand nodes to be kept running in each of the groups.\n\t"+
 			"Can be overridden on a per-group basis using the tag "+OnDemandNumberTag+".\n")
 

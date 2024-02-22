@@ -102,8 +102,10 @@ func (r *region) enabled() bool {
 func (r *region) processRegion() {
 
 	debug.Println("Creating connections to the required AWS services in", r.name)
-	r.services.connect(r.name, r.conf.MainRegion)
-	// only process the regions where we have AutoScaling groups set to be handled
+	if err := r.services.connect(r.name, r.conf.MainRegion); err != nil {
+		log.Printf("Error connecting services in region %s with main region %s: %s",
+			r.name, r.conf.MainRegion, err.Error())
+	} // only process the regions where we have AutoScaling groups set to be handled
 
 	// setup the filters for asg matching
 	r.setupAsgFilters()
@@ -133,7 +135,10 @@ func (r *region) processRegion() {
 		log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
 	}
 	r.reapUnattachedInstances()
-	r.reapDuplicatedInstances()
+
+	if err := r.reapDuplicatedInstances(); err != nil {
+		log.Printf("error reaping duplicated instances in region %s: %s", r.name, err.Error())
+	}
 
 }
 
@@ -178,7 +183,8 @@ func (r *region) processDescribeInstancesPage(page *ec2.DescribeInstancesOutput)
 
 		for _, res := range page.Reservations {
 			for _, inst := range res.Instances {
-				r.addInstance(&inst)
+				i := inst
+				r.addInstance(&i)
 			}
 		}
 	}
@@ -385,7 +391,8 @@ func tagsMatch(asgTag *autoscalingTypes.TagDescription, filteringTag Tag) bool {
 }
 
 func isASGWithMatchingTag(tagToMatch Tag, asgTags []autoscalingTypes.TagDescription) bool {
-	for _, asgTag := range asgTags {
+	for _, tag := range asgTags {
+		asgTag := tag
 		if tagsMatch(&asgTag, tagToMatch) {
 			return true
 		}
@@ -406,7 +413,8 @@ func isASGWithMatchingTags(asg *autoscalingTypes.AutoScalingGroup, tagsToMatch [
 }
 
 func getTagValueFromASGWithMatchingTag(asg *autoscalingTypes.AutoScalingGroup, tagToMatch Tag) *string {
-	for _, asgTag := range asg.Tags {
+	for _, tag := range asg.Tags {
+		asgTag := tag
 		if tagsMatch(&asgTag, tagToMatch) {
 			return asgTag.Value
 		}
@@ -448,8 +456,8 @@ func (r *region) findMatchingASGsInPageOfResults(groups []autoscalingTypes.AutoS
 
 	tagCloudFormationStackName := Tag{Key: "aws:cloudformation:stack-name", Value: "*"}
 
-	for _, group := range groups {
-		myGroup := group
+	for _, myGroup := range groups {
+		group := myGroup
 		asgName := *group.AutoScalingGroupName
 
 		groupMatchesExpectedTags := isASGWithMatchingTags(&group, tagsToMatch)
@@ -476,7 +484,7 @@ func (r *region) findMatchingASGsInPageOfResults(groups []autoscalingTypes.AutoS
 			"currently configured  filtering mode (%s) and tag filters are aligned\n",
 			asgName, r.conf.TagFilteringMode)
 		asgs = append(asgs, autoScalingGroup{
-			AutoScalingGroup: &myGroup,
+			AutoScalingGroup: &group,
 			name:             asgName,
 			region:           r,
 		})
@@ -564,14 +572,16 @@ func (r *region) calculateSavings() float64 {
 	savings := 0.0
 	asgSavings := make(map[string]float64)
 
-	r.services.connect(r.name, r.conf.MainRegion)
+	if err := r.services.connect(r.name, r.conf.MainRegion); err != nil {
+		log.Printf("Error connecting to services in region %s: %v", r.name, err)
+		return 0.0
+	}
 
 	debug.Println("Scanning full instance information in", r.name)
 	r.determineInstanceTypeInformation(r.conf)
 
 	debug.Println("Scanning instances in", r.name)
-	err := r.scanInstances()
-	if err != nil {
+	if err := r.scanInstances(); err != nil {
 		log.Printf("Failed to scan instances in %s error: %s\n", r.name, err)
 	}
 
@@ -616,7 +626,10 @@ func (r *region) reapUnattachedInstances() {
 				if inst.isOlderThan(15 * time.Minute) {
 					log.Printf("Reaping %s instance %s was launched by AutoSpotting but not attached to any ASG after more than 15min (%s), terminating it",
 						lifecycle, *inst.InstanceId, time.Since(*inst.LaunchTime))
-					inst.terminate()
+					if err := inst.terminate(); err != nil {
+						log.Printf("Error terminating instance %s in %s: %s",
+							*inst.InstanceId, inst.region.name, err.Error())
+					}
 				} else {
 					debug.Printf("%s instance %s has recently been launched", lifecycle, *inst.InstanceId)
 				}

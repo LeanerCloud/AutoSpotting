@@ -128,7 +128,7 @@ func (a *autoScalingGroup) loadLaunchTemplate() (*launchTemplate, error) {
 	return a.launchTemplate, nil
 }
 
-func (a *autoScalingGroup) needReplaceOnDemandInstances() (bool, int64) {
+func (a *autoScalingGroup) needReplaceOnDemandInstances() (bool, int32) {
 	onDemandRunning, totalRunning := a.alreadyRunningInstanceCount(false, nil)
 	debug.Printf("onDemandRunning=%v totalRunning=%v a.minOnDemand=%v",
 		onDemandRunning, totalRunning, a.config.MinOnDemand)
@@ -173,7 +173,9 @@ func (a *autoScalingGroup) countSpotInstancesInAZ(instanceType, az string) (int6
 
 		inst := a.region.instances.get(*instance.InstanceId)
 		if inst == nil {
-			a.region.scanInstance(*instance.InstanceId)
+			if err := a.region.scanInstance(*instance.InstanceId); err != nil {
+				log.Printf("Failed to scan instance %s in region %s", *instance.InstanceId, a.region.name)
+			}
 			inst = a.region.instances.get(*instance.InstanceId)
 		}
 		if inst == nil {
@@ -362,7 +364,9 @@ func (a *autoScalingGroup) scanInstances() instances {
 
 		if i == nil {
 			debug.Println("Missing instance data for ", *inst.InstanceId, "scanning it again")
-			a.region.scanInstance(*inst.InstanceId)
+			if err := a.region.scanInstance(*inst.InstanceId); err != nil {
+				log.Printf("Failed to scan instance data for %s in %s ", *inst.InstanceId, a.region.name)
+			}
 
 			i = a.region.instances.get(*inst.InstanceId)
 			if i == nil {
@@ -571,7 +575,9 @@ func (a *autoScalingGroup) attachNewInstance(newInstanceID string, lifecycle str
 	}
 
 	if hasLH, hook := a.hasCodeDeployLifecycleHook(); hasLH {
-		a.triggerCodeDeployDeployment(hook, newInstanceID)
+		if err := a.triggerCodeDeployDeployment(hook, newInstanceID); err != nil {
+			log.Printf("Cannot trigger CodeDeploy deployment for instance %s", newInstanceID)
+		}
 	}
 
 	return nil
@@ -655,7 +661,7 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 	}
 
 	for _, hook := range resDLH.LifecycleHooks {
-		asSvc.CompleteLifecycleAction(
+		_, err := asSvc.CompleteLifecycleAction(
 			context.TODO(),
 			&autoscaling.CompleteLifecycleActionInput{
 				AutoScalingGroupName:  a.AutoScalingGroupName,
@@ -663,6 +669,9 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 				LifecycleHookName:     hook.LifecycleHookName,
 				LifecycleActionResult: aws.String("ABANDON"),
 			})
+		if err != nil {
+			log.Printf("Could not complete lifecycle hook action for ASG %s : %s", a.name, err.Error())
+		}
 	}
 
 	resTIIASG, err := asSvc.TerminateInstanceInAutoScalingGroup(
@@ -746,9 +755,9 @@ func (a *autoScalingGroup) deregisterInstanceFromLoadBalancersAndECSClusters(i *
 
 // Counts the number of already running instances on-demand or spot, in any or a specific AZ.
 func (a *autoScalingGroup) alreadyRunningInstanceCount(
-	spot bool, availabilityZone *string) (int64, int64) {
+	spot bool, availabilityZone *string) (int32, int32) {
 
-	var total, count int64
+	var total, count int32
 	instanceCategory := Spot
 
 	if a == nil {
@@ -867,7 +876,8 @@ func (a *autoScalingGroup) findDeployment(hookName string) (*string, *string, er
 		return nil, nil, err
 	}
 
-	for _, app := range apps.Applications {
+	for _, myApp := range apps.Applications {
+		app := myApp
 		log.Println("Processing CodeDeploy application:", app)
 
 		groups, err := a.region.services.codedeploy.ListDeploymentGroups(
@@ -881,8 +891,8 @@ func (a *autoScalingGroup) findDeployment(hookName string) (*string, *string, er
 			return nil, nil, err
 		}
 
-		for _, group := range groups.DeploymentGroups {
-
+		for _, myGroup := range groups.DeploymentGroups {
+			group := myGroup
 			log.Printf("Processing CodeDeploy deployment group %s for application %s", group, app)
 			gd, err := a.region.services.codedeploy.GetDeploymentGroup(
 				context.TODO(),

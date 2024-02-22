@@ -3,6 +3,8 @@
 
 package autospotting
 
+import "log"
+
 type target struct {
 	autospotting     *AutoSpotting
 	onDemandInstance *instance
@@ -27,5 +29,10 @@ type replaceAndTerminateInstance struct {
 
 func (tsi replaceAndTerminateInstance) run() {
 	autospotting := tsi.target.autospotting
-	autospotting.handleNewOnDemandInstanceLaunch(tsi.target.onDemandInstance.region, tsi.target.onDemandInstance, tsi.target.sqsReceiptHandle)
+	err := autospotting.handleNewOnDemandInstanceLaunch(
+		tsi.target.onDemandInstance.region, tsi.target.onDemandInstance, tsi.target.sqsReceiptHandle)
+	if err != nil {
+		log.Printf("Failed to handle new on demand instance launch in %s : %s",
+			tsi.target.onDemandInstance.region.name, err.Error())
+	}
 }

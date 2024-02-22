@@ -131,13 +131,13 @@ const (
 // AutoScalingConfig stores some group-specific configurations that can override
 // their corresponding global values
 type AutoScalingConfig struct {
-	MinOnDemand             int64
-	MinOnDemandNumber       int64
+	MinOnDemand             int32
+	MinOnDemandNumber       uint
 	MinOnDemandPercentage   float64
 	AllowedInstanceTypes    string
 	DisallowedInstanceTypes string
 
-	NumberOfInstanceTypesPerAZ int64
+	NumberOfInstanceTypesPerAZ uint
 
 	OnDemandPriceMultiplier   float64
 	SpotPriceBufferPercentage float64
@@ -169,16 +169,16 @@ type AutoScalingConfig struct {
 	ConsiderEBSBandwidth bool
 }
 
-func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int64, bool) {
+func (a *autoScalingGroup) loadPercentageOnDemand(tagValue *string) (int32, bool) {
 	percentage, err := strconv.ParseFloat(*tagValue, 64)
 	if err != nil {
 		log.Printf("Error with ParseFloat: %s\n", err.Error())
 	} else if percentage == 0 {
 		log.Printf("Loaded MinOnDemand value to %f from tag %s\n", percentage, OnDemandPercentageTag)
-		return int64(percentage), true
+		return int32(percentage), true
 	} else if percentage > 0 && percentage <= 100 {
 		instanceNumber := float64(a.instances.count())
-		onDemand := int64(math.Floor((instanceNumber * percentage / 100.0) + .5))
+		onDemand := int32(math.Floor((instanceNumber * percentage / 100.0) + .5))
 		log.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandPercentageTag)
 		return onDemand, true
 	}
@@ -203,30 +203,32 @@ func (a *autoScalingGroup) loadSpotPriceBufferPercentage(tagValue *string) (floa
 	return spotPriceBufferPercentage, true
 }
 
-func (a *autoScalingGroup) loadNumberOnDemand(tagValue *string) (int64, bool) {
-	onDemand, err := strconv.Atoi(*tagValue)
+func (a *autoScalingGroup) loadNumberOnDemand(tagValue *string) (int32, bool) {
+	onDemand, err := strconv.ParseInt(*tagValue, 10, 32)
 	if err != nil {
-		log.Printf("Error with Atoi: %s\n", err.Error())
-	} else if onDemand >= 0 && int32(onDemand) <= *a.MaxSize {
-		log.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandNumberTag)
-		return int64(onDemand), true
-	} else {
-		log.Printf("Ignoring value out of range %d\n", onDemand)
+		log.Printf("Error with ParseInt: %s\n", err.Error())
+		return DefaultMinOnDemandValue, false
 	}
-	return DefaultMinOnDemandValue, false
+
+	od := int32(onDemand)
+	if od < 0 || od > *a.MaxSize {
+		log.Printf("Ignoring value out of range %d\n", onDemand)
+		return DefaultMinOnDemandValue, false
+	}
+
+	log.Printf("Loaded MinOnDemand value to %d from tag %s\n", onDemand, OnDemandNumberTag)
+	return od, true
 }
 
-func (a *autoScalingGroup) loadNumberOfInstanceTypesPerAZ(tagValue *string) (int64, bool) {
-	nr, err := strconv.Atoi(*tagValue)
+func (a *autoScalingGroup) loadNumberOfInstanceTypesPerAZ(tagValue *string) (int32, bool) {
+	nr, err := strconv.ParseUint(*tagValue, 10, 32)
 	if err != nil {
 		log.Printf("Error with Atoi: %s\n", err.Error())
-	} else if nr >= 0 {
-		log.Printf("Loaded NumberOfInstanceTyperPerAZ value to %d from tag %s\n", nr, NumberOfInstanceTypesPerAZTag)
-		return int64(nr), true
-	} else {
-		log.Printf("Ignoring value out of range %d\n", nr)
+		return DefaultNumberOfInstanceTypesPerAZ, false
 	}
-	return DefaultNumberOfInstanceTypesPerAZ, false
+
+	log.Printf("Loaded NumberOfInstanceTyperPerAZ value to %d from tag %s\n", nr, NumberOfInstanceTypesPerAZTag)
+	return int32(nr), true
 }
 
 func (a *autoScalingGroup) loadOnDemandPriceMultiplier(tagValue *string) (float64, bool) {
@@ -253,7 +255,7 @@ func (a *autoScalingGroup) getTagValue(keyMatch string) *string {
 	return nil
 }
 
-func (a *autoScalingGroup) setMinOnDemandIfLarger(newValue int64, hasMinOnDemand bool) bool {
+func (a *autoScalingGroup) setMinOnDemandIfLarger(newValue int32, hasMinOnDemand bool) bool {
 	if !hasMinOnDemand || newValue > a.config.MinOnDemand {
 		a.config.MinOnDemand = newValue
 	}
@@ -262,7 +264,7 @@ func (a *autoScalingGroup) setMinOnDemandIfLarger(newValue int64, hasMinOnDemand
 
 func (a *autoScalingGroup) loadConfOnDemand() bool {
 	tagList := [2]string{OnDemandNumberTag, OnDemandPercentageTag}
-	loadDyn := map[string]func(*string) (int64, bool){
+	loadDyn := map[string]func(*string) (int32, bool){
 		OnDemandPercentageTag: a.loadPercentageOnDemand,
 		OnDemandNumberTag:     a.loadNumberOnDemand,
 	}
@@ -473,7 +475,7 @@ func (a *autoScalingGroup) loadConfNumberOfInstanceTypesPerAZ() bool {
 		return false
 	}
 
-	a.config.NumberOfInstanceTypesPerAZ = newValue
+	a.config.NumberOfInstanceTypesPerAZ = uint(newValue)
 	return done
 }
 
@@ -549,24 +551,24 @@ func (a *autoScalingGroup) loadConfigFromTags() bool {
 	return ret
 }
 
-func (a *autoScalingGroup) loadDefaultConfigNumber() (int64, bool) {
+func (a *autoScalingGroup) loadDefaultConfigNumber() (int32, bool) {
 	onDemand := a.region.conf.MinOnDemandNumber
-	if onDemand >= 0 && onDemand <= int64(a.instances.count()) {
+	if onDemand >= 0 && onDemand <= uint(a.instances.count()) {
 		log.Printf("Loaded default value %d from conf number.", onDemand)
-		return onDemand, true
+		return int32(onDemand), true
 	}
 	log.Println("Ignoring default value out of range:", onDemand)
 	return DefaultMinOnDemandValue, false
 }
 
-func (a *autoScalingGroup) loadDefaultConfigPercentage() (int64, bool) {
+func (a *autoScalingGroup) loadDefaultConfigPercentage() (int32, bool) {
 	percentage := a.region.conf.MinOnDemandPercentage
 	if percentage < 0 || percentage > 100 {
 		log.Printf("Ignoring default value out of range: %f", percentage)
 		return DefaultMinOnDemandValue, false
 	}
 	instanceNumber := a.instances.count()
-	onDemand := int64(math.Floor((float64(instanceNumber) * percentage / 100.0) + .5))
+	onDemand := int32(math.Floor((float64(instanceNumber) * percentage / 100.0) + .5))
 	log.Printf("Loaded default value %d from conf percentage.", onDemand)
 	return onDemand, true
 }

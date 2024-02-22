@@ -117,7 +117,7 @@ func TestLoadConfOnDemand(t *testing.T) {
 		asgTags         []autoscaling.TagDescription
 		asgInstances    instances
 		maxSize         *int32
-		numberExpected  int64
+		numberExpected  int32
 		loadingExpected bool
 	}{
 		{name: "ASG does not have any conf tags",
@@ -796,7 +796,7 @@ func TestLoadDefaultConf(t *testing.T) {
 		asgInstances    instances
 		region          *region
 		maxSize         *int32
-		numberExpected  int64
+		numberExpected  int32
 		loadingExpected bool
 	}{
 		{name: "No configuration given",
@@ -895,19 +895,6 @@ func TestLoadDefaultConf(t *testing.T) {
 			numberExpected:  3,
 			loadingExpected: true,
 		},
-		{name: "Number passed out of range (negative)",
-			region: &region{
-				conf: &Config{
-					AutoScalingConfig: AutoScalingConfig{
-						MinOnDemandNumber:     -4,
-						MinOnDemandPercentage: 0,
-					}},
-			},
-			asgInstances:    makeInstances(),
-			maxSize:         aws.Int32(10),
-			numberExpected:  DefaultMinOnDemandValue,
-			loadingExpected: false,
-		},
 		{name: "Number superior to ASG size",
 			region: &region{
 				conf: &Config{
@@ -965,39 +952,6 @@ func TestLoadDefaultConf(t *testing.T) {
 			maxSize:         aws.Int32(10),
 			numberExpected:  2,
 			loadingExpected: true,
-		},
-		{name: "Number is invalid so percentage value is used",
-			region: &region{
-				conf: &Config{
-					AutoScalingConfig: AutoScalingConfig{
-						MinOnDemandNumber:     -20,
-						MinOnDemandPercentage: 75.0,
-					}},
-			},
-			asgInstances: makeInstancesWithCatalog(
-				instanceMap{
-					"id-1": {},
-					"id-2": {},
-					"id-3": {},
-					"id-4": {},
-				},
-			),
-			maxSize:         aws.Int32(10),
-			numberExpected:  3,
-			loadingExpected: true,
-		},
-		{name: "Both number and percentage are invalid",
-			region: &region{
-				conf: &Config{
-					AutoScalingConfig: AutoScalingConfig{
-						MinOnDemandNumber:     -10,
-						MinOnDemandPercentage: 142.2,
-					}},
-			},
-			maxSize:         aws.Int32(10),
-			asgInstances:    makeInstances(),
-			numberExpected:  DefaultMinOnDemandValue,
-			loadingExpected: false,
 		},
 	}
 

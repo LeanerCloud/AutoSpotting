@@ -25,8 +25,8 @@ func TestAlreadyRunningInstanceCount(t *testing.T) {
 		asgInstances     instances
 		spot             bool
 		availabilityZone *string
-		expectedCount    int64
-		expectedTotal    int64
+		expectedCount    int32
+		expectedTotal    int32
 	}{
 		{name: "ASG has no instance at all",
 			asgName:          "test-asg",
@@ -1202,9 +1202,9 @@ func Test_autoScalingGroup_needReplaceOnDemandInstances(t *testing.T) {
 	tests := []struct {
 		name        string
 		instances   instances
-		minOnDemand int64
+		minOnDemand int32
 		wantNeed    bool
-		wantTotal   int64
+		wantTotal   int32
 	}{
 		{
 			name:      "empty autoscalinggroup",

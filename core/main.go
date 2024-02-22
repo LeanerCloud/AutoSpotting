@@ -286,7 +286,11 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, sqs
 		if sqsReceiptHandle != nil {
 			log.SetPrefix(fmt.Sprintf("SQS:%s ", *instanceID))
 		}
-		a.handleNewInstanceLaunch(region, *instanceID, *instanceState, sqsReceiptHandle)
+		err := a.handleNewInstanceLaunch(region, *instanceID, *instanceState, sqsReceiptHandle)
+		if err != nil {
+			log.Printf("Error Handling new instance launch for instance %s: %s", *instanceID, err.Error())
+			return err
+		}
 	} else if eventType == SpotInstanceInterruptionWarningCode || eventType == InstanceRebalanceRecommendationCode {
 		if eventType == InstanceRebalanceRecommendationCode && !a.config.EnableInstanceRebalanceRecommendation {
 			log.Println("Handling of instance rebalance recommendation events is disabled, exiting...")
@@ -332,10 +336,19 @@ func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
 		instanceID != nil {
 		// Handle Instance Events
 		log.SetPrefix(fmt.Sprintf("%s:%s ", eventType, *instanceID))
-		a.processEventInstance(eventType, cloudwatchEvent.Region, sqsReceiptHandle, instanceID, instanceState)
+		if err := a.processEventInstance(eventType, cloudwatchEvent.Region, sqsReceiptHandle, instanceID, instanceState); err != nil {
+			log.Printf("Error processing event instance for eventType %s in region %s with instance ID %s and instance state %s: %s",
+				eventType, cloudwatchEvent.Region, *instanceID, *instanceState, err)
+
+			return fmt.Errorf("error processing event instance for eventType %s in region %s with instance ID %s and instance state %s: %w",
+				eventType, cloudwatchEvent.Region, *instanceID, *instanceState, err)
+		}
 	} else if eventType == AWSAPICallCloudTrailCode {
 		// CloudTrail
-		a.handleLifecycleHookEvent(*cloudwatchEvent)
+		if err := a.handleLifecycleHookEvent(*cloudwatchEvent); err != nil {
+			log.Printf("Error handling lifecycle hook event: %s", err)
+			return fmt.Errorf("error handling lifecycle hook event: %w", err)
+		}
 	} else if eventType == ScheduledEventCode {
 		// Cron Scheduling
 		log.Println("Handling as cron event")
@@ -356,7 +369,9 @@ func (a *AutoSpotting) EventHandler(event *json.RawMessage) {
 		return
 	}
 
-	a.processEvent(event)
+	if err := a.processEvent(event); err != nil {
+		log.Printf("Error processing event: %s", err.Error())
+	}
 	log.SetPrefix("")
 }
 
@@ -390,7 +405,12 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 	if !r.enabled() {
 		return fmt.Errorf("region %s is not enabled", r.name)
 	}
-	r.services.connect(regionName, r.conf.MainRegion)
+	if err := r.services.connect(regionName, r.conf.MainRegion); err != nil {
+		log.Printf("Error connecting to services in region %s with main region %s: %s",
+			regionName, r.conf.MainRegion, err.Error())
+		return fmt.Errorf("error connecting to services in region %s with main region %s: %w",
+			regionName, r.conf.MainRegion, err)
+	}
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 
@@ -446,7 +466,13 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 		return fmt.Errorf("region %s is not enabled", regionName)
 	}
 
-	r.services.connect(regionName, a.config.MainRegion)
+	if err := r.services.connect(regionName, a.config.MainRegion); err != nil {
+		log.Printf("Error connecting to services in region %s with main region %s: %s",
+			regionName, a.config.MainRegion, err.Error())
+
+		return fmt.Errorf("error connecting to services in region %s with main region %s: %w",
+			regionName, a.config.MainRegion, err)
+	}
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 
@@ -476,8 +502,9 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 
 	// Try OnDemand
 	if err := a.handleNewOnDemandInstanceLaunch(r, i, sqsReceiptHandle); err != nil {
-		log.Printf("%s Instance %s couldn't be handled as on-demand instance", i.region.name, *i.InstanceId)
-		return err
+		log.Printf("%s Instance %s couldn't be handled as on-demand instance, encountered error: %s",
+			i.region.name, *i.InstanceId, err.Error())
+		return fmt.Errorf("error handling new on-demand instance: %w", err)
 	}
 
 	lifecycle := "on-demand"
@@ -517,10 +544,15 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 	if term, detach := i.shouldBeTerminated(asg); term {
 		if detach {
 			log.Printf("%s terminating %s instance %s, detaching it from the ASG: ", i.region.name, lifecycle, *i.InstanceId)
-			asg.terminateInstanceInAutoScalingGroup(i, false, true)
+			if err := asg.terminateInstanceInAutoScalingGroup(i, false, true); err != nil {
+				return fmt.Errorf("error terminating instance %s in auto scaling group %s: %w", *i.InstanceId, asg.name, err)
+			}
 		} else {
 			log.Printf("%s terminating %s instance %s without detaching it from the ASG: ", i.region.name, lifecycle, *i.InstanceId)
-			i.terminate()
+			if err := i.terminate(); err != nil {
+				return fmt.Errorf("error terminating instance %s in region %s: %w",
+					*i.InstanceId, i.region.name, err)
+			}
 		}
 		return nil
 	}
@@ -540,7 +572,9 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 	// the queue will allow us to process more instances in parallel
 
 	if sqsReceiptHandle != nil {
-		i.region.sqsDeleteMessage(i.InstanceId, OnDemand, sqsReceiptHandle)
+		if err := i.region.sqsDeleteMessage(i.InstanceId, OnDemand, sqsReceiptHandle); err != nil {
+			log.Printf("Error deleting SQS message: %v", err)
+		}
 	}
 
 	log.Printf("%s instance %s belongs to an enabled ASG and should be "+
@@ -587,7 +621,12 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 		return nil, fmt.Errorf("region %s is not enabled", regionName)
 	}
 
-	r.services.connect(regionName, a.config.MainRegion)
+	if err := r.services.connect(regionName, a.config.MainRegion); err != nil {
+		log.Printf("Error connecting to services in region %s with main region %s: %s",
+			regionName, a.config.MainRegion, err.Error())
+		return nil, fmt.Errorf("error connecting to services in region %s with main region %s: %w",
+			regionName, a.config.MainRegion, err)
+	}
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 
@@ -636,8 +675,12 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	i.asg.scanInstances()
 	i.asg.loadDefaultConfig()
 	i.asg.loadConfigFromTags()
-	i.asg.loadLaunchConfiguration()
-	i.asg.loadLaunchTemplate()
+	if _, err := i.asg.loadLaunchConfiguration(); err != nil {
+		log.Printf("Error loading launch configuration: %v", err)
+	}
+	if _, err := i.asg.loadLaunchTemplate(); err != nil {
+		log.Printf("Error loading launch template: %v", err)
+	}
 
 	i.asg.deregisterInstanceFromLoadBalancersAndECSClusters(i)
 
@@ -664,7 +707,10 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 		return nil, err
 	}
 
-	i.region.scanInstances()
+	if err := i.region.scanInstances(); err != nil {
+		log.Printf("error scanning instances in region %s: %s", i.region.name, err.Error())
+		return nil, fmt.Errorf("error scanning instances in region %s: %w", i.region.name, err)
+	}
 	newInstance := i.region.instances.get(*newInstanceID)
 
 	existingLifecycle := i.getLifecycleValue()
@@ -672,12 +718,19 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 
 	log.Printf("Swapping existing %s instance %s with new %s instance %s",
 		existingLifecycle, *i.InstanceId, newLifecycle, *newInstanceID)
-	newInstance.swapWithGroupMember(i.asg, nil)
 
+	if _, err := newInstance.swapWithGroupMember(i.asg, nil); err != nil {
+		log.Printf("Error swapping instance %s with a memberof ASG %s: %s",
+			*newInstance.InstanceId, *asgName, err.Error())
+		return nil, err
+	}
 	if err = i.asg.waitForInstanceStatus(newInstanceID, "InService", newLifecycle, 80); err != nil {
 		log.Printf("%s instance %s is still not InService, trying to terminate it.",
 			newLifecycle, *newInstanceID)
-		newInstance.terminate()
+		err := newInstance.terminate()
+		if err != nil {
+			log.Printf("Error terminating instance: %v", err)
+		}
 	}
 
 	return newInstanceID, nil

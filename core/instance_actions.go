@@ -188,7 +188,10 @@ func getReplacementInstance(i *instance, instancetoReplace *instance) (*instance
 	swapCandidate, err := i.getSwapCandidate()
 	if err != nil {
 		log.Printf("Couldn't find suitable swap candidate: %v", err)
-		i.terminate()
+		err := i.terminate()
+		if err != nil {
+			log.Printf("Couldn't terminate instance %s: %v", *i.InstanceId, err)
+		}
 		return nil, err
 	}
 	return swapCandidate, nil
@@ -208,7 +211,9 @@ func handleASGSizeAdjustments(asg *autoScalingGroup) {
 
 	if minSize == maxSize {
 		log.Printf("%s: Temporarily increasing MaxSize", asg.name)
-		asg.setAutoScalingMaxSize(maxSize + 1)
+		if err := asg.setAutoScalingMaxSize(maxSize + 1); err != nil {
+			log.Printf("Couldn't set ASG max size for AutoScalingGroup %s, error: %s", asg.name, err.Error())
+		}
 		defer asg.setAutoScalingMaxSize(maxSize)
 	}
 }
@@ -254,7 +259,10 @@ func (i *instance) replaceInstanceInASG(asg *autoScalingGroup, existingInstance 
 
 		log.Printf("Attaching %s instance %s to the group %s", newInstanceLifecycle, *i.InstanceId, asg.name)
 		if err := asg.attachNewInstance(*i.InstanceId, newInstanceLifecycle, true); err != nil {
-			i.terminate()
+
+			if err := i.terminate(); err != nil {
+				log.Printf("Couldn't terminate instance %s: %v", *i.InstanceId, err)
+			}
 			log.Printf("Failed to attach %s instance: %v", newInstanceLifecycle, err)
 			return nil, fmt.Errorf("couldn't attach spot instance: %w", err)
 		}
@@ -275,7 +283,9 @@ func (i *instance) replaceInstanceInASG(asg *autoScalingGroup, existingInstance 
 		log.Printf("%s: Terminated existing %s instance %s", asg.name, existingInstanceLifecycle, *existingInstance.InstanceId)
 
 		if err := asg.attachNewInstance(*i.InstanceId, newInstanceLifecycle, true); err != nil {
-			i.terminate()
+			if err := i.terminate(); err != nil {
+				log.Printf("Couldn't terminate instance %s: %v", *i.InstanceId, err)
+			}
 			log.Printf("Failed to attach new %s instance: %v", newInstanceLifecycle, err)
 			return nil, fmt.Errorf("couldn't attach new %s instance: %w", newInstanceLifecycle, err)
 		}
@@ -342,7 +352,9 @@ func (i *instance) getSwapCandidate() (*instance, error) {
 
 	if !instanceToReplace.shouldBeReplacedWithNewSpotInstance() {
 		log.Printf("Target instance %s shouldn't be replaced", *instanceToReplaceID)
-		i.terminate()
+		if err := i.terminate(); err != nil {
+			log.Printf("Couldn't terminate instance %s: %v", *i.InstanceId, err)
+		}
 		return nil, fmt.Errorf("target instance %s should not be replaced with a new Spot instance",
 			*instanceToReplaceID)
 	}
@@ -652,7 +664,8 @@ func (i *instance) setInstanceToDraining(clusterARNs []string) error {
 
 	// Set the instance status to DRAINING for each cluster
 	for _, clusterARN := range clusterARNs {
-		go i.setContainerInstanceToDraining(&clusterARN, setDrainingGroup)
+		arn := clusterARN
+		go i.setContainerInstanceToDraining(&arn, setDrainingGroup)
 	}
 
 	setDrainingGroup.Wait()

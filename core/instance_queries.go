@@ -194,10 +194,18 @@ func (i *instance) belongsToEnabledASG() (bool, *autoScalingGroup) {
 			asg.scanInstances()
 			asg.loadDefaultConfig()
 			asg.loadConfigFromTags()
-			asg.loadLaunchConfiguration()
-			asg.loadLaunchTemplate()
+			if _, err := asg.loadLaunchConfiguration(); err != nil {
+				log.Printf("Error loading launch configuration: %v", err)
+
+			}
+
+			if _, err := asg.loadLaunchTemplate(); err != nil {
+				log.Printf("Error loading launch template: %v", err)
+
+			}
 			asg.getSpotProduct()
-			i.asg = &asg
+			a := asg
+			i.asg = &a
 
 			spotProduct := i.asg.getSpotProduct()
 

@@ -6,8 +6,9 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	autospotting "github.com/AutoSpotting/AutoSpotting/core"
@@ -31,7 +32,7 @@ func main() {
 	if autospotting.RunningFromLambda() {
 		lambda.Start(Handler)
 	} else if eventFile != "" {
-		parseEvent, err := ioutil.ReadFile(eventFile)
+		parseEvent, err := os.ReadFile(filepath.Clean(filepath.Join(".", eventFile)))
 		if err != nil {
 			log.Fatal(err)
 		}

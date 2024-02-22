@@ -293,7 +293,7 @@ func (s *savingsStats) reportSavingsStats(frequency string,
 
 	log.Println("Sending Savings Report to SNS Topic:", s.topic)
 
-	s.sns.Publish(
+	_, err := s.sns.Publish(
 		context.TODO(),
 		&sns.PublishInput{
 			Message: aws.String(s.formatSavingsMessage(frequency,
@@ -302,5 +302,8 @@ func (s *savingsStats) reportSavingsStats(frequency string,
 			TopicArn: aws.String(s.topic),
 		},
 	)
+	if err != nil {
+		log.Printf("Error sending Savings Report to SNS Topic: %s", err.Error())
+	}
 	s.ps.putSSMParameter(SSMParameterNameLastReportName, time.Now().Format("Mon, 2 Jan 2006 15:04"))
 }

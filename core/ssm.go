@@ -55,7 +55,7 @@ func (ps *parameterStore) getSSMParameterHistory(key string) ([]*ssmTypes.Parame
 		MaxResults: aws.Int32(50),
 	}
 
-	var history []*ssmTypes.ParameterHistory
+	var paramHistory []*ssmTypes.ParameterHistory
 	paginator := ssm.NewGetParameterHistoryPaginator(ps.svc, input)
 
 	for paginator.HasMorePages() {
@@ -71,10 +71,11 @@ func (ps *parameterStore) getSSMParameterHistory(key string) ([]*ssmTypes.Parame
 			return nil, err
 		}
 
-		for _, value := range page.Parameters {
-			history = append(history, &value)
+		for _, param := range page.Parameters {
+			paramValue := param
+			paramHistory = append(paramHistory, &paramValue)
 		}
 	}
 
-	return history, nil
+	return paramHistory, nil
 }
