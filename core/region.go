@@ -777,21 +777,26 @@ func (r *region) waitForInstanceRunning(instanceID *string) error {
 		time.Sleep(pollInterval)
 	}
 }
-
 func (r *region) waitUntilBeanstalkEnvironmentUpdated(envName, envID *string) error {
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(r.name))
+	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(r.name))
 	if err != nil {
 		return err
 	}
 
 	svc := elasticbeanstalk.NewFromConfig(cfg)
 
-	ctx := context.TODO()
+	// Create a context that can be cancelled
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(30 * time.Second): // Polling interval
+		case <-ticker.C:
 			input := &elasticbeanstalk.DescribeEnvironmentsInput{
 				EnvironmentNames: []string{*envName},
 				EnvironmentIds:   []string{*envID},
@@ -803,15 +808,21 @@ func (r *region) waitUntilBeanstalkEnvironmentUpdated(envName, envID *string) er
 			}
 
 			if len(resp.Environments) == 0 {
-				continue
+				// If no environments are found, log the information and exit the loop with an error
+				log.Printf("No environments found for names %v or IDs %v. Exiting.", *envName, *envID)
+				return fmt.Errorf("no environments found for names %v or IDs %v", *envName, *envID)
 			}
 
 			env := resp.Environments[0]
 			switch env.Status {
 			case beanstalkTypes.EnvironmentStatusReady:
-				return nil
+				return nil // Environment is ready, exit the loop
 			case beanstalkTypes.EnvironmentStatusTerminated, beanstalkTypes.EnvironmentStatusTerminating:
-				return fmt.Errorf("environment is in a terminating state")
+				return fmt.Errorf("environment is in a terminating state") // Handle terminating states
+			default:
+				// Log statement to indicate the check has been made and the environment is not yet ready
+				log.Printf("Environment %v (%v) status is '%v'. Will check again in 30 seconds.",
+					*envName, *envID, env.Status)
 			}
 		}
 	}
