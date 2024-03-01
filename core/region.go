@@ -137,7 +137,11 @@ func (r *region) processRegion() {
 	r.reapUnattachedInstances()
 
 	if err := r.reapDuplicatedInstances(); err != nil {
-		log.Printf("error reaping duplicated instances in region %s: %s", r.name, err.Error())
+		log.Printf("Error reaping duplicated instances in region %s: %s", r.name, err.Error())
+	}
+
+	if err := r.reapOldLaunchTemplatesCreatedByAutoSpotting(); err != nil {
+		log.Printf("Error reaping old launch templates created by AutoSpotting in region %s: %s", r.name, err)
 	}
 
 }
@@ -868,4 +872,39 @@ func (r *region) waitUntilVolumeAvailable(volumeID *string) error {
 		// Wait for the next poll interval
 		time.Sleep(pollInterval)
 	}
+}
+
+func (r *region) reapOldLaunchTemplatesCreatedByAutoSpotting() error {
+	oneWeekAgo := time.Now().AddDate(0, 0, -7)
+	autoSpottingPrefix := "AutoSpotting-Converted-LaunchTemplate"
+
+	paginator := ec2.NewDescribeLaunchTemplatesPaginator(r.services.ec2, &ec2.DescribeLaunchTemplatesInput{})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			log.Printf("Error getting page of launch templates: %s", err)
+			return err
+		}
+
+		for _, lt := range page.LaunchTemplates {
+			// Check if the launch template name starts with the AutoSpotting prefix and is older than a week
+			if strings.HasPrefix(*lt.LaunchTemplateName, autoSpottingPrefix) && lt.CreateTime.Before(oneWeekAgo) {
+				log.Printf("Launch template %s (%s) created on %s is older than a week and created by AutoSpotting, deleting...",
+					*lt.LaunchTemplateName, *lt.LaunchTemplateId, lt.CreateTime)
+
+				// Delete the launch template
+				_, err := r.services.ec2.DeleteLaunchTemplate(context.TODO(), &ec2.DeleteLaunchTemplateInput{
+					LaunchTemplateId: lt.LaunchTemplateId,
+				})
+				if err != nil {
+					log.Printf("Error deleting launch template %s: %s", *lt.LaunchTemplateName, err)
+					return err
+				} else {
+					log.Printf("Successfully deleted launch template %s", *lt.LaunchTemplateName)
+				}
+			}
+		}
+	}
+	return nil
 }

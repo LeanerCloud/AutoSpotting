@@ -74,12 +74,19 @@ type mockEC2Client struct {
 	cto   *ec2.CreateTagsOutput
 	cterr error
 
+	// DeleteLaunchTemplate
+	dlto   *ec2.DeleteLaunchTemplateOutput
+	dlterr error
+
 	// DescribeAddresses
 	dao   *ec2.DescribeAddressesOutput
 	daerr error
 
-	// DescribeSecurityGroups
+	// DescribeLaunchTemplates
+	dslto   *ec2.DescribeLaunchTemplatesOutput
+	dslterr error
 
+	// DescribeSecurityGroups
 	dsgo   *ec2.DescribeSecurityGroupsOutput
 	dsgerr error
 
@@ -129,9 +136,17 @@ func (m mockEC2Client) CreateTags(ctx context.Context, params *ec2.CreateTagsInp
 	return m.cto, m.cterr
 }
 
+func (m mockEC2Client) DeleteLaunchTemplate(ctx context.Context, params *ec2.DeleteLaunchTemplateInput, optFns ...func(*ec2.Options)) (*ec2.DeleteLaunchTemplateOutput, error) {
+	return m.dlto, m.dlterr
+}
+
 // Implement DescribeAddresses
 func (m mockEC2Client) DescribeAddresses(ctx context.Context, params *ec2.DescribeAddressesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeAddressesOutput, error) {
 	return m.dao, m.daerr
+}
+
+func (m mockEC2Client) DescribeLaunchTemplates(ctx context.Context, params *ec2.DescribeLaunchTemplatesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplatesOutput, error) {
+	return m.dslto, m.dslterr
 }
 
 // Implement DescribeImages
