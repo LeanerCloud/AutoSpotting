@@ -392,7 +392,9 @@ func (a *autoScalingGroup) scanInstances() instances {
 		}
 
 		if i.typeInfo == nil || i.typeInfo.pricing == nil {
-			log.Printf("Missing type information or pricing for instance %s, continuing...", *inst.InstanceId)
+			log.Printf("Missing type information or pricing for instance %s of instance type %s, continuing...",
+				*inst.InstanceId, i.InstanceType)
+			continue
 		}
 
 		if i.isSpot() {
