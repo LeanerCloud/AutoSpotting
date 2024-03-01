@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine as golang
+FROM golang:alpine as golang
 RUN apk add -U --no-cache ca-certificates git make
 
 COPY go.mod go.sum /src/
