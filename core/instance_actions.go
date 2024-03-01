@@ -142,19 +142,19 @@ func (i *instance) launchReplacement(replacementLifecycle string) (*string, erro
 	}
 
 	if resp.Errors != nil {
-		errors := getInstanceTypesAndErrorCodes(resp.Errors)
+		errors := getInstanceTypesAndErrors(resp.Errors)
 		return nil, fmt.Errorf("couldn't launch spot instance, encountered errors: %#v", errors)
 	}
 
 	return nil, fmt.Errorf("couldn't launch spot instance because of unknown errors (this code should never be reached)")
 }
 
-func getInstanceTypesAndErrorCodes(errors []ec2Types.CreateFleetError) map[string]string {
-	instanceTypesAndErrorCodes := make(map[string]string)
+func getInstanceTypesAndErrors(errors []ec2Types.CreateFleetError) map[string]string {
+	instanceTypesAndErrorMessages := make(map[string]string)
 	for _, e := range errors {
-		instanceTypesAndErrorCodes[string(e.LaunchTemplateAndOverrides.Overrides.InstanceType)] = *e.ErrorCode
+		instanceTypesAndErrorMessages[string(e.LaunchTemplateAndOverrides.Overrides.InstanceType)] = *e.ErrorMessage
 	}
-	return instanceTypesAndErrorCodes
+	return instanceTypesAndErrorMessages
 }
 
 func validateInputs(i *instance, asg *autoScalingGroup) error {
