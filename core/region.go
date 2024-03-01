@@ -900,9 +900,8 @@ func (r *region) reapOldLaunchTemplatesCreatedByAutoSpotting() error {
 				if err != nil {
 					log.Printf("Error deleting launch template %s: %s", *lt.LaunchTemplateName, err)
 					return err
-				} else {
-					log.Printf("Successfully deleted launch template %s", *lt.LaunchTemplateName)
 				}
+				log.Printf("Successfully deleted launch template %s", *lt.LaunchTemplateName)
 			}
 		}
 	}

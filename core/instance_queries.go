@@ -472,7 +472,7 @@ func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string,
 	// device mappings, this number is used later when comparing with each
 	// instance type.
 
-	log.Printf("Generating list of compatible instance types for %s with price %f",
+	log.Printf("Generating list of compatible instance types for %s with initial price %f",
 		i.InstanceType, i.initialPrice)
 
 	lcMappings := i.asg.launchConfiguration.countLaunchConfigEphemeralVolumes()
@@ -502,9 +502,11 @@ func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string,
 
 		if i.isAllowed(candidate.instanceType, allowedList, disallowedList) && i.isCompatible(candidate, candidatePrice, attachedVolumesNumber) {
 			acceptableInstanceTypes = append(acceptableInstanceTypes, acceptableInstance{candidate, candidatePrice, candidate.generationDelta})
-			log.Println("\tMATCH FOUND, added", candidate.instanceType, "to launch candidates list for instance", *i.InstanceId)
+			log.Printf("\tMATCH FOUND, added %s with price %.4f to launch candidates list for instance %s\n",
+				candidate.instanceType, candidatePrice, *i.InstanceId)
 		} else if candidate.instanceType != "" {
-			debug.Println("Non compatible option found:", candidate.instanceType, "at", candidatePrice, " - discarding")
+			debug.Printf("Non compatible option found: %s at %v - discarding\n",
+				candidate.instanceType, candidatePrice)
 		}
 	}
 

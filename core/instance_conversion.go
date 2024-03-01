@@ -10,14 +10,17 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/davecgh/go-spew/spew"
 )
 
 var unsupportedIO2Regions = [...]string{
@@ -123,23 +126,22 @@ func (i *instance) convertImageBlockDeviceMappings(BDMs []ec2Types.BlockDeviceMa
 	}
 	return bds
 }
-
 func (i *instance) convertSecurityGroups() ([]string, error) {
 	groupIDMap := make(map[string]struct{}) // Use a map to store unique group IDs
-	groupNamesOutput := []string{}
+	groupNames := []string{}
 
 	for _, sg := range i.SecurityGroups {
 		if sg.GroupId != nil && strings.HasPrefix(*sg.GroupId, "sg-") {
 			groupIDMap[*sg.GroupId] = struct{}{} // Add group ID to map, deduplicating
 		} else if sg.GroupName != nil {
 			// Collect group names for lookup
-			groupNamesOutput = append(groupNamesOutput, *sg.GroupName)
+			groupNames = append(groupNames, *sg.GroupName)
 		}
 	}
 
 	// Fetch group IDs by names if there are any names to lookup
-	if len(groupNamesOutput) > 0 {
-		fetchedIDs, err := i.getSecurityGroupIDsByName(groupNamesOutput)
+	if len(groupNames) > 0 {
+		fetchedIDs, err := i.getSecurityGroupIDsByName(groupNames)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching security group IDs by names: %w", err)
 		}
@@ -153,6 +155,12 @@ func (i *instance) convertSecurityGroups() ([]string, error) {
 	for id := range groupIDMap {
 		dedupedGroupIDs = append(dedupedGroupIDs, id)
 	}
+
+	// Sort the slice of deduplicated group IDs
+	sort.Strings(dedupedGroupIDs)
+
+	log.Printf("Converted security group names %v to IDs %v\n",
+		groupNames, dedupedGroupIDs)
 
 	return dedupedGroupIDs, nil
 }
@@ -223,6 +231,11 @@ func (i *instance) processLaunchConfiguration(retval *ec2Types.RequestLaunchTemp
 			Enabled: lc.InstanceMonitoring.Enabled}
 	}
 
+	sgs, err := i.convertSecurityGroups()
+	if err != nil {
+		log.Printf("Error converting security groups: %s", err.Error())
+	}
+
 	if lc.AssociatePublicIpAddress != nil || i.SubnetId != nil {
 		// Instances are running in a VPC.
 		retval.NetworkInterfaces = []ec2Types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
@@ -230,7 +243,7 @@ func (i *instance) processLaunchConfiguration(retval *ec2Types.RequestLaunchTemp
 				AssociatePublicIpAddress: lc.AssociatePublicIpAddress,
 				DeviceIndex:              aws.Int32(0),
 				SubnetId:                 i.SubnetId,
-				Groups:                   lc.SecurityGroups,
+				Groups:                   sgs,
 			},
 		}
 		retval.SecurityGroupIds = nil
@@ -311,7 +324,7 @@ func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2Types
 
 	ltData.Placement = &placement
 
-	log.Printf("ltData: %+#v\n", ltData)
+	spew.Printf("ltData: %+#v\n", ltData)
 
 	return &ltData, nil
 }
@@ -325,6 +338,7 @@ func (i *instance) processLaunchTemplateSecurityGroups(ltData *ec2Types.RequestL
 	}
 
 	if having, nis := i.launchTemplateHasNetworkInterfaces(ltData); having {
+		ltData.NetworkInterfaces = []ec2Types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{}
 		for _, ni := range nis {
 			ltData.NetworkInterfaces = append(ltData.NetworkInterfaces,
 				ec2Types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
@@ -337,6 +351,9 @@ func (i *instance) processLaunchTemplateSecurityGroups(ltData *ec2Types.RequestL
 		}
 		ltData.SecurityGroupIds = nil
 		ltData.SecurityGroups = nil
+	}
+	if ltData.NetworkInterfaces != nil && len(ltData.NetworkInterfaces) > 0 {
+		log.Printf("Setting LaunchTemplate NetworkInterface Security Groups to %v", ltData.NetworkInterfaces[0].Groups)
 	}
 	return nil
 }
@@ -407,7 +424,8 @@ func convertLaunchTemplateEBSVolumeType(ebs *ec2Types.LaunchTemplateEbsBlockDevi
 }
 
 func (i *instance) createFleetLaunchTemplate(ltData *ec2Types.RequestLaunchTemplateData) (*string, *string, error) {
-	ltName := "AutoSpotting-Converted-LaunchTemplate-for-" + i.asg.name
+	timestamp := time.Now().Format("20060102-150405") // YYYYMMDD-HHMMSS format
+	ltName := "AutoSpotting-Converted-LaunchTemplate-for-" + i.asg.name + "-" + timestamp
 
 	_, err := i.region.services.ec2.CreateLaunchTemplate(
 		context.TODO(),

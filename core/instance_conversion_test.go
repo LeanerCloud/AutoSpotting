@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
@@ -522,7 +523,7 @@ func Test_instance_createLaunchTemplateData(t *testing.T) {
 			got, _ := tt.inst.createLaunchTemplateData("spot")
 
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Instance.createLaunchTemplateData() = %v, want %v", got, tt.want)
+				t.Errorf("Instance.createLaunchTemplateData() = %#v, want %#v", got, tt.want)
 			}
 		})
 	}
@@ -832,13 +833,13 @@ func Test_instance_createFleetLaunchTemplate(t *testing.T) {
 		{
 			name:       "dummy asg, no errors",
 			asgName:    "dummy-asg",
-			wantLTName: aws.String("AutoSpotting-Converted-LaunchTemplate-for-dummy-asg"),
+			wantLTName: aws.String("AutoSpotting-Converted-LaunchTemplate-for-dummy-asg-" + time.Now().Format("20060102-150405")),
 		},
 		{
 			name:       "dummy asg, AlreadyExistsException error",
 			asgName:    "dummy-asg",
 			cltErr:     errors.New("AlreadyExistsException"),
-			wantLTName: aws.String("AutoSpotting-Converted-LaunchTemplate-for-dummy-asg"),
+			wantLTName: aws.String("AutoSpotting-Converted-LaunchTemplate-for-dummy-asg-" + time.Now().Format("20060102-150405")),
 		},
 		{
 			name:       "dummy asg, another error",
