@@ -194,39 +194,43 @@ func Test_instance_convertLaunchConfigurationBlockDeviceMappings(t *testing.T) {
 func Test_instance_convertSecurityGroups(t *testing.T) {
 
 	tests := []struct {
-		name string
-		inst instance
-		want []string
+		name    string
+		inst    instance
+		want    []string
+		wantErr bool // Indicate whether an error is expected
 	}{
 		{
 			name: "missing SGs",
 			inst: instance{
-				Instance: &ec2Types.Instance{
-					SecurityGroups: []ec2Types.GroupIdentifier{},
-				},
+				Instance: &ec2Types.Instance{},
 			},
-			want: []string{},
+			want:    []string{},
+			wantErr: false,
 		},
 		{
 			name: "single SG",
 			inst: instance{
 				Instance: &ec2Types.Instance{
-					SecurityGroups: []ec2Types.GroupIdentifier{{
-						GroupId:   aws.String("sg-123"),
-						GroupName: aws.String("foo"),
-					}},
+					SecurityGroups: []ec2Types.GroupIdentifier{
+						{
+							GroupId:   aws.String("sg-123"),
+							GroupName: aws.String("foo"),
+						},
+					},
 				},
 			},
-			want: []string{"sg-123"},
+			want:    []string{"sg-123"},
+			wantErr: false,
 		},
 		{
 			name: "multiple SGs",
 			inst: instance{
 				Instance: &ec2Types.Instance{
-					SecurityGroups: []ec2Types.GroupIdentifier{{
-						GroupId:   aws.String("sg-123"),
-						GroupName: aws.String("foo"),
-					},
+					SecurityGroups: []ec2Types.GroupIdentifier{
+						{
+							GroupId:   aws.String("sg-123"),
+							GroupName: aws.String("foo"),
+						},
 						{
 							GroupId:   aws.String("sg-456"),
 							GroupName: aws.String("bar"),
@@ -234,14 +238,42 @@ func Test_instance_convertSecurityGroups(t *testing.T) {
 					},
 				},
 			},
-			want: []string{"sg-123", "sg-456"},
+			want:    []string{"sg-123", "sg-456"},
+			wantErr: false,
+		},
+		// Add test cases for scenarios expected to return an error
+		{
+			name: "error scenario",
+			inst: instance{
+				Instance: &ec2Types.Instance{
+					SecurityGroups: []ec2Types.GroupIdentifier{
+						{
+							GroupName: aws.String("dummy-name"),
+						},
+					},
+				},
+				region: &region{
+					services: &connections{
+						ec2: &mockEC2Client{
+							dsgo:   nil,
+							dsgerr: errors.New("dummy error"),
+						},
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.inst.convertSecurityGroups(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("instance.convertSecurityGroups() = %v, want %v",
-					spew.Sdump(got), spew.Sdump(tt.want))
+			got, err := tt.inst.convertSecurityGroups()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("instance.convertSecurityGroups() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("instance.convertSecurityGroups() = %v, want %v", spew.Sdump(got), spew.Sdump(tt.want))
 			}
 		})
 	}

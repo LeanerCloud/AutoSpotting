@@ -78,21 +78,19 @@ func (i *instance) createOrReuseLaunchTemplate(replacementLifecycle string) (*st
 
 	ltData, err := i.createLaunchTemplateData(replacementLifecycle)
 
-	debug.Printf("Launch template data: %+#v", ltData)
-
 	if err != nil {
 		log.Println("failed to create LaunchTemplate data,", err.Error())
 		return nil, nil, err
 	}
+	debug.Printf("Launch template data: %+#v", ltData)
 
 	ltName, ltVersion, err := i.createFleetLaunchTemplate(ltData)
-
-	log.Printf("Using Launch Template: %s with version %s", *ltName, *ltVersion)
 
 	if err != nil {
 		log.Println(i.region, i.asg.name, "createFleetLaunchTemplate() failure:", err.Error())
 		return nil, nil, err
 	}
+	log.Printf("Using Launch Template: %s with version %s", *ltName, *ltVersion)
 	return ltName, ltVersion, nil
 }
 

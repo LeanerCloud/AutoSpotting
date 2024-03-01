@@ -78,6 +78,11 @@ type mockEC2Client struct {
 	dao   *ec2.DescribeAddressesOutput
 	daerr error
 
+	// DescribeSecurityGroups
+
+	dsgo   *ec2.DescribeSecurityGroupsOutput
+	dsgerr error
+
 	// DescribeVolumes
 	dvolo   *ec2.DescribeVolumesOutput
 	dvolerr error
@@ -152,6 +157,10 @@ func (m mockEC2Client) DescribeSpotPriceHistory(ctx context.Context, params *ec2
 // Implement DescribeVolumes
 func (m mockEC2Client) DescribeVolumes(ctx context.Context, params *ec2.DescribeVolumesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeVolumesOutput, error) {
 	return m.dvolo, m.dvolerr
+}
+
+func (m mockEC2Client) DescribeSecurityGroups(ct context.Context, params *ec2.DescribeSecurityGroupsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error) {
+	return m.dsgo, m.dsgerr
 }
 
 // Implement DetachVolume

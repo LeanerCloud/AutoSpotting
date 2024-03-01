@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
@@ -123,33 +124,66 @@ func (i *instance) convertImageBlockDeviceMappings(BDMs []ec2Types.BlockDeviceMa
 	return bds
 }
 
-func (i *instance) convertSecurityGroups() []string {
-	groupIDs := []string{}
+func (i *instance) convertSecurityGroups() ([]string, error) {
+	groupIDMap := make(map[string]struct{}) // Use a map to store unique group IDs
+	groupNamesOutput := []string{}
+
 	for _, sg := range i.SecurityGroups {
-		groupIDs = append(groupIDs, *sg.GroupId)
+		if sg.GroupId != nil && strings.HasPrefix(*sg.GroupId, "sg-") {
+			groupIDMap[*sg.GroupId] = struct{}{} // Add group ID to map, deduplicating
+		} else if sg.GroupName != nil {
+			// Collect group names for lookup
+			groupNamesOutput = append(groupNamesOutput, *sg.GroupName)
+		}
 	}
 
-	return groupIDs
+	// Fetch group IDs by names if there are any names to lookup
+	if len(groupNamesOutput) > 0 {
+		fetchedIDs, err := i.getSecurityGroupIDsByName(groupNamesOutput)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching security group IDs by names: %w", err)
+		}
+		for _, id := range fetchedIDs {
+			groupIDMap[id] = struct{}{} // Add fetched IDs to map, deduplicating
+		}
+	}
+
+	// Convert map keys back to a slice
+	dedupedGroupIDs := make([]string, 0, len(groupIDMap))
+	for id := range groupIDMap {
+		dedupedGroupIDs = append(dedupedGroupIDs, id)
+	}
+
+	return dedupedGroupIDs, nil
 }
 
-func (i *instance) getlaunchTemplate(id, ver *string) (*ec2Types.ResponseLaunchTemplateData, error) {
-	res, err := i.region.services.ec2.DescribeLaunchTemplateVersions(
-		context.TODO(),
-		&ec2.DescribeLaunchTemplateVersionsInput{
-			Versions:         []string{*ver},
-			LaunchTemplateId: id,
+// getSecurityGroupIDsByName fetches security group IDs given their names using an existing EC2 client.
+func (i *instance) getSecurityGroupIDsByName(groupNames []string) ([]string, error) {
+	// Build the input for the DescribeSecurityGroups API call
+	input := &ec2.DescribeSecurityGroupsInput{
+		Filters: []types.Filter{
+			{
+				Name:   aws.String("group-name"),
+				Values: groupNames,
+			},
 		},
-	)
+	}
 
+	// Use the already set EC2 client to call DescribeSecurityGroups
+	res, err := i.region.services.ec2.DescribeSecurityGroups(context.TODO(), input)
 	if err != nil {
-		log.Println("Failed to describe launch template", *id, "version", *ver,
-			"encountered error:", err.Error())
-		return nil, err
+		return nil, fmt.Errorf("error describing security groups: %w", err)
 	}
-	if len(res.LaunchTemplateVersions) == 1 {
-		return res.LaunchTemplateVersions[0].LaunchTemplateData, nil
+
+	// Extract the security group IDs from the response
+	var groupIDs []string
+	for _, sg := range res.SecurityGroups {
+		if sg.GroupId != nil {
+			groupIDs = append(groupIDs, *sg.GroupId)
+		}
 	}
-	return nil, fmt.Errorf("missing launch template version information")
+
+	return groupIDs, nil
 }
 
 func (i *instance) processLaunchConfiguration(retval *ec2Types.RequestLaunchTemplateData) {
@@ -243,12 +277,22 @@ func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2Types
 	// be set first because they may also be set in the network configuration of
 	// the LT or LC, in which case the below initialization will be reverted.
 
-	sgs := i.convertSecurityGroups()
+	sgs, err := i.convertSecurityGroups()
+	if err != nil {
+		return nil, fmt.Errorf("error converting security groups: %w", err)
+	}
+
 	if len(sgs) > 0 {
 		ltData.SecurityGroupIds = sgs
+		ltData.SecurityGroups = nil
 	}
 
 	i.processImageBlockDevices(&ltData)
+	ltData.BlockDeviceMappings = i.convertLaunchTemplateBlockDeviceMappings(ltData.BlockDeviceMappings)
+
+	if err := i.processLaunchTemplateSecurityGroups(&ltData); err != nil {
+		return nil, fmt.Errorf("error determining security group names: %w", err)
+	}
 
 	if i.asg.launchConfiguration != nil {
 		i.processLaunchConfiguration(&ltData)
@@ -270,6 +314,96 @@ func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2Types
 	log.Printf("ltData: %+#v\n", ltData)
 
 	return &ltData, nil
+}
+
+func (i *instance) processLaunchTemplateSecurityGroups(ltData *ec2Types.RequestLaunchTemplateData) error {
+
+	sgs, err := i.convertSecurityGroups()
+	if err != nil {
+		// Return the error to the caller for further handling
+		return fmt.Errorf("error converting security groups: %w", err)
+	}
+
+	if having, nis := i.launchTemplateHasNetworkInterfaces(ltData); having {
+		for _, ni := range nis {
+			ltData.NetworkInterfaces = append(ltData.NetworkInterfaces,
+				ec2Types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+					AssociatePublicIpAddress: ni.AssociatePublicIpAddress,
+					SubnetId:                 i.SubnetId,
+					DeviceIndex:              ni.DeviceIndex,
+					Groups:                   sgs,
+				},
+			)
+		}
+		ltData.SecurityGroupIds = nil
+		ltData.SecurityGroups = nil
+	}
+	return nil
+}
+
+func (i *instance) launchTemplateHasNetworkInterfaces(ltData *ec2Types.RequestLaunchTemplateData) (bool, []ec2Types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest) {
+	if ltData == nil {
+		log.Println("Missing launch template data for ", *i.InstanceId)
+		return false, nil
+	}
+
+	nis := ltData.NetworkInterfaces
+	if len(nis) > 0 {
+		return true, nis
+	}
+	return false, nil
+}
+
+func (i *instance) convertLaunchTemplateBlockDeviceMappings(BDMs []ec2Types.LaunchTemplateBlockDeviceMappingRequest) []ec2Types.LaunchTemplateBlockDeviceMappingRequest {
+
+	bds := []ec2Types.LaunchTemplateBlockDeviceMappingRequest{}
+	if len(BDMs) == 0 {
+		log.Println("Missing LT block device mappings")
+	}
+
+	for _, BDM := range BDMs {
+
+		ec2BDM := ec2Types.LaunchTemplateBlockDeviceMappingRequest{
+			DeviceName:  BDM.DeviceName,
+			VirtualName: BDM.VirtualName,
+		}
+
+		if BDM.Ebs != nil {
+			ec2BDM.Ebs = &ec2Types.LaunchTemplateEbsBlockDeviceRequest{
+				DeleteOnTermination: BDM.Ebs.DeleteOnTermination,
+				Encrypted:           BDM.Ebs.Encrypted,
+				Iops:                BDM.Ebs.Iops,
+				SnapshotId:          BDM.Ebs.SnapshotId,
+				VolumeSize:          BDM.Ebs.VolumeSize,
+				VolumeType:          convertLaunchTemplateEBSVolumeType(BDM.Ebs, i.asg),
+			}
+		}
+
+		// handle the noDevice field directly by skipping the device if set to true, apparently NoDevice is here a string instead of a bool.
+		if BDM.NoDevice != nil && *BDM.NoDevice == "true" {
+			continue
+		}
+		bds = append(bds, ec2BDM)
+	}
+
+	if len(bds) == 0 {
+		return nil
+	}
+	return bds
+}
+
+func convertLaunchTemplateEBSVolumeType(ebs *ec2Types.LaunchTemplateEbsBlockDeviceRequest, a *autoScalingGroup) ec2Types.VolumeType {
+	// convert IO1 to IO2 in supported regions
+	r := a.region.name
+	asg := a.name
+
+	// convert GP2 to GP3 below the threshold where GP2 becomes more performant. The Threshold is configurable
+	if ebs.VolumeType == "gp2" && *ebs.VolumeSize <= 170 {
+		log.Println(r, ": Converting GP2 EBS volume to GP3 for new instance launched for", asg)
+		return "gp3"
+	}
+	log.Println(r, ": No EBS volume conversion could be done for", asg)
+	return ebs.VolumeType
 }
 
 func (i *instance) createFleetLaunchTemplate(ltData *ec2Types.RequestLaunchTemplateData) (*string, *string, error) {

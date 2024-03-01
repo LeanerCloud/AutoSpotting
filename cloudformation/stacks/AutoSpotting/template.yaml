@@ -562,6 +562,7 @@ Resources:
               - "ec2:DeleteTags"
               - "ec2:DescribeAddresses"
               - "ec2:DescribeImages"
+              - "ec2:DescribeSecurityGroups"
               - "ec2:DescribeVolumes"
               - "ec2:DetachVolume"
               - "ec2:DisassociateAddress"
