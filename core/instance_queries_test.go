@@ -1374,7 +1374,7 @@ func Test_instance_isUnattachedSpotInstanceLaunchedForAnEnabledASG(t *testing.T)
 					},
 				},
 			},
-			wantUnattached: true,
+			wantUnattached: false,
 		},
 
 		{

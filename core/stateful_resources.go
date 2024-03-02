@@ -13,7 +13,10 @@ import (
 )
 
 func (i *instance) getAttachedEBSVolumes() []ec2Types.InstanceBlockDeviceMapping {
-	return i.BlockDeviceMappings
+	if i != nil && i.BlockDeviceMappings != nil {
+		return i.BlockDeviceMappings
+	}
+	return []ec2Types.InstanceBlockDeviceMapping{}
 }
 
 func (i *instance) getAttachedElasticIPs() ([]elasticIPDetails, error) {
