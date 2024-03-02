@@ -436,9 +436,9 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 		return err
 	}
 
-	asgName := i.getReplacementTargetASGName()
+	belongs, asgName := i.belongsToAnASG()
 
-	if asgName == nil || *asgName != eventASGName {
+	if !belongs || asgName == nil || *asgName != eventASGName {
 		log.Printf("event ASG name doesn't match the ASG name set on the tags " +
 			"of the unattached spot instance")
 		return fmt.Errorf("ASG name mismatch: event ASG name %s doesn't match the "+
@@ -655,11 +655,10 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 		return nil, errors.New("instance not in running/shutting down state")
 	}
 
-	asgName := i.getReplacementTargetASGName()
-
-	if asgName == nil {
-		log.Printf("Missing the ASG name tag\n")
-		return nil, errors.New("missing ASG name tag")
+	belongs, asgName := i.belongsToAnASG()
+	if !belongs || asgName == nil {
+		log.Printf("Instance %s does not belong to ASG", *i.InstanceId)
+		return nil, errors.New("instance %s does not belong to ASG")
 	}
 
 	i.asg = i.region.findEnabledASGByName(*asgName)

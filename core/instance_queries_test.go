@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/davecgh/go-spew/spew"
 )
 
 func TestIsSpot(t *testing.T) {
@@ -1457,45 +1456,6 @@ func TestMin(t *testing.T) {
 			retValue := min(tt.x, tt.y)
 			if retValue != tt.expected {
 				t.Errorf("Value received: %d expected %d", retValue, tt.expected)
-			}
-		})
-	}
-}
-
-func Test_instance_getReplacementTargetASGName(t *testing.T) {
-
-	tests := []struct {
-		name     string
-		instance *ec2Types.Instance
-		want     *string
-	}{
-		{
-			name: "instance has no tags",
-			instance: &ec2Types.Instance{
-				Tags: nil,
-			},
-			want: nil,
-		},
-		{
-			name: "instance has the expected tag",
-			instance: &ec2Types.Instance{
-				Tags: []ec2Types.Tag{
-					{
-						Key:   aws.String("launched-for-asg"),
-						Value: aws.String("mygroup"),
-					},
-				},
-			},
-			want: aws.String("mygroup"),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			i := &instance{
-				Instance: tt.instance,
-			}
-			if got := i.getReplacementTargetASGName(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("instance.getReplacementTargetASGName() = %#v, want %#v", spew.Sdump(got), spew.Sdump(tt.want))
 			}
 		})
 	}

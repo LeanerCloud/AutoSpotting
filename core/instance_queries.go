@@ -246,15 +246,6 @@ func (i *instance) getODPriceFromTag() (float64, error) {
 	return 0, errors.New("failed to find/parse the odPrice tag")
 }
 
-func (i *instance) getReplacementTargetASGName() *string {
-	for _, tag := range i.Tags {
-		if *tag.Key == "launched-for-asg" {
-			return tag.Value
-		}
-	}
-	return nil
-}
-
 func (i *instance) getBeanstalkDeploymentInformation() (*string, *string) {
 	var envName, envID *string
 
@@ -582,9 +573,9 @@ func (i *instance) isManagedByECSCapacityProvider() bool {
 }
 
 func (i *instance) isUnattachedSpotInstanceLaunchedForAnEnabledASG() bool {
-	asgName := i.getReplacementTargetASGName()
-	if asgName == nil {
-		log.Printf("%s is missing the tag value for 'launched-for-asg'", *i.InstanceId)
+	belongs, asgName := i.belongsToAnASG()
+	if !belongs || asgName == nil {
+		log.Printf("%s doesn't belong to an ASG", *i.InstanceId)
 		return false
 	}
 	asg := i.region.findEnabledASGByName(*asgName)

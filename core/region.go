@@ -727,7 +727,11 @@ func findNewestInstance(instances []*instance) *instance {
 	return newest
 }
 func (r *region) findASGForInstance(inst *instance) (*autoScalingGroup, error) {
-	asgName := inst.getReplacementTargetASGName()
+	belongs, asgName := inst.belongsToAnASG()
+	if !belongs || asgName == nil {
+		log.Printf("Instance %s does not belong to ASG", *inst.InstanceId)
+	}
+
 	r.scanForEnabledAutoScalingGroups()
 
 	log.Printf("Finding ASG for instance: %s", *inst.InstanceId)

@@ -302,7 +302,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 	}
 
 	odInstance, err := getReplacementInstance(i, instancetoReplace)
-	if err != nil {
+	if err != nil || odInstance == nil {
 		log.Printf("Couldn't find replacement instance for %s", *instancetoReplace.InstanceId)
 		return nil, err
 	}
@@ -404,8 +404,8 @@ func (i *instance) waitForBeanstalkDeployments() {
 		*i.InstanceId, *envName, *envID)
 }
 func (i *instance) waitForAutoScalingRefresh() {
-	asgName := i.getReplacementTargetASGName()
-	if asgName == nil {
+	belongs, asgName := i.belongsToAnASG()
+	if !belongs || asgName == nil {
 		log.Printf("Instance %s is not part of any Auto Scaling Group, skipping refresh wait logic", *i.InstanceId)
 		return
 	}
