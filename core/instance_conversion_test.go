@@ -833,13 +833,13 @@ func Test_instance_createFleetLaunchTemplate(t *testing.T) {
 		{
 			name:       "dummy asg, no errors",
 			asgName:    "dummy-asg",
-			wantLTName: aws.String("AutoSpotting-Converted-LaunchTemplate-for-dummy-asg-" + time.Now().Format("20060102-150405")),
+			wantLTName: aws.String("AutoSpotting-Converted-LaunchTemplate-for-dummy-asg-" + time.Now().Format("20060102-1504")),
 		},
 		{
 			name:       "dummy asg, AlreadyExistsException error",
 			asgName:    "dummy-asg",
 			cltErr:     errors.New("AlreadyExistsException"),
-			wantLTName: aws.String("AutoSpotting-Converted-LaunchTemplate-for-dummy-asg-" + time.Now().Format("20060102-150405")),
+			wantLTName: aws.String("AutoSpotting-Converted-LaunchTemplate-for-dummy-asg-" + time.Now().Format("20060102-1504")),
 		},
 		{
 			name:       "dummy asg, another error",

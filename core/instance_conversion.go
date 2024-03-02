@@ -424,7 +424,7 @@ func convertLaunchTemplateEBSVolumeType(ebs *ec2Types.LaunchTemplateEbsBlockDevi
 }
 
 func (i *instance) createFleetLaunchTemplate(ltData *ec2Types.RequestLaunchTemplateData) (*string, *string, error) {
-	timestamp := time.Now().Format("20060102-150405") // YYYYMMDD-HHMMSS format
+	timestamp := time.Now().Format("20060102-1504") // YYYYMMDD-HHMM format
 	ltName := "AutoSpotting-Converted-LaunchTemplate-for-" + i.asg.name + "-" + timestamp
 
 	_, err := i.region.services.ec2.CreateLaunchTemplate(
