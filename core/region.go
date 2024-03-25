@@ -670,6 +670,7 @@ func (r *region) tagResource(resourceID *string, tagKey string, tagValue string)
 
 	return nil
 }
+
 func (r *region) reapDuplicatedInstances() error {
 	tagKey := "launched-for-replacing-instance"
 	debug.Println("Starting the reaping of duplicated instances process")
@@ -681,13 +682,16 @@ func (r *region) reapDuplicatedInstances() error {
 	for inst := range r.instances.instances() {
 		for _, tag := range inst.Tags {
 			if *tag.Key == tagKey {
+				if belongs, _ := inst.belongsToAnASG(); !belongs {
+					continue
+				}
 				instancesByTag[*tag.Value] = append(instancesByTag[*tag.Value], inst)
 				log.Printf("Instance %s has tag %s with value %s", *inst.InstanceId, tagKey, *tag.Value)
 			}
 		}
 	}
 
-	debug.Printf("Checking for duplicated instances with tag key: %s", tagKey)
+	debug.Printf("Checking for duplicated instances with tag key: %s attached to an ASG", tagKey)
 	// Iterate over the map to find duplicates and terminate the newest.
 	for tagValue, instances := range instancesByTag {
 		if len(instances) > 1 {
