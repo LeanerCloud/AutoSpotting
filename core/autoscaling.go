@@ -236,6 +236,8 @@ func (a *autoScalingGroup) cronEventAction() runer {
 
 	log.Println(a.region.name, a.name, "Starting cronEventAction")
 
+	a.EnsureCapacityRebalancingDisabled()
+
 	a.scanInstances()
 	debug.Println(a.region.name, a.name, "Completed scanInstances")
 
@@ -314,6 +316,26 @@ func (a *autoScalingGroup) clearScaleInProtectionOfSpotInstancesInDownsizedASGs(
 		}
 	}
 
+}
+
+func (a *autoScalingGroup) EnsureCapacityRebalancingDisabled() {
+
+	if a.CapacityRebalance != nil && !*a.CapacityRebalance {
+		log.Printf("Spot capacity rebalancing is already disabled for ASG %s", a.name)
+		return
+	}
+
+	input := &autoscaling.UpdateAutoScalingGroupInput{
+		AutoScalingGroupName: aws.String(a.name),
+		CapacityRebalance:    aws.Bool(false),
+	}
+
+	_, err := a.region.services.autoScaling.UpdateAutoScalingGroup(context.Background(), input)
+	if err != nil {
+		log.Printf("Failed to update Auto Scaling group %s: %v", a.name, err)
+	}
+
+	log.Printf("Successfully disabled Spot capacity rebalancing for ASG %s", a.name)
 }
 
 func (a *autoScalingGroup) getInstancesToUnprotect() []string {
