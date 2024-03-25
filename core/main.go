@@ -710,7 +710,16 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 		log.Printf("error scanning instances in region %s: %s", i.region.name, err.Error())
 		return nil, fmt.Errorf("error scanning instances in region %s: %w", i.region.name, err)
 	}
+
+	if err := r.scanInstance(*newInstanceID); err != nil {
+		log.Printf("%s Couldn't scan instance %s: %s", i.region.name,
+			*newInstanceID, err.Error())
+		return nil, err
+	}
 	newInstance := i.region.instances.get(*newInstanceID)
+
+	log.Printf("Swapping new instance %s against existing instance %s",
+		*newInstanceID, *i.InstanceId)
 
 	existingLifecycle := i.getLifecycleValue()
 	newLifecycle := newInstance.getLifecycleValue()
