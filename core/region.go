@@ -774,7 +774,7 @@ func (r *region) waitForInstanceRunning(instanceID *string) error {
 		}
 		result, err := r.services.ec2.DescribeInstances(ctx, input)
 		if err != nil {
-			return fmt.Errorf("failed to describe instance: %w", err)
+			log.Printf("failed to describe instance: %s", err.Error())
 		}
 
 		// Check the instance state
