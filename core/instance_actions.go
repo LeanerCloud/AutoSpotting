@@ -300,6 +300,9 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 	if err := validateInputs(i, asg); err != nil {
 		return nil, err
 	}
+	if err := validateInputs(instancetoReplace, asg); err != nil {
+		return nil, err
+	}
 
 	odInstance, err := getReplacementInstance(i, instancetoReplace)
 	if err != nil || odInstance == nil {
