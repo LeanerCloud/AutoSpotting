@@ -320,7 +320,7 @@ func (a *autoScalingGroup) clearScaleInProtectionOfSpotInstancesInDownsizedASGs(
 
 func (a *autoScalingGroup) EnsureCapacityRebalancingDisabled() {
 
-	if a.CapacityRebalance != nil && !*a.CapacityRebalance {
+	if a.CapacityRebalance == nil || !(*a.CapacityRebalance) {
 		log.Printf("Spot capacity rebalancing is already disabled for ASG %s", a.name)
 		return
 	}
