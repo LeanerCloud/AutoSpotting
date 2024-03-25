@@ -337,11 +337,11 @@ func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
 		// Handle Instance Events
 		log.SetPrefix(fmt.Sprintf("%s:%s ", eventType, *instanceID))
 		if err := a.processEventInstance(eventType, cloudwatchEvent.Region, sqsReceiptHandle, instanceID, instanceState); err != nil {
-			log.Printf("Error processing event instance for eventType %s in region %s with instance ID %s and instance state %s: %s",
-				eventType, cloudwatchEvent.Region, *instanceID, *instanceState, err)
+			log.Printf("Error processing event instance for eventType %s in region %s with instance ID %s: %s",
+				eventType, cloudwatchEvent.Region, *instanceID, err.Error())
 
-			return fmt.Errorf("error processing event instance for eventType %s in region %s with instance ID %s and instance state %s: %w",
-				eventType, cloudwatchEvent.Region, *instanceID, *instanceState, err)
+			return fmt.Errorf("error processing event instance for eventType %s in region %s with instance ID %s: %w",
+				eventType, cloudwatchEvent.Region, *instanceID, err)
 		}
 	} else if eventType == AWSAPICallCloudTrailCode {
 		// CloudTrail
