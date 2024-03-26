@@ -159,9 +159,14 @@ func (a *AutoSpotting) processRegions(regions []string) {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}
 
+	mpCfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-east-1"))
+	if err != nil {
+		log.Fatalf("unable to load Marketplace SDK config, %v", err)
+	}
+
 	ssmClient := ssm.NewFromConfig(cfg)
 	ps := parameterStore{svc: ssmClient}
-	mpSvc := marketplacemetering.NewFromConfig(cfg)
+	mpSvc := marketplacemetering.NewFromConfig(mpCfg)
 	snsClient := sns.NewFromConfig(cfg)
 
 	mp := marketplaceMetering{
@@ -541,6 +546,11 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 		return nil
 	}
 
+	if asg.IsBeanstalkImmutableDeploymentASG() {
+		log.Printf("Instance %s belongs to an ASG created by Beanstalk immutable deployment, skipping further processing", *i.InstanceId)
+		return nil
+	}
+
 	if term, detach := i.shouldBeTerminated(asg); term {
 		if detach {
 			log.Printf("%s terminating %s instance %s, detaching it from the ASG: ", i.region.name, lifecycle, *i.InstanceId)
@@ -606,7 +616,14 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 		*spotInstanceID, *i.InstanceId)
 
 	spotInstance := r.instances.get(*spotInstanceID)
-	if _, err := spotInstance.swapWithGroupMember(i.asg, nil); err != nil {
+	if spotInstance == nil {
+		log.Printf("Couldn't get instance info for Spot instance %s, terminating it...", *spotInstanceID)
+		r.terminateInstanceByID(*spotInstanceID)
+
+		return fmt.Errorf("couldn't get instance info for Spot instance %s", *spotInstanceID)
+	}
+
+	if _, err := spotInstance.swapWithGroupMember(i.asg); err != nil {
 		log.Printf("%s, couldn't perform spot replacement of %s: %s ",
 			i.region.name, *i.InstanceId, err.Error())
 		return err
@@ -727,7 +744,7 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	log.Printf("Swapping existing %s instance %s with new %s instance %s",
 		existingLifecycle, *i.InstanceId, newLifecycle, *newInstanceID)
 
-	if _, err := newInstance.swapWithGroupMember(i.asg, nil); err != nil {
+	if _, err := newInstance.swapWithGroupMember(i.asg); err != nil {
 		log.Printf("Error swapping instance %s with a memberof ASG %s: %s",
 			*newInstance.InstanceId, *asgName, err.Error())
 		return nil, err
