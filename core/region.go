@@ -22,7 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk"
@@ -775,12 +774,14 @@ func (r *region) waitForInstanceRunning(instanceID *string) error {
 		result, err := r.services.ec2.DescribeInstances(ctx, input)
 		if err != nil {
 			log.Printf("failed to describe instance: %s", err.Error())
+			time.Sleep(pollInterval)
+			continue
 		}
 
 		// Check the instance state
 		if len(result.Reservations) > 0 && len(result.Reservations[0].Instances) > 0 {
 			state := result.Reservations[0].Instances[0].State
-			if state != nil && state.Name == types.InstanceStateNameRunning {
+			if state != nil && state.Name == ec2Types.InstanceStateNameRunning {
 				return nil
 			}
 		}
@@ -872,7 +873,7 @@ func (r *region) waitUntilVolumeAvailable(volumeID *string) error {
 		}
 
 		// Check the volume state
-		if resp.Volumes[0].State == types.VolumeStateAvailable {
+		if resp.Volumes[0].State == ec2Types.VolumeStateAvailable {
 			log.Printf("EBS volume %s successfully detached and is now available", *volumeID)
 			return nil
 		}
@@ -912,6 +913,17 @@ func (r *region) reapOldLaunchTemplatesCreatedByAutoSpotting() error {
 				log.Printf("Successfully deleted launch template %s", *lt.LaunchTemplateName)
 			}
 		}
+	}
+	return nil
+}
+
+func (r *region) terminateInstanceByID(instanceID string) error {
+	_, err := r.services.ec2.TerminateInstances(context.TODO(), &ec2.TerminateInstancesInput{
+		InstanceIds: []string{instanceID},
+	})
+	if err != nil {
+		log.Printf("Error terminating instance %s: %s", instanceID, err.Error())
+		return err
 	}
 	return nil
 }
