@@ -18,7 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/davecgh/go-spew/spew"
 )
@@ -169,7 +169,7 @@ func (i *instance) convertSecurityGroups() ([]string, error) {
 func (i *instance) getSecurityGroupIDsByName(groupNames []string) ([]string, error) {
 	// Build the input for the DescribeSecurityGroups API call
 	input := &ec2.DescribeSecurityGroupsInput{
-		Filters: []types.Filter{
+		Filters: []ec2Types.Filter{
 			{
 				Name:   aws.String("group-name"),
 				Values: groupNames,
