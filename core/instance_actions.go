@@ -158,9 +158,14 @@ func getInstanceTypesAndErrors(errors []ec2Types.CreateFleetError) map[string]st
 }
 
 func validateInputs(i *instance, asg *autoScalingGroup) error {
-	if i == nil || i.InstanceId == nil {
-		log.Printf("Error: Instance or Instance ID is nil")
-		return fmt.Errorf("instance or instance ID is nil")
+	if i == nil {
+		log.Printf("Error: Instance is nil")
+		return fmt.Errorf("instance is nil")
+	}
+
+	if i.InstanceId == nil {
+		log.Printf("Error: Instance ID is nil")
+		return fmt.Errorf("instance ID is nil")
 	}
 
 	if asg == nil {
@@ -171,21 +176,15 @@ func validateInputs(i *instance, asg *autoScalingGroup) error {
 	return nil
 }
 
-func getReplacementInstance(i *instance, instancetoReplace *instance) (*instance, error) {
+func (i *instance) getReplacementInstance() (*instance, error) {
 
 	newLifecycle := i.getLifecycleValue()
 
-	if instancetoReplace != nil {
-		oldLifecycle := instancetoReplace.getLifecycleValue()
-		log.Printf("Using provided %s instance %s to replace %s instance %s",
-			newLifecycle, *i.InstanceId, oldLifecycle, *instancetoReplace.InstanceId)
-		return instancetoReplace, nil
-	}
-
-	log.Printf("Finding swap candidate for %s instance %s", newLifecycle, *i.InstanceId)
-	swapCandidate, err := i.getSwapCandidate()
+	log.Printf("Finding existing swap candidate for %s instance %s", newLifecycle, *i.InstanceId)
+	swapCandidate, err := i.getExistingSwapCandidate()
 	if err != nil {
-		log.Printf("Couldn't find suitable swap candidate: %v", err)
+		log.Printf("Couldn't find suitable swap candidate for instance %s, terminating instance. Error: %s",
+			*i.InstanceId, err.Error())
 		err := i.terminate()
 		if err != nil {
 			log.Printf("Couldn't terminate instance %s: %v", *i.InstanceId, err)
@@ -296,17 +295,14 @@ func (i *instance) replaceInstanceInASG(asg *autoScalingGroup, existingInstance 
 	return nil, fmt.Errorf("unexpected condition in replaceInstanceInASG")
 }
 
-func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace *instance) (*instance, error) {
+func (i *instance) swapWithGroupMember(asg *autoScalingGroup) (*instance, error) {
 	if err := validateInputs(i, asg); err != nil {
 		return nil, err
 	}
-	if err := validateInputs(instancetoReplace, asg); err != nil {
-		return nil, err
-	}
 
-	odInstance, err := getReplacementInstance(i, instancetoReplace)
-	if err != nil || odInstance == nil {
-		log.Printf("Couldn't find replacement instance for %s", *instancetoReplace.InstanceId)
+	replacementInstance, err := i.getReplacementInstance()
+	if err != nil || replacementInstance == nil {
+		log.Printf("Couldn't find replacement instance for %s", *i.InstanceId)
 		return nil, err
 	}
 
@@ -318,7 +314,7 @@ func (i *instance) swapWithGroupMember(asg *autoScalingGroup, instancetoReplace 
 	// otherwise attachSpotInstance might fail
 	handleASGSizeAdjustments(asg)
 
-	return i.replaceInstanceInASG(asg, odInstance)
+	return i.replaceInstanceInASG(asg, replacementInstance)
 }
 
 func (i *instance) terminateInstanceInAutoScalingGroup(asg *autoScalingGroup) error {
@@ -333,7 +329,7 @@ func (i *instance) terminateInstanceInAutoScalingGroup(asg *autoScalingGroup) er
 	return nil
 }
 
-func (i *instance) getSwapCandidate() (*instance, error) {
+func (i *instance) getExistingSwapCandidate() (*instance, error) {
 	instanceToReplaceID := i.getReplacementTargetInstanceID()
 	if instanceToReplaceID == nil {
 		log.Println("Couldn't find target instance of", *i.InstanceId)
