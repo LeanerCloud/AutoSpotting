@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -1090,12 +1089,4 @@ func (a *autoScalingGroup) containsInstance(inst *instance) bool {
 	}
 
 	return false
-}
-
-func (a *autoScalingGroup) IsBeanstalkImmutableDeploymentASG() bool {
-	// Compile the regular expression to match ASG names for new Beanstalk immutable deployments.
-	pattern := regexp.MustCompile(`awseb-.+immutable-`)
-
-	// Check if the ASG name matches the pattern.
-	return pattern.MatchString(a.name)
 }

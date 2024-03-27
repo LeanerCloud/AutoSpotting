@@ -20,7 +20,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/davecgh/go-spew/spew"
 )
 
 var unsupportedIO2Regions = [...]string{
@@ -324,7 +323,7 @@ func (i *instance) createLaunchTemplateData(instanceLifecycle string) (*ec2Types
 
 	ltData.Placement = &placement
 
-	spew.Printf("ltData: %+#v\n", ltData)
+	//	spew.Printf("ltData: %+#v\n", ltData)
 
 	return &ltData, nil
 }

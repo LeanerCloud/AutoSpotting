@@ -14,8 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
 
@@ -799,12 +797,6 @@ func (r *region) waitForInstanceRunning(instanceID *string) error {
 	}
 }
 func (r *region) waitUntilBeanstalkEnvironmentUpdated(envName, envID *string) error {
-	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(r.name))
-	if err != nil {
-		return err
-	}
-
-	svc := elasticbeanstalk.NewFromConfig(cfg)
 
 	// Create a context that can be cancelled
 	ctx, cancel := context.WithCancel(context.Background())
@@ -823,8 +815,10 @@ func (r *region) waitUntilBeanstalkEnvironmentUpdated(envName, envID *string) er
 				EnvironmentIds:   []string{*envID},
 			}
 
-			resp, err := svc.DescribeEnvironments(ctx, input)
+			resp, err := r.services.beanstalk.DescribeEnvironments(ctx, input)
 			if err != nil {
+				log.Printf("Could not describe Beanstalk environment %s with ID %s: %v",
+					*envName, *envID, err.Error())
 				return err
 			}
 

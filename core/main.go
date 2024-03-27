@@ -569,11 +569,6 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 		return nil
 	}
 
-	if asg.IsBeanstalkImmutableDeploymentASG() {
-		log.Printf("Instance %s belongs to an ASG created by Beanstalk immutable deployment, skipping further processing", *i.InstanceId)
-		return nil
-	}
-
 	if term, detach := i.shouldBeTerminated(asg); term {
 		if detach {
 			log.Printf("%s terminating %s instance %s, detaching it from the ASG: ", i.region.name, lifecycle, *i.InstanceId)
@@ -632,7 +627,9 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 	spotInstance := r.instances.get(*spotInstanceID)
 	if spotInstance == nil {
 		log.Printf("Couldn't get instance info for Spot instance %s, terminating it...", *spotInstanceID)
-		r.terminateInstanceByID(*spotInstanceID)
+		if err := r.terminateInstanceByID(*spotInstanceID); err != nil {
+			log.Printf("Couldn't terminate instance %s", *spotInstanceID)
+		}
 
 		return fmt.Errorf("couldn't get instance info for Spot instance %s", *spotInstanceID)
 	}

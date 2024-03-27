@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/codedeploy"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
@@ -33,6 +34,11 @@ type AutoScalingAPI interface {
 	SuspendProcesses(ctx context.Context, params *autoscaling.SuspendProcessesInput, optFns ...func(*autoscaling.Options)) (*autoscaling.SuspendProcessesOutput, error)
 	TerminateInstanceInAutoScalingGroup(ctx context.Context, params *autoscaling.TerminateInstanceInAutoScalingGroupInput, optFns ...func(*autoscaling.Options)) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error)
 	UpdateAutoScalingGroup(ctx context.Context, params *autoscaling.UpdateAutoScalingGroupInput, optFns ...func(*autoscaling.Options)) (*autoscaling.UpdateAutoScalingGroupOutput, error)
+}
+
+// BeanstalkAPI implements the Beanstalk API client interface
+type BeanstalkAPI interface {
+	DescribeEnvironments(ctx context.Context, params *elasticbeanstalk.DescribeEnvironmentsInput, optFns ...func(*elasticbeanstalk.Options)) (*elasticbeanstalk.DescribeEnvironmentsOutput, error)
 }
 
 // EC2API defines the methods from ec2.Client that we use.
@@ -111,6 +117,7 @@ type ECSAPI interface {
 type connections struct {
 	cfg            aws.Config
 	autoScaling    AutoScalingAPI
+	beanstalk      BeanstalkAPI
 	ec2            EC2API
 	elbv2          ElasticLoadBalancingV2API
 	elb            ElasticLoadBalancingAPI
@@ -142,6 +149,7 @@ func (c *connections) connect(region, mainRegion string) error {
 	}
 
 	c.autoScaling = autoscaling.NewFromConfig(c.cfg)
+	c.beanstalk = elasticbeanstalk.NewFromConfig(c.cfg)
 	c.ec2 = ec2.NewFromConfig(c.cfg)
 	c.cloudFormation = cloudformation.NewFromConfig(c.cfg)
 	c.codedeploy = codedeploy.NewFromConfig(c.cfg)
