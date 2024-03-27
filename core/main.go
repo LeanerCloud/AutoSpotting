@@ -303,7 +303,7 @@ func (a *AutoSpotting) processEventInstance(eventType string, region string, sqs
 		}
 		// If the event is for an Instance Spot Interruption/Rebalance
 
-		instanceID, err := a.replaceTerminatingSpotInstance(*instanceID, region)
+		instanceID, err := a.replaceTerminatingSpotInstance(*instanceID, region, sqsReceiptHandle)
 		if err != nil {
 			log.Printf("Error executing spot termination/rebalance action: %s\n", err.Error())
 			return err
@@ -350,7 +350,7 @@ func (a *AutoSpotting) processEvent(event *json.RawMessage) error {
 		}
 	} else if eventType == AWSAPICallCloudTrailCode {
 		// CloudTrail
-		if err := a.handleLifecycleHookEvent(*cloudwatchEvent); err != nil {
+		if err := a.handleLifecycleHookEvent(*cloudwatchEvent, sqsReceiptHandle); err != nil {
 			log.Printf("Error handling lifecycle hook event: %s", err)
 			return fmt.Errorf("error handling lifecycle hook event: %w", err)
 		}
@@ -387,7 +387,7 @@ func isValidLifecycleHookEvent(ctEvent CloudTrailEvent) bool {
 		strings.HasPrefix(ctEvent.ErrorMessage, "No active Lifecycle Action found with instance ID")
 }
 
-func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) error {
+func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent, sqsReceiptHandle *string) error {
 	var ctEvent CloudTrailEvent
 
 	// Try to parse the event.Detail as Cloudwatch Event Rule
@@ -416,6 +416,16 @@ func (a *AutoSpotting) handleLifecycleHookEvent(event events.CloudWatchEvent) er
 		return fmt.Errorf("error connecting to services in region %s with main region %s: %w",
 			regionName, r.conf.MainRegion, err)
 	}
+
+	if sqsReceiptHandle != nil {
+		log.Println("Trying to delete message from SQS queue")
+		if err := r.sqsDeleteMessage("lifecycle hook", &instanceID, Spot, sqsReceiptHandle); err != nil {
+			log.Printf("Error deleting SQS message: %v", err)
+		}
+	} else {
+		log.Printf("Failed to delete message from SQS queue, missing SQS receipt handle")
+	}
+
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 
@@ -478,6 +488,19 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 		return fmt.Errorf("error connecting to services in region %s with main region %s: %w",
 			regionName, a.config.MainRegion, err)
 	}
+
+	// we anyway need to delete the message, but if we delete it now,
+	// the queue will allow us to process more instances in parallel
+
+	if sqsReceiptHandle != nil {
+		log.Println("Trying to delete message from SQS queue")
+		if err := r.sqsDeleteMessage("new instance launch", &instanceID, OnDemand, sqsReceiptHandle); err != nil {
+			log.Printf("Error deleting SQS message: %v", err)
+		}
+	} else {
+		log.Println("Failed to delete message from SQS queue, missing SQS receipt handle")
+	}
+
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 
@@ -578,15 +601,6 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 	i.waitForBeanstalkDeployments()
 	i.waitForAutoScalingRefresh()
 
-	// we anyway need to delete the message, but if we delete it now,
-	// the queue will allow us to process more instances in parallel
-
-	if sqsReceiptHandle != nil {
-		if err := i.region.sqsDeleteMessage(i.InstanceId, OnDemand, sqsReceiptHandle); err != nil {
-			log.Printf("Error deleting SQS message: %v", err)
-		}
-	}
-
 	log.Printf("%s instance %s belongs to an enabled ASG and should be "+
 		"replaced with spot", i.region.name, *i.InstanceId)
 
@@ -631,7 +645,7 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 	return nil
 }
 
-func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName string) (*string, error) {
+func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName string, sqsReceiptHandle *string) (*string, error) {
 	r := &region{name: regionName, conf: a.config, services: &connections{}}
 
 	if !r.enabled() {
@@ -644,6 +658,18 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 		return nil, fmt.Errorf("error connecting to services in region %s with main region %s: %w",
 			regionName, a.config.MainRegion, err)
 	}
+
+	// we anyway need to delete the message, but if we delete it as early as possible,
+	// the queue will allow us to process more events in parallel
+	if sqsReceiptHandle != nil {
+		log.Printf("%s Trying to delete message from SQS queue when processing terminating Spo instance %s", r.name, instanceID)
+		if err := r.sqsDeleteMessage("Spot termination", &instanceID, Spot, sqsReceiptHandle); err != nil {
+			log.Printf("Error deleting SQS message: %v", err)
+		}
+	} else {
+		log.Printf("Failed to delete message from SQS queue when processing main region %s, missing SQS receipt handle", r.name)
+	}
+
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 

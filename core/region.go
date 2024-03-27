@@ -550,7 +550,7 @@ func (r *region) findEnabledASGByName(name string) *autoScalingGroup {
 	return nil
 }
 
-func (r *region) sqsDeleteMessage(instanceID *string, instanceLifecycle string, sqsReceiptHandle *string) error {
+func (r *region) sqsDeleteMessage(eventKind string, instanceID *string, instanceLifecycle string, sqsReceiptHandle *string) error {
 	svc := r.services.sqs
 
 	_, err := svc.DeleteMessage(context.TODO(),
@@ -559,14 +559,22 @@ func (r *region) sqsDeleteMessage(instanceID *string, instanceLifecycle string, 
 			ReceiptHandle: sqsReceiptHandle,
 		})
 	if err != nil {
-		log.Printf("%s Error deleting %s instance %s launch event message "+
-			"from the SQS Queue %s: %s", r.name, instanceLifecycle, *instanceID, r.conf.SQSQueueURL, err)
+		if instanceID != nil {
+			log.Printf("%s Error deleting %s event message for %s instance %s "+
+				"from the SQS Queue %s: %s", r.name, eventKind, instanceLifecycle, *instanceID, r.conf.SQSQueueURL, err)
+		} else {
+			log.Printf("%s Error deleting %s message "+
+				"from the SQS Queue %s: %s", r.name, eventKind, r.conf.SQSQueueURL, err)
+		}
 		return err
 	}
-
-	log.Printf("%s Successfully deleted %s instance %s launch event message "+
-		"from the SQS Queue %s", r.name, instanceLifecycle, *instanceID, r.conf.SQSQueueURL)
-
+	if instanceID != nil {
+		log.Printf("%s Successfully deleted %s event message for %s instance %s "+
+			"from the SQS Queue %s", r.name, eventKind, instanceLifecycle, *instanceID, r.conf.SQSQueueURL)
+	} else {
+		log.Printf("%s Successfully deleted %s event message "+
+			"from the SQS Queue %s: %s", r.name, eventKind, r.conf.SQSQueueURL, err)
+	}
 	return nil
 
 }
