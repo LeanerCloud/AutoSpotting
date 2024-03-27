@@ -575,6 +575,7 @@ Resources:
               - "ec2:DescribeSpotPriceHistory"
               - "ec2:RunInstances"
               - "ec2:TerminateInstances"
+              - "elasticbeanstalk:DescribeEnvironments"
               - "elasticloadbalancing:DescribeLoadBalancers"
               - "elasticloadbalancing:DeregisterInstancesFromLoadBalancer"
               - "elasticloadbalancing:DeregisterTargets"
