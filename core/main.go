@@ -529,7 +529,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 	}
 
 	// Try OnDemand
-	if err := a.handleNewOnDemandInstanceLaunch(r, i, sqsReceiptHandle); err != nil {
+	if err := a.handleNewOnDemandInstanceLaunch(r, i); err != nil {
 		log.Printf("%s Instance %s couldn't be handled as on-demand instance, encountered error: %s",
 			i.region.name, *i.InstanceId, err.Error())
 		return fmt.Errorf("error handling new on-demand instance: %w", err)
@@ -545,7 +545,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 	return nil
 }
 
-func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, sqsReceiptHandle *string) error {
+func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) error {
 	var spotInstanceID *string
 	var err error
 	lifecycle := "on-demand"
@@ -566,6 +566,12 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 	belongs, asg := i.belongsToEnabledASG()
 	if !belongs {
 		log.Printf("Instance %s does not belong to an enabled ASG, skipping further processing", *i.InstanceId)
+		return nil
+	}
+
+	if eligible, reason := asg.isASGElegibleForProcessing(); !eligible {
+		log.Printf("On Demand instance %s belonging to ASG %s is not eligible for further processing, reason: %s",
+			*i.InstanceId, asg.name, reason)
 		return nil
 	}
 
@@ -592,9 +598,6 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance, s
 		debug.Printf("%#v", i)
 		return nil
 	}
-
-	i.waitForBeanstalkDeployments()
-	i.waitForAutoScalingRefresh()
 
 	log.Printf("%s instance %s belongs to an enabled ASG and should be "+
 		"replaced with spot", i.region.name, *i.InstanceId)

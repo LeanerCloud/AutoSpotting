@@ -246,20 +246,6 @@ func (i *instance) getODPriceFromTag() (float64, error) {
 	return 0, errors.New("failed to find/parse the odPrice tag")
 }
 
-func (i *instance) getBeanstalkDeploymentInformation() (*string, *string) {
-	var envName, envID *string
-
-	for _, tag := range i.Tags {
-		if *tag.Key == "elasticbeanstalk:environment-name" {
-			envName = tag.Value
-		}
-		if *tag.Key == "elasticbeanstalk:environment-id" {
-			envID = tag.Value
-		}
-	}
-	return envName, envID
-}
-
 func (i *instance) asgNeedsReplacement() bool {
 	ret, _ := i.asg.needReplaceOnDemandInstances()
 	return ret

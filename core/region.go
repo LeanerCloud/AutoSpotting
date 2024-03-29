@@ -22,9 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
-	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk"
-	beanstalkTypes "github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk/types"
-
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go/aws"
 )
@@ -413,16 +410,6 @@ func isASGWithMatchingTags(asg *autoscalingTypes.AutoScalingGroup, tagsToMatch [
 	return matchedTags == len(tagsToMatch)
 }
 
-func getTagValueFromASGWithMatchingTag(asg *autoscalingTypes.AutoScalingGroup, tagToMatch Tag) *string {
-	for _, tag := range asg.Tags {
-		asgTag := tag
-		if tagsMatch(&asgTag, tagToMatch) {
-			return asgTag.Value
-		}
-	}
-	return nil
-}
-
 func (r *region) isStackUpdating(stackName *string) (string, bool) {
 	stackCompleteStatuses := map[string]struct{}{
 		"CREATE_IN_PROGRESS":       {}, // allow replacing instances from brand new ASGs
@@ -449,40 +436,22 @@ func (r *region) isStackUpdating(stackName *string) (string, bool) {
 	return "", false
 }
 
-func (r *region) findMatchingASGsInPageOfResults(groups []autoscalingTypes.AutoScalingGroup,
-	tagsToMatch []Tag) []autoScalingGroup {
-
+func (r *region) findMatchingASGsInPageOfResults(groups []autoscalingTypes.AutoScalingGroup, tagsToMatch []Tag) []autoScalingGroup {
 	var asgs []autoScalingGroup
 	var optInFilterMode = (r.conf.TagFilteringMode != "opt-out")
-
-	tagCloudFormationStackName := Tag{Key: "aws:cloudformation:stack-name", Value: "*"}
 
 	for _, myGroup := range groups {
 		group := myGroup
 		asgName := *group.AutoScalingGroupName
 
 		groupMatchesExpectedTags := isASGWithMatchingTags(&group, tagsToMatch)
-		// Go lacks a logical XOR operator, this is the equivalent to that logical
-		// expression. The goal is to add the matching ASGs when running in opt-in
-		// mode and the other way round.
 		if optInFilterMode != groupMatchesExpectedTags {
-			debug.Printf("Skipping group %s because its tags, the currently "+
-				"configured filtering mode (%s) and tag filters do not align\n",
-				asgName, r.conf.TagFilteringMode)
+			debug.Printf("Skipping group %s because its tags, the currently configured filtering mode (%s) and tag filters do not align\n", asgName, r.conf.TagFilteringMode)
 			continue
 		}
 
-		if stackName := getTagValueFromASGWithMatchingTag(&group, tagCloudFormationStackName); stackName != nil {
-			debug.Println("Stack: ", *stackName)
-			if status, updating := r.isStackUpdating(stackName); updating {
-				log.Printf("Skipping group %s because stack %s is in state %s\n",
-					asgName, *stackName, status)
-				continue
-			}
-		}
-
-		log.Printf("Enabling group %s for processing because its tags, the "+
-			"currently configured  filtering mode (%s) and tag filters are aligned\n",
+		log.Printf("Enabling group %s for processing because its tags, the currently configured filtering mode (%s),"+
+			" and tag filters are aligned, and it passed all eligibility checks\n",
 			asgName, r.conf.TagFilteringMode)
 		asgs = append(asgs, autoScalingGroup{
 			AutoScalingGroup: &group,
@@ -794,52 +763,6 @@ func (r *region) waitForInstanceRunning(instanceID *string) error {
 
 		// Wait for the next poll interval
 		time.Sleep(pollInterval)
-	}
-}
-func (r *region) waitUntilBeanstalkEnvironmentUpdated(envName, envID *string) error {
-
-	// Create a context that can be cancelled
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			input := &elasticbeanstalk.DescribeEnvironmentsInput{
-				EnvironmentNames: []string{*envName},
-				EnvironmentIds:   []string{*envID},
-			}
-
-			resp, err := r.services.beanstalk.DescribeEnvironments(ctx, input)
-			if err != nil {
-				log.Printf("Could not describe Beanstalk environment %s with ID %s: %v",
-					*envName, *envID, err.Error())
-				return err
-			}
-
-			if len(resp.Environments) == 0 {
-				// If no environments are found, log the information and exit the loop with an error
-				log.Printf("No environments found for names %v or IDs %v. Exiting.", *envName, *envID)
-				return fmt.Errorf("no environments found for names %v or IDs %v", *envName, *envID)
-			}
-
-			env := resp.Environments[0]
-			switch env.Status {
-			case beanstalkTypes.EnvironmentStatusReady:
-				return nil // Environment is ready, exit the loop
-			case beanstalkTypes.EnvironmentStatusTerminated, beanstalkTypes.EnvironmentStatusTerminating:
-				return fmt.Errorf("environment is in a terminating state") // Handle terminating states
-			default:
-				// Log statement to indicate the check has been made and the environment is not yet ready
-				log.Printf("Environment %v (%v) status is '%v'. Will check again in 30 seconds.",
-					*envName, *envID, env.Status)
-			}
-		}
 	}
 }
 

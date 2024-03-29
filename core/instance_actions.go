@@ -12,12 +12,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+
 	elb "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing"
 	elbTypes "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancing/types"
+
 	elbv2 "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	elbv2Types "github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2/types"
 
@@ -384,80 +386,6 @@ func (i *instance) terminate() error {
 	}
 
 	return err
-}
-
-func (i *instance) waitForBeanstalkDeployments() {
-	envName, envID := i.getBeanstalkDeploymentInformation()
-	if envName == nil || envID == nil {
-		log.Printf("Instance %s is not provisioned by ElasticBeanstalk, skipping deployment wait logic", *i.InstanceId)
-		return
-	}
-
-	log.Printf("Instance %s is provisioned by Beanstalk for the environment %s with ID %s, waiting for any ongoing deployments to complete",
-		*i.InstanceId, *envName, *envID)
-	if err := i.region.waitUntilBeanstalkEnvironmentUpdated(envName, envID); err != nil {
-		log.Printf("Couldn't wait for Beanstalk deployment for Instance %s for the environment %s with ID %s, error: %s",
-			*i.InstanceId, *envName, *envID, err.Error())
-	}
-	log.Printf("Instance %s provisioned by Beanstalk for the environment %s with ID %s, wait done",
-		*i.InstanceId, *envName, *envID)
-}
-func (i *instance) waitForAutoScalingRefresh() {
-	belongs, asgName := i.belongsToAnASG()
-	if !belongs || asgName == nil {
-		log.Printf("Instance %s is not part of any Auto Scaling Group, skipping refresh wait logic", *i.InstanceId)
-		return
-	}
-
-	log.Printf("Instance %s is part of Auto Scaling Group %s, waiting for any ongoing refresh actions to complete",
-		*i.InstanceId, *asgName)
-
-	// Define a slice of statuses that indicate an ongoing refresh
-	inProgressStatuses := []string{"Pending", "InProgress", "Cancelling", "RollbackInProgress"}
-
-	// Repeatedly check the status of the instance refresh action
-	for {
-		result, err := i.region.services.autoScaling.DescribeInstanceRefreshes(
-			context.TODO(),
-			&autoscaling.DescribeInstanceRefreshesInput{
-				AutoScalingGroupName: asgName,
-			})
-
-		if err != nil {
-			log.Fatalf("error describing instance refreshes: %v", err)
-		}
-
-		allCompleted := true
-		for _, refresh := range result.InstanceRefreshes {
-			status := refresh.Status
-
-			// Check if the status is in the list of ongoing statuses
-			if isStatusInProgress(string(status), inProgressStatuses) {
-				allCompleted = false
-				break
-			}
-		}
-
-		if allCompleted {
-			log.Printf("Instance %s in Auto Scaling Group %s: all refresh actions are completed",
-				*i.InstanceId, *asgName)
-			break
-		}
-
-		time.Sleep(10 * time.Second) // Wait for 10 seconds before checking again
-	}
-
-	log.Printf("Instance %s in Auto Scaling Group %s: wait done", *i.InstanceId, *asgName)
-}
-
-// isStatusInProgress checks if a given status is in the list of in-progress statuses
-func isStatusInProgress(status string, inProgressStatuses []string) bool {
-	for _, s := range inProgressStatuses {
-		if status == s {
-			return true
-		}
-	}
-	return false
 }
 
 // DeRegisterInstanceFromLoadBalancer de-registers an EC2 instance from a classic Elastic Load Balancer

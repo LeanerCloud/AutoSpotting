@@ -30,7 +30,7 @@ type replaceAndTerminateInstance struct {
 func (tsi replaceAndTerminateInstance) run() {
 	autospotting := tsi.target.autospotting
 	err := autospotting.handleNewOnDemandInstanceLaunch(
-		tsi.target.onDemandInstance.region, tsi.target.onDemandInstance, tsi.target.sqsReceiptHandle)
+		tsi.target.onDemandInstance.region, tsi.target.onDemandInstance)
 	if err != nil {
 		log.Printf("Failed to handle new on demand instance launch in %s : %s",
 			tsi.target.onDemandInstance.region.name, err.Error())

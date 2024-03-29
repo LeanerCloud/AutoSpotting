@@ -15,16 +15,21 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
-	"github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+	autoscalingTypes "github.com/aws/aws-sdk-go-v2/service/autoscaling/types"
+
 	"github.com/aws/aws-sdk-go-v2/service/codedeploy"
+
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+	"github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk"
+	beanstalkTypes "github.com/aws/aws-sdk-go-v2/service/elasticbeanstalk/types"
 
 	"github.com/aws/aws-sdk-go/aws"
 )
 
 type autoScalingGroup struct {
-	*types.AutoScalingGroup
+	*autoscalingTypes.AutoScalingGroup
 
 	name                string
 	region              *region
@@ -156,7 +161,7 @@ func (a *autoScalingGroup) needReplaceOnDemandInstances() (bool, int32) {
 var errInvalidInstance = errors.New("invalid instance")
 
 // Check if instance is valid
-func isValidInstance(instance types.Instance) error {
+func isValidInstance(instance autoscalingTypes.Instance) error {
 	if instance.AvailabilityZone == nil || instance.InstanceType == nil {
 		return errInvalidInstance
 	}
@@ -341,7 +346,7 @@ func (a *autoScalingGroup) EnsureCapacityRebalancingDisabled() {
 func (a *autoScalingGroup) getInstancesToUnprotect() []string {
 	extraInstancesCount := a.instances.count() - int(*a.DesiredCapacity)
 
-	azInstancesMap := make(map[string][]types.Instance)
+	azInstancesMap := make(map[string][]autoscalingTypes.Instance)
 	for _, instance := range a.Instances {
 		azInstancesMap[*instance.AvailabilityZone] = append(azInstancesMap[*instance.AvailabilityZone], instance)
 	}
@@ -841,7 +846,7 @@ func (a *autoScalingGroup) resumeProcesses(processes []string, delay time.Durati
 	}
 }
 
-func (a *autoScalingGroup) hasLifecycleHook(hookType string) (bool, *types.LifecycleHook) {
+func (a *autoScalingGroup) hasLifecycleHook(hookType string) (bool, *autoscalingTypes.LifecycleHook) {
 	result, err := a.region.services.autoScaling.
 		DescribeLifecycleHooks(
 			context.TODO(),
@@ -863,7 +868,7 @@ func (a *autoScalingGroup) hasLifecycleHook(hookType string) (bool, *types.Lifec
 	return false, nil
 }
 
-func (a *autoScalingGroup) hasCodeDeployLifecycleHook() (bool, *types.LifecycleHook) {
+func (a *autoScalingGroup) hasCodeDeployLifecycleHook() (bool, *autoscalingTypes.LifecycleHook) {
 	hasLH, lHook := a.hasLifecycleHook("autoscaling:EC2_INSTANCE_LAUNCHING")
 
 	if !hasLH {
@@ -876,7 +881,7 @@ func (a *autoScalingGroup) hasCodeDeployLifecycleHook() (bool, *types.LifecycleH
 
 }
 
-func (a *autoScalingGroup) triggerCodeDeployDeployment(hook *types.LifecycleHook) error {
+func (a *autoScalingGroup) triggerCodeDeployDeployment(hook *autoscalingTypes.LifecycleHook) error {
 
 	appName, deploymentGroupName, err := a.findDeployment(*hook.LifecycleHookName)
 
@@ -1011,7 +1016,7 @@ func (a *autoScalingGroup) getSpotProduct() *string {
 	_, err := a.region.services.autoScaling.CreateOrUpdateTags(
 		context.TODO(),
 		&autoscaling.CreateOrUpdateTagsInput{
-			Tags: []types.Tag{
+			Tags: []autoscalingTypes.Tag{
 				{
 					ResourceId:        aws.String(a.name),
 					ResourceType:      aws.String("auto-scaling-group"),
@@ -1089,4 +1094,113 @@ func (a *autoScalingGroup) containsInstance(inst *instance) bool {
 	}
 
 	return false
+}
+
+func (a *autoScalingGroup) isAutoScalingRefreshInProgress() (bool, error) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	result, err := a.region.services.autoScaling.DescribeInstanceRefreshes(
+		ctx,
+		&autoscaling.DescribeInstanceRefreshesInput{
+			AutoScalingGroupName: aws.String(a.name),
+		})
+
+	if err != nil {
+		log.Printf("Error describing instance refreshes for ASG %s: %v", a.name, err)
+		return false, err
+	}
+
+	// Check if any refresh action is in the list of ongoing statuses.
+	for _, refresh := range result.InstanceRefreshes {
+		if refresh.Status == "Pending" || refresh.Status == "InProgress" ||
+			refresh.Status == "Cancelling" || refresh.Status == "RollbackInProgress" {
+			return true, nil // Indicate that a refresh action is in progress.
+		}
+	}
+
+	// If no refresh actions are in progress, return false.
+	return false, nil
+}
+
+func (a *autoScalingGroup) isBeanstalkEnvironmentUpdating() (bool, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Use the new method to get the Beanstalk deployment information
+	envName, envID := a.getBeanstalkDeploymentInformation()
+
+	// Validate that both environment name and ID are available
+	if envName == nil || envID == nil {
+		log.Printf("Elastic Beanstalk environment name or ID tags are missing from ASG %s", a.name)
+		return false, errors.New("Elastic Beanstalk environment name or ID tags are missing")
+	}
+
+	input := &elasticbeanstalk.DescribeEnvironmentsInput{
+		EnvironmentNames: []string{*envName},
+		EnvironmentIds:   []string{*envID},
+	}
+
+	resp, err := a.region.services.beanstalk.DescribeEnvironments(ctx, input)
+	if err != nil {
+		log.Printf("Could not describe Beanstalk environment %s with ID %s: %v", *envName, *envID, err.Error())
+		return false, err
+	}
+
+	if len(resp.Environments) == 0 {
+		log.Printf("No environments found for names %v or IDs %v. Exiting.", *envName, *envID)
+		return false, fmt.Errorf("no environments found for names %v or IDs %v", *envName, *envID)
+	}
+
+	env := resp.Environments[0]
+	// Consider "updating" to be any state other than ready, terminated, or terminating.
+	isUpdating := env.Status != beanstalkTypes.EnvironmentStatusReady &&
+		env.Status != beanstalkTypes.EnvironmentStatusTerminated &&
+		env.Status != beanstalkTypes.EnvironmentStatusTerminating
+
+	return isUpdating, nil
+}
+
+func (a *autoScalingGroup) getBeanstalkDeploymentInformation() (*string, *string) {
+	var envName, envID *string
+
+	for _, tag := range a.Tags {
+		if *tag.Key == "elasticbeanstalk:environment-name" {
+			envName = tag.Value
+		} else if *tag.Key == "elasticbeanstalk:environment-id" {
+			envID = tag.Value
+		}
+	}
+	return envName, envID
+}
+
+func (a *autoScalingGroup) isASGElegibleForProcessing() (bool, string) {
+	// Check for CloudFormation stack update
+	tagCloudFormationStackName := "aws:cloudformation:stack-name"
+	stackName := a.getTagValue(tagCloudFormationStackName)
+	if stackName != nil {
+		if status, updating := a.region.isStackUpdating(stackName); updating {
+			return false, fmt.Sprintf("Stack %s is in state %s", *stackName, status)
+		}
+	}
+
+	// Check for ASG instance refresh progress
+	if updating, err := a.isAutoScalingRefreshInProgress(); err != nil {
+		return false, fmt.Sprintf("Error checking ASG instance refresh progress: %v", err)
+	} else if updating {
+		return false, "ASG instance refresh is in progress"
+	}
+
+	// Check if the Beanstalk environment is updating
+	envName, envID := a.getBeanstalkDeploymentInformation()
+	if envName != nil && envID != nil { // Only proceed if both values are found
+		if updating, err := a.isBeanstalkEnvironmentUpdating(); err != nil {
+			return false, fmt.Sprintf("Error checking Beanstalk environment update progress: %v", err)
+		} else if updating {
+			return false, "Elastic Beanstalk environment update is in progress"
+		}
+	}
+
+	return true, "" // ASG is eligible for processing
 }
