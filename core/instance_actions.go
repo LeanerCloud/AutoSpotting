@@ -282,6 +282,17 @@ func (i *instance) replaceInstanceInASG(asg *autoScalingGroup, existingInstance 
 			newInstanceLifecycle, *i.InstanceId,
 			asg.name, existingInstanceLifecycle, *existingInstance.InstanceId)
 
+		// refresh the instance information to see if the new instance is still alive
+		if err := i.region.scanInstance(*i.InstanceId); err == nil {
+			if inst := i.region.instances.get(*i.InstanceId); inst != nil &&
+				inst.State.Name != ec2Types.InstanceStateNameRunning {
+				log.Printf("new replacement %s instance %s is not running, skipping termination of the old instance %s",
+					newInstanceLifecycle, *i.InstanceId, *existingInstance.InstanceId)
+				return nil, fmt.Errorf("new replacement %s instance %s is not running, skipping termination of the old instance %s",
+					newInstanceLifecycle, *i.InstanceId, *existingInstance.InstanceId)
+			}
+		}
+
 		if err := existingInstance.terminateInstanceInAutoScalingGroup(asg); err != nil {
 			log.Printf("Failed to terminate existing %s instance: %v", existingInstanceLifecycle, err)
 			return nil, fmt.Errorf("couldn't terminate %s instance: %w", existingInstanceLifecycle, err)
