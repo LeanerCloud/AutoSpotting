@@ -520,6 +520,8 @@ func (r *region) findEnabledASGByName(name string) *autoScalingGroup {
 func (r *region) sqsDeleteMessage(eventKind string, instanceID *string, instanceLifecycle string, sqsReceiptHandle *string) error {
 	svc := r.services.sqs
 
+	time.Sleep(r.conf.SleepMultiplier * 5 * time.Second)
+
 	_, err := svc.DeleteMessage(context.TODO(),
 		&sqs.DeleteMessageInput{
 			QueueUrl:      &r.conf.SQSQueueURL,
