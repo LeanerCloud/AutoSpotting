@@ -226,7 +226,7 @@ func (i *instance) getLifecycleValue() string {
 }
 
 func (i *instance) replaceInstanceInASG(asg *autoScalingGroup, existingInstance *instance) (*instance, error) {
-	desiredCapacity, minSize := *asg.DesiredCapacity, *asg.MinSize
+	desiredCapacity, minSize, maxSize := *asg.DesiredCapacity, *asg.MinSize, *asg.MaxSize
 	log.Printf("Starting instance replacement. ASG desired capacity: %d, min size: %d", desiredCapacity, minSize)
 
 	newInstanceLifecycle := i.getLifecycleValue()
@@ -254,32 +254,55 @@ func (i *instance) replaceInstanceInASG(asg *autoScalingGroup, existingInstance 
 
 	// attach the spot instance first and then terminate the on demand instance,
 	// to avoid decreasing the capacity of the group below the mimimum size
-	if desiredCapacity == minSize {
+	if desiredCapacity < maxSize {
 
 		log.Printf("Attaching %s instance %s to the group %s", newInstanceLifecycle, *i.InstanceId, asg.name)
 		if err := asg.attachNewInstance(*i.InstanceId, newInstanceLifecycle, true); err != nil {
-
+			log.Printf("Couldn't attach %s instance %s (error: %s), terminating it.",
+				newInstanceLifecycle, *i.InstanceId, err.Error())
 			if err := i.terminate(); err != nil {
-				log.Printf("Couldn't terminate instance %s: %v", *i.InstanceId, err)
+				log.Printf("Couldn't terminate %s instance %s: %v",
+					newInstanceLifecycle, *i.InstanceId, err)
 			}
-			log.Printf("Failed to attach %s instance: %v", newInstanceLifecycle, err)
-			return nil, fmt.Errorf("couldn't attach spot instance: %w", err)
+			return nil, fmt.Errorf("couldn't attach %s instance %s: %w",
+				newInstanceLifecycle, *i.InstanceId, err)
 		}
+
+		gracePeriod := *asg.HealthCheckGracePeriod
+		if gracePeriod > 600 {
+			log.Printf("Capping ASG %s health check grace period %d to 600 seconds",
+				asg.name, *asg.HealthCheckGracePeriod)
+			gracePeriod = 600
+		}
+
+		log.Printf("Attached %s instance %s to the group %s, sleeping for %d seconds",
+			newInstanceLifecycle, *i.InstanceId, asg.name, gracePeriod)
+		time.Sleep(i.region.conf.SleepMultiplier * time.Duration(gracePeriod) * time.Second)
+		log.Printf("Attached %s instance %s to the group %s and sleep finished, terminating existing %s instance %s",
+			newInstanceLifecycle, *i.InstanceId,
+			asg.name, existingInstanceLifecycle, *existingInstance.InstanceId)
 
 		if err := existingInstance.terminateInstanceInAutoScalingGroup(asg); err != nil {
 			log.Printf("Failed to terminate existing %s instance: %v", existingInstanceLifecycle, err)
 			return nil, fmt.Errorf("couldn't terminate %s instance: %w", existingInstanceLifecycle, err)
 		}
 
-		log.Printf("%s: Terminated existing %s instance %s", asg.name, existingInstanceLifecycle, *existingInstance.InstanceId)
+		log.Printf("%s: Successfully terminated existing %s instance %s",
+			asg.name, existingInstanceLifecycle, *existingInstance.InstanceId)
 		return existingInstance, nil
-	} else if desiredCapacity > minSize {
+	} else if desiredCapacity == maxSize && desiredCapacity >= minSize {
+
+		log.Printf("ASG %s at maximum capacity, need to terminate existing %s instance %s before attempting to attach new %s instance %s",
+			asg.name, existingInstanceLifecycle, *existingInstance.InstanceId,
+			newInstanceLifecycle, *i.InstanceId)
+
 		if err := existingInstance.terminateInstanceInAutoScalingGroup(asg); err != nil {
 			log.Printf("Failed to terminate existing %s instance %s: %v", existingInstanceLifecycle, *existingInstance.InstanceId, err)
 			return nil, fmt.Errorf("couldn't terminate instance %s: %w", *i.InstanceId, err)
 		}
 
-		log.Printf("%s: Terminated existing %s instance %s", asg.name, existingInstanceLifecycle, *existingInstance.InstanceId)
+		log.Printf("%s: Terminated existing %s instance %s, proceegint to attach new %s instance %s",
+			asg.name, existingInstanceLifecycle, *existingInstance.InstanceId, newInstanceLifecycle, *i.InstanceId)
 
 		if err := asg.attachNewInstance(*i.InstanceId, newInstanceLifecycle, true); err != nil {
 			if err := i.terminate(); err != nil {
