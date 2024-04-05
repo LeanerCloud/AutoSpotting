@@ -43,7 +43,7 @@ func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
 		log.Printf("Your usage is within the free tier, yay!")
 	}
 
-	units = m.calculateDiscount(units)
+	units = m.calculateDiscount(units, time.Now())
 
 	log.Printf("Billing %v units for $%f saved/hour (%v%% of the generated savings of $%f/hour)",
 		units, charge, cut, savings)
@@ -81,7 +81,7 @@ func (m *marketplaceMetering) failedFromFargate() bool {
 	return false
 }
 
-func (m *marketplaceMetering) calculateDiscount(units int64) int64 {
+func (m *marketplaceMetering) calculateDiscount(units int64, currentTime time.Time) int64 {
 	if m.accountID == nil {
 		return units
 	}
@@ -90,7 +90,7 @@ func (m *marketplaceMetering) calculateDiscount(units int64) int64 {
 
 	// TODO: delete this discount in April 2029
 	april2029, _ := time.Parse("January 2006", "April 2029") // Correctly parse the time
-	if *m.accountID == "255827576516" && time.Now().After(april2029) {
+	if *m.accountID == "255827576516" && currentTime.Before(april2029) {
 		if ret > 274 { // 274 * 730 = 200.000 units, for a 200 USD free discount/month since 1 unit is 0.001
 			ret -= 274
 		} else {
