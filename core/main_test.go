@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2Types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(m *testing.M) {
@@ -175,6 +176,38 @@ func Test_addDefaultFilterMode(t *testing.T) {
 			if !reflect.DeepEqual(tt.cfg.TagFilteringMode, tt.want) {
 				t.Errorf("addDefaultFilteringMode() = %v, want %v",
 					tt.cfg.TagFilteringMode, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetAccountID(t *testing.T) {
+
+	tests := []struct {
+		name        string
+		snsTopicARN string
+		sqsQueueURL string
+		expectedID  string
+		expectError bool
+	}{
+		{"Valid SNS Topic ARN", "arn:aws:sns:us-east-1:123456789012:MyTopic", "", "123456789012", false},
+		{"Invalid SNS Topic ARN", "arn:aws:sns:us-east-1", "", "", true},
+		{"Valid SQS Queue URL", "", "https://sqs.us-east-1.amazonaws.com/123456789012/MyQueue", "123456789012", false},
+		{"Invalid SQS Queue URL", "", "https://sqs.us-east-1.amazonaws.com", "", true},
+		{"Neither Set", "", "", "", true},
+		{"Both Set, SNS Valid", "arn:aws:sns:us-east-1:123456789012:MyTopic", "https://sqs.us-east-1.amazonaws.com/123456789012/MyQueue", "123456789012", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+
+			id, err := getAccountID(tc.snsTopicARN, tc.sqsQueueURL)
+
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedID, *id)
 			}
 		})
 	}

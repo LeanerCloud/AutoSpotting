@@ -169,6 +169,14 @@ func (a *AutoSpotting) processRegions(regions []string) {
 	mpSvc := marketplacemetering.NewFromConfig(mpCfg)
 	snsClient := sns.NewFromConfig(cfg)
 
+	accountID, err := getAccountID(os.Getenv("NOTIFICATION_SNS_TOPIC"), os.Getenv("SQS_QUEUE_URL"))
+	if err != nil {
+
+		log.Printf("Couldn't get account ID, error: %s", err.Error())
+	} else {
+		println("Account ID:", accountID)
+	}
+
 	mp := marketplaceMetering{
 		mpSvc: *mpSvc,
 		ps:    ps,
@@ -178,6 +186,7 @@ func (a *AutoSpotting) processRegions(regions []string) {
 			topic:           a.config.NotificationSNSTopic,
 			reportFrequency: a.config.SavingsReportsFrequency,
 		},
+		accountID: accountID,
 	}
 
 	log.Printf("Total hourly savings: %f", totalSavings)
@@ -785,4 +794,32 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	}
 
 	return newInstanceID, nil
+}
+
+// parse the account ID from the ARN of NOTIFICATION_SNS_TOPIC or SQS_QUEUE_URL environment variables
+func getAccountID(topicARN, queueURL string) (*string, error) {
+
+	if topicARN != "" {
+		// Split the ARN string by ":" and check if it has the correct format
+		parts := strings.Split(topicARN, ":")
+		if len(parts) < 6 {
+			return nil, errors.New("invalid ARN format")
+		}
+		// The account ID is the 5th element in the split ARN (0-based indexing)
+		return &(parts[4]), nil
+	}
+
+	// If ARN is not found, try to get the SQS queue URL from SQS_QUEUE_URL environment variable
+	if queueURL != "" {
+		// Split the URL by "/" and check if it has the correct format
+		parts := strings.Split(queueURL, "/")
+		if len(parts) < 5 {
+			return nil, errors.New("invalid SQS queue URL format")
+		}
+		// The account ID is the 4th element in the split URL (0-based indexing)
+		return &(parts[3]), nil
+	}
+
+	// If neither environment variable is set, return an error
+	return nil, errors.New("neither ARN nor SQS queue URL found in environment variables")
 }
