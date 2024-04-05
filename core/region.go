@@ -569,7 +569,7 @@ func (r *region) calculateSavings() float64 {
 
 	for inst := range r.instances.instances() {
 
-		if inst.isSpot() || inst.isLaunchedByAutoSpotting() {
+		if inst.isSpot() && inst.isLaunchedByAutoSpotting() {
 
 			is := inst.getSavings()
 			log.Printf("Found AutoSpotting instance %s(%s) in %s with hourly savings %f\n",
