@@ -14,9 +14,10 @@ import (
 const MeteringSSMParameterName = "autospotting-metering"
 
 type marketplaceMetering struct {
-	mpSvc marketplacemeteringiface.MarketplaceMeteringAPI
-	ps    parameterStore
-	svs   savingsStats
+	mpSvc     marketplacemeteringiface.MarketplaceMeteringAPI
+	ps        parameterStore
+	svs       savingsStats
+	accountID *string
 }
 
 func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
@@ -41,6 +42,8 @@ func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
 	if units == 0 {
 		log.Printf("Your usage is within the free tier, yay!")
 	}
+
+	units = m.calculateDiscount(units)
 
 	log.Printf("Billing %v units for $%f saved/hour (%v%% of the generated savings of $%f/hour)",
 		units, charge, cut, savings)
@@ -76,4 +79,25 @@ func (m *marketplaceMetering) failedFromFargate() bool {
 		return true
 	}
 	return false
+}
+
+func (m *marketplaceMetering) calculateDiscount(units int64) int64 {
+	if m.accountID == nil {
+		return units
+	}
+
+	ret := units
+
+	// TODO: delete this discount in April 2029
+	april2029, _ := time.Parse("January 2006", "April 2029") // Correctly parse the time
+	if *m.accountID == "255827576516" && time.Now().After(april2029) {
+		if ret > 274 { // 274 * 730 = 200.000 units, for a 200 USD free discount/month since 1 unit is 0.001
+			ret -= 274
+		} else {
+			ret = 0
+		}
+		log.Printf("Applied special 200 USD discount for account %s, billing %d units", *m.accountID, ret)
+	}
+
+	return ret
 }
