@@ -154,7 +154,7 @@ func (a *AutoSpotting) processRegions(regions []string) {
 	session := session.Must(session.NewSession(&aws.Config{Region: aws.String(a.config.MainRegion)}))
 	ps := parameterStore{svc: ssm.New(session, aws.NewConfig().WithRegion(a.config.MainRegion))}
 
-	accountID, err := a.getAccountID()
+	accountID, err := getAccountID(os.Getenv("NOTIFICATION_SNS_TOPIC"), os.Getenv("SQS_QUEUE_URL"))
 	if err != nil {
 		log.Printf("Couldn't get account ID, error: %s", err.Error())
 	} else {
@@ -661,12 +661,11 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 }
 
 // parse the account ID from the ARN of NOTIFICATION_SNS_TOPIC or SQS_QUEUE_URL environment variables
-func (a *AutoSpotting) getAccountID() (*string, error) {
-	// Try to get the ARN from NOTIFICATION_SNS_TOPIC environment variable
-	arn := os.Getenv("NOTIFICATION_SNS_TOPIC")
-	if arn != "" {
+func getAccountID(topicARN, queueURL string) (*string, error) {
+
+	if topicARN != "" {
 		// Split the ARN string by ":" and check if it has the correct format
-		parts := strings.Split(arn, ":")
+		parts := strings.Split(topicARN, ":")
 		if len(parts) < 6 {
 			return nil, errors.New("invalid ARN format")
 		}
@@ -675,7 +674,6 @@ func (a *AutoSpotting) getAccountID() (*string, error) {
 	}
 
 	// If ARN is not found, try to get the SQS queue URL from SQS_QUEUE_URL environment variable
-	queueURL := os.Getenv("SQS_QUEUE_URL")
 	if queueURL != "" {
 		// Split the URL by "/" and check if it has the correct format
 		parts := strings.Split(queueURL, "/")
