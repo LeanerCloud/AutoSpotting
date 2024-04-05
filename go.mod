@@ -24,6 +24,7 @@ require (
 	github.com/mattn/goveralls v0.0.12
 	github.com/namsral/flag v0.0.0-20170814194028-67f268f20922
 	github.com/robfig/cron/v3 v3.0.1
+	github.com/stretchr/testify v1.7.2
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
 	golang.org/x/tools v0.18.0 // indirect
 	golang.org/x/tools/cmd/cover v0.1.0-deprecated
