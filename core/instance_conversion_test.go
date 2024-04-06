@@ -598,7 +598,9 @@ func Test_instance_createFleetInput(t *testing.T) {
 				spotProduct:  aws.String(LinuxSpotProduct),
 				initialPrice: 2,
 				Instance: &ec2Types.Instance{
-					SubnetId: aws.String("subnet-id"),
+					Placement: &ec2Types.Placement{
+						AvailabilityZone: aws.String("az1"),
+					},
 				},
 				asg: &autoScalingGroup{
 					config: AutoScalingConfig{
@@ -644,14 +646,14 @@ func Test_instance_createFleetInput(t *testing.T) {
 						},
 						Overrides: []ec2Types.FleetLaunchTemplateOverridesRequest{
 							{
-								InstanceType: "instance-type1",
-								Priority:     aws.Float64(0),
-								SubnetId:     aws.String("subnet-id"),
+								InstanceType:     "instance-type1",
+								Priority:         aws.Float64(0),
+								AvailabilityZone: aws.String("az1"),
 							},
 							{
-								InstanceType: "instance-type2",
-								Priority:     aws.Float64(1),
-								SubnetId:     aws.String("subnet-id"),
+								InstanceType:     "instance-type2",
+								Priority:         aws.Float64(1),
+								AvailabilityZone: aws.String("az1"),
 							},
 						},
 					},
@@ -709,7 +711,9 @@ func Test_instance_createFleetInput(t *testing.T) {
 				spotProduct:  aws.String(LinuxSpotProduct),
 				initialPrice: 2,
 				Instance: &ec2Types.Instance{
-					SubnetId: aws.String("subnet-id"),
+					Placement: &ec2Types.Placement{
+						AvailabilityZone: aws.String("az1"),
+					},
 				},
 				asg: &autoScalingGroup{
 					config: AutoScalingConfig{
@@ -755,12 +759,12 @@ func Test_instance_createFleetInput(t *testing.T) {
 						},
 						Overrides: []ec2Types.FleetLaunchTemplateOverridesRequest{
 							{
-								InstanceType: "instance-type1",
-								SubnetId:     aws.String("subnet-id"),
+								InstanceType:     "instance-type1",
+								AvailabilityZone: aws.String("az1"),
 							},
 							{
-								InstanceType: "instance-type2",
-								SubnetId:     aws.String("subnet-id"),
+								InstanceType:     "instance-type2",
+								AvailabilityZone: aws.String("az1"),
 							},
 						},
 					},
