@@ -174,7 +174,7 @@ func (a *AutoSpotting) processRegions(regions []string) {
 
 		log.Printf("Couldn't get account ID, error: %s", err.Error())
 	} else {
-		println("Account ID:", accountID)
+		log.Printf("Account ID: %s", *accountID)
 	}
 
 	mp := marketplaceMetering{
