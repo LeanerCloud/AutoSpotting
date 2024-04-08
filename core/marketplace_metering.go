@@ -48,7 +48,7 @@ func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
 	log.Printf("Billing %v units for $%f saved/hour (%v%% of the generated savings of $%f/hour)",
 		units, charge, cut, savings)
 
-	res, err := m.mpSvc.MeterUsage(
+	_, err := m.mpSvc.MeterUsage(
 		context.TODO(),
 		&marketplacemetering.MeterUsageInput{
 			ProductCode:    aws.String("9e5m3z5f5hlwdqcrv16xdi040"),
@@ -58,7 +58,7 @@ func (m *marketplaceMetering) meterMarketplaceUsage(savings float64) error {
 		})
 
 	if err != nil {
-		log.Printf("Error submitting AWS Marketplace metering data: %v, received response: %v\n", err.Error(), res.ResultMetadata)
+		log.Printf("Error submitting AWS Marketplace metering data: %v", err.Error())
 		m.markAsFailingFromFargate()
 		return err
 	}
