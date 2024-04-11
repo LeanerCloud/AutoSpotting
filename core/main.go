@@ -159,14 +159,9 @@ func (a *AutoSpotting) processRegions(regions []string) {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}
 
-	mpCfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-east-1"))
-	if err != nil {
-		log.Fatalf("unable to load Marketplace SDK config, %v", err)
-	}
-
 	ssmClient := ssm.NewFromConfig(cfg)
 	ps := parameterStore{svc: ssmClient}
-	mpSvc := marketplacemetering.NewFromConfig(mpCfg)
+	mpSvc := marketplacemetering.NewFromConfig(cfg)
 	snsClient := sns.NewFromConfig(cfg)
 
 	accountID, err := getAccountID(os.Getenv("NOTIFICATION_SNS_TOPIC"), os.Getenv("SQS_QUEUE_URL"))
