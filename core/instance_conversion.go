@@ -446,7 +446,7 @@ func (i *instance) createFleetLaunchTemplate(ltData *ec2Types.RequestLaunchTempl
 	return &ltName, aws.String("$Latest"), err
 }
 
-func (i *instance) createFleetInput(ltName *string, ltVersion *string, instanceTypes []string, lifeCycle string) *ec2.CreateFleetInput {
+func (i *instance) createFleetInput(ltName *string, ltVersion *string, ltData *ec2Types.ResponseLaunchTemplateData, instanceTypes []string, lifeCycle string) *ec2.CreateFleetInput {
 
 	var overrides []ec2Types.FleetLaunchTemplateOverridesRequest
 
@@ -454,9 +454,15 @@ func (i *instance) createFleetInput(ltName *string, ltVersion *string, instanceT
 
 	for p, inst := range instanceTypes {
 		override := ec2Types.FleetLaunchTemplateOverridesRequest{
-			InstanceType:     ec2Types.InstanceType(inst),
-			AvailabilityZone: i.Placement.AvailabilityZone,
+			InstanceType: ec2Types.InstanceType(inst),
 		}
+		if (ltData != nil && ltData.NetworkInterfaces != nil && len(ltData.NetworkInterfaces) > 0) &&
+			(ltData.NetworkInterfaces[0].Groups != nil || len(ltData.NetworkInterfaces[0].Groups) != 0) {
+			override.AvailabilityZone = i.Placement.AvailabilityZone
+		} else {
+			override.SubnetId = i.SubnetId
+		}
+
 		if i.asg.config.SpotAllocationStrategy == "capacity-optimized-prioritized" {
 			override.Priority = aws.Float64(float64(p))
 		}

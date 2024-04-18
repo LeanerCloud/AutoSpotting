@@ -62,17 +62,27 @@ func (i *instance) launchOnDemandReplacement() (*string, error) {
 
 // reuse the Launch Template of the ASG if the ASG is using a launch template or
 // clone Launch Configuration into a new temporary Launch Template for this ASG
-func (i *instance) createOrReuseLaunchTemplate(replacementLifecycle string) (*string, *string, error) {
+func (i *instance) createOrReuseLaunchTemplate(replacementLifecycle string) (*string, *string, *ec2Types.ResponseLaunchTemplateData, error) {
 
 	if i.asg.LaunchTemplate != nil {
 		log.Printf("Reusing the Launch template from the ASG %s", i.asg.name)
-		return i.asg.LaunchTemplate.LaunchTemplateName, i.asg.LaunchTemplate.Version, nil
+		ltData, err := i.asg.getLaunchTemplateData(*i.asg.LaunchTemplate.LaunchTemplateName, *i.asg.LaunchTemplate.Version)
+		if err != nil {
+			log.Printf("Failed to describe launch template data for ASG %s: %v", i.asg.name, err)
+			return nil, nil, nil, err
+		}
+		return i.asg.LaunchTemplate.LaunchTemplateName, i.asg.LaunchTemplate.Version, ltData, nil
 	}
 
 	if i.asg.MixedInstancesPolicy != nil && i.asg.MixedInstancesPolicy.LaunchTemplate != nil {
 		lt := i.asg.MixedInstancesPolicy.LaunchTemplate.LaunchTemplateSpecification
 		log.Printf("Reusing the Launch template from the Mixed Instances Policy of ASG %s", i.asg.name)
-		return lt.LaunchTemplateName, lt.Version, nil
+		ltData, err := i.asg.getLaunchTemplateData(*lt.LaunchTemplateName, *lt.Version)
+		if err != nil {
+			log.Printf("Failed to describe launch template data for ASG %s: %v", i.asg.name, err)
+			return nil, nil, nil, err
+		}
+		return lt.LaunchTemplateName, lt.Version, ltData, nil
 	}
 
 	log.Printf("Couldn't determine an existing launch template, creating a new Launch Template for the ASG %s", i.asg.name)
@@ -82,7 +92,7 @@ func (i *instance) createOrReuseLaunchTemplate(replacementLifecycle string) (*st
 
 	if err != nil {
 		log.Println("failed to create LaunchTemplate data,", err.Error())
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	debug.Printf("Launch template data: %+#v", ltData)
 
@@ -90,10 +100,10 @@ func (i *instance) createOrReuseLaunchTemplate(replacementLifecycle string) (*st
 
 	if err != nil {
 		log.Println(i.region, i.asg.name, "createFleetLaunchTemplate() failure:", err.Error())
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	log.Printf("Using Launch Template: %s with version %s", *ltName, *ltVersion)
-	return ltName, ltVersion, nil
+	return ltName, ltVersion, nil, nil
 }
 
 func (i *instance) launchReplacement(replacementLifecycle string) (*string, error) {
@@ -108,7 +118,7 @@ func (i *instance) launchReplacement(replacementLifecycle string) (*string, erro
 		return nil, err
 	}
 
-	ltName, ltVersion, err := i.createOrReuseLaunchTemplate(replacementLifecycle)
+	ltName, ltVersion, ltData, err := i.createOrReuseLaunchTemplate(replacementLifecycle)
 	if err != nil {
 		log.Println("Couldn't create or determine the Launch Template")
 		return nil, err
@@ -116,7 +126,7 @@ func (i *instance) launchReplacement(replacementLifecycle string) (*string, erro
 
 	log.Printf("Using the following list of %s instance types: %s", replacementLifecycle, strings.Join(instanceTypes, ", "))
 
-	cfi := i.createFleetInput(ltName, ltVersion, instanceTypes, replacementLifecycle)
+	cfi := i.createFleetInput(ltName, ltVersion, ltData, instanceTypes, replacementLifecycle)
 
 	debug.Printf("Fleet Input: %+#v", cfi)
 

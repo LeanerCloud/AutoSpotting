@@ -582,6 +582,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 		name          string
 		i             *instance
 		ltName        *string
+		ltData        *ec2Types.ResponseLaunchTemplateData
 		ltVersion     *string
 		instanceTypes []string
 		want          *ec2.CreateFleetInput
@@ -590,6 +591,13 @@ func Test_instance_createFleetInput(t *testing.T) {
 			name:      "test generating list of overrides with capacity-optimized-prioritized",
 			ltName:    aws.String("testLT"),
 			ltVersion: aws.String("$Latest"),
+			ltData: &ec2Types.ResponseLaunchTemplateData{
+				NetworkInterfaces: []ec2Types.LaunchTemplateInstanceNetworkInterfaceSpecification{
+					{
+						Groups: []string{"g1"},
+					},
+				},
+			},
 			instanceTypes: []string{
 				"instance-type1",
 				"instance-type2",
@@ -700,9 +708,128 @@ func Test_instance_createFleetInput(t *testing.T) {
 			},
 		},
 		{
+			name:      "test generating list of overrides with capacity-optimized without ltData",
+			ltName:    aws.String("testLT"),
+			ltVersion: aws.String("$Latest"),
+			instanceTypes: []string{
+				"instance-type1",
+				"instance-type2",
+			},
+			i: &instance{
+				spotProduct:  aws.String(LinuxSpotProduct),
+				initialPrice: 2,
+				Instance: &ec2Types.Instance{
+					Placement: &ec2Types.Placement{
+						AvailabilityZone: aws.String("az1"),
+					},
+					SubnetId: aws.String("subnet-id"),
+				},
+				asg: &autoScalingGroup{
+					config: AutoScalingConfig{
+						SpotAllocationStrategy: "capacity-optimized",
+					},
+					AutoScalingGroup: &autoscalingTypes.AutoScalingGroup{
+						LaunchConfigurationName: aws.String("myLC"),
+					},
+					launchConfiguration: &launchConfiguration{
+						LaunchConfiguration: &autoscalingTypes.LaunchConfiguration{
+							IamInstanceProfile: aws.String("profile-name"),
+							ImageId:            aws.String("ami-12345"),
+							InstanceMonitoring: &autoscalingTypes.InstanceMonitoring{
+								Enabled: aws.Bool(true),
+							},
+							KeyName: aws.String("current-key"),
+							BlockDeviceMappings: []autoscalingTypes.BlockDeviceMapping{
+								{
+									DeviceName: aws.String("foo"),
+								},
+							},
+							AssociatePublicIpAddress: aws.Bool(true),
+							UserData:                 aws.String("userdata"),
+						},
+					},
+				},
+
+				region: &region{},
+				typeInfo: &instanceTypeInformation{
+					pricing: prices{
+						LinuxSpotProduct: {
+							onDemand: 1,
+						},
+					},
+				},
+			},
+			want: &ec2.CreateFleetInput{
+				LaunchTemplateConfigs: []ec2Types.FleetLaunchTemplateConfigRequest{
+					{
+						LaunchTemplateSpecification: &ec2Types.FleetLaunchTemplateSpecificationRequest{
+							LaunchTemplateName: aws.String("testLT"),
+							Version:            aws.String("$Latest"),
+						},
+						Overrides: []ec2Types.FleetLaunchTemplateOverridesRequest{
+							{
+								InstanceType: "instance-type1",
+								SubnetId:     aws.String("subnet-id"),
+							},
+							{
+								InstanceType: "instance-type2",
+								SubnetId:     aws.String("subnet-id"),
+							},
+						},
+					},
+				},
+				OnDemandOptions: &ec2Types.OnDemandOptionsRequest{
+					AllocationStrategy: "prioritized",
+				},
+				SpotOptions: &ec2Types.SpotOptionsRequest{
+					AllocationStrategy: "capacity-optimized",
+					MaxTotalPrice:      aws.String("2"),
+				},
+				TargetCapacitySpecification: &ec2Types.TargetCapacitySpecificationRequest{
+					DefaultTargetCapacityType: "spot",
+					SpotTargetCapacity:        aws.Int32(1),
+					TotalTargetCapacity:       aws.Int32(1),
+				},
+				Type: "instant",
+				TagSpecifications: []ec2Types.TagSpecification{
+					{
+						ResourceType: "instance",
+						Tags: []ec2Types.Tag{
+							{
+								Key:   aws.String("launched-by-autospotting"),
+								Value: aws.String("true"),
+							},
+							{
+								Key:   aws.String("launched-for-asg"),
+								Value: aws.String(""),
+							},
+							{
+								Key: aws.String("launched-for-replacing-instance"),
+							},
+							{
+								Key:   aws.String("odPrice"),
+								Value: aws.String("2"),
+							},
+							{
+								Key:   aws.String("LaunchConfigurationName"),
+								Value: aws.String("myLC"),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name:      "test generating list of overrides with capacity-optimized",
 			ltName:    aws.String("testLT"),
 			ltVersion: aws.String("$Latest"),
+			ltData: &ec2Types.ResponseLaunchTemplateData{
+				NetworkInterfaces: []ec2Types.LaunchTemplateInstanceNetworkInterfaceSpecification{
+					{
+						Groups: []string{"g1"},
+					},
+				},
+			},
 			instanceTypes: []string{
 				"instance-type1",
 				"instance-type2",
@@ -815,10 +942,10 @@ func Test_instance_createFleetInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			got := tt.i.createFleetInput(tt.ltName, tt.ltVersion, tt.instanceTypes, "spot")
+			got := tt.i.createFleetInput(tt.ltName, tt.ltVersion, tt.ltData, tt.instanceTypes, "spot")
 
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("instance.createFleetInput() = %v, want %v", got, tt.want)
+				t.Errorf("instance.createFleetInput() = %#v, want %#v", got, tt.want)
 			}
 		})
 	}
