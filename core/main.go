@@ -508,7 +508,7 @@ func (a *AutoSpotting) handleNewInstanceLaunch(regionName string, instanceID str
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 
-	log.Println("Scanning full instance information in", r.name)
+	log.Println("Scanning full instance type information in", r.name)
 	r.determineInstanceTypeInformation(r.conf)
 
 	if err := r.scanInstance(instanceID); err != nil {
@@ -677,7 +677,7 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	r.setupAsgFilters()
 	r.scanForEnabledAutoScalingGroups()
 
-	log.Println("Scanning full instance information in", r.name)
+	log.Println("Scanning full instance type information in", r.name)
 	r.determineInstanceTypeInformation(r.conf)
 
 	if err := r.scanInstance(instanceID); err != nil {

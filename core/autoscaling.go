@@ -424,11 +424,14 @@ func (a *autoScalingGroup) scanInstances() instances {
 			continue
 		}
 
+		log.Printf("Available pricing information for instance %s of instance type %s is: %#v", *inst.InstanceId, i.InstanceType, i.typeInfo.pricing)
+
 		if i.isSpot() {
-			log.Printf("Setting initial price for instance %s as Spot", *inst.InstanceId)
 			i.initialPrice = i.typeInfo.pricing[*spotProduct].spot[*i.Placement.AvailabilityZone]
+			log.Printf("Setting initial price for instance %s as Spot in group %s to %f", *inst.InstanceId, a.name, i.initialPrice)
+
 		} else {
-			log.Printf("Setting initial price for instance %s as OnDemand for %s ", *inst.InstanceId, *spotProduct)
+			log.Printf("Setting initial price for instance %s as OnDemand for %s in group %s to %f", *inst.InstanceId, *spotProduct, a.name, i.initialPrice)
 			i.initialPrice = i.typeInfo.pricing[*spotProduct].onDemand
 		}
 
@@ -1203,4 +1206,38 @@ func (a *autoScalingGroup) isASGElegibleForProcessing() (bool, string) {
 	}
 
 	return true, "" // ASG is eligible for processing
+}
+
+func (a *autoScalingGroup) getLaunchTemplateData(launchTemplateName, version string) (*ec2Types.ResponseLaunchTemplateData, error) {
+	// Validate input parameters
+	if launchTemplateName == "" || version == "" {
+		return nil, errors.New("launch template name and version must be provided")
+	}
+
+	// Create an EC2 service client
+	svc := a.region.services.ec2
+
+	// Prepare the input for the DescribeLaunchTemplateVersions API
+	input := &ec2.DescribeLaunchTemplateVersionsInput{
+		LaunchTemplateName: aws.String(launchTemplateName),
+		Versions:           []string{version},
+	}
+
+	// Call the DescribeLaunchTemplateVersions API
+	resp, err := svc.DescribeLaunchTemplateVersions(context.TODO(), input)
+	if err != nil {
+		log.Printf("Failed to describe launch template versions for %s: %v", launchTemplateName, err)
+		return nil, err
+	}
+
+	// Check if any launch template versions are returned
+	if len(resp.LaunchTemplateVersions) == 0 {
+		return nil, fmt.Errorf("no launch template versions found for template %s and version %s", launchTemplateName, version)
+	}
+
+	// Assuming the first version is the required one since we requested a specific version
+	launchTemplateData := resp.LaunchTemplateVersions[0].LaunchTemplateData
+
+	// Return the launch template data
+	return launchTemplateData, nil
 }
