@@ -1009,6 +1009,7 @@ func TestScanInstances(t *testing.T) {
 					instanceMap{
 						"1": {
 							Instance: &ec2Types.Instance{
+								ImageId:    aws.String("ami-12345"),
 								InstanceId: aws.String("1"),
 								Placement: &ec2Types.Placement{
 									AvailabilityZone: aws.String("az-1"),
@@ -1030,6 +1031,7 @@ func TestScanInstances(t *testing.T) {
 						},
 						"2": {
 							Instance: &ec2Types.Instance{
+								ImageId:    aws.String("ami-12345"),
 								InstanceId: aws.String("2"),
 								Placement: &ec2Types.Placement{
 									AvailabilityZone: aws.String("az-2"),
@@ -1073,6 +1075,7 @@ func TestScanInstances(t *testing.T) {
 			expectedInstances: instanceMap{
 				"1": {
 					Instance: &ec2Types.Instance{
+						ImageId:    aws.String("ami-12345"),
 						InstanceId: aws.String("1"),
 						Placement: &ec2Types.Placement{
 							AvailabilityZone: aws.String("az-1"),
@@ -1096,6 +1099,7 @@ func TestScanInstances(t *testing.T) {
 				},
 				"2": {
 					Instance: &ec2Types.Instance{
+						ImageId:    aws.String("ami-12345"),
 						InstanceId: aws.String("2"),
 						Placement: &ec2Types.Placement{
 							AvailabilityZone: aws.String("az-2"),
@@ -1364,7 +1368,6 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 			services: &connections{
 				ec2: mockEC2Client{
 					diao: &ec2.DescribeInstanceAttributeOutput{},
-
 					damio: &ec2.DescribeImagesOutput{
 						Images: []ec2Types.Image{
 							{
@@ -1442,6 +1445,7 @@ func Test_autoScalingGroup_cronEventAction(t *testing.T) {
 					},
 				}),
 			services: &connections{
+				autoScaling: mockASG{},
 				ec2: mockEC2Client{
 					diao: &ec2.DescribeInstanceAttributeOutput{},
 					damio: &ec2.DescribeImagesOutput{

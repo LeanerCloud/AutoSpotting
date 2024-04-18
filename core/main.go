@@ -717,7 +717,7 @@ func (a *AutoSpotting) replaceTerminatingSpotInstance(instanceID, regionName str
 	desiredCapacity := *i.asg.DesiredCapacity
 
 	log.Printf("ASG %s, Desired capacity: %d", i.asg.name, desiredCapacity)
-
+	i.getInitialPrice()
 	i.asg.scanInstances()
 	i.asg.loadDefaultConfig()
 	i.asg.loadConfigFromTags()

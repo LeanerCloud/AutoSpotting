@@ -427,17 +427,14 @@ func (a *autoScalingGroup) scanInstances() instances {
 		log.Printf("Available pricing information for instance %s of instance type %s is: %#v", *inst.InstanceId, i.InstanceType, i.typeInfo.pricing)
 
 		if i.isSpot() {
-			i.initialPrice = i.typeInfo.pricing[*spotProduct].spot[*i.Placement.AvailabilityZone]
-			log.Printf("Setting initial price for instance %s as Spot in group %s to %f", *inst.InstanceId, a.name, i.initialPrice)
-
+			log.Printf("Setting initial price for instance %s as Spot  for %s in group %s to %f", *inst.InstanceId, *spotProduct, a.name, i.getInitialPrice())
 		} else {
-			log.Printf("Setting initial price for instance %s as OnDemand for %s in group %s to %f", *inst.InstanceId, *spotProduct, a.name, i.initialPrice)
-			i.initialPrice = i.typeInfo.pricing[*spotProduct].onDemand
+			log.Printf("Setting initial price for instance %s as OnDemand for %s in group %s to %f", *inst.InstanceId, *spotProduct, a.name, i.getInitialPrice())
 		}
 
 		// Avoid adding instance in Terminating (Wait|Proceed) Lifecycle State
 		if strings.HasPrefix(string(inst.LifecycleState), "Terminating") {
-			continue
+			log.Printf("%s instance %s in group %s is terminating", i.getLifecycleValue(), *inst.InstanceId, a.name)
 		}
 
 		a.instances.add(i)

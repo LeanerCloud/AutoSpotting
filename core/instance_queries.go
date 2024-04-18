@@ -50,12 +50,7 @@ func (i *instance) isSpot() bool {
 }
 
 func (i *instance) getSavings() float64 {
-	var spotProduct *string
-	if belongs, asg := i.belongsToEnabledASG(); belongs {
-		spotProduct = asg.getSpotProduct()
-	} else {
-		spotProduct = i.getSpotProductFromAMI()
-	}
+	spotProduct := i.getSpotProduct()
 
 	if spotProduct == nil {
 		log.Printf("Couldn't get Spot product for instance: %s", *i.InstanceId)
@@ -76,6 +71,18 @@ func (i *instance) getODPrice() float64 {
 		return price
 	}
 
+	spotProduct := i.getSpotProduct()
+	if spotProduct == nil {
+		log.Printf("Couldn't get Spot product for instance: %s", *i.InstanceId)
+		return 0
+	}
+
+	return i.typeInfo.pricing[*spotProduct].onDemand
+
+}
+
+func (i *instance) getSpotProduct() *string {
+
 	var spotProduct *string
 	if belongs, asg := i.belongsToEnabledASG(); belongs {
 		spotProduct = asg.getSpotProduct()
@@ -85,10 +92,9 @@ func (i *instance) getODPrice() float64 {
 
 	if spotProduct == nil {
 		log.Printf("Couldn't get Spot product for instance: %s", *i.InstanceId)
-		return 0
 	}
 
-	return i.typeInfo.pricing[*spotProduct].onDemand
+	return spotProduct
 
 }
 
@@ -120,8 +126,8 @@ func (i *instance) shouldBeReplacedWithNewSpotInstance() bool {
 	}
 
 	if i.asgNeedsReplacement() {
-		log.Printf("%s instance %s needs to be replaced by the ASG, will be replaced with a new Spot instance",
-			lifecycle, *i.InstanceId)
+		log.Printf("ASG %s needs an instance replacement, replacing %s instance %s with a new Spot instance",
+			i.asg.name, lifecycle, *i.InstanceId)
 		return true
 	}
 
@@ -177,6 +183,11 @@ func (i *instance) shouldBeTerminated(asg *autoScalingGroup) (bool, bool) {
 }
 
 func (i *instance) belongsToEnabledASG() (bool, *autoScalingGroup) {
+
+	if i.asg != nil {
+		return true, i.asg
+	}
+
 	belongs, asgName := i.belongsToAnASG()
 	lifecycle := i.getLifecycleValue()
 	if !belongs {
@@ -438,6 +449,23 @@ func (i *instance) isAllowed(instanceType string, allowed string, disallowed str
 	debug.Printf("\t Instance type %v doesn't match any allowed (%v) or disallowed (%v) instance types, allowing\n",
 		instanceType, allowed, disallowed)
 	return true
+}
+func (i *instance) getInitialPrice() float64 {
+	spotProduct := i.getSpotProduct()
+
+	if spotProduct == nil {
+		log.Printf("Missing spot product for instance %v\n", *i.InstanceId)
+		return 0
+	}
+
+	var ret float64
+	if i.isSpot() {
+		ret = i.typeInfo.pricing[*spotProduct].spot[*i.Placement.AvailabilityZone]
+	} else {
+		ret = i.typeInfo.pricing[*spotProduct].onDemand
+	}
+	i.initialPrice = ret
+	return ret
 }
 
 func (i *instance) getCompatibleSpotInstanceTypesList(PrioritizationBias string, allowedList string,
