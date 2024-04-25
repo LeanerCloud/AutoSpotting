@@ -456,8 +456,7 @@ func (i *instance) createFleetInput(ltName *string, ltVersion *string, ltData *e
 		override := ec2Types.FleetLaunchTemplateOverridesRequest{
 			InstanceType: ec2Types.InstanceType(inst),
 		}
-		if (ltData != nil && ltData.NetworkInterfaces != nil && len(ltData.NetworkInterfaces) > 0) &&
-			(ltData.NetworkInterfaces[0].Groups != nil || len(ltData.NetworkInterfaces[0].Groups) != 0) {
+		if ltData != nil && ltData.SecurityGroups != nil && len(ltData.SecurityGroups) > 0 {
 			override.AvailabilityZone = i.Placement.AvailabilityZone
 		} else {
 			override.SubnetId = i.SubnetId

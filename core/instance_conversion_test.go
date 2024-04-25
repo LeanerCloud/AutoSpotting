@@ -592,11 +592,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 			ltName:    aws.String("testLT"),
 			ltVersion: aws.String("$Latest"),
 			ltData: &ec2Types.ResponseLaunchTemplateData{
-				NetworkInterfaces: []ec2Types.LaunchTemplateInstanceNetworkInterfaceSpecification{
-					{
-						Groups: []string{"g1"},
-					},
-				},
+				SecurityGroups: []string{"g1"},
 			},
 			instanceTypes: []string{
 				"instance-type1",
@@ -824,11 +820,7 @@ func Test_instance_createFleetInput(t *testing.T) {
 			ltName:    aws.String("testLT"),
 			ltVersion: aws.String("$Latest"),
 			ltData: &ec2Types.ResponseLaunchTemplateData{
-				NetworkInterfaces: []ec2Types.LaunchTemplateInstanceNetworkInterfaceSpecification{
-					{
-						Groups: []string{"g1"},
-					},
-				},
+				SecurityGroups: []string{"g1"},
 			},
 			instanceTypes: []string{
 				"instance-type1",
