@@ -582,7 +582,7 @@ func (a *AutoSpotting) handleNewOnDemandInstanceLaunch(r *region, i *instance) e
 	if term, detach := i.shouldBeTerminated(asg); term {
 		if detach {
 			log.Printf("%s terminating %s instance %s, detaching it from the ASG: ", i.region.name, lifecycle, *i.InstanceId)
-			if err := asg.terminateInstanceInAutoScalingGroup(i, false, true); err != nil {
+			if err := asg.terminateInstanceInAutoScalingGroup(i, false, false, true); err != nil {
 				return fmt.Errorf("error terminating instance %s in auto scaling group %s: %w", *i.InstanceId, asg.name, err)
 			}
 		} else {

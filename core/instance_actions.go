@@ -368,8 +368,8 @@ func (i *instance) terminateInstanceInAutoScalingGroup(asg *autoScalingGroup) er
 	log.Printf("Terminating %s instance %s from the group %s",
 		lifecycle, *i.InstanceId, asg.name)
 
-	if err := asg.terminateInstanceInAutoScalingGroup(i, true, true); err != nil {
-		log.Printf("%s: %s instance %s couldn't be terminated, re-trying...", lifecycle, asg.name, *i.InstanceId)
+	if err := asg.terminateInstanceInAutoScalingGroup(i, false, false, true); err != nil {
+		log.Printf("%s: %s instance %s couldn't be terminated", lifecycle, asg.name, *i.InstanceId)
 		return fmt.Errorf("couldn't terminate %s instance %s: %w", lifecycle, *i.InstanceId, err)
 	}
 	return nil

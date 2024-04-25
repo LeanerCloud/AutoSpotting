@@ -636,7 +636,7 @@ func (a *autoScalingGroup) setInstanceScaleInProtection(instanceID string, statu
 // Terminates an instance from the group using the
 // TerminateInstanceInAutoScalingGroup api call.
 func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
-	i *instance, wait bool, decreaseCapacity bool) error {
+	i *instance, waitForRunningState, waitForInService, decreaseCapacity bool) error {
 	lifecycle := i.getLifecycleValue()
 
 	var found bool
@@ -658,16 +658,21 @@ func (a *autoScalingGroup) terminateInstanceInAutoScalingGroup(
 		return nil
 	}
 
-	if wait {
+	if waitForRunningState {
+		log.Printf("Waiting for %s instance %s from ASG %s to be in Running state before we can terminate it",
+			lifecycle, *i.InstanceId, a.name)
 
 		if err := a.region.waitForInstanceRunning(i.InstanceId); err != nil {
 			log.Printf("Issue while waiting for %s instance %v to start: %v",
 				lifecycle, *i.InstanceId, err.Error())
 		}
-
-		if err := a.waitForInstanceStatus(i.InstanceId, "InService", lifecycle, 5); err != nil {
-			log.Printf("Instance %s is still not InService, trying to terminate it anyway.",
-				*i.InstanceId)
+		if waitForInService {
+			log.Printf("Waiting for %s instance %s from ASG %s to be In Service before we can terminate it",
+				lifecycle, *i.InstanceId, a.name)
+			if err := a.waitForInstanceStatus(i.InstanceId, "InService", lifecycle, 5); err != nil {
+				log.Printf("Instance %s is still not InService, trying to terminate it anyway.",
+					*i.InstanceId)
+			}
 		}
 	}
 
