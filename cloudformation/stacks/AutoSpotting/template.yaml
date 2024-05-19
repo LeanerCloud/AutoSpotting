@@ -74,13 +74,13 @@ Parameters:
       may want to limit it to a smaller set of instance types (supports
       globs). Example: 'm4.xlarge,r4.xlarge,m5.*'. If using the default of
       leaving it unset, instances will be chosen by AutoSpotting's instance
-      compatibility algorithm based on CPU, memory, disk, etc., basically
+      compatibility algorithm based on CPU, memory, disk, etc.,
       getting you the cheapest available instances that are at least as big as
-      your existing ones. Using the 'current' keyword for this parameter will
-      use the instance type configured in the group's launch configuration.
-      This is a global value that can be overridden on a per-group basis using
+      your existing ones. Use the 'current' keyword to
+      use the instance type configured in the group's launch template.
+      This can be overridden on a per-group basis using
       the 'autospotting_allowed_instance_types' tag set on the AutoScaling
-      group, which accepts the same configuration values."
+      group, which accepts the same inputs."
     Type: "String"
 
   AllowParallelInstanceReplacements:
@@ -90,11 +90,7 @@ Parameters:
       - "false"
     Default: "true"
     Description: >
-      Controls whether AutoSpotting should allow parallel instance replacements
-      or force them to happen in sequence. This is by default disabled because
-      it may require the increase of the Maximum capacity of the autoscaling
-      group to double the desired capacity, and/or service quota increases for
-      EC2 instances.
+      DEPRECATED, this flag is now ignored and will be removed in a future AutoSpotting version.
 
   AutomatedInstanceDataUpdate:
     Description: >
@@ -465,8 +461,6 @@ Resources:
         Variables:
           ALLOWED_INSTANCE_TYPES:
             Ref: "AllowedInstanceTypes"
-          ALLOW_PARALLEL_INSTANCE_REPLACEMENTS:
-            Ref: AllowParallelInstanceReplacements
           AUTOMATED_INSTANCE_DATA_UPDATE:
             Ref: "AutomatedInstanceDataUpdate"
           BIDDING_POLICY:
@@ -918,7 +912,7 @@ Resources:
       Description: >
         "Lambda function that copies the Docker image from the Marketplace ECR to our local ECR"
       Handler: "index.handler"
-      Runtime: "python3.8"
+      Runtime: "python3.11"
       Timeout: 300
       Environment:
         Variables:
@@ -1110,6 +1104,8 @@ Resources:
 
   ECSCluster:
     Type: AWS::ECS::Cluster
+    DependsOn:
+      - ECSServiceLinkedRole
     Properties:
       CapacityProviders:
         - FARGATE
@@ -1371,7 +1367,6 @@ Resources:
             MessageGroupId: AutoSpotting
 
   LifecycleHookEventRule:
-
     Type: "AWS::Events::Rule"
     Properties:
       Description: >
@@ -1398,3 +1393,81 @@ Resources:
           Id: "Target0"
           SqsParameters:
             MessageGroupId: AutoSpotting
+
+  SLRLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: "LambdaPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "iam:CreateServiceLinkedRole"
+                  - "iam:GetRole"
+                Resource: "*"
+
+  CheckCreateServiceLinkedRoleLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: "index.lambda_handler"
+      Role: !GetAtt SLRLambdaExecutionRole.Arn
+      Runtime: "python3.11"
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import logging
+          import cfnresponse
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def handler(event, context):
+              iam = boto3.client('iam')
+              service_name = event['ResourceProperties']['ServiceName']
+              role_name = event['ResourceProperties']['RoleName']
+
+              logger.info('Received event: %s', json.dumps(event))
+
+              try:
+                  iam.get_role(RoleName=role_name)
+                  logger.info('Service Linked Role %s already exists', role_name)
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {"Message": "Service Linked Role already exists"}, role_name)
+              except iam.exceptions.NoSuchEntityException:
+                  try:
+                      iam.create_service_linked_role(AWSServiceName=service_name)
+                      logger.info('Service Linked Role %s created successfully', role_name)
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {"Message": "Service Linked Role created successfully"}, role_name)
+                  except Exception as e:
+                      logger.error('Failed to create Service Linked Role: %s', str(e))
+                      cfnresponse.send(event, context, cfnresponse.FAILED, {"Message": str(e)}, role_name)
+
+          def lambda_handler(event, context):
+              return handler(event, context)
+
+
+  SpotServiceLinkedRole:
+    Type: Custom::CheckCreateServiceLinkedRole
+    Properties:
+      ServiceToken: !GetAtt CheckCreateServiceLinkedRoleLambda.Arn
+      ServiceName: "spot.amazonaws.com"
+      RoleName: "AWSServiceRoleForEC2Spot"
+
+  ECSServiceLinkedRole:
+    Type: Custom::CheckCreateServiceLinkedRole
+    Properties:
+      ServiceToken: !GetAtt CheckCreateServiceLinkedRoleLambda.Arn
+      ServiceName: "ecs.amazonaws.com"
+      RoleName: "AWSServiceRoleForECS"
