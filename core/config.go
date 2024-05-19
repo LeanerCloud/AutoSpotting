@@ -127,11 +127,6 @@ type Config struct {
 
 	// AutomatedInstanceDataUpdate configures the automatic update of the instance type data
 	AutomatedInstanceDataUpdate bool
-
-	// AllowParallelInstanceReplacements configures whether the instance
-	// replacements should be allowed to happen in parallel or are serialized
-	// through an SQS queue
-	AllowParallelInstanceReplacements bool
 }
 
 // ParseConfig loads configuration from command line flags, environments variables, and config files.
@@ -269,10 +264,6 @@ func ParseConfig(conf *Config) {
 			"This is slowing down the Lambda execution and is only recommended if you need to add support"+
 			"for newer instance types\n"+
 			"\tExample: ./AutoSpotting --automated_instance_data_update\n")
-
-	flagSet.BoolVar(&conf.AllowParallelInstanceReplacements, "allow_parallel_instance_replacements", false,
-		"\n\tControls whether AutoSpotting should allow parallel instance replacements or force them to happen in sequence \n"+
-			"\tExample: ./AutoSpotting --allow_parallel_instance_replacements")
 
 	printVersion := flagSet.Bool("version", false, "Print version number and exit.\n")
 
