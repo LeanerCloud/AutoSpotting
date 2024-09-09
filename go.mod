@@ -8,7 +8,7 @@ require (
 	github.com/cristim/ec2-instances-info v0.0.0-20220623102241-067009cd38ea
 	github.com/davecgh/go-spew v1.1.1
 	github.com/mattn/goveralls v0.0.11
-	github.com/namsral/flag v0.0.0-20170814194028-67f268f20922
+	github.com/namsral/flag v1.7.4-pre
 	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
 	golang.org/x/sys v0.0.0-20220627191245-f75cf1eec38b // indirect
