@@ -36,10 +36,20 @@ type connections struct {
 
 func (c *connections) setSession(region string) {
 	c.session = session.Must(
-		session.NewSession(&aws.Config{Region: aws.String(region)}))
+		session.NewSession(&aws.Config{
+			Region:   aws.String(region),
+			Endpoint: aws.String(os.Getenv("AWS_ENDPOINT_URL")),
+		}))
 }
 
 func (c *connections) connect(region, mainRegion string) {
+	// When using custom Endpoint Url, to avoid unwanted additional costs, enforce ALL AWS login/security variables.
+	if len(os.Getenv("AWS_ENDPOINT_URL")) > 0 {
+		os.Setenv("AWS_ACCESS_KEY_ID", "fake_testing_key")
+		os.Setenv("AWS_SECRET_ACCESS_KEY", "fake_testing_key")
+		os.Setenv("AWS_SECURITY_TOKEN", "fake_testing_key")
+		os.Setenv("AWS_SESSION_TOKEN", "fake_testing_key")
+	}
 
 	debug.Println("Creating service connections in", region)
 
