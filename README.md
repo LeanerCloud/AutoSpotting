@@ -7,6 +7,10 @@ only available in the commercial version of AutoSpotting, available on the AWS
 [Marketplace](https://aws.amazon.com/marketplace/pp/prodview-6uj4pruhgmun6). The only exception are security
 fixes, which will be patched in the Community Edition on a best effort basis.
 
+If you notice any issues in the Community Edition feel free to report them but they are not being worked on
+by LeanerCloud anymore. Chances are they are already solved in the Commercial Edition, so you may want to 
+try that out.
+
 Bug fixes and new features contributed by the community are welcome and will
 remain available in the Community Edition indefinitely.
 
@@ -33,7 +37,8 @@ The list of ehnancements in the Commercial edition is documented in detail
 | Savings reports email                                      | ❌                                  | ❌                                             | ✅                                 |
 | Relax EBS bandwidth checks for increased diversification   | N/A                                 | ❌                                             | ✅                                 |
 | Reuse ASG Launch Template when launching Spot instances    | N/A                                 | ❌                                             | ✅                                 |
-| Costs                                                      | Free (AWS Service)                  | Free and open source                           | 5% of savings from OnDemand        |
+| Support Autoscaling Groups with a Mixed Instances Policy   | ✅                                  | ❌ (silently fails for such groups)            | ✅                                 |
+| Costs                                                      | Free (AWS Service)                  | Free and open source                          | 5% of savings from OnDemand        |
 
 
 
