@@ -257,7 +257,7 @@ Usage of ./AutoSpotting:
   -allowed_instance_types="":
         If specified, the spot instances will be of these types.
         If missing, the type is autodetected frome each ASG based on it's Launch Configuration.
-        Accepts a list of comma or whitespace seperated instance types (supports globs).
+        Accepts a list of comma or whitespace separated instance types (supports globs).
         Example: ./AutoSpotting -allowed_instance_types 'c5.*,c4.xlarge'
 
   -bidding_policy="normal":
@@ -266,7 +266,7 @@ Usage of ./AutoSpotting:
 
   -disallowed_instance_types="":
         If specified, the spot instances will _never_ be of these types.
-        Accepts a list of comma or whitespace seperated instance types (supports globs).
+        Accepts a list of comma or whitespace separated instance types (supports globs).
         Example: ./AutoSpotting -disallowed_instance_types 't2.*,c4.xlarge'
 
   -min_on_demand_number=0:
